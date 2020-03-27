@@ -1,0 +1,60 @@
+{
+  "name": "gameon",
+  "version": "1.0.0",
+  "description": "backgammon",
+  "main": "index.js",
+  "scripts": {
+    "postpack": "rm -f oclif.manifest.json",
+    "lint": "eslint .",
+    "prepack": "oclif-dev manifest && oclif-dev readme",
+    "test": "nyc --reporter=text-summary mocha test/test.js && nyc report --reporter=lcov",
+    "version": "oclif-dev readme && git add README.md",
+    "dist": "oclif-dev pack",
+    "dist_and_publish": "oclif-dev pack && oclif-dev publish"
+  },
+  "license": "MIT",
+  "dependencies": {
+    "@oclif/command": "^1.5.14",
+    "@oclif/config": "^1.13.0",
+    "@oclif/plugin-help": "^2.2.1",
+    "@oclif/plugin-update": "^1.3.9",
+    "better-logging": "^3.5.0",
+    "chalk": "^2.4.2",
+    "inquirer": "^7.0.4",
+    "merge": "^1.2.1"
+  },
+  "devDependencies": {
+    "@oclif/dev-cli": "^1.22.0",
+    "@oclif/test": "^1.2.4",
+    "aws-sdk": "^2.466.0",
+    "chai": "^4.2.0",
+    "eslint": "^6.8.0",
+    "eslint-config-oclif": "^3.1.0",
+    "mocha": "^6.1.4",
+    "nyc": "^15.0.0"
+  },
+  "files": [
+    "/bin",
+    "/npm-shrinkwrap.json",
+    "/oclif.manifest.json",
+    "/src"
+  ],
+  "oclif": {
+    "commands": "./src/commands",
+    "bin": "gameon",
+    "plugins": [
+      "@oclif/plugin-help",
+      "@oclif/plugin-update"
+    ],
+    "topics": {},
+    "update": {
+      "s3": {
+        "bucket": "owings-gameon"
+      }
+    },
+    "macos": {
+      "identifier": "net.dougowings.gameon"
+    }
+  },
+  "author": "Doug Owings <doug@dougowings.net>"
+}
