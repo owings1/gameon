@@ -57,6 +57,15 @@ describe('Board', () => {
         })
     })
 
+	describe('#fromStateString', () => {
+
+		it('should return board whose state string is same as input for initial setup', () => {
+			const board = Board.fromStateString(InitialStateString)
+			const result = board.stateString()
+			expect(result).to.equal(InitialStateString)
+		})
+	})
+
     describe('#getWinner', () => {
 
         it('should return null for empty board', () => {
@@ -123,6 +132,15 @@ describe('Board', () => {
         })
     })
 
+	describe('#listSlotsWithColor', () => {
+		it('should return [5,7,12,23] for red on setup', () => {
+			const board = new Board
+			board.setup()
+			const result = board.listSlotsWithColor(Red)
+			const exp = [5, 7, 12, 23]
+			expect(JSON.stringify(result)).to.equal(JSON.stringify(exp))
+		})
+	})
     describe('#mayBearoff', () => {
 
         it('should return false for white with one on bar', () => {
@@ -343,7 +361,15 @@ describe('Board', () => {
         })
     })
 
+	describe('#toString', () => {
+
+		it('should return state string', () => {
+			const board = new Board
+			expect(board.toString()).to.equal(board.stateString())
+		})
+	})
 })
+
 describe('Dice', () => {
 
     const {Dice} = Lib

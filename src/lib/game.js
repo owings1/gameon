@@ -36,7 +36,7 @@ class Match extends Logger {
 
     constructor() {
         super()
-        this.board = new Board()
+        this.board = new Board
         this.board.setup()
         this.cubeOwner = null
         this.cubeValue = 1
@@ -57,6 +57,25 @@ class Turn extends Logger {
         this.faces = Dice.faces(this.roll)
     }
 
+    getPossibleMovesForFace(n) {
+        if (this.board.hasBar(this.color)) {
+            return [this.getMoveIfCanMove(-1, n)]
+        }
+        return this.board.listSlotsWithColor(this.color).map(i =>
+            this.getMoveIfCanMove(i, n)
+        ).filter(move => move != null)
+    }
+
+    getMoveIfCanMove(i, n) {
+        try {
+            return this.board.getMove(this.color, i, n)
+        } catch (err) {
+            if (!err.isIllegalMoveError) {
+                throw err
+            }
+            return null
+        }
+    }
     //.....
 }
 
@@ -94,40 +113,9 @@ class Board extends Logger {
         const j = i + n * Direction[color]
         const isBearoff = j < 0 || j > 23
         if (isBearoff) {
-            if (!this.mayBearoff(color)) {
-                throw new MayNotBearoffError(sp(color, 'may not bare off'))
-            }
-            // get distance to home
-            const homeDistance = Direction[color] == 1 ? 24 - i : i + 1
-            // make sure no piece is behind
-            if (n > homeDistance && this.hasPieceBehind(color, i)) {
-                throw new IllegalBareoffError(sp('cannot bear off with a piece behind'))
-            }
-            return {
-                do   : () => this.homes[color].push(slot.pop())
-              , undo : () => slot.push(this.homes[color].pop())
-            }
-        } else {
-            const dest = this.slots[j]
-            if (dest.length > 1 && dest[0].color != color) {
-                throw new OccupiedSlotError(sp(color, 'may not occupy space', j + 1))
-            }
-            const isHit = dest.length == 1 && dest[0].color != color
-            return {
-                do   : () => {
-                    if (isHit) {
-                        this.bars[Opponent[color]].push(dest.pop())
-                    }
-                    dest.push(slot.pop())
-                }
-              , undo : () => {
-                    slot.push(dest.pop())
-                    if (isHit) {
-                        dest.push(this.bars[Opponent[color]].pop())
-                    }
-                }
-            }
+            return this.buildBearOffMove(color, i, n)
         }
+        return this.buildRegularMove(color, i, n, j)
     }
 
     buildComeInMove(color, n) {
@@ -140,8 +128,59 @@ class Board extends Logger {
             throw new OccupiedSlotError(sp(color, 'cannot come in on space', i + 1))
         }
         return {
-            do   : () => slot.push(this.bars[color].pop())
-          , undo : () => this.bars[color].push(slot.pop())
+            n
+          , i        : -1
+          , isComeIn : true
+          , do       : () => slot.push(this.bars[color].pop())
+          , undo     : () => this.bars[color].push(slot.pop())
+        }
+    }
+
+    buildBearOffMove(color, i, n) {
+        if (!this.mayBearoff(color)) {
+            throw new MayNotBearoffError(sp(color, 'may not bare off'))
+        }
+        // get distance to home
+        const homeDistance = Direction[color] == 1 ? 24 - i : i + 1
+        // make sure no piece is behind
+        if (n > homeDistance && this.hasPieceBehind(color, i)) {
+            throw new IllegalBareoffError(sp('cannot bear off with a piece behind'))
+        }
+        const slot = this.slots[i]
+        return {
+            i
+          , n
+          , isBearoff : true
+          , do        : () => this.homes[color].push(slot.pop())
+          , undo      : () => slot.push(this.homes[color].pop())
+        }
+    }
+
+    buildRegularMove(color, i, n, j) {
+        const dest = this.slots[j]
+        if (dest.length > 1 && dest[0].color != color) {
+            throw new OccupiedSlotError(sp(color, 'may not occupy space', j + 1))
+        }
+        const slot = this.slots[i]
+        const isHit = dest.length == 1 && dest[0].color != color
+        return {
+            i
+          , n
+          , j
+          , isHit
+          , isRegular : true
+          , do        : () => {
+                if (isHit) {
+                    this.bars[Opponent[color]].push(dest.pop())
+                }
+                dest.push(slot.pop())
+            }
+          , undo      : () => {
+                slot.push(dest.pop())
+                if (isHit) {
+                    dest.push(this.bars[Opponent[color]].pop())
+                }
+            }
         }
     }
 
@@ -159,6 +198,12 @@ class Board extends Logger {
         return null
     }
 
+    listSlotsWithColor(color) {
+        return Object.keys(this.slots).filter(i =>
+            this.slots[i].length > 0 && this.slots[i][0].color == color
+        ).map(i => +i)
+    }
+
     clear() {
         this.slots = intRange(0, 23).map(i => [])
         this.bars  = {Red: [], White: []}
@@ -166,7 +211,7 @@ class Board extends Logger {
     }
 
     copy() {
-        const board = new Board()
+        const board = new Board
         board.slots = this.slots.map(it => it.slice(0))
         board.bars = {
             Red   : this.bars.Red.slice(0)
@@ -227,6 +272,23 @@ class Board extends Logger {
           , this.homes.Red.length
         ]).join('|')
     }
+
+    toString() {
+        return this.stateString()
+    }
+
+    static fromStateString(str) {
+        const locs = str.split('|')
+        const board = new Board
+        board.bars.White = Piece.make(locs[0], White)
+        board.bars.Red = Piece.make(locs[1], Red)
+        for (var i = 0; i < 24; i++) {
+            board.slots[i] = Piece.make(...locs[i + 2].split(':'))
+        }
+        board.homes.White = Piece.make(locs[26], White)
+        board.homes.Red = Piece.make(locs[27], Red)
+        return board
+    }
 }
 
 class Piece {
@@ -237,7 +299,7 @@ class Piece {
     }
 
     static make(n, color) {
-        return intRange(0, n - 1).map(i => new Piece(color))
+        return intRange(0, +n - 1).map(i => new Piece(color))
     }
 }
 
