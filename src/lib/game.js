@@ -43,6 +43,24 @@ class Match extends Logger {
     }
 }
 
+class Turn extends Logger {
+
+    constructor(board, color) {
+        super()
+        this.board = board
+        this.color = color
+        this.moves = []
+    }
+
+    roll() {
+        this.roll = Dice.rollTwo()
+        this.faces = Dice.faces(this.roll)
+    }
+
+    //.....
+}
+
+
 class Board extends Logger {
 
     constructor() {
