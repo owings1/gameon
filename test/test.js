@@ -28,17 +28,221 @@ describe('Turn', () => {
 
 	const {Turn, Board, Piece} = Lib
 
+    // with 2,4 white has to come in on the 4
+    const WhiteCornerCase24 = '1|0|0:|0:|2:Red|0:|0:|2:Red|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|1:White|0:|0:|0|0'
+    // with 2,6 white has to move its rearmost piece(i:14) 2 then 6. it cannot move its middle piece(i:17) 2 first
+    const WhiteCornerCase26 = '0|0|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|1:White|0:|0:|1:White|0:|0:|2:Red|0:|0:|2:Red|0|0'
+    // with 1,6 white must take the 6, even though the 6 point is un-occupied
+    const WhiteCornerCase16 = '0|0|2:White|2:Red|0:|0:|0:|0:|2:Red|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|1:White|0:|0:|0:|0:|0:|0:|0|0'
 
+    describe('#assertIsRolled', () => {
+
+        it('should throw IllegalStateError for new turn', () => {
+            const turn = new Turn(new Board, White)
+            const err = getError(() => turn.assertIsRolled())
+            expect(err.name).to.equal('IllegalStateError')
+        })
+    })
+
+    describe('#assertNotFinished', () => {
+
+        it('should throw IllegalStateError when isFinished=true', () => {
+            const turn = new Turn(new Board, White)
+            turn.isFinished = true
+            const err = getError(() => turn.assertNotFinished())
+            expect(err.name).to.equal('IllegalStateError')
+        })
+    })
+
+    describe('#assertNotRolled', () => {
+
+        it('should throw IllegalStateError after roll', () => {
+            const turn = new Turn(new Board, White)
+            turn.roll()
+            const err = getError(() => turn.assertNotRolled())
+            expect(err.name).to.equal('IllegalStateError')
+        })
+    })
+
+    describe('#finish', () => {
+
+        it('should allow after setRoll 6,6 for white on bar with setup board', () => {
+            const board = Board.setup()
+            board.bars.White.push(board.slots[0].pop())
+            const turn = new Turn(board, White)
+            turn.setRoll([6, 6])
+            turn.finish()
+        })
+
+        it('should throw MovesRemainingError after one move for [2, 1]', () => {
+            const turn = new Turn(Board.setup(), Red)
+            turn.setRoll([2, 1])
+            turn.move(23, 2)
+            const err = getError(() => turn.finish())
+            expect(err.name).to.equal('MovesRemainingError')
+        })
+    })
+
+    describe('#move', () => {
+
+
+        it('should move Red 3,1 to 5 point with expected state', () => {
+            const bexp = Board.setup()
+            bexp.slots[4].push(bexp.slots[7].pop())
+            bexp.slots[4].push(bexp.slots[5].pop())
+            const exp = bexp.stateString()
+
+            const board = Board.setup()
+            const turn = new Turn(board, Red)
+            turn.setRoll([3, 1])
+            turn.move(7, 3)
+            turn.move(5, 1)
+            turn.finish()
+
+            expect(board.stateString()).to.equal(exp)
+        })
+
+        it('should not move a 4 when it was not rolled', () => {
+            const turn = new Turn(Board.setup(), White)
+            turn.setRoll([5, 2])
+            const err = getError(() => turn.move(0, 4))
+            expect(err.isIllegalMoveError).to.equal(true)
+        })
+
+        it('should throw NoMovesRemainingError for a third move on roll [3, 4]', () => {
+            const turn = new Turn(Board.setup(), Red)
+            turn.setRoll([3, 4])
+            turn.move(23, 4)
+            turn.move(23, 3)
+            const err = getError(() => turn.move(20, 3))
+            expect(err.name).to.equal('NoMovesRemainingError')
+        })
+
+        it('should allow come in on 4 for WhiteCornerCase24', () => {
+            const turn = new Turn(Board.fromStateString(WhiteCornerCase24), White)
+            turn.setRoll([2, 4])
+            turn.move(-1, 4)
+        })
+
+        it('should not allow come in on 2 for WhiteCornerCase24', () => {
+            const turn = new Turn(Board.fromStateString(WhiteCornerCase24), White)
+            turn.setRoll([2, 4])
+            const err = getError(() => turn.move(-1, 2))
+            expect(err.isIllegalMoveError).to.equal(true)
+        })
+
+        it('should allow white to move i:14 2, i:16 6 for WhiteCornerCase26', () => {
+            const board = Board.fromStateString(WhiteCornerCase26)
+            const turn = new Turn(board, White)
+            turn.setRoll([2, 6])
+            turn.move(14, 2)
+            turn.move(16, 6)
+            turn.finish()
+        })
+
+        it('should not allow white to move i:17 2 for WhiteCornerCase26', () => {
+            const board = Board.fromStateString(WhiteCornerCase26)
+            const turn = new Turn(board, White)
+            turn.setRoll([2, 6])
+            const err = getError(() => turn.move(17, 2))
+            expect(err.isIllegalMoveError).to.equal(true)
+        })
+
+        it('should allow white to take the 6 and finish for WhiteCornerCase16', () => {
+            const board = Board.fromStateString(WhiteCornerCase16)
+            const turn = new Turn(board, White)
+            turn.setRoll([1, 6])
+            turn.move(17, 6)
+            turn.finish()
+        })
+
+        it('should not allow white to take the 1 for WhiteCornerCase16', () => {
+            const board = Board.fromStateString(WhiteCornerCase16)
+            const turn = new Turn(board, White)
+            turn.setRoll([1, 6])
+            const err = getError(() => turn.move(17, 1))
+            expect(err.isIllegalMoveError).to.equal(true)
+        })
+    })
 
 	describe('#roll', () => {
-		it('should set roll and faces', () => {
+
+		it('should set dice and faces', () => {
 			const board = new Board
 			const turn = new Turn(board, White)
 			turn.roll()
-			expect(turn.roll).to.have.length(2)
+			expect(turn.dice).to.have.length(2)
 			expect(turn.faces.length).to.be.greaterThan(1)
 		})
 	})
+
+    describe('#setDoubleDeclined', () => {
+
+        it('should throw IllegalStateError if double has not been offered', () => {
+            const turn = new Turn(Board.setup(), White)
+            const err = getError(() => turn.setDoubleDeclined())
+            expect(err.name).to.equal('IllegalStateError')
+        })
+
+        it('should finish turn', () => {
+            const turn = new Turn(Board.setup(), White)
+            turn.setDoubleOffered()
+            turn.setDoubleDeclined()
+            expect(turn.isFinished).to.equal(true)
+        })
+    })
+
+    describe('#setDoubleOffered', () => {
+
+        it('should throw IllegalStateError if already rolled', () => {
+            const turn = new Turn(Board.setup(), White)
+            turn.roll()
+            const err = getError(() => turn.setDoubleOffered())
+            expect(err.name).to.equal('IllegalStateError')
+        })
+
+        it('should set isDoubleOffered=true if not already rolled', () => {
+            const turn = new Turn(Board.setup(), White)
+            turn.setDoubleOffered()
+            expect(turn.isDoubleOffered).to.equal(true)
+        })
+    })
+
+    describe('#unmove', () => {
+
+        it('should throw NoMovesMadeError before any move is made', () => {
+            const turn = new Turn(Board.setup(), White)
+            turn.roll()
+            const err = getError(() => turn.unmove())
+            expect(err.name).to.equal('NoMovesMadeError')
+        })
+
+        it('should undo second move to end up with 5 point for red for 3,1', () => {
+            const turn = new Turn(Board.setup(), Red)
+            turn.setRoll([3, 1])
+            turn.move(5, 1)
+            turn.move(23, 3)
+            turn.unmove()
+            turn.move(7, 3)
+            turn.finish()
+            expect(turn.board.slots[4]).to.have.length(2)
+            expect(turn.board.slots[4][0].color).to.equal(Red)
+        })
+
+        it('should undo both moves to end up with 5 point for red for 3,1', () => {
+            const turn = new Turn(Board.setup(), Red)
+            turn.setRoll([3, 1])
+            turn.move(5, 1)
+            turn.move(23, 3)
+            turn.unmove()
+            turn.unmove()
+            turn.move(5, 1)
+            turn.move(7, 3)
+            turn.finish()
+            expect(turn.board.slots[4]).to.have.length(2)
+            expect(turn.board.slots[4][0].color).to.equal(Red)
+        })
+    })
 })
 
 describe('Board', () => {
@@ -85,16 +289,16 @@ describe('Board', () => {
 
 	describe('#getPossibleMovesForFace', () => {
 
-		it('should return singleton isComeIn n=2 for face=2 with white from bar on sparse board', () => {
+		it('should return singleton isComeIn face=2 with white from bar on sparse board', () => {
 			const board = new Board
 			board.bars.White = Piece.make(1, White)
 			const result = board.getPossibleMovesForFace(White, 2)
 			expect(result).to.have.length(1)
 			expect(result[0].isComeIn).to.equal(true)
-			expect(result[0].n).to.equal(2)
+			expect(result[0].face).to.equal(2)
 		})
 
-		it('should return empty for white n=5 with one on 0 and red 2 on 5', () => {
+		it('should return empty for white face=5 with one on 0 and red 2 on 5', () => {
 			const board = new Board
 			board.slots[0] = Piece.make(1, White)
 			board.slots[5] = Piece.make(2, Red)
@@ -237,19 +441,19 @@ describe('Board', () => {
             expect(err.name).to.equal('NoPieceOnBarError')
         })
 
-        it('should comein to n=1 for white with bar', () => {
+        it('should comein to face=1 for white with bar', () => {
             board.bars.White.push(board.slots[0].pop())
             board.move(White, -1, 1)
             expect(board.slots[0]).to.have.length(2)
         })
 
-        it('should comein to n=1 for red with bar', () => {
+        it('should comein to face=1 for red with bar', () => {
             board.bars.Red.push(board.slots[23].pop())
             board.move(Red, -1, 1)
             expect(board.slots[23]).to.have.length(2)
         })
 
-        it('should not comein to n=6 for white with bar as OccupiedSlotError', () => {
+        it('should not comein to face=6 for white with bar as OccupiedSlotError', () => {
             board.bars.White.push(board.slots[0].pop())
             const err = getError(() => board.move(White, -1, 6))
             expect(err.name).to.equal('OccupiedSlotError')
@@ -286,7 +490,7 @@ describe('Board', () => {
             expect(board.homes.White).to.have.length(1)
         })
 
-        it('should bear off white from 5 point on n=5 with other pieces on 6 point', () => {
+        it('should bear off white from 5 point on face=5 with other pieces on 6 point', () => {
             board.slots[19] = board.slots[0].splice(0).concat(
                 board.slots[11].splice(0),
                 board.slots[16].splice(0)
@@ -296,7 +500,7 @@ describe('Board', () => {
             expect(board.homes.White).to.have.length(1)
         })
 
-        it('should bear off red from 5 point on n=5 with other pieces on 6 point', () => {
+        it('should bear off red from 5 point on face=5 with other pieces on 6 point', () => {
             board.slots[4] = board.slots[23].splice(0).concat(
                 board.slots[12].splice(0),
                 board.slots[7].splice(0)
@@ -306,7 +510,7 @@ describe('Board', () => {
             expect(board.homes.Red).to.have.length(1)
         })
 
-        it('should not bear off white with n=6 from 5 point with piece behind as IllegalBareoffError', () => {
+        it('should not bear off white with face=6 from 5 point with piece behind as IllegalBareoffError', () => {
             board.slots[19] = board.slots[0].splice(0).concat(
                 board.slots[11].splice(0),
                 board.slots[16].splice(0)
@@ -315,7 +519,7 @@ describe('Board', () => {
             expect(err.name).to.equal('IllegalBareoffError')
         })
 
-        it('should not bear off red with n=6 from 5 point with piece behind as IllegalBareoffError', () => {
+        it('should not bear off red with face=6 from 5 point with piece behind as IllegalBareoffError', () => {
             board.slots[4] = board.slots[23].splice(0).concat(
                 board.slots[12].splice(0),
                 board.slots[7].splice(0)
@@ -423,7 +627,7 @@ describe('SequenceTree', () => {
 
     describe('#buildNodes', () => {
 
-        it('should return 2 nodes, original state and regular move from i:0 to i:1 for sparse board with sequence [1]', () => {
+        it('should return 2 nodes, original state and regular move from origin:0 to dest:1 for sparse board with sequence [1]', () => {
 
             const board = new Board
             board.slots[0] = Piece.make(5, White)
@@ -452,8 +656,8 @@ describe('SequenceTree', () => {
             const move = nodes[1].thisMove
             expect(move).to.equal(nodes[0].nextMoves[0])
             expect(move.isRegular).to.equal(true)
-            expect(move.i).to.equal(0)
-            expect(move.n).to.equal(1)
+            expect(move.origin).to.equal(0)
+            expect(move.face).to.equal(1)
 
             const expBoard = new Board
             expBoard.slots[0] = Piece.make(4, White)
@@ -507,9 +711,43 @@ describe('SequenceTree', () => {
 
     })
 })
+
 describe('Dice', () => {
 
     const {Dice} = Lib
+
+    describe('#checkOne', () => {
+
+        it('should throw InvalidRollError for decimal', () => {
+            const err = getError(() => Dice.checkOne(1.2))
+            expect(err.name).to.equal('InvalidRollError')
+        })
+    })
+
+    describe('#checkTwo', () => {
+
+        it('should throw InvalidRollError for [1, 2, 3]', () => {
+            const err = getError(() => Dice.checkTwo([1, 2, 3]))
+            expect(err.name).to.equal('InvalidRollError')
+        })
+
+        it('should pass for [5, 4]', () => {
+            Dice.checkTwo([5, 4])
+        })
+    })
+
+    describe('#faces', () => {
+
+        it('should return [1, 2] for [1, 2]', () => {
+            const result = Dice.faces([1, 2])
+            expect(JSON.stringify(result)).to.equal(JSON.stringify([1, 2]))
+        })
+
+        it('should return [5, 5, 5, 5] for [5, 5]', () => {
+            const result = Dice.faces([5, 5])
+            expect(JSON.stringify(result)).to.equal(JSON.stringify([5, 5, 5, 5]))
+        })
+    })
 
     describe('#rollOne', () => {
 
@@ -537,19 +775,6 @@ describe('Dice', () => {
                 expect(result[1]).to.be.greaterThan(0)
                 expect(result[1]).to.be.lessThan(7)
             }
-        })
-    })
-
-    describe('#faces', () => {
-
-        it('should return [1, 2] for [1, 2]', () => {
-            const result = Dice.faces([1, 2])
-            expect(JSON.stringify(result)).to.equal(JSON.stringify([1, 2]))
-        })
-
-        it('should return [5, 5, 5, 5] for [5, 5]', () => {
-            const result = Dice.faces([5, 5])
-            expect(JSON.stringify(result)).to.equal(JSON.stringify([5, 5, 5, 5]))
         })
     })
 

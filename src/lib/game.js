@@ -50,14 +50,151 @@ class Turn extends Logger {
         this.board = board
         this.color = color
         this.moves = []
-        this.roll = null
-        this.hasRolled = false
+        this.rolled = null
+        this.isDoubleOffered = false
+        this.isRolled = false
+        this.isFinished = false
+    }
+
+    setDoubleOffered() {
+
+        this.assertNotFinished()
+        this.assertNotRolled()
+
+        this.isDoubleOffered = true
+    }
+
+    setDoubleDeclined() {
+
+        this.assertNotFinished()
+        if (!this.isDoubleOffered) {
+            throw new IllegalStateError(sp(this.color, 'has not doubled'))
+        }
+
+        this.isDoubleDeclined = true
+        this.isFinished = true
+    }
+
+    setRoll(dice) {
+
+        this.assertNotFinished()
+        this.assertNotRolled()
+
+        Dice.checkTwo(dice)
+        this.dice = dice
+        this.isRolled = true
+
+        this.afterRoll()
     }
 
     roll() {
-        this.roll = Dice.rollTwo()
-        this.faces = Dice.faces(this.roll)
-        this.hasRolled = true
+
+        this.assertNotFinished()
+        this.assertNotRolled()
+
+        this.dice = Dice.rollTwo()
+        this.isRolled = true
+
+        this.afterRoll()
+    }
+
+    afterRoll() {
+
+        this.assertNotFinished()
+        this.assertIsRolled()
+
+        this.faces = Dice.faces(this.dice)
+
+        const trees = Dice.sequencesForFaces(this.faces).map(sequence =>
+            SequenceTree.build(this.board, this.color, sequence)
+        )
+        const maxDepth = Math.max(...trees.map(tree => tree.depth))
+
+        // trees that use the most number of faces
+        const fullestTrees = trees.filter(tree => maxDepth > 0 && tree.depth == maxDepth)
+
+        // branches that use the most number of faces
+        const fullestBranches = []
+        fullestTrees.forEach(tree => {
+            tree.branches.filter(branch => branch.length - 1 == maxDepth).forEach(branch => {
+                fullestBranches.push(branch)
+            })
+        })
+        // the highest face of nodes of the fullest branches
+        const maxFace = Math.max(...fullestBranches.map(branch => Math.max(...branch.map(node => node.thisFace ))))
+        // branches that use the highest face
+        const allowedBranches = fullestBranches.filter(branch => branch.find(node => node.thisFace == maxFace))
+
+        // TODO: de-duplicate
+        this.allowedMoveSeries = allowedBranches.map(branch =>
+            branch.slice(1).map(node => node.thisMove)
+        )
+        this.allowedMoveCount = maxDepth
+        if (this.allowedMoveCount == 0) {
+            this.finish()
+        }
+    }
+
+    getNextAvaliableMoves() {
+        return this.allowedMoveSeries.filter(allowedMoves => {
+            // compare the first parts of allowedMoves to this.moves
+            const subSeriesA = allowedMoves.slice(0, this.moves.length).map(move => [move.origin, move.face])
+            const subSeriesB = this.moves.map(move => [move.origin, move.face])
+            return JSON.stringify(subSeriesA) == JSON.stringify(subSeriesB)
+        }).map(moves => moves[this.moves.length]).filter(it => it != undefined)
+    }
+
+    move(origin, face) {
+        this.assertNotFinished()
+        this.assertIsRolled()
+        const nextMoves = this.getNextAvaliableMoves()
+        if (nextMoves.length == 0) {
+            throw new NoMovesRemainingError(sp(this.color, 'has no more moves to do'))
+        }
+        const matchingMove = nextMoves.find(move => move.origin == origin && move.face == face)
+        if (!matchingMove) {
+            // TODO: explain why it's not availble, if building the move fails, show that error
+            throw new IllegalMoveError(sp('move not available for', this.color))
+        }
+        const move = this.board.move(this.color, origin, face)
+        this.moves.push(move)
+    }
+
+    unmove() {
+        this.assertNotFinished()
+        if (this.moves.length == 0) {
+            throw new NoMovesMadeError(sp(this.color, 'has no moves to undo'))
+        }
+        this.moves.pop().undo()
+    }
+
+    finish() {
+        if (this.isFinished) {
+            return
+        }
+        this.assertIsRolled()
+        if (this.moves.length != this.allowedMoveCount) {
+            throw new MovesRemainingError(sp(this.color, 'has more moves to do'))
+        }
+        this.isFinished = true
+    }
+
+    assertNotFinished() {
+        if (this.isFinished) {
+            throw new IllegalStateError(sp('turn is already finished for', this.color))
+        }
+    }
+
+    assertIsRolled() {
+        if (!this.isRolled) {
+            throw new IllegalStateError(sp(this.color, 'has not rolled'))
+        }
+    }
+
+    assertNotRolled() {
+        if (this.isRolled) {
+            throw new IllegalStateError(sp(this.color, 'has already rolled'))
+        }
     }
 }
 
@@ -149,24 +286,24 @@ class Board extends Logger {
         return board
     }
 
-    move(color, i, n) {
-        const move = this.buildMove(color, i, n)
+    move(color, origin, face) {
+        const move = this.buildMove(color, origin, face)
         move.do()
         return move
     }
 
-    getPossibleMovesForFace(color, n) {
+    getPossibleMovesForFace(color, face) {
         if (this.hasBar(color)) {
-            return [this.getMoveIfCanMove(color, -1, n)].filter(move => move != null)
+            return [this.getMoveIfCanMove(color, -1, face)].filter(move => move != null)
         }
-        return this.listSlotsWithColor(color).map(i =>
-            this.getMoveIfCanMove(color, i, n)
+        return this.listSlotsWithColor(color).map(origin =>
+            this.getMoveIfCanMove(color, origin, face)
         ).filter(move => move != null)
     }
 
-    getMoveIfCanMove(color, i, n) {
+    getMoveIfCanMove(color, origin, face) {
         try {
-            return this.buildMove(color, i, n)
+            return this.buildMove(color, origin, face)
         } catch (err) {
             if (!err.isIllegalMoveError) {
                 throw err
@@ -175,29 +312,24 @@ class Board extends Logger {
         }
     }
 
-    buildMove(color, i, n) {
-        if (n > 6) {
-            throw new InvalidRollError('cannot advance more than 6 spaces')
-        }
-        if (n < 1) {
-            throw new InvalidRollError('cannot advance less than 1 space')
-        }
-        if (i == -1) {
-            return new ComeInMove(this, color, n)
+    buildMove(color, origin, face) {
+        Dice.checkOne(face)
+        if (origin == -1) {
+            return new ComeInMove(this, color, face)
         }
         if (this.hasBar(color)) {
             throw new PieceOnBarError(sp(color, 'has a piece on the bar'))
         }
-        const slot = this.slots[i]
+        const slot = this.slots[origin]
         if (slot.length < 1 || slot[0].color != color) {
-            throw new NoPieceOnSlotError(sp(color, 'does not have a piece on slot', i + 1))
+            throw new NoPieceOnSlotError(sp(color, 'does not have a piece on slot', origin + 1))
         }
-        const j = i + n * Direction[color]
-        const isBearoff = j < 0 || j > 23
+        const dest = origin + face * Direction[color]
+        const isBearoff = dest < 0 || dest > 23
         if (isBearoff) {
-            return new BearoffMove(this, color, i, n)
+            return new BearoffMove(this, color, origin, face)
         }
-        return new RegularMove(this, color, i, n, j)
+        return new RegularMove(this, color, origin, face)
     }
 
     hasWinner() {
@@ -309,31 +441,31 @@ class Board extends Logger {
 
 class Move {
 
-    constructor(board, color, i, n) {
+    constructor(board, color, origin, face) {
         this.board = board
         this.color = color
-        this.i = i
-        this.n = n
+        this.origin = origin
+        this.face = face
     }
 }
 
 class ComeInMove extends Move {
 
-    constructor(board, color, n) {
+    constructor(board, color, face) {
 
         if (!board.hasBar(color)) {
             throw new NoPieceOnBarError(sp(color, 'does not have a piece on the bar'))
         }
-        const destIndex = Direction[color] == 1 ? n - 1 : 24 - n
-        const slot = board.slots[destIndex]
+        const dest = Direction[color] == 1 ? face - 1 : 24 - face
+        const slot = board.slots[dest]
         if (slot.length > 1 && slot[0].color != color) {
-            throw new OccupiedSlotError(sp(color, 'cannot come in on space', destIndex + 1))
+            throw new OccupiedSlotError(sp(color, 'cannot come in on space', dest + 1))
         }
 
-        super(board, color, -1, n)
+        super(board, color, -1, face)
 
         this.isComeIn = true
-        this.destIndex = destIndex
+        this.dest = dest
     }
 
     do() {
@@ -349,25 +481,25 @@ class ComeInMove extends Move {
     }
 
     getDestSlot() {
-        return this.board.slots[this.destIndex]
+        return this.board.slots[this.dest]
     }
 }
 
 class BearoffMove extends Move {
 
-    constructor(board, color, i, n) {
+    constructor(board, color, origin, face) {
 
         if (!board.mayBearoff(color)) {
             throw new MayNotBearoffError(sp(color, 'may not bare off'))
         }
         // get distance to home
-        const homeDistance = Direction[color] == 1 ? 24 - i : i + 1
+        const homeDistance = Direction[color] == 1 ? 24 - origin : origin + 1
         // make sure no piece is behind
-        if (n > homeDistance && board.hasPieceBehind(color, i)) {
+        if (face > homeDistance && board.hasPieceBehind(color, origin)) {
             throw new IllegalBareoffError(sp('cannot bear off with a piece behind'))
         }
 
-        super(board, color, i, n)
+        super(board, color, origin, face)
 
         this.isBearoff = true
     }
@@ -381,7 +513,7 @@ class BearoffMove extends Move {
     }
 
     getOriginSlot() {
-        return this.board.slots[this.i]
+        return this.board.slots[this.origin]
     }
 
     getHome() {
@@ -391,19 +523,20 @@ class BearoffMove extends Move {
 
 class RegularMove extends Move {
 
-    constructor(board, color, i, n, j) {
+    constructor(board, color, origin, face) {
 
-        const dest = board.slots[j]
+        const dest = origin + face * Direction[color]
+        const destSlot = board.slots[dest]
 
-        if (dest.length > 1 && dest[0].color != color) {
-            throw new OccupiedSlotError(sp(color, 'may not occupy space', j + 1))
+        if (destSlot.length > 1 && destSlot[0].color != color) {
+            throw new OccupiedSlotError(sp(color, 'may not occupy space', dest + 1))
         }
 
-        super(board, color, i, n)
+        super(board, color, origin, face)
 
-        this.j = j
+        this.dest = dest
         this.isRegular = true
-        this.isHit = dest.length == 1 && dest[0].color != color
+        this.isHit = destSlot.length == 1 && destSlot[0].color != color
     }
 
     do() {
@@ -421,11 +554,11 @@ class RegularMove extends Move {
     }
 
     getOriginSlot() {
-        return this.board.slots[this.i]
+        return this.board.slots[this.origin]
     }
 
     getDestSlot() {
-        return this.board.slots[this.j]
+        return this.board.slots[this.dest]
     }
 
     getOpponentBar() {
@@ -460,6 +593,26 @@ class Dice {
             return roll.concat(roll)
         }
         return roll
+    }
+
+    static checkOne(face) {
+        if (!Number.isInteger(face)) {
+            throw new InvalidRollError('die face must be an integer')
+        }
+        if (face > 6) {
+            throw new InvalidRollError('die face cannot be greater than 6')
+        }
+        if (face < 1) {
+            throw new InvalidRollError('die face cannot be less than 1')
+        }
+    }
+
+    static checkTwo(faces) {
+        Dice.checkOne(faces[0])
+        Dice.checkOne(faces[1])
+        if (faces.length > 2) {
+            throw new InvalidRollError('more than two dice not allowed')
+        }
     }
 
     static sequencesForFaces(faces) {
@@ -500,5 +653,8 @@ class NoPieceOnSlotError extends IllegalMoveError {}
 class MayNotBearoffError extends IllegalMoveError {}
 class IllegalBareoffError extends IllegalMoveError {}
 class OccupiedSlotError extends IllegalMoveError {}
+class NoMovesRemainingError extends IllegalMoveError {}
+class NoMovesMadeError extends IllegalMoveError {}
+class MovesRemainingError extends IllegalMoveError {}
 
 module.exports = {Match, Board, SequenceTree, BoardNode, Piece, Dice, Turn}
