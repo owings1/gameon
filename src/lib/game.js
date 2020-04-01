@@ -50,35 +50,91 @@ class Turn extends Logger {
         this.board = board
         this.color = color
         this.moves = []
+        this.roll = null
+        this.hasRolled = false
     }
 
     roll() {
         this.roll = Dice.rollTwo()
         this.faces = Dice.faces(this.roll)
+        this.hasRolled = true
     }
-
-    getPossibleMovesForFace(n) {
-        if (this.board.hasBar(this.color)) {
-            return [this.getMoveIfCanMove(-1, n)]
-        }
-        return this.board.listSlotsWithColor(this.color).map(i =>
-            this.getMoveIfCanMove(i, n)
-        ).filter(move => move != null)
-    }
-
-    getMoveIfCanMove(i, n) {
-        try {
-            return this.board.getMove(this.color, i, n)
-        } catch (err) {
-            if (!err.isIllegalMoveError) {
-                throw err
-            }
-            return null
-        }
-    }
-    //.....
 }
 
+class SequenceTree {
+
+    constructor(board, color, sequence) {
+        this.board = board
+        this.color = color
+        this.sequence = sequence
+        this.nodes = null
+        this.branches = null
+        this.depth = -1
+    }
+
+    build() {
+        this.nodes = SequenceTree.buildNodes(this.board, this.color, this.sequence)
+        this.depth = Math.max(...this.nodes.map(node => node.depth))
+        this.leaves = this.nodes.filter(node => node.depth == this.depth)
+        this.branches = SequenceTree.buildBranchesForLeaves(this.leaves)
+    }
+
+    static build(board, color, sequence) {
+        const tree = new SequenceTree(board, color, sequence)
+        tree.build()
+        return tree
+    }
+
+    static buildBranchesForLeaves(leaves) {
+        const branches = []
+        leaves.forEach(leaf => {
+            const branch = [leaf]
+            for (var node = leaf; node.parent; node = node.parent) {
+                branch.unshift(node.parent)
+            }
+            branches.push(branch)
+        })
+        return branches
+    }
+
+    static buildNodes(board, color, sequence) {
+
+        const nodes = [new BoardNode(board, 0, null)]
+
+        sequence.forEach((face, seqi) => {
+            const depth = seqi + 1
+            nodes.filter(n => n.depth == depth - 1).forEach(parentNode => {
+                parentNode.nextFace = face
+                parentNode.nextMoves = parentNode.board.getPossibleMovesForFace(color, face)
+                parentNode.nextMoves.forEach(move => {
+                    move.board = move.board.copy()
+                    move.do()
+                    const childNode = new BoardNode(move.board, depth, parentNode)
+                    childNode.thisMove = move
+                    childNode.thisFace = face
+                    parentNode.children.push(childNode)
+                    nodes.push(childNode)
+                })
+            })
+        })
+
+        return nodes
+    }
+}
+
+class BoardNode {
+
+    constructor(board, depth, parent) {
+        this.board = board
+        this.depth = depth
+        this.parent = parent
+        this.children = []
+        this.thisFace = null
+        this.thisMove = null
+        this.nextFace = null
+        this.nextMoves = null
+    }
+}
 
 class Board extends Logger {
 
@@ -87,10 +143,36 @@ class Board extends Logger {
         this.clear()
     }
 
+    static setup() {
+        const board = new Board
+        board.setup()
+        return board
+    }
+
     move(color, i, n) {
         const move = this.buildMove(color, i, n)
         move.do()
         return move
+    }
+
+    getPossibleMovesForFace(color, n) {
+        if (this.hasBar(color)) {
+            return [this.getMoveIfCanMove(color, -1, n)].filter(move => move != null)
+        }
+        return this.listSlotsWithColor(color).map(i =>
+            this.getMoveIfCanMove(color, i, n)
+        ).filter(move => move != null)
+    }
+
+    getMoveIfCanMove(color, i, n) {
+        try {
+            return this.buildMove(color, i, n)
+        } catch (err) {
+            if (!err.isIllegalMoveError) {
+                throw err
+            }
+            return null
+        }
     }
 
     buildMove(color, i, n) {
@@ -101,7 +183,7 @@ class Board extends Logger {
             throw new InvalidRollError('cannot advance less than 1 space')
         }
         if (i == -1) {
-            return this.buildComeInMove(color, n)
+            return new ComeInMove(this, color, n)
         }
         if (this.hasBar(color)) {
             throw new PieceOnBarError(sp(color, 'has a piece on the bar'))
@@ -113,75 +195,9 @@ class Board extends Logger {
         const j = i + n * Direction[color]
         const isBearoff = j < 0 || j > 23
         if (isBearoff) {
-            return this.buildBearOffMove(color, i, n)
+            return new BearoffMove(this, color, i, n)
         }
-        return this.buildRegularMove(color, i, n, j)
-    }
-
-    buildComeInMove(color, n) {
-        if (!this.hasBar(color)) {
-            throw new NoPieceOnBarError(sp(color, 'does not have a piece on the bar'))
-        }
-        const i = Direction[color] == 1 ? n - 1 : 24 - n
-        const slot = this.slots[i]
-        if (slot.length > 1 && slot[0].color != color) {
-            throw new OccupiedSlotError(sp(color, 'cannot come in on space', i + 1))
-        }
-        return {
-            n
-          , i        : -1
-          , isComeIn : true
-          , do       : () => slot.push(this.bars[color].pop())
-          , undo     : () => this.bars[color].push(slot.pop())
-        }
-    }
-
-    buildBearOffMove(color, i, n) {
-        if (!this.mayBearoff(color)) {
-            throw new MayNotBearoffError(sp(color, 'may not bare off'))
-        }
-        // get distance to home
-        const homeDistance = Direction[color] == 1 ? 24 - i : i + 1
-        // make sure no piece is behind
-        if (n > homeDistance && this.hasPieceBehind(color, i)) {
-            throw new IllegalBareoffError(sp('cannot bear off with a piece behind'))
-        }
-        const slot = this.slots[i]
-        return {
-            i
-          , n
-          , isBearoff : true
-          , do        : () => this.homes[color].push(slot.pop())
-          , undo      : () => slot.push(this.homes[color].pop())
-        }
-    }
-
-    buildRegularMove(color, i, n, j) {
-        const dest = this.slots[j]
-        if (dest.length > 1 && dest[0].color != color) {
-            throw new OccupiedSlotError(sp(color, 'may not occupy space', j + 1))
-        }
-        const slot = this.slots[i]
-        const isHit = dest.length == 1 && dest[0].color != color
-        return {
-            i
-          , n
-          , j
-          , isHit
-          , isRegular : true
-          , do        : () => {
-                if (isHit) {
-                    this.bars[Opponent[color]].push(dest.pop())
-                }
-                dest.push(slot.pop())
-            }
-          , undo      : () => {
-                slot.push(dest.pop())
-                if (isHit) {
-                    dest.push(this.bars[Opponent[color]].pop())
-                }
-            }
-        }
+        return new RegularMove(this, color, i, n, j)
     }
 
     hasWinner() {
@@ -291,6 +307,132 @@ class Board extends Logger {
     }
 }
 
+class Move {
+
+    constructor(board, color, i, n) {
+        this.board = board
+        this.color = color
+        this.i = i
+        this.n = n
+    }
+}
+
+class ComeInMove extends Move {
+
+    constructor(board, color, n) {
+
+        if (!board.hasBar(color)) {
+            throw new NoPieceOnBarError(sp(color, 'does not have a piece on the bar'))
+        }
+        const destIndex = Direction[color] == 1 ? n - 1 : 24 - n
+        const slot = board.slots[destIndex]
+        if (slot.length > 1 && slot[0].color != color) {
+            throw new OccupiedSlotError(sp(color, 'cannot come in on space', destIndex + 1))
+        }
+
+        super(board, color, -1, n)
+
+        this.isComeIn = true
+        this.destIndex = destIndex
+    }
+
+    do() {
+        this.getDestSlot().push(this.getBar().pop())
+    }
+
+    undo() {
+        this.getBar().push(this.getDestSlot().pop())
+    }
+
+    getBar() {
+        return this.board.bars[this.color]
+    }
+
+    getDestSlot() {
+        return this.board.slots[this.destIndex]
+    }
+}
+
+class BearoffMove extends Move {
+
+    constructor(board, color, i, n) {
+
+        if (!board.mayBearoff(color)) {
+            throw new MayNotBearoffError(sp(color, 'may not bare off'))
+        }
+        // get distance to home
+        const homeDistance = Direction[color] == 1 ? 24 - i : i + 1
+        // make sure no piece is behind
+        if (n > homeDistance && board.hasPieceBehind(color, i)) {
+            throw new IllegalBareoffError(sp('cannot bear off with a piece behind'))
+        }
+
+        super(board, color, i, n)
+
+        this.isBearoff = true
+    }
+
+    do() {
+        this.getHome().push(this.getOriginSlot().pop())
+    }
+
+    undo() {
+        this.getOriginSlot().push(this.getHome().pop())
+    }
+
+    getOriginSlot() {
+        return this.board.slots[this.i]
+    }
+
+    getHome() {
+        return this.board.homes[this.color]
+    }
+}
+
+class RegularMove extends Move {
+
+    constructor(board, color, i, n, j) {
+
+        const dest = board.slots[j]
+
+        if (dest.length > 1 && dest[0].color != color) {
+            throw new OccupiedSlotError(sp(color, 'may not occupy space', j + 1))
+        }
+
+        super(board, color, i, n)
+
+        this.j = j
+        this.isRegular = true
+        this.isHit = dest.length == 1 && dest[0].color != color
+    }
+
+    do() {
+        if (this.isHit) {
+            this.getOpponentBar().push(this.getDestSlot().pop())
+        }
+        this.getDestSlot().push(this.getOriginSlot().pop())
+    }
+
+    undo() {
+        this.getOriginSlot().push(this.getDestSlot().pop())
+        if (this.isHit) {
+            this.getDestSlot().push(this.getOpponentBar().pop())
+        }
+    }
+
+    getOriginSlot() {
+        return this.board.slots[this.i]
+    }
+
+    getDestSlot() {
+        return this.board.slots[this.j]
+    }
+
+    getOpponentBar() {
+        return this.board.bars[Opponent[this.color]]
+    }
+}
+
 class Piece {
 
     constructor(color) {
@@ -319,6 +461,18 @@ class Dice {
         }
         return roll
     }
+
+    static sequencesForFaces(faces) {
+        if (faces.length == 2) {
+            return [
+                [faces[0], faces[1]]
+              , [faces[1], faces[0]]
+            ]
+        }
+        return [
+            [faces[0], faces[1], faces[2], faces[3]]
+        ]
+    }
 }
 
 class GameError extends Error {
@@ -329,6 +483,7 @@ class GameError extends Error {
     }
 }
 
+class IllegalStateError extends GameError {}
 class InvalidRollError extends GameError {}
 
 class IllegalMoveError extends GameError {
@@ -346,4 +501,4 @@ class MayNotBearoffError extends IllegalMoveError {}
 class IllegalBareoffError extends IllegalMoveError {}
 class OccupiedSlotError extends IllegalMoveError {}
 
-module.exports = {Match, Board, Piece, Dice}
+module.exports = {Match, Board, SequenceTree, BoardNode, Piece, Dice, Turn}

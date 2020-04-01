@@ -24,6 +24,23 @@ describe('Match', () => {
     })
 })
 
+describe('Turn', () => {
+
+	const {Turn, Board, Piece} = Lib
+
+
+
+	describe('#roll', () => {
+		it('should set roll and faces', () => {
+			const board = new Board
+			const turn = new Turn(board, White)
+			turn.roll()
+			expect(turn.roll).to.have.length(2)
+			expect(turn.faces.length).to.be.greaterThan(1)
+		})
+	})
+})
+
 describe('Board', () => {
 
     const {Board, Piece} = Lib
@@ -63,6 +80,34 @@ describe('Board', () => {
 			const board = Board.fromStateString(InitialStateString)
 			const result = board.stateString()
 			expect(result).to.equal(InitialStateString)
+		})
+	})
+
+	describe('#getPossibleMovesForFace', () => {
+
+		it('should return singleton isComeIn n=2 for face=2 with white from bar on sparse board', () => {
+			const board = new Board
+			board.bars.White = Piece.make(1, White)
+			const result = board.getPossibleMovesForFace(White, 2)
+			expect(result).to.have.length(1)
+			expect(result[0].isComeIn).to.equal(true)
+			expect(result[0].n).to.equal(2)
+		})
+
+		it('should return empty for white n=5 with one on 0 and red 2 on 5', () => {
+			const board = new Board
+			board.slots[0] = Piece.make(1, White)
+			board.slots[5] = Piece.make(2, Red)
+			const result = board.getPossibleMovesForFace(White, 5)
+			expect(result).to.have.length(0)
+		})
+
+		it('should throw when non IllegalMoveError is thrown', () => {
+			const board = new Board
+			board.setup()
+			board.buildMove = () => { throw new Error }
+			const err = getError(() => board.getPossibleMovesForFace(White, 1))
+			expect(err instanceof Error).to.equal(true)
 		})
 	})
 
@@ -133,6 +178,7 @@ describe('Board', () => {
     })
 
 	describe('#listSlotsWithColor', () => {
+
 		it('should return [5,7,12,23] for red on setup', () => {
 			const board = new Board
 			board.setup()
@@ -141,6 +187,7 @@ describe('Board', () => {
 			expect(JSON.stringify(result)).to.equal(JSON.stringify(exp))
 		})
 	})
+
     describe('#mayBearoff', () => {
 
         it('should return false for white with one on bar', () => {
@@ -370,6 +417,96 @@ describe('Board', () => {
 	})
 })
 
+describe('SequenceTree', () => {
+
+    const {Board, SequenceTree, Piece} = Lib
+
+    describe('#buildNodes', () => {
+
+        it('should return 2 nodes, original state and regular move from i:0 to i:1 for sparse board with sequence [1]', () => {
+
+            const board = new Board
+            board.slots[0] = Piece.make(5, White)
+
+            const nodes = SequenceTree.buildNodes(board, White, [1])
+
+            expect(nodes).to.have.length(2)
+
+            expect(nodes[0].board).to.equal(board)
+            expect(nodes[0].depth).to.equal(0)
+            expect(nodes[0].parent).to.equal(null)
+            expect(nodes[0].thisFace).to.equal(null)
+            expect(nodes[0].thisMove).to.equal(null)
+            expect(nodes[0].nextFace).to.equal(1)
+            expect(nodes[0].nextMoves).to.have.length(1)
+            expect(nodes[0].children).to.have.length(1)
+
+            expect(nodes[1].board).to.not.equal(board)
+            expect(nodes[1].depth).to.equal(1)
+            expect(nodes[1].parent).to.equal(nodes[0])
+            expect(nodes[1].thisFace).to.equal(1)
+            expect(nodes[1].thisMove).to.not.equal(null)
+            expect(nodes[1].nextFace).to.equal(null)
+            expect(nodes[1].children).to.have.length(0)
+
+            const move = nodes[1].thisMove
+            expect(move).to.equal(nodes[0].nextMoves[0])
+            expect(move.isRegular).to.equal(true)
+            expect(move.i).to.equal(0)
+            expect(move.n).to.equal(1)
+
+            const expBoard = new Board
+            expBoard.slots[0] = Piece.make(4, White)
+            expBoard.slots[1] = Piece.make(1, White)
+            expect(nodes[1].board.stateString()).to.equal(expBoard.stateString())
+        })
+    })
+
+    describe('#build', () => {
+
+        it('should return one branch for regular move from i:0 to i:1 for sparse board with sequence [5]', () => {
+            const board = new Board
+            board.slots[4] = Piece.make(4, White)
+            const tree = SequenceTree.build(board, White, [5])
+            expect(tree.branches).to.have.length(1)
+        })
+
+        it('should have depth 0 with white piece on bar for sequence [6,6,6,6] on setup board', () => {
+
+            const board = new Board
+            board.setup()
+            board.bars.White.push(board.slots[0].pop())
+
+            const tree = SequenceTree.build(board, White, [6, 6, 6, 6])
+
+            expect(tree.depth).to.equal(0)
+        })
+
+        it('should have depth 2 for red for sequence [3, 1] on setup board', () => {
+
+            const board = Board.setup()
+
+            const tree = SequenceTree.build(board, Red, [3, 1])
+
+            expect(tree.depth).to.equal(2)
+        })
+
+        it('should have leaf for taking 5 point for red with sequence [1, 3]', () => {
+
+            const boardExp = Board.setup()
+            boardExp.move(Red, 5, 1)
+            boardExp.move(Red, 7, 3)
+            const exp = boardExp.stateString()
+            
+            const tree = SequenceTree.build(Board.setup(), Red, [1, 3])
+
+            const leafStates = tree.leaves.map(node => node.board.stateString())
+
+            expect(leafStates).to.contain(exp)
+        })
+
+    })
+})
 describe('Dice', () => {
 
     const {Dice} = Lib
@@ -415,4 +552,19 @@ describe('Dice', () => {
             expect(JSON.stringify(result)).to.equal(JSON.stringify([5, 5, 5, 5]))
         })
     })
+
+	describe('#sequencesForFaces', () => {
+
+		it('should return [[1, 2], [2, 1]] for faces [1, 2]', () => {
+			const result = Dice.sequencesForFaces([1, 2])
+			const exp = [[1, 2], [2, 1]]
+			expect(JSON.stringify(result)).to.equal(JSON.stringify(exp))
+		})
+
+		it('should return [[5, 5, 5, 5]] for faces [5, 5, 5, 5]', () => {
+			const result = Dice.sequencesForFaces([5, 5, 5, 5])
+			const exp = [[5, 5, 5, 5]]
+			expect(JSON.stringify(result)).to.equal(JSON.stringify(exp))
+		})
+	})
 })
