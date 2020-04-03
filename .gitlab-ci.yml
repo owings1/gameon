@@ -4,6 +4,8 @@ stages:
   - test
 
 test:
+  tags:
+    - docker
   script:
     - npm install
     - npm test
