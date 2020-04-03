@@ -838,4 +838,4 @@ class NoMovesRemainingError extends IllegalMoveError {}
 class NoMovesMadeError extends IllegalMoveError {}
 class MovesRemainingError extends IllegalMoveError {}
 
-module.exports = {Game, Board, SequenceTree, BoardNode, Piece, Dice, Turn}
+module.exports = {Game, Board, SequenceTree, BoardNode, Piece, Dice, Turn, White, Red, Opponent}
