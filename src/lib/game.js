@@ -222,16 +222,9 @@ class Turn extends Logger {
         }
         const matchingMove = nextMoves.find(move => move.origin == origin && move.face == face)
         if (!matchingMove) {
-            var msg = sp('move not available for', this.color)
-            var cause
-            try {
-                // Add detail for why the move is not available
-                this.board.buildMove(this.color, origin, face)
-            } catch (err) {
-                msg = sp(msg, ':', err.msg)
-                cause = err
-            }
-            throw new IllegalMoveError(msg, cause)
+            // this will throw a more specific error
+            this.board.buildMove(this.color, origin, face)
+            throw new IllegalMoveError(sp('move not available for', this.color))
         }
         const move = this.board.move(this.color, origin, face)
         this.moves.push(move)

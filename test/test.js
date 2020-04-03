@@ -327,6 +327,14 @@ describe('Turn', () => {
             const err = getError(() => turn.move(17, 1))
             expect(err.isIllegalMoveError).to.equal(true)
         })
+
+        it('should not allow white to come in on 1 with no piece on bar with NoPieceOnBarError', () => {
+            const board = Board.setup()
+            const turn = new Turn(board, White)
+            turn.setRoll([1, 2])
+            const err = getError(() => turn.move(-1, 1))
+            expect(err.name).to.equal('NoPieceOnBarError')
+        })
     })
 
 	describe('#roll', () => {
