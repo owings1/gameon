@@ -314,81 +314,6 @@ class Turn extends Logger {
     }
 }
 
-class SequenceTree {
-
-    constructor(board, color, sequence) {
-        this.board = board
-        this.color = color
-        this.sequence = sequence
-        this.nodes = null
-        this.branches = null
-        this.depth = -1
-    }
-
-    build() {
-        this.nodes = SequenceTree.buildNodes(this.board, this.color, this.sequence)
-        this.depth = Math.max(...this.nodes.map(node => node.depth))
-        this.leaves = this.nodes.filter(node => node.depth == this.depth)
-        this.branches = SequenceTree.buildBranchesForLeaves(this.leaves)
-    }
-
-    static build(board, color, sequence) {
-        const tree = new SequenceTree(board, color, sequence)
-        tree.build()
-        return tree
-    }
-
-    static buildBranchesForLeaves(leaves) {
-        const branches = []
-        leaves.forEach(leaf => {
-            const branch = [leaf]
-            for (var node = leaf; node.parent; node = node.parent) {
-                branch.unshift(node.parent)
-            }
-            branches.push(branch)
-        })
-        return branches
-    }
-
-    static buildNodes(board, color, sequence) {
-
-        const nodes = [new BoardNode(board, 0, null)]
-
-        sequence.forEach((face, seqi) => {
-            const depth = seqi + 1
-            nodes.filter(n => n.depth == depth - 1).forEach(parentNode => {
-                parentNode.nextFace = face
-                parentNode.nextMoves = parentNode.board.getPossibleMovesForFace(color, face)
-                parentNode.nextMoves.forEach(move => {
-                    move.board = move.board.copy()
-                    move.do()
-                    const childNode = new BoardNode(move.board, depth, parentNode)
-                    childNode.thisMove = move
-                    childNode.thisFace = face
-                    parentNode.children.push(childNode)
-                    nodes.push(childNode)
-                })
-            })
-        })
-
-        return nodes
-    }
-}
-
-class BoardNode {
-
-    constructor(board, depth, parent) {
-        this.board = board
-        this.depth = depth
-        this.parent = parent
-        this.children = []
-        this.thisFace = null
-        this.thisMove = null
-        this.nextFace = null
-        this.nextMoves = null
-    }
-}
-
 class Board extends Logger {
 
     constructor() {
@@ -537,6 +462,17 @@ class Board extends Logger {
         this.slots[23] = Piece.make(2, Red)
     }
 
+    setStateString(str) {
+        const locs = str.split('|')
+        this.bars.White = Piece.make(locs[0], White)
+        this.bars.Red = Piece.make(locs[1], Red)
+        for (var i = 0; i < 24; i++) {
+            this.slots[i] = Piece.make(...locs[i + 2].split(':'))
+        }
+        this.homes.White = Piece.make(locs[26], White)
+        this.homes.Red = Piece.make(locs[27], Red)
+    }
+
     stateString() {
         // <White bar count>|<Red bar count>|<slot count>:<Red/White/empty>|...|<White home count>|<Red home count>
         return [
@@ -555,16 +491,84 @@ class Board extends Logger {
     }
 
     static fromStateString(str) {
-        const locs = str.split('|')
         const board = new Board
-        board.bars.White = Piece.make(locs[0], White)
-        board.bars.Red = Piece.make(locs[1], Red)
-        for (var i = 0; i < 24; i++) {
-            board.slots[i] = Piece.make(...locs[i + 2].split(':'))
-        }
-        board.homes.White = Piece.make(locs[26], White)
-        board.homes.Red = Piece.make(locs[27], Red)
+        board.setStateString(str)
         return board
+    }
+}
+
+class SequenceTree {
+
+    constructor(board, color, sequence) {
+        this.board = board
+        this.color = color
+        this.sequence = sequence
+        this.nodes = null
+        this.branches = null
+        this.depth = -1
+    }
+
+    build() {
+        this.nodes = SequenceTree.buildNodes(this.board, this.color, this.sequence)
+        this.depth = Math.max(...this.nodes.map(node => node.depth))
+        this.leaves = this.nodes.filter(node => node.depth == this.depth)
+        this.branches = SequenceTree.buildBranchesForLeaves(this.leaves)
+    }
+
+    static build(board, color, sequence) {
+        const tree = new SequenceTree(board, color, sequence)
+        tree.build()
+        return tree
+    }
+
+    static buildBranchesForLeaves(leaves) {
+        const branches = []
+        leaves.forEach(leaf => {
+            const branch = [leaf]
+            for (var node = leaf; node.parent; node = node.parent) {
+                branch.unshift(node.parent)
+            }
+            branches.push(branch)
+        })
+        return branches
+    }
+
+    static buildNodes(board, color, sequence) {
+
+        const nodes = [new BoardNode(board, 0, null)]
+
+        sequence.forEach((face, seqi) => {
+            const depth = seqi + 1
+            nodes.filter(n => n.depth == depth - 1).forEach(parentNode => {
+                parentNode.nextFace = face
+                parentNode.nextMoves = parentNode.board.getPossibleMovesForFace(color, face)
+                parentNode.nextMoves.forEach(move => {
+                    move.board = move.board.copy()
+                    move.do()
+                    const childNode = new BoardNode(move.board, depth, parentNode)
+                    childNode.thisMove = move
+                    childNode.thisFace = face
+                    parentNode.children.push(childNode)
+                    nodes.push(childNode)
+                })
+            })
+        })
+
+        return nodes
+    }
+}
+
+class BoardNode {
+
+    constructor(board, depth, parent) {
+        this.board = board
+        this.depth = depth
+        this.parent = parent
+        this.children = []
+        this.thisFace = null
+        this.thisMove = null
+        this.nextFace = null
+        this.nextMoves = null
     }
 }
 

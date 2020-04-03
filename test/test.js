@@ -49,31 +49,33 @@ describe('Game', () => {
 
     const {Game, Board} = Lib
 
+    var game
+
+    beforeEach(() => {
+        game = new Game
+        game.loglevel = 1
+    })
+
     describe('#checkFinished', () => {
 
         it('should return false for new game', () => {
-            const game = new Game
             const result = game.checkFinished()
             expect(result).to.equal(false)
         })
 
         it('should return true when isFinished=true', () => {
-            const game = new Game
             game.isFinished = true
             const result = game.checkFinished()
             expect(result).to.equal(true)
         })
 
         it('should return false when firstTurn is not finished', () => {
-            const game = new Game
             const firstTurn = game.firstTurn()
             const result = game.checkFinished()
             expect(result).to.equal(false)
         })
 
         it('should return true when player doubles on second turn and it is declined', () => {
-            const game = new Game
-            game.loglevel = 1
             const firstTurn = game.firstTurn()
             makeRandomMoves(firstTurn)
             firstTurn.finish()
@@ -85,8 +87,6 @@ describe('Game', () => {
         })
 
         it('should return true for gammon and set finalValue to 1 for isJacoby', () => {
-            const game = new Game
-            game.loglevel = 1
             game.opts.isJacoby = true
             const firstTurn = game.firstTurn()
             makeRandomMoves(firstTurn)
@@ -98,8 +98,6 @@ describe('Game', () => {
         })
 
         it('should return true for backgammon and set finalValue to 4 for isJacoby=false', () => {
-            const game = new Game
-            game.loglevel = 1
             game.opts.isJacoby = false
             const firstTurn = game.firstTurn()
             makeRandomMoves(firstTurn)
@@ -111,8 +109,6 @@ describe('Game', () => {
         })
 
         it('should return true and set finalValue to 2 for no gammon with cubeValue=2', () => {
-            const game = new Game
-            game.loglevel = 1
             game.opts.isJacoby = false
             game.cubeValue = 2
             const firstTurn = game.firstTurn()
@@ -128,15 +124,12 @@ describe('Game', () => {
     describe('#firstTurn', () => {
 
         it('should throw GameFinishedError for finished game', () => {
-            const game = new Game
             game.isFinished = true
             const err = getError(() => game.firstTurn())
             expect(err.name).to.equal('GameFinishedError')
         })
 
         it('should throw GameAlreadyStartedError on second call', () => {
-            const game = new Game
-            game.loglevel = 1
             game.firstTurn()
             const err = getError(() => game.firstTurn())
             expect(err.name).to.equal('GameAlreadyStartedError')
@@ -146,33 +139,26 @@ describe('Game', () => {
     describe('#nextTurn', () => {
 
         it('should throw GameFinishedError for finished game', () => {
-            const game = new Game
             game.isFinished = true
             const err = getError(() => game.nextTurn())
             expect(err.name).to.equal('GameFinishedError')
         })
 
         it('should throw GameNotStartedError for unstarted game', () => {
-            const game = new Game
             const err = getError(() => game.nextTurn())
             expect(err.name).to.equal('GameNotStartedError')
         })
 
         it('should throw TurnNotFinishedError when current turn is not finished', () => {
-            const game = new Game
             const turn = game.firstTurn()
             const err = getError(() => game.nextTurn())
             expect(err.name).to.equal('TurnNotFinishedError')
         })
 
         it('should return null if game is just now finished', () => {
-            const game = new Game
             // take the first turn
             const turn = game.firstTurn()
-            const move1 = turn.getNextAvailableMoves()[0]
-            turn.move(move1.origin, move1.face)
-            const move2 = turn.getNextAvailableMoves()[0]
-            turn.move(move2.origin, move2.face)
+            makeRandomMoves(turn)
             turn.finish()
             // force game over
             game.board = Board.fromStateString(States.WhiteGammon1)
@@ -181,13 +167,9 @@ describe('Game', () => {
         })
 
         it('should return turn for opponent of first roll winner after first turn finished', () => {
-            const game = new Game
             // take the first turn
             const firstTurn = game.firstTurn()
-            const move1 = firstTurn.getNextAvailableMoves()[0]
-            firstTurn.move(move1.origin, move1.face)
-            const move2 = firstTurn.getNextAvailableMoves()[0]
-            firstTurn.move(move2.origin, move2.face)
+            makeRandomMoves(firstTurn)
             firstTurn.finish()
             const expColor = firstTurn.color == White ? Red : White
             const turn = game.nextTurn()
