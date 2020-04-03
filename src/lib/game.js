@@ -90,6 +90,7 @@ class Game extends Logger {
         }
         this.thisTurn = new Turn(this.board, Opponent[this.thisTurn.color])
         this.turns.push(this.thisTurn)
+        this.info(this.thisTurn.color + "'s turn")
         return this.thisTurn
     }
 
@@ -125,7 +126,7 @@ class Game extends Logger {
         }
         if (this.isFinished) {
             this.endState = this.board.stateString()
-            this.info(this.winner, 'has won the game')
+            this.info(this.winner, 'has won the game with', this.finalValue, 'points')
         }
         return this.isFinished
     }
