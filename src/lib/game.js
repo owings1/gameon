@@ -32,14 +32,98 @@ const Opponent = {
   , Red   : White
 }
 
-class Match extends Logger {
+class Game extends Logger {
 
     constructor() {
         super()
-        this.board = new Board
-        this.board.setup()
+        this.opts = {
+            isJacoby : false
+        }
+        this.board = Board.setup()
         this.cubeOwner = null
         this.cubeValue = 1
+        this.turns = []
+        this.firstDice = null
+        this.thisTurn = null
+        this.winner = null
+        this.isFinished = false
+        this.isPass = false
+        this.endState = null
+        this.finalValue = null
+    }
+
+    firstTurn() {
+        if (this.isFinished) {
+            throw new GameFinishedError('The game is already over')
+        }
+        if (this.thisTurn) {
+            throw new GameAlreadyStartedError('The game has already started')
+        }
+        this.info('Starting game')
+        do {
+            var dice = Dice.rollTwo()
+        } while (dice[0] == dice[1])
+        const firstColor = Dice.getWinner(dice)
+        this.info(firstColor, 'wins the first roll with', dice.join())
+        this.thisTurn = new Turn(this.board, firstColor)
+        this.thisTurn.setRoll(dice)
+        this.turns.push(this.thisTurn)
+        return this.thisTurn
+    }
+
+    nextTurn() {
+        if (this.isFinished) {
+            throw new GameFinishedError('The game is already over')
+        }
+        if (!this.thisTurn) {
+            throw new GameNotStartedError('The game has not started')
+        }
+        if (!this.thisTurn.isFinished) {
+            throw new TurnNotFinishedError(sp(this.thisTurn.color, 'has not finished the current turn'))
+        }
+        if (this.checkFinished()) {
+            return null
+        }
+        this.thisTurn = new Turn(this.board, Opponent[this.thisTurn.color])
+        this.turns.push(this.thisTurn)
+        return this.thisTurn
+    }
+
+    checkFinished() {
+        if (this.isFinished) {
+            return true
+        }
+        if (!this.thisTurn) {
+            return false
+        }
+        if (!this.thisTurn.isFinished) {
+            return false
+        }
+        if (this.thisTurn.isDoubleDeclined) {
+            this.isPass = true
+            this.winner = this.thisTurn.color
+            this.finalValue = this.cubeValue
+            this.isFinished = true
+        } else if (this.board.hasWinner()) {
+            this.isBackgammon = this.board.isBackgammon()
+            this.isGammon = this.board.isGammon()
+            this.winner = this.board.getWinner()
+            if (this.isGammon && (this.cubeValue > 1 || !this.opts.isJacoby)) {
+                if (this.isBackgammon) {
+                    this.finalValue = this.cubeValue * 4
+                } else {
+                    this.finalValue = this.cubeValue * 2
+                }
+            } else {
+                this.finalValue = this.cubeValue
+            }
+            this.isFinished = true
+        }
+        if (this.isFinished) {
+            this.endState = this.board.stateString()
+            this.info(this.winner, 'has won the game')
+        }
+        return this.isFinished
     }
 }
 
@@ -52,8 +136,13 @@ class Turn extends Logger {
         this.moves = []
         this.rolled = null
         this.isDoubleOffered = false
+        this.isDoubleDeclined = false
         this.isRolled = false
+        this.isCantMove = false
+        this.isForceMove = false
         this.isFinished = false
+        this.startState = board.stateString()
+        this.endState = null
     }
 
     setDoubleOffered() {
@@ -68,11 +157,12 @@ class Turn extends Logger {
 
         this.assertNotFinished()
         if (!this.isDoubleOffered) {
-            throw new IllegalStateError(sp(this.color, 'has not doubled'))
+            throw new HasNotDoubledError(sp(this.color, 'has not doubled'))
         }
 
         this.isDoubleDeclined = true
-        this.isFinished = true
+
+        this.finish()
     }
 
     setRoll(dice) {
@@ -105,37 +195,16 @@ class Turn extends Logger {
 
         this.faces = Dice.faces(this.dice)
 
-        const trees = Dice.sequencesForFaces(this.faces).map(sequence =>
-            SequenceTree.build(this.board, this.color, sequence)
-        )
-        const maxDepth = Math.max(...trees.map(tree => tree.depth))
-
-        // trees that use the most number of faces
-        const fullestTrees = trees.filter(tree => maxDepth > 0 && tree.depth == maxDepth)
-
-        // branches that use the most number of faces
-        const fullestBranches = []
-        fullestTrees.forEach(tree => {
-            tree.branches.filter(branch => branch.length - 1 == maxDepth).forEach(branch => {
-                fullestBranches.push(branch)
-            })
+        Object.entries(this._computeAllowedMovesResult()).forEach(([k, v]) => {
+            this[k] = v
         })
-        // the highest face of nodes of the fullest branches
-        const maxFace = Math.max(...fullestBranches.map(branch => Math.max(...branch.map(node => node.thisFace ))))
-        // branches that use the highest face
-        const allowedBranches = fullestBranches.filter(branch => branch.find(node => node.thisFace == maxFace))
 
-        // TODO: de-duplicate
-        this.allowedMoveSeries = allowedBranches.map(branch =>
-            branch.slice(1).map(node => node.thisMove)
-        )
-        this.allowedMoveCount = maxDepth
-        if (this.allowedMoveCount == 0) {
+        if (this.isCantMove) {
             this.finish()
         }
     }
 
-    getNextAvaliableMoves() {
+    getNextAvailableMoves() {
         return this.allowedMoveSeries.filter(allowedMoves => {
             // compare the first parts of allowedMoves to this.moves
             const subSeriesA = allowedMoves.slice(0, this.moves.length).map(move => [move.origin, move.face])
@@ -147,14 +216,22 @@ class Turn extends Logger {
     move(origin, face) {
         this.assertNotFinished()
         this.assertIsRolled()
-        const nextMoves = this.getNextAvaliableMoves()
+        const nextMoves = this.getNextAvailableMoves()
         if (nextMoves.length == 0) {
             throw new NoMovesRemainingError(sp(this.color, 'has no more moves to do'))
         }
         const matchingMove = nextMoves.find(move => move.origin == origin && move.face == face)
         if (!matchingMove) {
-            // TODO: explain why it's not availble, if building the move fails, show that error
-            throw new IllegalMoveError(sp('move not available for', this.color))
+            var msg = sp('move not available for', this.color)
+            var cause
+            try {
+                // Add detail for why the move is not available
+                this.board.buildMove(this.color, origin, face)
+            } catch (err) {
+                msg = sp(msg, ':', err.msg)
+                cause = err
+            }
+            throw new IllegalMoveError(msg, cause)
         }
         const move = this.board.move(this.color, origin, face)
         this.moves.push(move)
@@ -172,28 +249,74 @@ class Turn extends Logger {
         if (this.isFinished) {
             return
         }
-        this.assertIsRolled()
-        if (this.moves.length != this.allowedMoveCount) {
-            throw new MovesRemainingError(sp(this.color, 'has more moves to do'))
+        if (!this.isDoubleDeclined) {
+            this.assertIsRolled()
+            if (this.moves.length != this.allowedMoveCount) {
+                throw new MovesRemainingError(sp(this.color, 'has more moves to do'))
+            }
         }
+        this.endState = this.board.stateString()
         this.isFinished = true
     }
 
     assertNotFinished() {
         if (this.isFinished) {
-            throw new IllegalStateError(sp('turn is already finished for', this.color))
+            throw new TurnAlreadyFinishedError(sp('turn is already finished for', this.color))
         }
     }
 
     assertIsRolled() {
         if (!this.isRolled) {
-            throw new IllegalStateError(sp(this.color, 'has not rolled'))
+            throw new HasNotRolledError(sp(this.color, 'has not rolled'))
         }
     }
 
     assertNotRolled() {
         if (this.isRolled) {
-            throw new IllegalStateError(sp(this.color, 'has already rolled'))
+            throw new AlreadyRolledError(sp(this.color, 'has already rolled'))
+        }
+    }
+
+    _computeAllowedMovesResult() {
+
+        const trees = Dice.sequencesForFaces(this.faces).map(sequence =>
+            SequenceTree.build(this.board, this.color, sequence)
+        )
+
+        const maxDepth = Math.max(...trees.map(tree => tree.depth))
+
+        // trees that use the most number of faces
+        const fullestTrees = trees.filter(tree => maxDepth > 0 && tree.depth == maxDepth)
+
+        // branches that use the most number of faces
+        const fullestBranches = []
+        fullestTrees.forEach(tree => {
+            tree.branches.filter(branch => branch.length - 1 == maxDepth).forEach(branch => {
+                fullestBranches.push(branch)
+            })
+        })
+        // the highest face of nodes of the fullest branches
+        const maxFace = Math.max(...fullestBranches.map(branch => Math.max(...branch.map(node => node.thisFace ))))
+        // branches that use the highest face
+        const allowedBranches = fullestBranches.filter(branch => branch.find(node => node.thisFace == maxFace))
+
+        const allowedMoveSeries = allowedBranches.map(branch =>
+            branch.slice(1).map(node => node.thisMove)
+        )
+        // De-duplicate
+        const seriesMap = {}
+        allowedMoveSeries.forEach(allowedMoves => {
+            // TODO: we could de-dupe further by inspecting end-states
+            const hash = allowedMoves.map(move => [move.origin, move.face].join(':')).join('|')
+            seriesMap[hash] = allowedMoves
+        })
+        const dedupSeries = Object.values(seriesMap)
+
+        return {
+            allowedMoveSeries : dedupSeries
+          , allowedMoveCount  : maxDepth
+          , isForceMove       : dedupSeries.length == 1
+          , isCantMove        : maxDepth == 0
         }
     }
 }
@@ -346,6 +469,19 @@ class Board extends Logger {
         return null
     }
 
+    isGammon() {
+        return this.hasWinner() && this.homes[Opponent[this.getWinner()]].length == 0
+    }
+
+    isBackgammon() {
+        if (this.isGammon()) {
+            const winner = this.getWinner()
+            return this.bars[Opponent[winner]].length > 0 ||
+                   undefined != InsideSlots[winner].find(i => this.slots[i].length)
+        }
+        return false
+    }
+
     listSlotsWithColor(color) {
         return Object.keys(this.slots).filter(i =>
             this.slots[i].length > 0 && this.slots[i][0].color == color
@@ -447,6 +583,14 @@ class Move {
         this.origin = origin
         this.face = face
     }
+
+    copy() {
+        return new this.constructor(...this._constructArgs)
+    }
+
+    copyForBoard(board) {
+        return new this.constructor(board, ...this._constructArgs.slice(1))
+    }
 }
 
 class ComeInMove extends Move {
@@ -463,6 +607,7 @@ class ComeInMove extends Move {
         }
 
         super(board, color, -1, face)
+        this._constructArgs = Object.values(arguments)
 
         this.isComeIn = true
         this.dest = dest
@@ -500,6 +645,7 @@ class BearoffMove extends Move {
         }
 
         super(board, color, origin, face)
+        this._constructArgs = Object.values(arguments)
 
         this.isBearoff = true
     }
@@ -533,6 +679,7 @@ class RegularMove extends Move {
         }
 
         super(board, color, origin, face)
+        this._constructArgs = Object.values(arguments)
 
         this.dest = dest
         this.isRegular = true
@@ -571,6 +718,10 @@ class Piece {
     constructor(color) {
         this.color = color
         this.c = ColorAbbr[color]
+    }
+
+    toString() {
+        return this.color
     }
 
     static make(n, color) {
@@ -615,6 +766,13 @@ class Dice {
         }
     }
 
+    static getWinner(dice) {
+        if (dice[0] == dice[1]) {
+            return null
+        }
+        return dice[0] > dice[1] ? White : Red
+    }
+
     static sequencesForFaces(faces) {
         if (faces.length == 2) {
             return [
@@ -633,11 +791,16 @@ class GameError extends Error {
     constructor(...args) {
         super(...args)
         this.name = this.constructor.name
+        this.isGameError = true
     }
 }
 
-class IllegalStateError extends GameError {}
-class InvalidRollError extends GameError {}
+class IllegalStateError extends GameError {
+    constructor(...args) {
+        super(...args)
+        this.isIllegalStateError = true
+    }
+}
 
 class IllegalMoveError extends GameError {
 
@@ -646,6 +809,17 @@ class IllegalMoveError extends GameError {
         this.isIllegalMoveError = true
     }
 }
+
+class InvalidRollError extends GameError {}
+
+class GameFinishedError extends IllegalStateError {}
+class GameAlreadyStartedError extends IllegalStateError {}
+class GameNotStartedError extends IllegalStateError {}
+class TurnAlreadyFinishedError extends IllegalStateError {}
+class TurnNotFinishedError extends IllegalStateError {}
+class HasNotRolledError extends IllegalStateError {}
+class AlreadyRolledError extends IllegalStateError {}
+class HasNotDoubledError extends IllegalStateError {}
 
 class PieceOnBarError extends IllegalMoveError {}
 class NoPieceOnBarError extends IllegalMoveError {}
@@ -657,4 +831,4 @@ class NoMovesRemainingError extends IllegalMoveError {}
 class NoMovesMadeError extends IllegalMoveError {}
 class MovesRemainingError extends IllegalMoveError {}
 
-module.exports = {Match, Board, SequenceTree, BoardNode, Piece, Dice, Turn}
+module.exports = {Game, Board, SequenceTree, BoardNode, Piece, Dice, Turn}

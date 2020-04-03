@@ -13,13 +13,185 @@ function getError(cb) {
     }
 }
 
-describe('Match', () => {
+const States = {
+    Initial           : '0|0|2:White|0:|0:|0:|0:|5:Red|0:|3:Red|0:|0:|0:|5:White|5:Red|0:|0:|0:|3:White|0:|5:White|0:|0:|0:|0:|2:Red|0|0'
+ ,  Blank             : '0|0|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0|0'
+ ,  WhiteBackgammon1  : '0|0|14:Red|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|1:Red|15|0'
+ ,  WhiteBackgammon2  : '0|1|14:Red|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|15|0'
+ ,  WhiteGammon1      : '0|0|15:Red|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|15|0'
+ ,  WhiteNoGammon1    : '0|1|12:Red|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|1:Red|15|1'
+ ,  WhiteRunner2Pips  : '0|0|1:White|0:|1:White|0:|0:|5:Red|0:|3:Red|0:|0:|0:|5:White|5:Red|0:|0:|0:|3:White|0:|5:White|0:|0:|0:|0:|2:Red|0|0'
+    // with 2,4 white has to come in on the 4
+ ,  WhiteCornerCase24 : '1|0|0:|0:|2:Red|0:|0:|2:Red|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|1:White|0:|0:|0|0'
+    // with 2,6 white has to move its rearmost piece(i:14) 2 then 6. it cannot move its middle piece(i:17) 2 first
+ ,  WhiteCornerCase26 : '0|0|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|1:White|0:|0:|1:White|0:|0:|2:Red|0:|0:|2:Red|0|0'
+    // with 1,6 white must take the 6, even though the 6 point is un-occupied
+ ,  WhiteCornerCase16 : '0|0|1:White|2:Red|0:|0:|0:|0:|2:Red|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|1:White|0:|0:|0:|0:|0:|0:|0|0'
+}
 
-    const {Match} = Lib
+function randomElement(arr) {
+    const i = Math.floor(Math.random() * arr.length)
+    return arr[i]
+}
 
-    describe('#constructor', () => {
-        it('should construct', () => {
-            new Match
+function makeRandomMoves(turn) {
+    while (true) {
+        var moves = turn.getNextAvailableMoves()
+        if (moves.length == 0) {
+            break
+        }
+        var move = randomElement(moves)
+        turn.move(move.origin, move.face)
+    }
+}
+
+describe('Game', () => {
+
+    const {Game, Board} = Lib
+
+    describe('#checkFinished', () => {
+
+        it('should return false for new game', () => {
+            const game = new Game
+            const result = game.checkFinished()
+            expect(result).to.equal(false)
+        })
+
+        it('should return true when isFinished=true', () => {
+            const game = new Game
+            game.isFinished = true
+            const result = game.checkFinished()
+            expect(result).to.equal(true)
+        })
+
+        it('should return false when firstTurn is not finished', () => {
+            const game = new Game
+            const firstTurn = game.firstTurn()
+            const result = game.checkFinished()
+            expect(result).to.equal(false)
+        })
+
+        it('should return true when player doubles on second turn and it is declined', () => {
+            const game = new Game
+            game.loglevel = 1
+            const firstTurn = game.firstTurn()
+            makeRandomMoves(firstTurn)
+            firstTurn.finish()
+            const turn = game.nextTurn()
+            turn.setDoubleOffered()
+            turn.setDoubleDeclined()
+            const result = game.checkFinished()
+            expect(result).to.equal(true)
+        })
+
+        it('should return true for gammon and set finalValue to 1 for isJacoby', () => {
+            const game = new Game
+            game.loglevel = 1
+            game.opts.isJacoby = true
+            const firstTurn = game.firstTurn()
+            makeRandomMoves(firstTurn)
+            firstTurn.finish()
+            game.board = Board.fromStateString(States.WhiteGammon1)
+            const result = game.checkFinished()
+            expect(result).to.equal(true)
+            expect(game.finalValue).to.equal(1)
+        })
+
+        it('should return true for backgammon and set finalValue to 4 for isJacoby=false', () => {
+            const game = new Game
+            game.loglevel = 1
+            game.opts.isJacoby = false
+            const firstTurn = game.firstTurn()
+            makeRandomMoves(firstTurn)
+            firstTurn.finish()
+            game.board = Board.fromStateString(States.WhiteBackgammon1)
+            const result = game.checkFinished()
+            expect(result).to.equal(true)
+            expect(game.finalValue).to.equal(4)
+        })
+
+        it('should return true and set finalValue to 2 for no gammon with cubeValue=2', () => {
+            const game = new Game
+            game.loglevel = 1
+            game.opts.isJacoby = false
+            game.cubeValue = 2
+            const firstTurn = game.firstTurn()
+            makeRandomMoves(firstTurn)
+            firstTurn.finish()
+            game.board = Board.fromStateString(States.WhiteNoGammon1)
+            const result = game.checkFinished()
+            expect(result).to.equal(true)
+            expect(game.finalValue).to.equal(2)
+        })
+    })
+
+    describe('#firstTurn', () => {
+
+        it('should throw GameFinishedError for finished game', () => {
+            const game = new Game
+            game.isFinished = true
+            const err = getError(() => game.firstTurn())
+            expect(err.name).to.equal('GameFinishedError')
+        })
+
+        it('should throw GameAlreadyStartedError on second call', () => {
+            const game = new Game
+            game.loglevel = 1
+            game.firstTurn()
+            const err = getError(() => game.firstTurn())
+            expect(err.name).to.equal('GameAlreadyStartedError')
+        })
+    })
+
+    describe('#nextTurn', () => {
+
+        it('should throw GameFinishedError for finished game', () => {
+            const game = new Game
+            game.isFinished = true
+            const err = getError(() => game.nextTurn())
+            expect(err.name).to.equal('GameFinishedError')
+        })
+
+        it('should throw GameNotStartedError for unstarted game', () => {
+            const game = new Game
+            const err = getError(() => game.nextTurn())
+            expect(err.name).to.equal('GameNotStartedError')
+        })
+
+        it('should throw TurnNotFinishedError when current turn is not finished', () => {
+            const game = new Game
+            const turn = game.firstTurn()
+            const err = getError(() => game.nextTurn())
+            expect(err.name).to.equal('TurnNotFinishedError')
+        })
+
+        it('should return null if game is just now finished', () => {
+            const game = new Game
+            // take the first turn
+            const turn = game.firstTurn()
+            const move1 = turn.getNextAvailableMoves()[0]
+            turn.move(move1.origin, move1.face)
+            const move2 = turn.getNextAvailableMoves()[0]
+            turn.move(move2.origin, move2.face)
+            turn.finish()
+            // force game over
+            game.board = Board.fromStateString(States.WhiteGammon1)
+            const result = game.nextTurn()
+            expect(result).to.equal(null)
+        })
+
+        it('should return turn for opponent of first roll winner after first turn finished', () => {
+            const game = new Game
+            // take the first turn
+            const firstTurn = game.firstTurn()
+            const move1 = firstTurn.getNextAvailableMoves()[0]
+            firstTurn.move(move1.origin, move1.face)
+            const move2 = firstTurn.getNextAvailableMoves()[0]
+            firstTurn.move(move2.origin, move2.face)
+            firstTurn.finish()
+            const expColor = firstTurn.color == White ? Red : White
+            const turn = game.nextTurn()
+            expect(turn.color).to.equal(expColor)
         })
     })
 })
@@ -28,39 +200,32 @@ describe('Turn', () => {
 
 	const {Turn, Board, Piece} = Lib
 
-    // with 2,4 white has to come in on the 4
-    const WhiteCornerCase24 = '1|0|0:|0:|2:Red|0:|0:|2:Red|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|1:White|0:|0:|0|0'
-    // with 2,6 white has to move its rearmost piece(i:14) 2 then 6. it cannot move its middle piece(i:17) 2 first
-    const WhiteCornerCase26 = '0|0|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|1:White|0:|0:|1:White|0:|0:|2:Red|0:|0:|2:Red|0|0'
-    // with 1,6 white must take the 6, even though the 6 point is un-occupied
-    const WhiteCornerCase16 = '0|0|2:White|2:Red|0:|0:|0:|0:|2:Red|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|1:White|0:|0:|0:|0:|0:|0:|0|0'
-
     describe('#assertIsRolled', () => {
 
-        it('should throw IllegalStateError for new turn', () => {
+        it('should throw HasNotRolledError for new turn', () => {
             const turn = new Turn(new Board, White)
             const err = getError(() => turn.assertIsRolled())
-            expect(err.name).to.equal('IllegalStateError')
+            expect(err.name).to.equal('HasNotRolledError')
         })
     })
 
     describe('#assertNotFinished', () => {
 
-        it('should throw IllegalStateError when isFinished=true', () => {
+        it('should throw TurnAlreadyFinishedError when isFinished=true', () => {
             const turn = new Turn(new Board, White)
             turn.isFinished = true
             const err = getError(() => turn.assertNotFinished())
-            expect(err.name).to.equal('IllegalStateError')
+            expect(err.name).to.equal('TurnAlreadyFinishedError')
         })
     })
 
     describe('#assertNotRolled', () => {
 
-        it('should throw IllegalStateError after roll', () => {
+        it('should throw AlreadyRolledError after roll', () => {
             const turn = new Turn(new Board, White)
             turn.roll()
             const err = getError(() => turn.assertNotRolled())
-            expect(err.name).to.equal('IllegalStateError')
+            expect(err.name).to.equal('AlreadyRolledError')
         })
     })
 
@@ -84,7 +249,6 @@ describe('Turn', () => {
     })
 
     describe('#move', () => {
-
 
         it('should move Red 3,1 to 5 point with expected state', () => {
             const bexp = Board.setup()
@@ -119,20 +283,20 @@ describe('Turn', () => {
         })
 
         it('should allow come in on 4 for WhiteCornerCase24', () => {
-            const turn = new Turn(Board.fromStateString(WhiteCornerCase24), White)
+            const turn = new Turn(Board.fromStateString(States.WhiteCornerCase24), White)
             turn.setRoll([2, 4])
             turn.move(-1, 4)
         })
 
         it('should not allow come in on 2 for WhiteCornerCase24', () => {
-            const turn = new Turn(Board.fromStateString(WhiteCornerCase24), White)
+            const turn = new Turn(Board.fromStateString(States.WhiteCornerCase24), White)
             turn.setRoll([2, 4])
             const err = getError(() => turn.move(-1, 2))
             expect(err.isIllegalMoveError).to.equal(true)
         })
 
         it('should allow white to move i:14 2, i:16 6 for WhiteCornerCase26', () => {
-            const board = Board.fromStateString(WhiteCornerCase26)
+            const board = Board.fromStateString(States.WhiteCornerCase26)
             const turn = new Turn(board, White)
             turn.setRoll([2, 6])
             turn.move(14, 2)
@@ -141,7 +305,7 @@ describe('Turn', () => {
         })
 
         it('should not allow white to move i:17 2 for WhiteCornerCase26', () => {
-            const board = Board.fromStateString(WhiteCornerCase26)
+            const board = Board.fromStateString(States.WhiteCornerCase26)
             const turn = new Turn(board, White)
             turn.setRoll([2, 6])
             const err = getError(() => turn.move(17, 2))
@@ -149,7 +313,7 @@ describe('Turn', () => {
         })
 
         it('should allow white to take the 6 and finish for WhiteCornerCase16', () => {
-            const board = Board.fromStateString(WhiteCornerCase16)
+            const board = Board.fromStateString(States.WhiteCornerCase16)
             const turn = new Turn(board, White)
             turn.setRoll([1, 6])
             turn.move(17, 6)
@@ -157,7 +321,7 @@ describe('Turn', () => {
         })
 
         it('should not allow white to take the 1 for WhiteCornerCase16', () => {
-            const board = Board.fromStateString(WhiteCornerCase16)
+            const board = Board.fromStateString(States.WhiteCornerCase16)
             const turn = new Turn(board, White)
             turn.setRoll([1, 6])
             const err = getError(() => turn.move(17, 1))
@@ -178,10 +342,10 @@ describe('Turn', () => {
 
     describe('#setDoubleDeclined', () => {
 
-        it('should throw IllegalStateError if double has not been offered', () => {
+        it('should throw HasNotDoubledError if double has not been offered', () => {
             const turn = new Turn(Board.setup(), White)
             const err = getError(() => turn.setDoubleDeclined())
-            expect(err.name).to.equal('IllegalStateError')
+            expect(err.name).to.equal('HasNotDoubledError')
         })
 
         it('should finish turn', () => {
@@ -194,11 +358,11 @@ describe('Turn', () => {
 
     describe('#setDoubleOffered', () => {
 
-        it('should throw IllegalStateError if already rolled', () => {
+        it('should throw AlreadyRolledError if already rolled', () => {
             const turn = new Turn(Board.setup(), White)
             turn.roll()
             const err = getError(() => turn.setDoubleOffered())
-            expect(err.name).to.equal('IllegalStateError')
+            expect(err.name).to.equal('AlreadyRolledError')
         })
 
         it('should set isDoubleOffered=true if not already rolled', () => {
@@ -249,8 +413,6 @@ describe('Board', () => {
 
     const {Board, Piece} = Lib
 
-    const InitialStateString = '0|0|2:White|0:|0:|0:|0:|5:Red|0:|3:Red|0:|0:|0:|5:White|5:Red|0:|0:|0:|3:White|0:|5:White|0:|0:|0:|0:|2:Red|0|0'
-
     describe('#constructor', () => {
 
         it('should construct', () => {
@@ -281,9 +443,9 @@ describe('Board', () => {
 	describe('#fromStateString', () => {
 
 		it('should return board whose state string is same as input for initial setup', () => {
-			const board = Board.fromStateString(InitialStateString)
+			const board = Board.fromStateString(States.Initial)
 			const result = board.stateString()
-			expect(result).to.equal(InitialStateString)
+			expect(result).to.equal(States.Initial)
 		})
 	})
 
@@ -378,6 +540,60 @@ describe('Board', () => {
             board.homes.Red = Piece.make(15, Red)
             const result = board.isAllHome(Red)
             expect(result).to.equal(true)
+        })
+    })
+
+    describe('#isBackgammon', () => {
+
+        it('should return true for WhiteBackgammon1 case', () => {
+            const board = Board.fromStateString(States.WhiteBackgammon1)
+            const result = board.isBackgammon()
+            expect(result).to.equal(true)
+        })
+
+        it('should return true for WhiteBackgammon2 case', () => {
+            const board = Board.fromStateString(States.WhiteBackgammon2)
+            const result = board.isBackgammon()
+            expect(result).to.equal(true)
+        })
+
+        it('should return false for WhiteNoGammon1 case', () => {
+            const board = Board.fromStateString(States.WhiteNoGammon1)
+            const result = board.isBackgammon()
+            expect(result).to.equal(false)
+        })
+
+        it('should return false for WhiteGammon1 case', () => {
+            const board = Board.fromStateString(States.WhiteGammon1)
+            const result = board.isBackgammon()
+            expect(result).to.equal(false)
+        })
+
+        it('should return false for Initial case', () => {
+            const board = Board.fromStateString(States.Initial)
+            const result = board.isBackgammon()
+            expect(result).to.equal(false)
+        })
+    })
+
+    describe('#isGammon', () => {
+
+        it('should return true for WhiteGammon1 case', () => {
+            const board = Board.fromStateString(States.WhiteGammon1)
+            const result = board.isGammon()
+            expect(result).to.equal(true)
+        })
+
+        it('should return false for WhiteNoGammon1 case', () => {
+            const board = Board.fromStateString(States.WhiteNoGammon1)
+            const result = board.isGammon()
+            expect(result).to.equal(false)
+        })
+
+        it('should return false for Initial case', () => {
+            const board = Board.fromStateString(States.Initial)
+            const result = board.isGammon()
+            expect(result).to.equal(false)
         })
     })
 
@@ -549,17 +765,15 @@ describe('Board', () => {
 
         it('should return expected state string after white moves 2 pips for one runner', () => {
             board.move(White, 0, 2)
-            const exp = '0|0|1:White|0:|1:White|0:|0:|5:Red|0:|3:Red|0:|0:|0:|5:White|5:Red|0:|0:|0:|3:White|0:|5:White|0:|0:|0:|0:|2:Red|0|0'
             const result = board.stateString()
-            expect(result).to.equal(exp)
+            expect(result).to.equal(States.WhiteRunner2Pips)
         })
 
         it('should return initial state string after undoing white i:0,n:2', () => {
             const move = board.move(White, 0, 2)
             move.undo()
             const result = board.stateString()
-            const exp = InitialStateString
-            expect(result).to.equal(exp)
+            expect(result).to.equal(States.Initial)
         })
 
         it('should return expected state string after white i:0,n:2, then undoing red i:5,n:3 hit', () => {
@@ -567,8 +781,7 @@ describe('Board', () => {
             const move = board.move(Red, 5, 3)
             move.undo()
             const result = board.stateString()
-            const exp = '0|0|1:White|0:|1:White|0:|0:|5:Red|0:|3:Red|0:|0:|0:|5:White|5:Red|0:|0:|0:|3:White|0:|5:White|0:|0:|0:|0:|2:Red|0|0'
-            expect(result).to.equal(exp)
+            expect(result).to.equal(States.WhiteRunner2Pips)
         })
 
         it('should undo bareoff on sparse board white i:22,n:3', () => {
@@ -599,16 +812,14 @@ describe('Board', () => {
         it('should return all zeros and no slot colors for blank board', () => {
             const board = new Board
             const result = board.stateString()
-            const exp = '0|0|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0|0'
-            expect(result).to.equal(exp)
+            expect(result).to.equal(States.Blank)
         })
 
         it('should return expected value for setup board', () => {
             const board = new Board
             board.setup()
             const result = board.stateString()
-            const exp = InitialStateString
-            expect(result).to.equal(exp)
+            expect(result).to.equal(States.Initial)
         })
     })
 
@@ -619,6 +830,40 @@ describe('Board', () => {
 			expect(board.toString()).to.equal(board.stateString())
 		})
 	})
+})
+
+describe('Move', () => {
+
+    const {Board, Piece} = Lib
+
+    describe('#copy', () => {
+
+        it('should return new ComeInMove with same board, color, and face', () => {
+            const board = Board.setup()
+            board.bars.White.push(board.slots[0].pop())
+            const move = board.buildMove(White, -1, 1)
+            const copy = move.copy()
+            expect(copy.constructor.name).to.equal('ComeInMove')
+            expect(copy.board).to.equal(board)
+            expect(copy.color).to.equal(White)
+            expect(copy.face).to.equal(1)
+        })
+    })
+
+    describe('#copyForBoard', () => {
+
+        it('should return new ComeInMove with same color and face, but other board', () => {
+            const board = Board.setup()
+            board.bars.White.push(board.slots[0].pop())
+            const move = board.buildMove(White, -1, 1)
+            const otherBoard = board.copy()
+            const copy = move.copyForBoard(otherBoard)
+            expect(copy.constructor.name).to.equal('ComeInMove')
+            expect(copy.board).to.equal(otherBoard)
+            expect(copy.color).to.equal(White)
+            expect(copy.face).to.equal(1)
+        })
+    })
 })
 
 describe('SequenceTree', () => {
@@ -749,6 +994,24 @@ describe('Dice', () => {
         })
     })
 
+    describe('#getWinner', () => {
+
+        it('should return White for [6,5]', () => {
+            const result = Dice.getWinner([6, 5])
+            expect(result).to.equal(White)
+        })
+
+        it('should return Red for [1,2]', () => {
+            const result = Dice.getWinner([1, 2])
+            expect(result).to.equal(Red)
+        })
+
+        it('should return null for [4,4]', () => {
+            const result = Dice.getWinner([4, 4])
+            expect(result).to.equal(null)
+        })
+    })
+
     describe('#rollOne', () => {
 
         it('should return number between 1 and 6 for 100 rolls', () => {
@@ -792,4 +1055,23 @@ describe('Dice', () => {
 			expect(JSON.stringify(result)).to.equal(JSON.stringify(exp))
 		})
 	})
+})
+
+describe('Piece', () => {
+
+    const {Piece} = Lib
+
+    describe('#toString', () => {
+        it('should return Red for red piece', () => {
+            const piece = new Piece(Red)
+            const result = piece.toString()
+            expect(result).to.equal(Red)
+        })
+
+        it('should return White for white piece', () => {
+            const piece = new Piece(White)
+            const result = piece.toString()
+            expect(result).to.equal(White)
+        })
+    })
 })
