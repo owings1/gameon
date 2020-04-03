@@ -52,6 +52,10 @@ class Game extends Logger {
         this.finalValue = null
     }
 
+    canDouble(color) {
+        return this.cubeValue < 64 && (this.cubeOwner == null || this.cubeOwner == color)
+    }
+
     firstTurn() {
         if (this.isFinished) {
             throw new GameFinishedError('The game is already over')
