@@ -205,12 +205,17 @@ class Turn extends Logger {
     }
 
     getNextAvailableMoves() {
-        return this.allowedMoveSeries.filter(allowedMoves => {
+        const moveMap = {}
+        this.allowedMoveSeries.filter(allowedMoves => {
             // compare the first parts of allowedMoves to this.moves
             const subSeriesA = allowedMoves.slice(0, this.moves.length).map(move => [move.origin, move.face])
             const subSeriesB = this.moves.map(move => [move.origin, move.face])
             return JSON.stringify(subSeriesA) == JSON.stringify(subSeriesB)
-        }).map(moves => moves[this.moves.length]).filter(it => it != undefined)
+        }).map(moves => moves[this.moves.length]).filter(it => it != undefined).forEach(move => {
+            const moveHash = [move.origin, move.face].join(':')
+            moveMap[moveHash] = move
+        })
+        return Object.values(moveMap)
     }
 
     move(origin, face) {
