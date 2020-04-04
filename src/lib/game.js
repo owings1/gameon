@@ -600,6 +600,18 @@ class Move {
     copyForBoard(board) {
         return new this.constructor(board, ...this._constructArgs.slice(1))
     }
+
+    getDestSlot() {
+        return this.board.slots[this.dest]
+    }
+
+    getOpponentBar() {
+        return this.board.bars[Opponent[this.color]]
+    }
+
+    getOriginSlot() {
+        return this.board.slots[this.origin]
+    }
 }
 
 class ComeInMove extends Move {
@@ -640,51 +652,6 @@ class ComeInMove extends Move {
     getBar() {
         return this.board.bars[this.color]
     }
-
-    getDestSlot() {
-        return this.board.slots[this.dest]
-    }
-
-    getOpponentBar() {
-        return this.board.bars[Opponent[this.color]]
-    }
-}
-
-class BearoffMove extends Move {
-
-    constructor(board, color, origin, face) {
-
-        if (!board.mayBearoff(color)) {
-            throw new MayNotBearoffError(sp(color, 'may not bare off'))
-        }
-        // get distance to home
-        const homeDistance = Direction[color] == 1 ? 24 - origin : origin + 1
-        // make sure no piece is behind
-        if (face > homeDistance && board.hasPieceBehind(color, origin)) {
-            throw new IllegalBareoffError(sp('cannot bear off with a piece behind'))
-        }
-
-        super(board, color, origin, face)
-        this._constructArgs = Object.values(arguments)
-
-        this.isBearoff = true
-    }
-
-    do() {
-        this.getHome().push(this.getOriginSlot().pop())
-    }
-
-    undo() {
-        this.getOriginSlot().push(this.getHome().pop())
-    }
-
-    getOriginSlot() {
-        return this.board.slots[this.origin]
-    }
-
-    getHome() {
-        return this.board.homes[this.color]
-    }
 }
 
 class RegularMove extends Move {
@@ -719,17 +686,38 @@ class RegularMove extends Move {
             this.getDestSlot().push(this.getOpponentBar().pop())
         }
     }
+}
 
-    getOriginSlot() {
-        return this.board.slots[this.origin]
+class BearoffMove extends Move {
+
+    constructor(board, color, origin, face) {
+
+        if (!board.mayBearoff(color)) {
+            throw new MayNotBearoffError(sp(color, 'may not bare off'))
+        }
+        // get distance to home
+        const homeDistance = Direction[color] == 1 ? 24 - origin : origin + 1
+        // make sure no piece is behind
+        if (face > homeDistance && board.hasPieceBehind(color, origin)) {
+            throw new IllegalBareoffError(sp('cannot bear off with a piece behind'))
+        }
+
+        super(board, color, origin, face)
+        this._constructArgs = Object.values(arguments)
+
+        this.isBearoff = true
     }
 
-    getDestSlot() {
-        return this.board.slots[this.dest]
+    do() {
+        this.getHome().push(this.getOriginSlot().pop())
     }
 
-    getOpponentBar() {
-        return this.board.bars[Opponent[this.color]]
+    undo() {
+        this.getOriginSlot().push(this.getHome().pop())
+    }
+
+    getHome() {
+        return this.board.homes[this.color]
     }
 }
 
