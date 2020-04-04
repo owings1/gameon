@@ -23,6 +23,14 @@ class Util {
         return args.join(' ')
     }
 
+    static sortNumericAsc(a, b) {
+        return a - b
+    }
+
+    static sortNumericDesc(a, b) {
+        return b - a
+    }
+
     static uniqueInts(arr) {
         const map = {}
         arr.forEach(it => map[it] = true)
