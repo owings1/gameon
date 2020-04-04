@@ -14,11 +14,23 @@ const Levels = {
 
 class Logger {
 
+    static format(ctx) {
+        return chalk.grey(stripAnsi(ctx.type).toUpperCase()) + ' ' + ctx.msg
+    }
+
     constructor() {
         Logging(this, {
-            format: ctx => chalk.grey(stripAnsi(ctx.type).toUpperCase()) + ' ' + ctx.msg
+            format: Logger.format
         })
         this.loglevel = Levels[process.env.LOG_LEVEL || 'info']
+    }
+
+    getStdout() {
+        return this.stdout || process.stdout
+    }
+
+    writeStdout(str) {
+        this.getStdout().write(str)
     }
 }
 
