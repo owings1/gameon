@@ -24,7 +24,7 @@ const OutsideSlots = {
 
 const Direction = {
     White : 1
- ,  Red   : -1
+  , Red   : -1
 }
 
 const Opponent = {
