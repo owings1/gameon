@@ -238,6 +238,7 @@ class Turn extends Logger {
         }
         const move = this.board.move(this.color, origin, face)
         this.moves.push(move)
+        return move
     }
 
     unmove() {
