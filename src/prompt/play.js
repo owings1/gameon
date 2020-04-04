@@ -6,9 +6,6 @@ const chalk = require('chalk')
 const inquirer = require('inquirer')
 const sp = Util.joinSpace
 
-function wr(str) {
-    process.stdout.write(str)
-}
 
 class PromptPlayer extends Logger {
 
@@ -22,6 +19,11 @@ class PromptPlayer extends Logger {
         const botHalf = board.slots.slice(12, 24)
         const p = 4
         const m = 1
+
+        const builder = []
+        const wr = (...args) => {
+            builder.push(sp(...args))
+        }
 
         wr('\n')
 
@@ -144,10 +146,12 @@ class PromptPlayer extends Logger {
         wr('\n')
 
         wr('\n')
+
+        return builder.join('')
     }
 
     drawBoard(board) {
-        PromptPlayer.drawBoard(board)
+        return PromptPlayer.drawBoard(board)
     }
 
     prompt(questions) {
@@ -190,7 +194,7 @@ class PromptPlayer extends Logger {
             }
         }
 
-        this.drawBoard(game.board)
+        this.writeStdout(this.drawBoard(game.board))
     }
 
     async promptAction(turn) {
@@ -208,25 +212,25 @@ class PromptPlayer extends Logger {
             this.info(turn.color, 'cannot move')
             return
         }
-        this.drawBoard(turn.board)
+        this.writeStdout(this.drawBoard(turn.board))
         this.info(turn.color, 'rolls', turn.dice.join())
         while (true) {
             var moves = turn.getNextAvailableMoves()
             var origin = await this.promptOrigin(moves.map(move => move.origin), turn.moves.length > 0)
             if (origin == 'undo') {
                 turn.unmove()
-                this.drawBoard(turn.board)
+                this.writeStdout(this.drawBoard(turn.board))
                 continue
             }
             var face = await this.promptFace(moves.filter(move => move.origin == origin).map(move => move.face))
             var move = turn.move(origin, face)
             this.info(this.describeMove(move))
-            this.drawBoard(turn.board)
+            this.writeStdout(this.drawBoard(turn.board))
             if (turn.getNextAvailableMoves().length == 0) {
                 var finish = await this.promptFinishOrUndo()
                 if (finish == 'undo') {
                     turn.unmove()
-                    this.drawBoard(turn.board)
+                    this.writeStdout(this.drawBoard(turn.board))
                     continue
                 } else {
                     turn.finish()
@@ -306,11 +310,19 @@ class PromptPlayer extends Logger {
         })
         return answers.accept
     }
+
+    static doMainIfEquals(lhs, rhs) {
+        if (lhs === rhs) {
+            PromptPlayer.main(new PromptPlayer)
+        }
+    }
 }
 
-if (require.main === module) {
-    var player = new PromptPlayer
+PromptPlayer.main = function(player) {
     player.playGame(new Game)
+    return player
 }
+
+PromptPlayer.doMainIfEquals(require.main, module)
 
 module.exports = PromptPlayer
