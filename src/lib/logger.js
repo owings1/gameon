@@ -1,5 +1,8 @@
 const Logging = require('better-logging')
 
+const chalk     = require('chalk')
+const stripAnsi = require('strip-ansi')
+
 const Levels = {
    debug : 4
  , log   : 3
@@ -12,7 +15,9 @@ const Levels = {
 class Logger {
 
     constructor() {
-        Logging(this)
+        Logging(this, {
+            format: ctx => chalk.grey(stripAnsi(ctx.type).toUpperCase()) + ' ' + ctx.msg
+        })
         this.loglevel = Levels[process.env.LOG_LEVEL || 'info']
     }
 }
