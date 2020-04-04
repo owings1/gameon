@@ -37,7 +37,8 @@ class Game extends Logger {
     constructor() {
         super()
         this.opts = {
-            isJacoby : false
+            isCrawford : false
+          , isJacoby   : false
         }
         this.board = Board.setup()
         this.cubeOwner = null
@@ -53,7 +54,7 @@ class Game extends Logger {
     }
 
     canDouble(color) {
-        return this.cubeValue < 64 && (this.cubeOwner == null || this.cubeOwner == color)
+        return !this.opts.isCrawford && this.cubeValue < 64 && (this.cubeOwner == null || this.cubeOwner == color)
     }
 
     firstTurn() {
