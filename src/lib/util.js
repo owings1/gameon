@@ -26,7 +26,7 @@ class Util {
     static uniqueInts(arr) {
         const map = {}
         arr.forEach(it => map[it] = true)
-        return arr.map(it => +it)
+        return Object.keys(map).map(it => +it)
     }
 }
 

@@ -4,6 +4,7 @@ const White = 'White'
 const Red = 'Red'
 
 const Lib = require('../src/lib/game')
+const Util = require('../src/lib/util')
 
 function getError(cb) {
     try {
@@ -1073,6 +1074,17 @@ describe('Piece', () => {
             const piece = new Piece(White)
             const result = piece.toString()
             expect(result).to.equal(White)
+        })
+    })
+})
+
+describe('Util', () => {
+    describe('#uniqueInts', () => {
+        it('should return [1,2,3] for [1,1,2,2,3,3]', () => {
+            const input = [1, 1, 2, 2, 3, 3]
+            const exp = [1, 2, 3]
+            const result = Util.uniqueInts(input)
+            expect(JSON.stringify(result)).to.equal(JSON.stringify(exp))
         })
     })
 })
