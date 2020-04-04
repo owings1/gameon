@@ -176,7 +176,7 @@ class Turn extends Logger {
         this.assertNotRolled()
 
         Dice.checkTwo(dice)
-        this.dice = dice
+        this.dice = dice.sort(Util.sortNumericDesc)
         this.isRolled = true
 
         this.afterRoll()
@@ -187,7 +187,7 @@ class Turn extends Logger {
         this.assertNotFinished()
         this.assertNotRolled()
 
-        this.dice = Dice.rollTwo()
+        this.dice = Dice.rollTwo().sort(Util.sortNumericDesc)
         this.isRolled = true
 
         this.afterRoll()
