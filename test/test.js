@@ -59,6 +59,41 @@ describe('Game', () => {
         game.loglevel = 1
     })
 
+    describe('#canDouble', () => {
+
+        it('should return false when isCrawford', () => {
+            game.opts.isCrawford = true
+            const result = game.canDouble(White)
+            expect(result).to.equal(false)
+        })
+
+        it('should return false for red when white owns the cube', () => {
+            game.cubeValue = 2
+            game.cubeOwner = White
+            const result = game.canDouble(Red)
+            expect(result).to.equal(false)
+        })
+
+        it('should return true for white when white owns the cube', () => {
+            game.cubeValue = 2
+            game.cubeOwner = White
+            const result = game.canDouble(White)
+            expect(result).to.equal(true)
+        })
+
+        it('should return true for red when nobody owns the cube', () => {
+            const result = game.canDouble(Red)
+            expect(result).to.equal(true)
+        })
+
+        it('should return false for Red when value is 64', () => {
+            game.cubeValue = 64
+            game.cubeOwner = Red
+            const result = game.canDouble(Red)
+            expect(result).to.equal(false)
+        })
+    })
+
     describe('#checkFinished', () => {
 
         it('should return false for new game', () => {
@@ -806,6 +841,16 @@ describe('Board', () => {
             expect(board.slots[21]).to.have.length(1)
             expect(board.slots[21][0].color).to.equal(Red)
             expect(board.bars.White).to.have.length(1)
+        })
+
+        it('should undo hit for red come in with 3 with RedHitComeIn3', () => {
+            board.setStateString(States.RedHitComeIn3)
+            const move = board.move(Red, -1, 3)
+            move.undo()
+            expect(board.bars.Red).to.have.length(1)
+            expect(board.slots[21]).to.have.length(1)
+            expect(board.slots[21][0].color).to.equal(White)
+            expect(board.bars.White).to.have.length(0)
         })
     })
 
