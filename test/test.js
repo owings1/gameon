@@ -5,6 +5,7 @@ const Red = 'Red'
 
 const Lib = require('../src/lib/game')
 const Util = require('../src/lib/util')
+const Logger = require('../src/lib/logger')
 
 function getError(cb) {
     try {
@@ -20,6 +21,7 @@ const States = {
  ,  WhiteBackgammon1  : '0|0|14:Red|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|1:Red|15|0'
  ,  WhiteBackgammon2  : '0|1|14:Red|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|15|0'
  ,  WhiteGammon1      : '0|0|15:Red|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|15|0'
+ ,  RedGammon1        : '0|0|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|15:White|0|15'
  ,  WhiteNoGammon1    : '0|1|12:Red|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|1:Red|15|1'
  ,  WhiteRunner2Pips  : '0|0|1:White|0:|1:White|0:|0:|5:Red|0:|3:Red|0:|0:|0:|5:White|5:Red|0:|0:|0:|3:White|0:|5:White|0:|0:|0:|0:|2:Red|0|0'
     // with 2,4 white has to come in on the 4
@@ -1109,6 +1111,7 @@ describe('Piece', () => {
     const {Piece} = Lib
 
     describe('#toString', () => {
+
         it('should return Red for red piece', () => {
             const piece = new Piece(Red)
             const result = piece.toString()
@@ -1124,7 +1127,65 @@ describe('Piece', () => {
 })
 
 describe('Util', () => {
+
+    // used with permission
+    describe('#castToArray', () => {
+
+        it('should return singleton [1] for input 1', () => {
+            const result = Util.castToArray(1)
+            expect(JSON.stringify(result)).to.equal(JSON.stringify([1]))
+        })
+
+        it('should return empty list for undefined', () => {
+            const result = Util.castToArray(undefined)
+            expect(JSON.stringify(result)).to.equal(JSON.stringify([]))
+        })
+
+        it('should return empty list for null', () => {
+            const result = Util.castToArray(null)
+            expect(JSON.stringify(result)).to.equal(JSON.stringify([]))
+        })
+
+        it('should return singleton false for input false', () => {
+            const result = Util.castToArray(false)
+            expect(JSON.stringify(result)).to.equal(JSON.stringify([false]))
+        })
+
+        it('should return singleton 0 for input 0', () => {
+            const result = Util.castToArray(0)
+            expect(JSON.stringify(result)).to.equal(JSON.stringify([0]))
+        })
+
+        it('should return same reference for array input', () => {
+            const arr = []
+            const result = Util.castToArray(arr)
+            expect(result).to.equal(arr)
+        })
+    })
+    
+
+    describe('#sortNumericAsc', () => {
+
+        it('should sort [32, 4, 1, 7] to [1, 4, 7, 32]', () => {
+            const input = [32, 4, 1, 7]
+            const exp = [1, 4, 7, 32]
+            const result = input.sort(Util.sortNumericAsc)
+            expect(JSON.stringify(result)).to.equal(JSON.stringify(exp))
+        })
+    })
+
+    describe('#sortNumericDesc', () => {
+
+        it('should sort [32, 4, 1, 7] to [32, 7, 4, 1]', () => {
+            const input = [32, 4, 1, 7]
+            const exp = [32, 7, 4, 1]
+            const result = input.sort(Util.sortNumericDesc)
+            expect(JSON.stringify(result)).to.equal(JSON.stringify(exp))
+        })
+    })
+
     describe('#uniqueInts', () => {
+
         it('should return [1,2,3] for [1,1,2,2,3,3]', () => {
             const input = [1, 1, 2, 2, 3, 3]
             const exp = [1, 2, 3]
@@ -1133,3 +1194,199 @@ describe('Util', () => {
         })
     })
 })
+
+describe('Logger', () => {
+
+    describe('#format', () => {
+
+        it('should return string with type and msg', () => {
+            const str = Logger.format({type: 'info', msg: 'test'})
+            expect(str.toLowerCase()).to.contain('info')
+            expect(str).to.contain('test')
+        })
+    })
+
+    describe('#getStdout', () => {
+
+        it('should return process.stdout if not set', () => {
+            const logger = new Logger
+            const result = logger.getStdout()
+            expect(result).to.equal(process.stdout)
+        })
+
+        it('should return what is set', () => {
+            const logger = new Logger
+            logger.stdout = 1
+            const result = logger.getStdout()
+            expect(result).to.equal(1)
+        })
+    })
+
+    describe('#writeStdout', () => {
+        it('should call write method on logger.stdout with str as argument', () => {
+            const logger = new Logger
+            var s
+            logger.stdout = {write: str => s = str}
+            logger.writeStdout('foo')
+            expect(s).to.equal('foo')
+        })
+    })
+})
+
+describe('PromptPlayer', () => {
+
+    const {Board} = Lib
+    const PromptPlayer = require('../src/prompt/play')
+
+    describe('#drawBoard', () => {
+
+        // these are just for coverage
+
+        it('should not barf for initial board', () => {
+            PromptPlayer.drawBoard(Board.setup())
+        })
+
+        it('should not barf for RedHitComeIn3', () => {
+            PromptPlayer.drawBoard(Board.fromStateString(States.RedHitComeIn3))
+        })
+
+        it('should not barf for WhiteCornerCase24', () => {
+            PromptPlayer.drawBoard(Board.fromStateString(States.WhiteCornerCase24))
+        })
+
+        it('should not barf for WhiteGammon1', () => {
+            PromptPlayer.drawBoard(Board.fromStateString(States.WhiteGammon1))
+        })
+
+        it('should not barf for RedGammon1', () => {
+            PromptPlayer.drawBoard(Board.fromStateString(States.RedGammon1))
+        })
+    })
+
+    describe('#doMainIfEquals', () => {
+
+        // coverage tricks
+
+        var oldMain
+
+        before(() => {
+            oldMain = PromptPlayer.main
+        })
+
+        afterEach(() => {
+            PromptPlayer.main = oldMain
+        })
+
+        it('should call mock main with new player object', () => {
+            var p
+            PromptPlayer.main = player => p = player
+            PromptPlayer.doMainIfEquals(null, null)
+            expect(p.constructor.name).to.equal('PromptPlayer')
+        })
+    })
+
+    describe('#main', () => {
+
+        // coverage tricks
+
+        it('should call playGame with new game', () => {
+            var g
+            const player = new PromptPlayer
+            player.playGame = game => g = game
+            PromptPlayer.main(player)
+            expect(g.constructor.name).to.equal('Game')
+        })
+    })
+
+    describe('#prompt', () => {
+
+        // coverage tricks
+
+        const inquirer = require('inquirer')
+
+        var oldPrompt
+
+        before(() => {
+            oldPrompt = inquirer.prompt
+        })
+
+        afterEach(() => {
+            inquirer.prompt = oldPrompt
+        })
+
+        it('should call inquirer.prompt with array and set player._prompt', () => {
+            var q
+            const player = new PromptPlayer
+            inquirer.prompt = questions => q = questions
+            player.prompt()
+            expect(Array.isArray(q)).to.equal(true)
+        })
+    })
+})
+
+function MockPrompter(responses, isAssertAsked, isAssertAnswered) {
+
+    responses = Util.castToArray(responses)
+    var seqi = 0
+    var prompter = (async questions => {
+        const answers = {}
+        const response = responses.shift()
+        try {
+            if (response) {
+
+                const unasked = {}
+                Object.keys(response).forEach(opt => unasked[opt] = true)
+                const unanswered = []
+                
+                questions.forEach(question => {
+                    const opt = question.name
+                    delete unasked[opt]
+                    if (opt in response) {
+                        if (typeof response[opt] == 'function') {
+                            answers[opt] = response[opt](question)
+                        } else {
+                            answers[opt] = response[opt]
+                        }
+                    } else {
+                        unanswered.push(opt)
+                    }
+                })
+
+                var shouldThrow = false
+                const alerts = []
+
+                if (Object.keys(unasked).length) {
+                    alerts.push(
+                        "MockPrompter was not asked: " + Object.keys(unasked).join(', ') + " in seqi " + seqi
+                    )
+                    shouldThrow = shouldThrow || isAssertAsked
+                }
+
+                if (unanswered.length) {
+                    alerts.push(
+                        "MockPrompter did not answer: " + unanswered.join(', ') + " in seqi " + seqi
+                    )
+                    shouldThrow = shouldThrow || isAssertAnswered
+                }
+
+                if (shouldThrow) {
+                    throw new Error(alerts.join(' AND '))
+                }
+
+                if (alerts.length) {
+                    console.error('MockPrompter Alerts!', alerts)
+                }
+                
+            } else {
+                throw new Error('MockPrompter did not have a reponse for seqi ' + seqi + ' with questions ' + questions.map(it => it.name).join(', '))
+            }
+        } finally {
+            if (prompter.debug) {
+                console.log({questions, answers})
+            }
+        }
+        seqi += 1
+        return answers
+    })
+    return prompter
+}
