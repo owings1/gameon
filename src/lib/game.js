@@ -608,8 +608,8 @@ class ComeInMove extends Move {
             throw new NoPieceOnBarError(sp(color, 'does not have a piece on the bar'))
         }
         const dest = Direction[color] == 1 ? face - 1 : 24 - face
-        const slot = board.slots[dest]
-        if (slot.length > 1 && slot[0].color != color) {
+        const destSlot = board.slots[dest]
+        if (destSlot.length > 1 && destSlot[0].color != color) {
             throw new OccupiedSlotError(sp(color, 'cannot come in on space', dest + 1))
         }
 
@@ -618,14 +618,21 @@ class ComeInMove extends Move {
 
         this.isComeIn = true
         this.dest = dest
+        this.isHit = destSlot.length == 1 && destSlot[0].color != color
     }
 
     do() {
+        if (this.isHit) {
+            this.getOpponentBar().push(this.getDestSlot().pop())
+        }
         this.getDestSlot().push(this.getBar().pop())
     }
 
     undo() {
         this.getBar().push(this.getDestSlot().pop())
+        if (this.isHit) {
+            this.getDestSlot().push(this.getOpponentBar().pop())
+        }
     }
 
     getBar() {
@@ -634,6 +641,10 @@ class ComeInMove extends Move {
 
     getDestSlot() {
         return this.board.slots[this.dest]
+    }
+
+    getOpponentBar() {
+        return this.board.bars[Opponent[this.color]]
     }
 }
 

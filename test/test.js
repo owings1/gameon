@@ -27,6 +27,8 @@ const States = {
  ,  WhiteCornerCase26 : '0|0|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|1:White|0:|0:|1:White|0:|0:|2:Red|0:|0:|2:Red|0|0'
     // with 1,6 white must take the 6, even though the 6 point is un-occupied
  ,  WhiteCornerCase16 : '0|0|1:White|2:Red|0:|0:|0:|0:|2:Red|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|1:White|0:|0:|0:|0:|0:|0:|0|0'
+    // should hit on come-in roll 3
+ ,  RedHitComeIn3     : '0|1|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|2:White|1:Red|2:Red|1:White|0:|2:White|0|0'
 }
 
 function randomElement(arr) {
@@ -794,6 +796,15 @@ describe('Board', () => {
             move.undo()
             expect(board.bars.White).to.have.length(1)
             expect(board.slots[1]).to.have.length(0)
+        })
+
+        it('should hit for red come in with 3 with RedHitComeIn3', () => {
+            board.setStateString(States.RedHitComeIn3)
+            const move = board.move(Red, -1, 3)
+            expect(board.bars.Red).to.have.length(0)
+            expect(board.slots[21]).to.have.length(1)
+            expect(board.slots[21][0].color).to.equal(Red)
+            expect(board.bars.White).to.have.length(1)
         })
     })
 
