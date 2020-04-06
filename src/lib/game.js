@@ -32,13 +32,71 @@ const Opponent = {
   , Red   : White
 }
 
+const Defaults = {
+    Match : {
+        isCrawford : true
+      , isJacoby   : false
+    }
+  , Game : {
+        isCrawford : false
+      , isJacoby   : false
+    }
+}
+
+class Match {
+
+    constructor(total, opts) {
+        if (!Number.isInteger(total) || total < 1) {
+            throw new ArgumentError('total must be integer > 0')
+        }
+        this.total = total
+        this.opts = merge({}, Defaults.Match, opts)
+        this.games = []
+        this.scores = {
+            Red   : 0
+          , White : 0
+        }
+        this.thisGame = null
+        this.winner = null
+    }
+
+    nextGame() {
+        if (this.thisGame && !this.thisGame.checkFinished()) {
+            throw new GameNotFinishedError('Current game has not finished')
+        }
+        if (this.hasWinner()) {
+            throw new MatchFinishedError('Match is already finished')
+        }
+        const isCrawford = this.opts.isCrawford &&
+                           undefined != Object.entries(this.scores).find(([color, score]) =>
+                               score + 1 == this.total
+                           )
+        const opts = merge({}, this.opts, {isCrawford})
+        this.thisGame = new Game(opts)
+        this.games.push(this.thisGame)
+        return this.thisGame
+    }
+
+    updateScore() {
+        if (this.thisGame && this.thisGame.checkFinished()) {
+            this.scores[this.thisGame.winner] += this.thisGame.finalValue
+        }
+    }
+
+    hasWinner() {
+        return this.getWinner() != null
+    }
+
+    getWinner() {
+        const winner = Object.keys(this.scores).find(color => this.scores[color] >= this.total)
+        return winner || null
+    }
+}
+
 class Game {
 
-    constructor() {
-        this.opts = {
-            isCrawford : false
-          , isJacoby   : false
-        }
+    constructor(opts) {
+        this.opts = merge({}, Defaults.Game, opts)
         this.board = Board.setup()
         this.cubeOwner = null
         this.cubeValue = 1
@@ -64,7 +122,7 @@ class Game {
             throw new GameAlreadyStartedError('The game has already started')
         }
         do {
-            var dice = Dice.rollTwo()
+            var dice = this._rollFirst()
         } while (dice[0] == dice[1])
         const firstColor = Dice.getWinner(dice)
         this.thisTurn = new Turn(this.board, firstColor)
@@ -126,6 +184,11 @@ class Game {
         }
         return this.isFinished
     }
+
+    // allow override for testing
+    _rollFirst() {
+        return Dice.rollTwo()
+    }
 }
 
 class Turn {
@@ -182,7 +245,7 @@ class Turn {
         this.assertNotFinished()
         this.assertNotRolled()
 
-        this.dice = Dice.rollTwo().sort(Util.sortNumericDesc)
+        this.dice = this._roll().sort(Util.sortNumericDesc)
         this.isRolled = true
 
         this.afterRoll()
@@ -345,6 +408,11 @@ class Turn {
           , isCantMove        : maxDepth == 0
           , allowedFaces
         }
+    }
+
+    // allow override for testing
+    _roll() {
+        return Dice.rollTwo()
     }
 }
 
@@ -844,9 +912,12 @@ class IllegalMoveError extends GameError {
     }
 }
 
+class ArgumentError extends GameError {}
 class InvalidRollError extends GameError {}
 
+class MatchFinishedError extends IllegalStateError {}
 class GameFinishedError extends IllegalStateError {}
+class GameNotFinishedError extends IllegalStateError {}
 class GameAlreadyStartedError extends IllegalStateError {}
 class GameNotStartedError extends IllegalStateError {}
 class TurnAlreadyFinishedError extends IllegalStateError {}
@@ -865,4 +936,4 @@ class NoMovesRemainingError extends IllegalMoveError {}
 class NoMovesMadeError extends IllegalMoveError {}
 class MovesRemainingError extends IllegalMoveError {}
 
-module.exports = {Game, Board, SequenceTree, BoardNode, Piece, Dice, Turn, White, Red, Opponent}
+module.exports = {Match, Game, Board, SequenceTree, BoardNode, Piece, Dice, Turn, White, Red, Opponent}
