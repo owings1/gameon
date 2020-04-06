@@ -15,6 +15,14 @@ function getError(cb) {
     }
 }
 
+async function getErrorAsync(cb) {
+    try {
+        await cb()
+    } catch (err) {
+        return err
+    }
+}
+
 const States = {
     Initial           : '0|0|2:White|0:|0:|0:|0:|5:Red|0:|3:Red|0:|0:|0:|5:White|5:Red|0:|0:|0:|3:White|0:|5:White|0:|0:|0:|0:|2:Red|0|0'
  ,  Blank             : '0|0|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0|0'
@@ -36,6 +44,9 @@ const States = {
  ,  RedBearoff51      : '0|0|0:|1:Red|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0|14'
     // should allow bearoff with the 5
  ,  RedBearoff51easy  : '0|0|0:|1:Red|1:Red|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0|14'
+ ,  EitherOneMoveWin  : '0|0|1:Red|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|1:White|14|14'
+ ,  RedWinWith66      : '0|0|2:White|0:|0:|0:|0:|4:Red|0:|0:|0:|0:|0:|5:White|0:|0:|0:|0:|3:White|0:|5:White|0:|0:|0:|0:|0:|0|11'
+ ,  WhiteTakes61      : '0|0|2:White|0:|0:|0:|0:|5:Red|0:|3:Red|0:|0:|0:|4:White|5:Red|0:|0:|0:|2:White|2:White|5:White|0:|0:|0:|0:|2:Red|0|0'
 }
 
 function randomElement(arr) {
@@ -43,7 +54,7 @@ function randomElement(arr) {
     return arr[i]
 }
 
-function makeRandomMoves(turn) {
+function makeRandomMoves(turn, isFinish) {
     while (true) {
         var moves = turn.getNextAvailableMoves()
         if (moves.length == 0) {
@@ -52,7 +63,60 @@ function makeRandomMoves(turn) {
         var move = randomElement(moves)
         turn.move(move.origin, move.face)
     }
+    if (isFinish) {
+        turn.finish()
+    }
+    return turn
 }
+
+describe('Match', () => {
+
+    const {Match, Board} = Lib
+
+    describe('#constructor', () => {
+
+        it('should throw ArgumentError for total=0', () => {
+            const err = getError(() => new Match(0))
+            expect(err.name).to.equal('ArgumentError')
+        })
+
+        it('should not throw for total=1', () => {
+            new Match(1)
+        })
+    })
+
+    describe('#nextGame', () => {
+
+        it('should throw GameNotFinishedError on second call', () => {
+            const match = new Match(1)
+            match.nextGame()
+            const err = getError(() => match.nextGame())
+            expect(err.name).to.equal('GameNotFinishedError')
+        })
+
+        it('should throw MatchFinishedError for 1 point match when first game is finished', () => {
+            const match = new Match(1)
+            const game = match.nextGame()
+            game.board.setStateString(States.EitherOneMoveWin)
+            const turn = game.firstTurn()
+            makeRandomMoves(turn)
+            turn.finish()
+            expect(game.checkFinished()).to.equal(true)
+            match.updateScore()
+            const err = getError(() => match.nextGame())
+            expect(err.name).to.equal('MatchFinishedError')
+        })
+    })
+
+    describe('#updateScore', () => {
+        it('should do nothing when match not started', () => {
+            const match = new Match(1)
+            match.updateScore()
+            expect(match.scores.Red).to.equal(0)
+            expect(match.scores.White).to.equal(0)
+        })
+    })
+})
 
 describe('Game', () => {
 
@@ -1256,37 +1320,37 @@ describe('Logger', () => {
 
 describe('PromptPlayer', () => {
 
-    const {Board} = Lib
+    const {Board, Game} = Lib
     const PromptPlayer = require('../src/prompt/play')
 
-    describe('#drawBoard', () => {
+    var player
 
-        const {Game} = Lib
-        // these are just for coverage
-        var game
-        beforeEach(() => game = new Game)
-        it('should not barf for initial board', () => {
-            PromptPlayer.drawBoard(game)
+    beforeEach(() => {
+        player = new PromptPlayer
+    })
+
+    describe('#describeMove', () => {
+
+        it('should include \'bar\' if origin is -1', () => {
+            const board = Board.fromStateString(States.WhiteCornerCase24)
+            const move = board.buildMove(White, -1, 4)
+            const result = PromptPlayer.describeMove(move)
+            expect(result).to.contain('bar')
         })
 
-        it('should not barf for RedHitComeIn3', () => {
-            game.board.setStateString(States.RedHitComeIn3)
-            PromptPlayer.drawBoard(game)
+        it('should inclue 1 and 3 if origin is 0 and face is 2', () => {
+            const board = Board.setup()
+            const move = board.buildMove(White, 0, 2)
+            const result = PromptPlayer.describeMove(move)
+            expect(result).to.contain('1')
+            expect(result).to.contain('3')
         })
 
-        it('should not barf for WhiteCornerCase24', () => {
-            game.board.setStateString(States.WhiteCornerCase24)
-            PromptPlayer.drawBoard(game)
-        })
-
-        it('should not barf for WhiteGammon1', () => {
-            game.board.setStateString(States.WhiteGammon1)
-            PromptPlayer.drawBoard(game)
-        })
-
-        it('should not barf for RedGammon1', () => {
-            game.board.setStateString(States.RedGammon1)
-            PromptPlayer.drawBoard(game)
+        it('should include \'home\' for red if origin is 0 and face is 2', () => {
+            const board = Board.fromStateString(States.EitherOneMoveWin)
+            const move = board.buildMove(Red, 0, 2)
+            const result = PromptPlayer.describeMove(move)
+            expect(result).to.contain('home')
         })
     })
 
@@ -1312,16 +1376,232 @@ describe('PromptPlayer', () => {
         })
     })
 
+    describe('#drawBoard', () => {
+
+        // these are just for coverage
+        var game
+
+        beforeEach(() => game = new Game)
+
+        it('should not barf for initial board', () => {
+            PromptPlayer.drawBoard(game)
+        })
+
+        it('should not barf for RedHitComeIn3', () => {
+            game.board.setStateString(States.RedHitComeIn3)
+            PromptPlayer.drawBoard(game)
+        })
+
+        it('should not barf for WhiteCornerCase24', () => {
+            game.board.setStateString(States.WhiteCornerCase24)
+            PromptPlayer.drawBoard(game)
+        })
+
+        it('should not barf for WhiteGammon1', () => {
+            game.board.setStateString(States.WhiteGammon1)
+            PromptPlayer.drawBoard(game)
+        })
+
+        it('should not barf for RedGammon1', () => {
+            game.board.setStateString(States.RedGammon1)
+            PromptPlayer.drawBoard(game)
+        })
+
+        it('should not barf for instance', () => {
+            player.drawBoard(game)
+        })
+
+        it('should not barf when game isCrawford', () => {
+            game.isCrawford = true
+            player.drawBoard(game)
+        })
+
+        it('should not barf when cubeOwner is red', () => {
+            game.cubeOwner = Red
+            player.drawBoard(game)
+        })
+
+        it('should not barf when cubeOwner is white', () => {
+            game.cubeOwner = White
+            player.drawBoard(game)
+        })
+    })
+
     describe('#main', () => {
 
         // coverage tricks
 
         it('should call playGame with new game', () => {
             var g
-            const player = new PromptPlayer
             player.playGame = game => g = game
             PromptPlayer.main(player)
             expect(g.constructor.name).to.equal('Game')
+        })
+    })
+
+    describe('#playGame', () => {
+
+        var player
+        var game
+
+        beforeEach(() => {
+            player = new PromptPlayer
+            player.stdout = {write: () => {}}
+            player.loglevel = 1
+            game = new Game
+        })
+
+        it('should play RedWinWith66 for white first move 6,1 then red 6,6', async () => {
+            game.board.setStateString(States.RedWinWith66)
+            game._rollFirst = () => [6, 1]
+            player._rollForTurn = turn => turn.setRoll([6, 6])
+            player.prompt = MockPrompter([
+                // white's first turn
+                {origin: '12'},
+                {face: '6'},
+                {origin: '17'},
+                {finish: 'finish'},
+                // red's turn
+                {action: 'roll'},
+                {origin: '6'},
+                {origin: '6'},
+                {origin: '6'},
+                {origin: '6'},
+                {finish: 'finish'}
+            ])
+            await player.playGame(game)
+            expect(game.winner).to.equal(Red)
+        })
+
+        it('should end with white refusing double on second turn', async () => {
+            game._rollFirst = () => [6, 1]
+            player.prompt = MockPrompter([
+                // white's first turn
+                {origin: '12'},
+                {origin: '17'},
+                {finish: 'finish'},
+                // red's turn
+                {action: 'double'},
+                {accept: false}
+            ])
+            await player.playGame(game)
+            expect(game.winner).to.equal(Red)
+        })
+
+        it('should play RedWinWith66 for white first move 6,1 then red double, white accept, red rolls 6,6 backgammon', async () => {
+            game.board.setStateString(States.RedWinWith66)
+            game._rollFirst = () => [6, 1]
+            player._rollForTurn = turn => turn.setRoll([6, 6])
+            player.prompt = MockPrompter([
+                // white's first turn
+                {origin: '12'},
+                {face: '6'},
+                {origin: '17'},
+                {finish: 'finish'},
+                // red's turn
+                {action: 'double'},
+                {accept: true},
+                {origin: '6'},
+                {origin: '6'},
+                {origin: '6'},
+                {origin: '6'},
+                {finish: 'finish'}
+            ])
+            await player.playGame(game)
+            expect(game.winner).to.equal(Red)
+            expect(game.cubeValue).to.equal(2)
+            expect(game.finalValue).to.equal(8)
+        })
+
+        it('should play RedWinWith66, white 6,1, red double, white accept, red 6,5, white 1,2, red cant double 6,6, backgammon', async () => {
+            game.board.setStateString(States.RedWinWith66)
+            game._rollFirst = () => [6, 1]
+            player._rollForTurn = (turn, i) => {
+                if (i == 2) {
+                    turn.setRoll([6, 5])
+                } else if (i == 3) {
+                    turn.setRoll([1, 2])
+                } else if (i == 4) {
+                    turn.setRoll([6, 6])
+                }
+            }
+            player.prompt = MockPrompter([
+                // white's first turn
+                {origin: '12'},
+                {face: '6'},
+                {origin: '17'},
+                {finish: 'finish'},
+                // red's turn
+                {action: 'double'},
+                {accept: true},
+                {origin: '6'},
+                {finish: 'finish'},
+                // white's turn
+                {action: 'roll'},
+                {origin: '1'},
+                {face: '2'},
+                {origin: '1'},
+                {finish: 'finish'},
+                // red's turn
+                {origin: '6'},
+                {origin: '6'},
+                {origin: '6'},
+                {finish: 'finish'}
+            ])
+            await player.playGame(game)
+            expect(game.winner).to.equal(Red)
+            expect(game.cubeValue).to.equal(2)
+            expect(game.finalValue).to.equal(8)
+        })
+    })
+
+    describe('#playRoll', () => {
+
+        var player
+        var game
+
+        beforeEach(() => {
+            player = new PromptPlayer
+            player.stdout = {write: () => {}}
+            player.loglevel = 1
+            game = new Game
+        })
+
+        it('should return without prompting if turn.isCantMove', async () => {
+            const turn = game.firstTurn()
+            // force property
+            turn.isCantMove = true
+            await player.playRoll(turn, game)
+        })
+
+        it('should play first roll White 6,1 then break with board as expected for 6 point', async () => {
+            game._rollFirst = () => [6, 1]
+            player.prompt = MockPrompter([
+                {origin: '12'},
+                {origin: '17'},
+                {finish: 'finish'}
+            ])
+            const turn = game.firstTurn()
+            await player.playRoll(turn, game)
+            expect(turn.isFinished).to.equal(true)
+            expect(game.board.stateString()).to.equal(States.WhiteTakes61)
+        })
+
+        it('should play first roll White 6,1 undo first then second with board as expected for 6 point', async () => {
+            game._rollFirst = () => [6, 1]
+            player.prompt = MockPrompter([
+                {origin: '12'},
+                {origin: 'u'},
+                {origin: '12'},
+                {origin: '17'},
+                {finish: 'undo'},
+                {origin: '17'},
+                {finish: 'finish'}
+            ])
+            const turn = game.firstTurn()
+            await player.playRoll(turn, game)
+            expect(turn.isFinished).to.equal(true)
+            expect(game.board.stateString()).to.equal(States.WhiteTakes61)
         })
     })
 
@@ -1343,19 +1623,135 @@ describe('PromptPlayer', () => {
 
         it('should call inquirer.prompt with array and set player._prompt', () => {
             var q
-            const player = new PromptPlayer
             inquirer.prompt = questions => q = questions
             player.prompt()
             expect(Array.isArray(q)).to.equal(true)
         })
     })
+
+    describe('#promptAcceptDouble', () => {
+
+        var turn
+
+        beforeEach(() => {
+            const game = new Game
+            makeRandomMoves(game.firstTurn(), true)
+            turn = game.nextTurn()
+        })
+
+        it('should return true for true', async () => {
+            player.prompt = MockPrompter({accept: true})
+            const result = await player.promptAcceptDouble(turn)
+            expect(result).to.equal(true)
+        })
+
+        it('should return false for false', async () => {
+            player.prompt = MockPrompter({accept: false})
+            const result = await player.promptAcceptDouble(turn)
+            expect(result).to.equal(false)
+        })
+    })
+
+    describe('#promptAction', () => {
+
+        it('should return roll for roll', async () => {
+            player.prompt = MockPrompter({action: 'roll'})
+            const result = await player.promptAction()
+            expect(result).to.equal('roll')
+        })
+
+        it('should return double for double', async () => {
+            player.prompt = MockPrompter({action: 'double'})
+            const result = await player.promptAction()
+            expect(result).to.equal('double')
+        })
+    })
+
+    describe('#promptFace', () => {
+
+        it('should return 3 for [3, 3, 3, 3] and not prompt', async () => {
+            const result = await player.promptFace([3, 3, 3, 3])
+            expect(result).to.equal(3)
+        })
+
+        it('should return 5 for 5 with [5, 6]', async () => {
+            player.prompt = MockPrompter({face: '5'})
+            const result = await player.promptFace([5, 6])
+            expect(result).to.equal(5)
+        })
+
+        it('should fail validation for 3 with [1, 2]', async () => {
+            player.prompt = MockPrompter({face: '3'})
+            const err = await getErrorAsync(() => player.promptFace([1, 2]))
+            expect(err.message).to.contain('Validation failed for face')
+        })
+    })
+
+    describe('#promptFinishOrUndo', () => {
+
+        it('should return finish for finish', async () => {
+            player.prompt = MockPrompter({finish: 'finish'})
+            const result = await player.promptFinishOrUndo()
+            expect(result).to.equal('finish')
+        })
+
+        it('should return undo for undo', async () => {
+            player.prompt = MockPrompter({finish: 'undo'})
+            const result = await player.promptFinishOrUndo()
+            expect(result).to.equal('undo')
+        })
+    })
+
+    describe('#promptOrigin', () => {
+
+        it('should return -1 for b with [-1]', async () => {
+            player.prompt = MockPrompter({origin: 'b'})
+            const result = await player.promptOrigin([-1])
+            expect(result).to.equal(-1)
+        })
+
+        it('should return 0 for 1 with [0, 4]', async () => {
+            player.prompt = MockPrompter({origin: '1'})
+            const result = await player.promptOrigin([0, 4])
+            expect(result).to.equal(0)
+        })
+
+        it('should return undo for u with [11, 12] canUndo=true', async () => {
+            player.prompt = MockPrompter({origin: 'u'})
+            const result = await player.promptOrigin([11, 12], true)
+            expect(result).to.equal('undo')
+        })
+
+        it('should fail validation for 3 with [3, 4]', async () => {
+            player.prompt = MockPrompter({origin: '3'})
+            const err = await getErrorAsync(() => player.promptOrigin([3, 4]))
+            expect(err.message).to.contain('Validation failed for origin')
+        })
+    })
+
+    describe('#_rollForTurn', () => {
+
+        const {Turn} = Lib
+
+        // coverage
+        it('should roll', () => {
+            const turn = new Turn(Board.setup(), White)
+            player._rollForTurn(turn)
+            expect(turn.isRolled).to.equal(true)
+        })
+    })
 })
 
-function MockPrompter(responses, isAssertAsked, isAssertAnswered) {
+function MockPrompter(responses, isSkipAssertAsked, isSkipAssertAnswered, isSkipAssertValid) {
+
+    const isAssertAsked = !isSkipAssertAsked
+    const isAssertAnswered = !isSkipAssertAnswered
+    const isAssertValid = !isSkipAssertValid
 
     responses = Util.castToArray(responses)
     var seqi = 0
     var prompter = (async questions => {
+        questions = Util.castToArray(questions)
         const answers = {}
         const response = responses.shift()
         try {
@@ -1364,23 +1760,34 @@ function MockPrompter(responses, isAssertAsked, isAssertAnswered) {
                 const unasked = {}
                 Object.keys(response).forEach(opt => unasked[opt] = true)
                 const unanswered = []
-                
+
+                var shouldThrow = false
+                const alerts = []
+
                 questions.forEach(question => {
                     const opt = question.name
                     delete unasked[opt]
                     if (opt in response) {
+                        var value
                         if (typeof response[opt] == 'function') {
-                            answers[opt] = response[opt](question)
+                            value = response[opt](question)
                         } else {
-                            answers[opt] = response[opt]
+                            value = response[opt]
                         }
+                        if ('validate' in question) {
+                            const valid = question.validate(value)
+                            if (valid !== true) {
+                                alerts.push(
+                                    "Validation failed for " + opt + ": " + valid
+                                )
+                                shouldThrow = shouldThrow || isAssertValid
+                            }
+                        }
+                        answers[opt] = value
                     } else {
                         unanswered.push(opt)
                     }
                 })
-
-                var shouldThrow = false
-                const alerts = []
 
                 if (Object.keys(unasked).length) {
                     alerts.push(
