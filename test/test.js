@@ -32,6 +32,10 @@ const States = {
  ,  WhiteCornerCase16 : '0|0|1:White|2:Red|0:|0:|0:|0:|2:Red|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|1:White|0:|0:|0:|0:|0:|0:|0|0'
     // should hit on come-in roll 3
  ,  RedHitComeIn3     : '0|1|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|2:White|1:Red|2:Red|1:White|0:|2:White|0|0'
+    // should allow bearoff with the 5
+ ,  RedBearoff51      : '0|0|0:|1:Red|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0|14'
+    // should allow bearoff with the 5
+ ,  RedBearoff51easy  : '0|0|0:|1:Red|1:Red|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0|14'
 }
 
 function randomElement(arr) {
@@ -356,6 +360,23 @@ describe('Turn', () => {
             turn.setRoll([1, 2])
             const err = getError(() => turn.move(-1, 1))
             expect(err.name).to.equal('NoPieceOnBarError')
+        })
+
+        it('should allow red to bearoff with the 5 on 5,1 roll with one on i:1', () => {
+            const board = Board.fromStateString(States.RedBearoff51)
+            const turn = new Turn(board, Red)
+            turn.setRoll([5, 1])
+            const move = turn.move(1, 5)
+            turn.finish()
+        })
+
+        it('should allow red to bearoff with the 5 on 5,1 roll with one on i:1, one on i:2', () => {
+            const board = Board.fromStateString(States.RedBearoff51easy)
+            const turn = new Turn(board, Red)
+            turn.setRoll([5, 1])
+            turn.move(2, 5)
+            turn.move(1, 1)
+            turn.finish()
         })
     })
 
