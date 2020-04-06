@@ -1261,26 +1261,32 @@ describe('PromptPlayer', () => {
 
     describe('#drawBoard', () => {
 
+        const {Game} = Lib
         // these are just for coverage
-
+        var game
+        beforeEach(() => game = new Game)
         it('should not barf for initial board', () => {
-            PromptPlayer.drawBoard(Board.setup())
+            PromptPlayer.drawBoard(game)
         })
 
         it('should not barf for RedHitComeIn3', () => {
-            PromptPlayer.drawBoard(Board.fromStateString(States.RedHitComeIn3))
+            game.board.setStateString(States.RedHitComeIn3)
+            PromptPlayer.drawBoard(game)
         })
 
         it('should not barf for WhiteCornerCase24', () => {
-            PromptPlayer.drawBoard(Board.fromStateString(States.WhiteCornerCase24))
+            game.board.setStateString(States.WhiteCornerCase24)
+            PromptPlayer.drawBoard(game)
         })
 
         it('should not barf for WhiteGammon1', () => {
-            PromptPlayer.drawBoard(Board.fromStateString(States.WhiteGammon1))
+            game.board.setStateString(States.WhiteGammon1)
+            PromptPlayer.drawBoard(game)
         })
 
         it('should not barf for RedGammon1', () => {
-            PromptPlayer.drawBoard(Board.fromStateString(States.RedGammon1))
+            game.board.setStateString(States.RedGammon1)
+            PromptPlayer.drawBoard(game)
         })
     })
 
