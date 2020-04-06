@@ -1320,13 +1320,15 @@ describe('Logger', () => {
 
 describe('PromptPlayer', () => {
 
-    const {Board, Game} = Lib
+    const {Board, Game, Match} = Lib
     const PromptPlayer = require('../src/prompt/play')
 
     var player
 
     beforeEach(() => {
         player = new PromptPlayer
+        player.loglevel = 1
+        player.stdout = {write: () => {}}
     })
 
     describe('#describeMove', () => {
@@ -1412,7 +1414,7 @@ describe('PromptPlayer', () => {
         })
 
         it('should not barf when game isCrawford', () => {
-            game.isCrawford = true
+            game.opts.isCrawford = true
             player.drawBoard(game)
         })
 
@@ -1425,29 +1427,101 @@ describe('PromptPlayer', () => {
             game.cubeOwner = White
             player.drawBoard(game)
         })
+
+        it('should not barf when match is passed', () => {
+            player.drawBoard(game, new Match(1))
+        })
     })
 
     describe('#main', () => {
 
         // coverage tricks
 
-        it('should call playGame with new game', () => {
-            var g
-            player.playGame = game => g = game
+        it('should call mainMenu', () => {
+            var isCalled = false
+            player.mainMenu = () => isCalled = true
             PromptPlayer.main(player)
-            expect(g.constructor.name).to.equal('Game')
+            expect(isCalled).to.equal(true)
+        })
+    })
+
+    describe('#mainMenu', () => {
+
+        it('should quit', async () => {
+            player.prompt = MockPrompter({mainChoice: 'quit'})
+            await player.mainMenu()
+        })
+
+        it('should go to new local match menu, then come back, then quit', async () => {
+            player.prompt = MockPrompter([
+                {mainChoice: 'newLocal'},
+                {mainChoice: 'quit'},
+                {mainChoice: 'quit'}
+            ])
+            await player.mainMenu()
+        })
+    })
+
+    describe('#newMatchMenu', () => {
+
+        it('should set match total to 5', async () => {
+            var match
+            player.playMatch = m => match = m
+            player.prompt = MockPrompter([
+                {mainChoice: 'total'},
+                {total: '5'},
+                {mainChoice: 'start'}
+            ])
+            await player.newMatchMenu()
+            expect(match.total).to.equal(5)
+        })
+
+        it('should invalidate total=-1', async () => {
+            player.prompt = MockPrompter([
+                {mainChoice: 'total'},
+                {total: '-1'}
+            ])
+            const err = await getErrorAsync(() => player.newMatchMenu())
+            expect(err.message).to.contain('Validation failed for total')
+        })
+
+        it('should set isJacoby to true', async () => {
+            var match
+            player.playMatch = m => match = m
+            player.prompt = MockPrompter([
+                {mainChoice: 'isJacoby'},
+                {isJacoby: true},
+                {mainChoice: 'start'}
+            ])
+            await player.newMatchMenu()
+            expect(match.opts.isJacoby).to.equal(true)
+        })
+
+        it('should set isCrawford to false', async () => {
+            var match
+            player.playMatch = m => match = m
+            player.prompt = MockPrompter([
+                {mainChoice: 'isCrawford'},
+                {isCrawford: false},
+                {mainChoice: 'start'}
+            ])
+            await player.newMatchMenu()
+            expect(match.opts.isCrawford).to.equal(false)
+        })
+
+        it('should quit', async () => {
+            player.prompt = MockPrompter([
+                {mainChoice: 'quit'}
+            ])
+            await player.newMatchMenu()
         })
     })
 
     describe('#playGame', () => {
 
-        var player
         var game
 
         beforeEach(() => {
-            player = new PromptPlayer
-            player.stdout = {write: () => {}}
-            player.loglevel = 1
             game = new Game
         })
 
@@ -1555,15 +1629,24 @@ describe('PromptPlayer', () => {
         })
     })
 
+    describe('#playMatch', () => {
+
+        it('should play 3 point match with mock playGame', async () => {
+            const match = new Match(3)
+            player.playGame = game => {
+                game.board.setStateString(States.EitherOneMoveWin)
+                makeRandomMoves(game.firstTurn(), true)
+            }
+            await player.playMatch(match)
+            expect(match.hasWinner()).to.equal(true)
+        })
+    })
+
     describe('#playRoll', () => {
 
-        var player
         var game
 
         beforeEach(() => {
-            player = new PromptPlayer
-            player.stdout = {write: () => {}}
-            player.loglevel = 1
             game = new Game
         })
 
@@ -1782,6 +1865,10 @@ function MockPrompter(responses, isSkipAssertAsked, isSkipAssertAnswered, isSkip
                                 )
                                 shouldThrow = shouldThrow || isAssertValid
                             }
+                        }
+                        if (typeof(question.default) == 'function') {
+                            // call for coverage
+                            question.default(answers)
                         }
                         answers[opt] = value
                     } else {
