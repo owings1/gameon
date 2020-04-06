@@ -248,12 +248,13 @@ class PromptPlayer extends Logger {
             var action = game.canDouble(turn.color) ? await this.promptAction() : 'roll'
 
             if (action == 'double') {
-                this.info(turn.color, 'doubles')
+                this.info(turn.color, 'wants to double the stakes to', game.cubeValue * 2)
                 turn.setDoubleOffered()
                 var accept = await this.promptAcceptDouble(turn)
                 if (accept) {
                     game.cubeValue *= 2
                     game.cubeOwner = Opponent[turn.color]
+                    this.log(Opponent[turn.color], 'accepts the double')
                     this.log(Opponent[turn.color], 'owns the cube at', game.cubeValue)
                 } else {
                     turn.setDoubleDeclined()
@@ -262,7 +263,7 @@ class PromptPlayer extends Logger {
                 }
             }
 
-            turn.roll()
+            this._rollForTurn(turn, game.turns.length)
 
             await this.playRoll(turn, game)
 
@@ -273,15 +274,6 @@ class PromptPlayer extends Logger {
 
         this.writeStdout(this.drawBoard(game))
         this.info(game.winner, 'has won the game with', game.finalValue, 'points')
-    }
-
-    async promptAction(turn) {
-        const answers = await this.prompt({
-            name    : 'action'
-          , type    : 'rawlist'
-          , choices : ['roll', 'double']
-        })
-        return answers.action
     }
 
     async playRoll(turn, game) {
@@ -303,7 +295,7 @@ class PromptPlayer extends Logger {
             }
             var face = await this.promptFace(moves.filter(move => move.origin == origin).map(move => move.face))
             var move = turn.move(origin, face)
-            this.info(this.describeMove(move))
+            this.info(PromptPlayer.describeMove(move))
             drawBoard()
             if (turn.getNextAvailableMoves().length == 0) {
                 var finish = await this.promptFinishOrUndo()
@@ -319,10 +311,22 @@ class PromptPlayer extends Logger {
         }
     }
 
-    describeMove(move) {
-        const origin = move.isComeIn ? 'bar' : move.origin + 1
-        const dest = move.isBearoff ? 'home' : move.dest + 1
-        return sp(move.color, 'moves from', origin, 'to', dest)
+    async promptAction() {
+        const answers = await this.prompt({
+            name    : 'action'
+          , type    : 'rawlist'
+          , choices : ['roll', 'double']
+        })
+        return answers.action
+    }
+
+    async promptAcceptDouble(turn) {
+        const answers = await this.prompt({
+            name    : 'accept'
+          , type    : 'confirm'
+          , message : sp('Does', Opponent[turn.color], 'accept the double?')
+        })
+        return answers.accept
     }
 
     async promptOrigin(origins, canUndo) {
@@ -343,7 +347,7 @@ class PromptPlayer extends Logger {
             name     : 'origin'
           , type     : 'input'
           , message
-          , validate : value => (choices.indexOf(value) > -1) || 'Please enter one of ' + choices.join()
+          , validate : PromptPlayer.validator('origin', {choices})
         }
         if (origins.length == 1) {
             question.default = '' + choices[0]
@@ -366,7 +370,7 @@ class PromptPlayer extends Logger {
             name     : 'face'
           , type     : 'input'
           , message  : 'Die [' + faces.join() + ']'
-          , validate : value => (faces.indexOf(+value) > -1) || 'Please enter one of ' + faces.join()
+          , validate : PromptPlayer.validator('face', {faces})
           , default  : '' + faces[0]
         })
         return +answers.face
@@ -381,18 +385,31 @@ class PromptPlayer extends Logger {
         return answers.finish
     }
 
-    async promptAcceptDouble(turn) {
-        const answers = await this.prompt({
-            name    : 'accept'
-          , type    : 'confirm'
-          , message : 'Does ' + Opponent[turn.color] + ' accept?'
-        })
-        return answers.accept
+    // allow override for testing
+    _rollForTurn(turn, i) {
+        turn.roll()
+    }
+
+    static describeMove(move) {
+        const origin = move.isComeIn ? 'bar' : move.origin + 1
+        const dest = move.isBearoff ? 'home' : move.dest + 1
+        return sp(move.color, 'moves from', origin, 'to', dest)
     }
 
     static doMainIfEquals(lhs, rhs) {
         if (lhs === rhs) {
             PromptPlayer.main(new PromptPlayer)
+        }
+    }
+
+    static validator(name, params) {
+        switch (name) {
+            case 'face':
+                var {faces} = params
+                return value => (faces.indexOf(+value) > -1) || 'Please enter one of ' + faces.join()
+            case 'origin':
+                var {choices} = params
+                return value => (choices.indexOf(value) > -1) || 'Please enter one of ' + choices.join()
         }
     }
 }
