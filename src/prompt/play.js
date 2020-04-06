@@ -35,19 +35,11 @@ const Chars = {
       , 6  : '\u2685'
     }
 }
+
 class PromptPlayer extends Logger {
 
     constructor() {
         super()
-    }
-
-    drawBoard(...args) {
-        return PromptPlayer.drawBoard(...args)
-    }
-
-    prompt(questions) {
-        this._prompt = inquirer.prompt(Util.castToArray(questions))
-        return this._prompt
     }
 
     async playGame(game) {
@@ -200,6 +192,15 @@ class PromptPlayer extends Logger {
           , choices : ['finish', 'undo']
         })
         return answers.finish
+    }
+
+    drawBoard(...args) {
+        return PromptPlayer.drawBoard(...args)
+    }
+
+    prompt(questions) {
+        this._prompt = inquirer.prompt(Util.castToArray(questions))
+        return this._prompt
     }
 
     // allow override for testing
