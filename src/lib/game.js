@@ -32,10 +32,9 @@ const Opponent = {
   , Red   : White
 }
 
-class Game extends Logger {
+class Game {
 
     constructor() {
-        super()
         this.opts = {
             isCrawford : false
           , isJacoby   : false
@@ -64,12 +63,10 @@ class Game extends Logger {
         if (this.thisTurn) {
             throw new GameAlreadyStartedError('The game has already started')
         }
-        this.info('Starting game')
         do {
             var dice = Dice.rollTwo()
         } while (dice[0] == dice[1])
         const firstColor = Dice.getWinner(dice)
-        this.info(firstColor, 'wins the first roll with', dice.join())
         this.thisTurn = new Turn(this.board, firstColor)
         this.thisTurn.setRoll(dice)
         this.turns.push(this.thisTurn)
@@ -91,7 +88,6 @@ class Game extends Logger {
         }
         this.thisTurn = new Turn(this.board, Opponent[this.thisTurn.color])
         this.turns.push(this.thisTurn)
-        this.info(this.thisTurn.color + "'s turn")
         return this.thisTurn
     }
 
@@ -127,16 +123,14 @@ class Game extends Logger {
         }
         if (this.isFinished) {
             this.endState = this.board.stateString()
-            this.info(this.winner, 'has won the game with', this.finalValue, 'points')
         }
         return this.isFinished
     }
 }
 
-class Turn extends Logger {
+class Turn {
 
     constructor(board, color) {
-        super()
         this.board = board
         this.color = color
         this.moves = []
@@ -354,10 +348,9 @@ class Turn extends Logger {
     }
 }
 
-class Board extends Logger {
+class Board {
 
     constructor() {
-        super()
         this.clear()
     }
 
