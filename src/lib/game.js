@@ -205,6 +205,7 @@ class Turn extends Logger {
             this[k] = v
         })
 
+        this.remainingFaces = this.allowedFaces.slice(0)
         if (this.isCantMove) {
             this.finish()
         }
@@ -239,6 +240,8 @@ class Turn extends Logger {
         }
         const move = this.board.move(this.color, origin, face)
         this.moves.push(move)
+        const faceIdx = this.remainingFaces.indexOf(face)
+        this.remainingFaces.splice(faceIdx, 1)
         return move
     }
 
@@ -247,7 +250,10 @@ class Turn extends Logger {
         if (this.moves.length == 0) {
             throw new NoMovesMadeError(sp(this.color, 'has no moves to undo'))
         }
-        this.moves.pop().undo()
+        const move = this.moves.pop()
+        move.undo()
+        this.remainingFaces.push(move.face)
+        this.remainingFaces.sort(Util.sortNumericDesc)
     }
 
     finish() {
@@ -256,8 +262,12 @@ class Turn extends Logger {
         }
         if (!this.isDoubleDeclined) {
             this.assertIsRolled()
-            if (this.moves.length != this.allowedMoveCount && (!this.board.hasWinner() || this.board.getWinner() != this.color)) {
-                throw new MovesRemainingError(sp(this.color, 'has more moves to do'))
+            const isAllMoved = this.moves.length == this.allowedMoveCount
+            if (!isAllMoved) {
+                const isWin = this.board.hasWinner() && this.board.getWinner() == this.color
+                if (!isWin) {
+                    throw new MovesRemainingError(sp(this.color, 'has more moves to do'))
+                }
             }
         }
         this.endState = this.board.stateString()
@@ -293,20 +303,28 @@ class Turn extends Logger {
         // the "most number of faces" rule has an exception when bearing off the last piece.
         // see test case RedBearoff51
 
-        // trees that use the most number of faces
-        const fullestTrees = trees.filter(tree => maxDepth > 0 && (tree.depth == maxDepth || tree.hasWinner))
+        // trees that use the most number of faces, or have a winning branch
+        const fullestTrees = trees.filter(tree =>
+            maxDepth > 0 && (tree.depth == maxDepth || tree.hasWinner)
+        )
 
-        // branches that use the most number of faces
+        // branches that use the most number of faces, or is a winner
         const fullestBranches = []
         fullestTrees.forEach(tree => {
-            tree.branches.filter(branch => branch.length - 1 == maxDepth || tree.winningBranches.indexOf(branch) > -1).forEach(branch => {
+            tree.branches.filter(branch =>
+                branch.length - 1 == maxDepth || tree.winningBranches.indexOf(branch) > -1
+            ).forEach(branch => {
                 fullestBranches.push(branch)
             })
         })
         // the highest face of nodes of the fullest branches
-        const maxFace = Math.max(...fullestBranches.map(branch => Math.max(...branch.map(node => node.thisFace ))))
-        // branches that use the highest face
-        const allowedBranches = fullestBranches.filter(branch => branch.find(node => node.thisFace == maxFace))
+        const maxFace = Math.max(...fullestBranches.map(branch => Math.max(...branch.map(node => node.thisFace))))
+        // branches that use the highest face, or is a winner
+        const allowedBranches = fullestBranches.filter(branch =>
+            branch.find(node =>
+                node.thisFace == maxFace || node.isWinner
+            )
+        )
 
         const allowedMoveSeries = allowedBranches.map(branch =>
             branch.slice(1).map(node => node.thisMove)
@@ -320,11 +338,18 @@ class Turn extends Logger {
         })
         const dedupSeries = Object.values(seriesMap)
 
+        const maximalAllowedFaces = Math.max(...dedupSeries.map(allowedMoves => allowedMoves.length))
+        
+        const allowedFaces = dedupSeries.length < 1 ? [] : dedupSeries.find(
+            allowedMoves => allowedMoves.length == maximalAllowedFaces
+        ).map(move => move.face).sort(Util.sortNumericDesc)
+
         return {
             allowedMoveSeries : dedupSeries
           , allowedMoveCount  : maxDepth
           , isForceMove       : dedupSeries.length == 1
           , isCantMove        : maxDepth == 0
+          , allowedFaces
         }
     }
 }
