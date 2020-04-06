@@ -256,7 +256,7 @@ class Turn extends Logger {
         }
         if (!this.isDoubleDeclined) {
             this.assertIsRolled()
-            if (this.moves.length != this.allowedMoveCount) {
+            if (this.moves.length != this.allowedMoveCount && (!this.board.hasWinner() || this.board.getWinner() != this.color)) {
                 throw new MovesRemainingError(sp(this.color, 'has more moves to do'))
             }
         }
@@ -290,13 +290,16 @@ class Turn extends Logger {
 
         const maxDepth = Math.max(...trees.map(tree => tree.depth))
 
+        // the "most number of faces" rule has an exception when bearing off the last piece.
+        // see test case RedBearoff51
+
         // trees that use the most number of faces
-        const fullestTrees = trees.filter(tree => maxDepth > 0 && tree.depth == maxDepth)
+        const fullestTrees = trees.filter(tree => maxDepth > 0 && (tree.depth == maxDepth || tree.hasWinner))
 
         // branches that use the most number of faces
         const fullestBranches = []
         fullestTrees.forEach(tree => {
-            tree.branches.filter(branch => branch.length - 1 == maxDepth).forEach(branch => {
+            tree.branches.filter(branch => branch.length - 1 == maxDepth || tree.winningBranches.indexOf(branch) > -1).forEach(branch => {
                 fullestBranches.push(branch)
             })
         })
@@ -518,6 +521,7 @@ class SequenceTree {
         this.nodes = null
         this.branches = null
         this.depth = -1
+        this.hasWinner = null
     }
 
     build() {
@@ -525,6 +529,8 @@ class SequenceTree {
         this.depth = Math.max(...this.nodes.map(node => node.depth))
         this.leaves = this.nodes.filter(node => node.depth == this.depth)
         this.branches = SequenceTree.buildBranchesForLeaves(this.leaves)
+        this.hasWinner = undefined != this.leaves.find(node => node.isWinner)
+        this.winningBranches = this.branches.filter(branch => branch[branch.length - 1].isWinner)
     }
 
     static build(board, color, sequence) {
@@ -558,6 +564,7 @@ class SequenceTree {
                     move.board = move.board.copy()
                     move.do()
                     const childNode = new BoardNode(move.board, depth, parentNode)
+                    childNode.isWinner = move.board.hasWinner() && move.board.getWinner() == color
                     childNode.thisMove = move
                     childNode.thisFace = face
                     parentNode.children.push(childNode)
@@ -581,6 +588,7 @@ class BoardNode {
         this.thisMove = null
         this.nextFace = null
         this.nextMoves = null
+        this.isWinner = null
     }
 }
 
