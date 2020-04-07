@@ -36,10 +36,11 @@ const Chars = {
     }
 }
 
-class PromptPlayer extends Logger {
+class Menu {
 
-    constructor() {
-        super()
+    prompt(questions) {
+        this._prompt = inquirer.prompt(Util.castToArray(questions))
+        return this._prompt
     }
 
     async mainMenu() {
@@ -62,13 +63,24 @@ class PromptPlayer extends Logger {
               , choices : mainChoices
             })
             var {mainChoice} = answers
-            if (mainChoice == 'newLocal') {
-                await this.newMatchMenu()
+            if (mainChoice == 'newLocal' || mainChoice == 'newRemote') {
+                var matchOpts = await this.newMatchMenu()
+                if (!matchOpts) {
+                    continue
+                }
+                if (mainChoice == 'newLocal') {
+                    var player = this.newLocalPlayer()
+                    await player.playMatch(new Match(matchOpts.total, matchOpts))
+                }
             }
             if (mainChoice == 'quit') {
                 break
             }
         }
+    }
+
+    newLocalPlayer() {
+        return new LocalPlayer
     }
 
     async newMatchMenu() {
@@ -135,7 +147,7 @@ class PromptPlayer extends Logger {
             })
             var {mainChoice} = answers
             if (mainChoice == 'start') {
-                break
+                return matchOpts
             }
             if (mainChoice == 'quit') {
                 return
@@ -145,177 +157,19 @@ class PromptPlayer extends Logger {
             matchOpts[question.name] = answers[question.name]
             matchOpts.total = +matchOpts.total
         }
-
-        const match = new Match(matchOpts.total, matchOpts)
-        await this.playMatch(match)
     }
 
-    async playMatch(match) {
-        this.match = match
-        this.info('Starting match')
-        while (true) {
-            var game = match.nextGame()
-            await this.playGame(game)
-            match.updateScore()
-            if (match.hasWinner()) {
-                break
-            }
-        }
-        const winner = match.getWinner()
-        this.info(winner, 'wins the match', match.scores[winner], 'to', match.scores[Opponent[winner]])
-        delete this.match
-    }
-
-    async playGame(game) {
-
-        this.info('Starting game')
-        const firstTurn = game.firstTurn()
-        this.info(firstTurn.color, 'wins the first roll with', firstTurn.dice.join())
-        await this.playRoll(firstTurn, game)
-
-        while (true) {
-
-            var turn = game.nextTurn()
-            this.info(turn.color + "'s turn")
-
-            var action = game.canDouble(turn.color) ? await this.promptAction() : 'roll'
-
-            if (action == 'double') {
-                this.info(turn.color, 'wants to double the stakes to', game.cubeValue * 2)
-                turn.setDoubleOffered()
-                var accept = await this.promptAcceptDouble(turn)
-                if (accept) {
-                    game.cubeValue *= 2
-                    game.cubeOwner = Opponent[turn.color]
-                    this.log(Opponent[turn.color], 'accepts the double')
-                    this.log(Opponent[turn.color], 'owns the cube at', game.cubeValue)
-                } else {
-                    turn.setDoubleDeclined()
-                    game.checkFinished()
-                    break
-                }
-            }
-
-            this._rollForTurn(turn, game.turns.length)
-
-            await this.playRoll(turn, game)
-
-            if (game.checkFinished()) {
-                break
-            }
-        }
-
-        this.writeStdout(this.drawBoard(game, this.match))
-        this.info(game.winner, 'has won the game with', game.finalValue, 'points')
-    }
-
-    async playRoll(turn, game) {
-        if (turn.isCantMove) {
-            this.info(turn.color, 'rolls', turn.dice.join())
-            this.info(turn.color, 'cannot move')
-            return
-        }
-        const drawBoard = () => this.writeStdout(this.drawBoard(game, this.match))
-        drawBoard()
-        while (true) {
-            this.info(turn.color, 'rolled', turn.dice.join(), 'with', turn.remainingFaces.join(), 'remaining')
-            var moves = turn.getNextAvailableMoves()
-            var origin = await this.promptOrigin(moves.map(move => move.origin), turn.moves.length > 0)
-            if (origin == 'undo') {
-                turn.unmove()
-                drawBoard()
-                continue
-            }
-            var face = await this.promptFace(moves.filter(move => move.origin == origin).map(move => move.face))
-            var move = turn.move(origin, face)
-            this.info(PromptPlayer.describeMove(move))
-            drawBoard()
-            if (turn.getNextAvailableMoves().length == 0) {
-                var finish = await this.promptFinishOrUndo()
-                if (finish == 'undo') {
-                    turn.unmove()
-                    drawBoard()
-                    continue
-                } else {
-                    turn.finish()
-                    break
-                }
-            }
+    static doMainIfEquals(lhs, rhs) {
+        if (lhs === rhs) {
+            Menu.main(new Menu)
         }
     }
+}
 
-    async promptAction() {
-        const answers = await this.prompt({
-            name    : 'action'
-          , type    : 'rawlist'
-          , choices : ['roll', 'double']
-        })
-        return answers.action
-    }
+class PromptPlayer extends Logger {
 
-    async promptAcceptDouble(turn) {
-        const answers = await this.prompt({
-            name    : 'accept'
-          , type    : 'confirm'
-          , message : sp('Does', Opponent[turn.color], 'accept the double?')
-        })
-        return answers.accept
-    }
-
-    async promptOrigin(origins, canUndo) {
-        origins = Util.uniqueInts(origins).sort(Util.sortNumericAsc).map(i => i > -1 ? i + 1 : i)
-        const choices = origins.map(i => '' + i)
-        var message = 'Origin '
-        if (origins[0] == -1) {
-            message += ' [(b)ar]'
-            choices[0] = 'b'
-        } else {
-            message += '[' + choices.join() + ']'
-        }
-        if (canUndo) {
-            choices.push('u')
-            message += ' or (u)ndo'
-        }
-        const question = {
-            name     : 'origin'
-          , type     : 'input'
-          , message
-          , validate : PromptPlayer.validator('origin', {choices})
-        }
-        if (origins.length == 1) {
-            question.default = '' + choices[0]
-        }
-        const answers = await this.prompt(question)
-        if (answers.origin == 'u') {
-            return 'undo'
-        } else if (answers.origin == 'b') {
-            return -1
-        }
-        return +answers.origin - 1
-    }
-
-    async promptFace(faces) {
-        faces = Util.uniqueInts(faces).sort(Util.sortNumericDesc)
-        if (faces.length == 1) {
-            return faces[0]
-        }
-        const answers = await this.prompt({
-            name     : 'face'
-          , type     : 'input'
-          , message  : 'Die [' + faces.join() + ']'
-          , validate : PromptPlayer.validator('face', {faces})
-          , default  : '' + faces[0]
-        })
-        return +answers.face
-    }
-
-    async promptFinishOrUndo() {
-        const answers = await this.prompt({
-            name    : 'finish'
-          , type    : 'rawlist'
-          , choices : ['finish', 'undo']
-        })
-        return answers.finish
+    constructor() {
+        super()
     }
 
     drawBoard(...args) {
@@ -325,23 +179,6 @@ class PromptPlayer extends Logger {
     prompt(questions) {
         this._prompt = inquirer.prompt(Util.castToArray(questions))
         return this._prompt
-    }
-
-    // allow override for testing
-    _rollForTurn(turn, i) {
-        turn.roll()
-    }
-
-    static describeMove(move) {
-        const origin = move.isComeIn ? 'bar' : move.origin + 1
-        const dest = move.isBearoff ? 'home' : move.dest + 1
-        return sp(move.color, 'moves from', origin, 'to', dest)
-    }
-
-    static doMainIfEquals(lhs, rhs) {
-        if (lhs === rhs) {
-            PromptPlayer.main(new PromptPlayer)
-        }
     }
 
     static validator(name, params) {
@@ -358,6 +195,12 @@ class PromptPlayer extends Logger {
                     return !isNaN(value) && Number.isInteger(value) && value > 0 || 'Please enter a number > 0'
                 }
         }
+    }
+
+    static describeMove(move) {
+        const origin = move.isComeIn ? 'bar' : move.origin + 1
+        const dest = move.isBearoff ? 'home' : move.dest + 1
+        return sp(move.color, 'moves from', origin, 'to', dest)
     }
 
     static drawBoard(game, match) {
@@ -551,11 +394,198 @@ class PromptPlayer extends Logger {
     }
 }
 
-PromptPlayer.main = function(player) {
-    player.mainMenu()
-    return player
+class LocalPlayer extends PromptPlayer {
+
+    constructor() {
+        super()
+    }
+
+    async playMatch(match) {
+        this.match = match
+        this.info('Starting match')
+        while (true) {
+            var game = match.nextGame()
+            await this.playGame(game)
+            match.updateScore()
+            if (match.hasWinner()) {
+                break
+            }
+        }
+        const winner = match.getWinner()
+        this.info(winner, 'wins the match', match.scores[winner], 'to', match.scores[Opponent[winner]])
+        delete this.match
+    }
+
+    async playGame(game) {
+
+        this.info('Starting game')
+        const firstTurn = game.firstTurn()
+        this.info(firstTurn.color, 'wins the first roll with', firstTurn.dice.join())
+        await this.playRoll(firstTurn, game)
+
+        while (true) {
+
+            var turn = game.nextTurn()
+            this.info(turn.color + "'s turn")
+
+            var action = game.canDouble(turn.color) ? await this.promptAction() : 'roll'
+
+            if (action == 'double') {
+                this.info(turn.color, 'wants to double the stakes to', game.cubeValue * 2)
+                turn.setDoubleOffered()
+                var accept = await this.promptAcceptDouble(turn)
+                if (accept) {
+                    game.cubeValue *= 2
+                    game.cubeOwner = Opponent[turn.color]
+                    this.log(Opponent[turn.color], 'accepts the double')
+                    this.log(Opponent[turn.color], 'owns the cube at', game.cubeValue)
+                } else {
+                    turn.setDoubleDeclined()
+                    game.checkFinished()
+                    break
+                }
+            }
+
+            this._rollForTurn(turn, game.turns.length)
+
+            await this.playRoll(turn, game)
+
+            if (game.checkFinished()) {
+                break
+            }
+        }
+
+        this.writeStdout(this.drawBoard(game, this.match))
+        this.info(game.winner, 'has won the game with', game.finalValue, 'points')
+    }
+
+    async playRoll(turn, game) {
+        if (turn.isCantMove) {
+            this.info(turn.color, 'rolls', turn.dice.join())
+            this.info(turn.color, 'cannot move')
+            return
+        }
+        const drawBoard = () => this.writeStdout(this.drawBoard(game, this.match))
+        drawBoard()
+        while (true) {
+            this.info(turn.color, 'rolled', turn.dice.join(), 'with', turn.remainingFaces.join(), 'remaining')
+            var moves = turn.getNextAvailableMoves()
+            var origin = await this.promptOrigin(moves.map(move => move.origin), turn.moves.length > 0)
+            if (origin == 'undo') {
+                turn.unmove()
+                drawBoard()
+                continue
+            }
+            var face = await this.promptFace(moves.filter(move => move.origin == origin).map(move => move.face))
+            var move = turn.move(origin, face)
+            this.info(PromptPlayer.describeMove(move))
+            drawBoard()
+            if (turn.getNextAvailableMoves().length == 0) {
+                var finish = await this.promptFinishOrUndo()
+                if (finish == 'undo') {
+                    turn.unmove()
+                    drawBoard()
+                    continue
+                } else {
+                    turn.finish()
+                    break
+                }
+            }
+        }
+    }
+
+    async promptAction() {
+        const answers = await this.prompt({
+            name    : 'action'
+          , type    : 'rawlist'
+          , choices : ['roll', 'double']
+        })
+        return answers.action
+    }
+
+    async promptAcceptDouble(turn) {
+        const answers = await this.prompt({
+            name    : 'accept'
+          , type    : 'confirm'
+          , message : sp('Does', Opponent[turn.color], 'accept the double?')
+        })
+        return answers.accept
+    }
+
+    async promptOrigin(origins, canUndo) {
+        origins = Util.uniqueInts(origins).sort(Util.sortNumericAsc).map(i => i > -1 ? i + 1 : i)
+        const choices = origins.map(i => '' + i)
+        var message = 'Origin '
+        if (origins[0] == -1) {
+            message += ' [(b)ar]'
+            choices[0] = 'b'
+        } else {
+            message += '[' + choices.join() + ']'
+        }
+        if (canUndo) {
+            choices.push('u')
+            message += ' or (u)ndo'
+        }
+        const question = {
+            name     : 'origin'
+          , type     : 'input'
+          , message
+          , validate : PromptPlayer.validator('origin', {choices})
+        }
+        if (origins.length == 1) {
+            question.default = '' + choices[0]
+        }
+        const answers = await this.prompt(question)
+        if (answers.origin == 'u') {
+            return 'undo'
+        } else if (answers.origin == 'b') {
+            return -1
+        }
+        return +answers.origin - 1
+    }
+
+    async promptFace(faces) {
+        faces = Util.uniqueInts(faces).sort(Util.sortNumericDesc)
+        if (faces.length == 1) {
+            return faces[0]
+        }
+        const answers = await this.prompt({
+            name     : 'face'
+          , type     : 'input'
+          , message  : 'Die [' + faces.join() + ']'
+          , validate : PromptPlayer.validator('face', {faces})
+          , default  : '' + faces[0]
+        })
+        return +answers.face
+    }
+
+    async promptFinishOrUndo() {
+        const answers = await this.prompt({
+            name    : 'finish'
+          , type    : 'rawlist'
+          , choices : ['finish', 'undo']
+        })
+        return answers.finish
+    }
+
+    // allow override for testing
+    _rollForTurn(turn, i) {
+        turn.roll()
+    }
 }
 
-PromptPlayer.doMainIfEquals(require.main, module)
+Menu.main = function(menu) {
+    menu.mainMenu()
+    return menu
+}
 
+Menu.doMainIfEquals(require.main, module)
+
+class SocketPlayer extends PromptPlayer {
+    constructor() {
+        super()
+    }
+}
+PromptPlayer.Menu = Menu
+PromptPlayer.LocalPlayer = LocalPlayer
 module.exports = PromptPlayer
