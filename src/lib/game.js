@@ -101,7 +101,6 @@ class Game {
         this.cubeOwner = null
         this.cubeValue = 1
         this.turns = []
-        this.firstDice = null
         this.thisTurn = null
         this.winner = null
         this.isFinished = false
