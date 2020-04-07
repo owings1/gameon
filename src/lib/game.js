@@ -196,7 +196,9 @@ class Turn {
         this.board = board
         this.color = color
         this.moves = []
-        this.rolled = null
+        this.dice = null
+        this.diceSorted = null
+        this.faces = null
         this.isDoubleOffered = false
         this.isDoubleDeclined = false
         this.isRolled = false
@@ -233,7 +235,8 @@ class Turn {
         this.assertNotRolled()
 
         Dice.checkTwo(dice)
-        this.dice = dice.sort(Util.sortNumericDesc)
+        this.dice = dice
+        this.diceSorted = dice.slice(0).sort(Util.sortNumericDesc)
         this.isRolled = true
 
         this.afterRoll()
@@ -244,7 +247,8 @@ class Turn {
         this.assertNotFinished()
         this.assertNotRolled()
 
-        this.dice = this._roll().sort(Util.sortNumericDesc)
+        this.dice = this._roll()
+        this.diceSorted = this.dice.slice(0).sort(Util.sortNumericDesc)
         this.isRolled = true
 
         this.afterRoll()
@@ -684,6 +688,11 @@ class Move {
         this.color = color
         this.origin = origin
         this.face = face
+    }
+
+    coords() {
+        const {origin, face} = this
+        return {origin, face}
     }
 
     copy() {

@@ -1,11 +1,12 @@
 const {Match, Game, Opponent, Red, White} = require('../lib/game')
-const Util = require('../lib/util')
+
+const Client = require('../lib/client')
 const Logger = require('../lib/logger')
+const Util   = require('../lib/util')
 
-const chalk = require('chalk')
-const inquirer = require('inquirer')
-const sp = Util.joinSpace
-
+const chalk     = require('chalk')
+const inquirer  = require('inquirer')
+const sp        = Util.joinSpace
 
 const Shorts = {
     Red   : chalk.bold.red('R')
@@ -50,6 +51,14 @@ class Menu {
               , name  : 'New Local Match'
             }
           , {
+                value : 'newOnline'
+              , name  : 'New Online Match'
+            }
+          , {
+                value : 'joinOnline'
+              , name  : 'Join Online Match'
+            }
+          , {
                 value : 'quit'
               , name  : 'Quit'
             }
@@ -63,14 +72,36 @@ class Menu {
               , choices : mainChoices
             })
             var {mainChoice} = answers
-            if (mainChoice == 'newLocal' || mainChoice == 'newRemote') {
-                var matchOpts = await this.newMatchMenu()
+            if (mainChoice == 'newLocal' || mainChoice == 'newOnline') {
+                var matchOpts = await this.newMatchMenu(mainChoice == 'newOnline')
                 if (!matchOpts) {
                     continue
                 }
                 if (mainChoice == 'newLocal') {
                     var player = this.newLocalPlayer()
                     await player.playMatch(new Match(matchOpts.total, matchOpts))
+                }
+                var player = this.newSocketPlayer(matchOpts.serverUrl)
+                await player.startMatch(matchOpts)
+            }
+            if (mainChoice == 'joinOnline') {
+                var joinAnswers = await this.prompt([
+                    {
+                        name    : 'serverUrl'
+                      , message : 'Server URL'
+                      , type    : 'input'
+                      , default : 'ws://localhost:8080'
+                    }
+                  , {
+                        name    : 'matchId'
+                      , message : 'Match ID'
+                      , type    : 'input'
+                      , when    : answers => answers.serverUrl
+                    }
+                ])
+                if (joinAnswers.serverUrl && joinAnswers.matchId) {
+                    var player = this.newSocketPlayer(joinAnswers.serverUrl)
+                    await player.joinMatch(joinAnswers.matchId)
                 }
             }
             if (mainChoice == 'quit') {
@@ -83,53 +114,75 @@ class Menu {
         return new LocalPlayer
     }
 
-    async newMatchMenu() {
+    newSocketPlayer(serverUrl) {
+        return new SocketPlayer(serverUrl)
+    }
+
+    async newMatchMenu(isOnline) {
         const matchOpts = {
             total      : 1
           , isJacoby   : false
           , isCrawford : true
+          , serverUrl  : null
         }
-        const getMainChoices = () => [
-            {
-                value : 'start'
-              , name  : 'Start Match'
-            }
-          , {
-                value : 'total'
-              , name  : 'Match Total'
-              , question : {
-                    name     : 'total'
-                  , message  : 'Match Total'
-                  , type     : 'input'
-                  , default  : () => '' + matchOpts.total
-                  , validate : PromptPlayer.validator('matchTotal')
+        const getMainChoices = () => {
+            var choices = [
+                {
+                    value : 'start'
+                  , name  : 'Start Match'
                 }
+            ]
+            if (isOnline) {
+                choices.push({
+                    value : 'serverUrl'
+                  , name  : 'Server URL'
+                  , question : {
+                        name    : 'serverUrl'
+                      , message : 'Server URL'
+                      , type    : 'input'
+                      , default : () => matchOpts.serverUrl || 'ws://localhost:8080'
+                    }
+                })
             }
-          , {
-                value : 'isJacoby'
-              , name  : 'Jacoby Rule'
-              , question : {
-                    name    : 'isJacoby'
-                  , message : 'Jacoby Rule'
-                  , type    : 'confirm'
-                  , default : () => matchOpts.isJacoby
+            choices = choices.concat([
+                {
+                    value : 'total'
+                  , name  : 'Match Total'
+                  , question : {
+                        name     : 'total'
+                      , message  : 'Match Total'
+                      , type     : 'input'
+                      , default  : () => '' + matchOpts.total
+                      , validate : PromptPlayer.validator('matchTotal')
+                    }
                 }
-            }
-          , {
-                value : 'isCrawford'
-              , name  : 'Crawford Rule'
-              , question : {
-                    name    : 'isCrawford'
-                  , message : 'Crawford Rule'
-                  , type    : 'confirm'
-                  , default : () => matchOpts.isCrawford
+              , {
+                    value : 'isJacoby'
+                  , name  : 'Jacoby Rule'
+                  , question : {
+                        name    : 'isJacoby'
+                      , message : 'Jacoby Rule'
+                      , type    : 'confirm'
+                      , default : () => matchOpts.isJacoby
+                    }
                 }
-            }
-          , {
-                value : 'quit'
-              , name  : 'Cancel'
-            }
-        ]
+              , {
+                    value : 'isCrawford'
+                  , name  : 'Crawford Rule'
+                  , question : {
+                        name    : 'isCrawford'
+                      , message : 'Crawford Rule'
+                      , type    : 'confirm'
+                      , default : () => matchOpts.isCrawford
+                    }
+                }
+              , {
+                    value : 'quit'
+                  , name  : 'Cancel'
+                }
+            ])
+            return choices
+        }
 
         while (true) {
             var mainChoices = getMainChoices()
@@ -166,10 +219,213 @@ class Menu {
     }
 }
 
+/*
+class MatchPlayer extends Logger {
+
+    constructor(match, color, opponent) {
+        super()
+        this.match = match
+        this.color = color
+        this.opponent = opponent
+    }
+
+    async play() {
+        this.info('Starting match')
+        while (true) {
+            var game = await this.nextGame()
+            await this.playGame(game)
+            await this.updateScore()
+            if (this.match.hasWinner()) {
+                break
+            }
+        }
+        const winner = this.match.getWinner()
+        this.info(winner, 'wins the match', this.match.scores[winner], 'to', this.match.scores[Opponent[winner]])
+    }
+
+    async nextGame() {
+        return this.match.nextGame()
+    }
+
+    async updateScore() {
+        this.match.updateScore()
+    }
+
+    async drawBoard(game) {
+        throw new Error('NotImplemented')
+    }
+
+    async playGame(game) {
+
+        this.info('Starting game')
+        const firstTurn = await this.firstTurn(game)
+        this.info(firstTurn.color, 'wins the first roll with', firstTurn.dice.join())
+        if (firstTurn.color == this.color) {
+            await this.playRoll(firstTurn, game)
+        } else {
+            await this.opponentRoll(firstTurn, game)
+        }
+
+        while (true) {
+
+            var turn = await this.nextTurn(game)
+            this.info(turn.color + "'s turn")
+            if (turn.color == this.color) {
+                await this.playTurn(turn, game)
+            } else {
+                await this.opponentTurn(turn, game)
+            }
+
+            var isFinished = await this.checkFinished(game)
+            if (isFinished) {
+                break
+            }
+        }
+
+        await this.drawBoard(game)
+        this.info(game.winner, 'has won the game with', game.finalValue, 'points')
+    }
+
+    async checkFinished(game) {
+        return game.checkFinished()
+    }
+
+    async firstTurn(game) {
+        return game.firstTurn()
+    }
+
+    async nextTurn(game) {
+        return game.nextTurn()
+    }
+
+    async playTurn(turn, game) {
+        var action
+        if (game.canDouble(this.color)) {
+            action = await this.chooseAction(turn, game)
+        } else {
+            action = 'roll'
+        }
+        if (action == 'double') {
+            const isAccept = await this.offerDouble(turn, game)
+            if (isAccept) {
+                await this.doubleGame(turn, game)
+            } else {
+                await this.passGame(turn, game)
+            }
+        } else {
+            await this.roll(turn, game)
+            await this.playRoll(turn, game)
+        }
+    }
+
+    async doubleGame(turn, game) {
+        game.cubeValue *= 2
+        game.cubeOwner = Opponent[turn.color]
+        this.info(Opponent[turn.color], 'accepts the double')
+        this.info(Opponent[turn.color], 'owns the cube at', game.cubeValue)
+    }
+
+    async passGame(turn, game) {
+        turn.setDoubleDeclined()
+        game.checkFinished()
+    }
+
+    async chooseAction(turn, game) {
+        throw new Error('NotImplemented')
+    }
+
+    async playOrPassDouble(turn, game) {
+        throw new Error('NotImplemented')
+    }
+
+    async offerDouble(turn, game) {
+        turn.setDoubleOffered()
+        return await this.opponent.playOrPassDouble(turn, game)
+    }
+
+    async roll(turn, game) {
+        this._rollForTurn(turn, game.turns.length)
+    }
+
+    async playRoll(turn, game) {
+        if (turn.isCantMove) {
+            this.info(turn.color, 'rolls', turn.dice.join())
+            this.info(turn.color, 'cannot move')
+            return
+        }
+        await this.drawBoard(game)
+        while (true) {
+            this.info(turn.color, 'rolled', turn.dice.join(), 'with', turn.remainingFaces.join(), 'remaining')
+            var moves = turn.getNextAvailableMoves()
+            var origin = await this.promptOrigin(moves.map(move => move.origin), turn.moves.length > 0)
+            if (origin == 'undo') {
+                turn.unmove()
+                await this.drawBoard(game)
+                continue
+            }
+            var face = await this.promptFace(moves.filter(move => move.origin == origin).map(move => move.face))
+            var move = turn.move(origin, face)
+            this.info(PromptPlayer.describeMove(move))
+            await this.drawBoard(game)
+            if (turn.getNextAvailableMoves().length == 0) {
+                var finish = await this.promptFinishOrUndo()
+                if (finish == 'undo') {
+                    turn.unmove()
+                    await this,drawBoard(game)
+                    continue
+                } else {
+                    turn.finish()
+                    break
+                }
+            }
+        }
+    }
+
+    async opponentTurn(turn, game) {
+        await this.opponent.playTurn(turn, game)
+    }
+
+    async opponentRoll(turn, game) {
+        await this.opponent.playRoll(turn, game)
+    }
+
+    // allow override for testing
+    _rollForTurn(turn, i) {
+        turn.roll()
+    }
+}
+
+*/
+
+
 class PromptPlayer extends Logger {
 
     constructor() {
         super()
+    }
+
+    async playMatch(match) {
+        this.match = match
+        this.info('Starting match')
+        while (true) {
+            var game = await this.nextGame()
+            await this.playGame(game)
+            await this.updateScore()
+            if (match.hasWinner()) {
+                break
+            }
+        }
+        const winner = match.getWinner()
+        this.info(winner, 'wins the match', match.scores[winner], 'to', match.scores[Opponent[winner]])
+        delete this.match
+    }
+
+    async nextGame() {
+        return this.match.nextGame()
+    }
+
+    async updateScore() {
+        this.match.updateScore()
     }
 
     drawBoard(...args) {
@@ -400,32 +656,16 @@ class LocalPlayer extends PromptPlayer {
         super()
     }
 
-    async playMatch(match) {
-        this.match = match
-        this.info('Starting match')
-        while (true) {
-            var game = match.nextGame()
-            await this.playGame(game)
-            match.updateScore()
-            if (match.hasWinner()) {
-                break
-            }
-        }
-        const winner = match.getWinner()
-        this.info(winner, 'wins the match', match.scores[winner], 'to', match.scores[Opponent[winner]])
-        delete this.match
-    }
-
     async playGame(game) {
 
         this.info('Starting game')
-        const firstTurn = game.firstTurn()
+        const firstTurn = await this.firstTurn(game)
         this.info(firstTurn.color, 'wins the first roll with', firstTurn.dice.join())
         await this.playRoll(firstTurn, game)
 
         while (true) {
 
-            var turn = game.nextTurn()
+            var turn = await this.nextTurn(game)
             this.info(turn.color + "'s turn")
 
             var action = game.canDouble(turn.color) ? await this.promptAction() : 'roll'
@@ -459,16 +699,25 @@ class LocalPlayer extends PromptPlayer {
         this.info(game.winner, 'has won the game with', game.finalValue, 'points')
     }
 
+    async firstTurn(game) {
+        return game.firstTurn()
+    }
+
+    async nextTurn(game) {
+        return game.nextTurn()
+    }
+
     async playRoll(turn, game) {
         if (turn.isCantMove) {
             this.info(turn.color, 'rolls', turn.dice.join())
             this.info(turn.color, 'cannot move')
+            await this.finishTurn(turn, game)
             return
         }
         const drawBoard = () => this.writeStdout(this.drawBoard(game, this.match))
         drawBoard()
         while (true) {
-            this.info(turn.color, 'rolled', turn.dice.join(), 'with', turn.remainingFaces.join(), 'remaining')
+            this.info(turn.color, 'rolled', turn.diceSorted.join(), 'with', turn.remainingFaces.join(), 'remaining')
             var moves = turn.getNextAvailableMoves()
             var origin = await this.promptOrigin(moves.map(move => move.origin), turn.moves.length > 0)
             if (origin == 'undo') {
@@ -487,11 +736,15 @@ class LocalPlayer extends PromptPlayer {
                     drawBoard()
                     continue
                 } else {
-                    turn.finish()
+                    await this.finishTurn(turn, game)
                     break
                 }
             }
         }
+    }
+
+    async finishTurn(turn, game) {
+        turn.finish()
     }
 
     async promptAction() {
@@ -574,6 +827,138 @@ class LocalPlayer extends PromptPlayer {
     }
 }
 
+class SocketPlayer extends LocalPlayer {
+
+    constructor(serverUrl) {
+        super()
+        this.serverUrl = serverUrl
+        this.client = new Client(serverUrl)
+        this.color = null
+        this.match = null
+    }
+
+    async startMatch(matchOpts) {
+        this.color = White
+        const match = await this.client.startMatch(matchOpts)
+        await this.playMatch(match)
+    }
+
+    async joinMatch(matchId) {
+        this.color = Red
+        const match = await this.client.joinMatch(matchId)
+        await this.playMatch(match)
+    }
+
+    async nextGame() {
+        return await this.client.nextGame()
+    }
+
+    async playGame(game) {
+
+        const drawBoard = () => this.writeStdout(this.drawBoard(game, this.match))
+
+        this.info('Starting game')
+        const firstTurn = await this.client.firstTurn(game)
+        this.info(firstTurn.color, 'wins the first roll with', firstTurn.dice.join())
+        if (firstTurn.color == this.color) {
+            await this.playRoll(firstTurn, game)
+            drawBoard()
+        } else {
+            drawBoard()
+            this.info(firstTurn.color, 'rolled', firstTurn.dice.join())
+            await this.waitForOpponentMoves(firstTurn, game)
+        }
+
+        while (true) {
+
+            drawBoard()
+
+            var turn = await this.nextTurn(game)
+            this.info(turn.color + "'s turn")
+
+            if (turn.color == this.color) {
+                await this.playTurn(turn, game)
+            } else {
+                await this.waitForOpponentTurn(turn, game)
+            }
+
+            if (game.checkFinished()) {
+                break
+            }
+        }
+
+        this.writeStdout(this.drawBoard(game, this.match))
+        this.info(game.winner, 'has won the game with', game.finalValue, 'points')
+    }
+
+    async nextTurn(game) {
+        return await this.client.nextTurn(game)
+    }
+
+    async playTurn(turn, game) {
+        if (game.canDouble(turn.color)) {
+            var action = await this.promptAction()
+        }
+        if (action == 'double') {
+            await this.offerDouble(turn, game)
+            if (turn.isDoubleDeclined) {
+                return
+            }
+            this.info('Opponent accepted the double')
+        }
+        await this.rollTurn(turn, game)
+        await this.playRoll(turn, game)
+    }
+
+    async offerDouble(turn, game) {
+        await this.client.offerDouble(turn, game)
+    }
+
+    async acceptDouble(turn, game) {
+        await this.client.acceptDouble(turn, game)
+        this.info('You have accepted the double')
+        const drawBoard = () => this.writeStdout(this.drawBoard(game, this.match))
+        drawBoard()
+    }
+
+    async declineDouble(turn, game) {
+        await this.client.declineDouble(turn, game)
+    }
+
+    async rollTurn(turn, game) {
+        await this.client.rollTurn(turn, game)
+    }
+
+    async finishTurn(turn, game) {
+        this.info('Finishing turn')
+        await this.client.finishMoves(turn, game)
+    }
+
+    async waitForOpponentTurn(turn, game) {
+        this.info('Waiting for opponent action')
+        await this.client.waitForOpponentOption(turn, game)
+        if (turn.isDoubleOffered) {
+            this.info(turn.color, 'wants to double the stakes to', game.cubeValue * 2)
+            const isAccept = await this.promptAcceptDouble(turn, game)
+            if (isAccept) {
+                await this.acceptDouble(turn, game)
+                await this.client.waitForOpponentOption(turn, game)
+            } else {
+                await this.declineDouble(turn, game)
+                return
+            }
+        }
+        this.info(turn.color, 'rolled', turn.diceSorted.join())
+        await this.waitForOpponentMoves(turn, game)
+
+    }
+
+    async waitForOpponentMoves(turn, game) {
+        this.info('Waiting for opponent to move')
+        await this.client.waitForOpponentMoves(turn, game)
+    }
+}
+
 Menu.main = function(menu) {
     menu.mainMenu()
     return menu
@@ -581,11 +966,8 @@ Menu.main = function(menu) {
 
 Menu.doMainIfEquals(require.main, module)
 
-class SocketPlayer extends PromptPlayer {
-    constructor() {
-        super()
-    }
-}
+
 PromptPlayer.Menu = Menu
 PromptPlayer.LocalPlayer = LocalPlayer
+PromptPlayer.SocketPlayer = SocketPlayer
 module.exports = PromptPlayer

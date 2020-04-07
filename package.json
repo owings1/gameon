@@ -24,6 +24,7 @@
     "inquirer": "^7.0.4",
     "merge": "^1.2.1",
     "strip-ansi": "^6.0.0",
+    "uuid": "^7.0.3",
     "websocket": "^1.0.31"
   },
   "devDependencies": {

@@ -1834,6 +1834,16 @@ describe('LocalPlayer', () => {
     })
 })
 
+describe('Server', () => {
+    const Server = require('../src/lib/server')
+    const Client = require('../src/lib/client')
+})
+
+describe('Client', () => {
+    const Server = require('../src/lib/server')
+    const Client = require('../src/lib/client')
+})
+
 function MockPrompter(responses, isSkipAssertAsked, isSkipAssertAnswered, isSkipAssertValid) {
 
     const isAssertAsked = !isSkipAssertAsked
