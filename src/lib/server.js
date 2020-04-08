@@ -5,6 +5,8 @@ const WebSocketServer = require('websocket').server
 
 const crypto = require('crypto')
 const express = require('express') // maybe we don't need express
+const merge = require('merge')
+
 const {White, Red, Match, Opponent, Dice} = Lib
 
 class Server extends Logger {
@@ -13,35 +15,18 @@ class Server extends Logger {
         super()
         this.app = express()
         this.matches = {}
-        this.clients = null
         this.connTicker = 0
     }
 
     listen(port) {
+
         this.port = port
         return new Promise((resolve, reject) => {
             try {
                 this.httpServer = this.app.listen(port, () => {
+                    this.info('Listening on port', port)
                     try {
-                        this.info('Listening on port', port)
-                        this.clients = {}
-                        this.socketServer = new WebSocketServer({httpServer: this.httpServer})
-                        this.socketServer.on('request', req => {
-                            const conn = req.accept(null, req.origin)
-                            const connId = this.newConnectionId()
-                            conn.connId = connId
-                            this.info('Peer connected', conn.connId, conn.remoteAddress)
-                            this.clients[connId] = conn
-                            conn.on('close', () => {
-                                this.info('Peer disconnected', conn.connId)
-                                this.cancelMatchId(conn.matchId)
-                                delete this.clients[connId]
-                            })
-                            conn.on('message', msg => {
-                                const req = JSON.parse(msg.utf8Data)
-                                this.response(conn, req)
-                            })
-                        })
+                        this.socketServer = this.createSocketServer(this.httpServer)
                         resolve()
                     } catch (err) {
                         reject(err)
@@ -51,7 +36,35 @@ class Server extends Logger {
                 reject(err)
             }
         })
-        
+    }
+
+    createSocketServer(httpServer) {
+
+        const server = new WebSocketServer({httpServer})
+        server.conns = {}
+
+        server.on('request', req => {
+
+            const conn = req.accept(null, req.origin)
+            const connId = this.newConnectionId()
+
+            this.info('Peer connected', connId, conn.remoteAddress)
+
+            conn.connId = connId
+            server.conns[connId] = conn
+
+            conn.on('close', () => {
+                this.info('Peer disconnected', connId)
+                this.cancelMatchId(conn.matchId)
+                delete server.conns[connId]
+            })
+
+            conn.on('message', msg => {
+                this.response(conn, JSON.parse(msg.utf8Data))
+            })
+        })
+
+        return server
     }
 
     response(conn, req) {
@@ -136,7 +149,7 @@ class Server extends Logger {
                     break
 
                 default:
-                    this.matchResponse(conn, req)
+                    this.matchResponse(req)
                     break
 
             }
@@ -148,20 +161,26 @@ class Server extends Logger {
         this.debug('message received from', conn.color, conn.connId, req)
     }
 
-    matchResponse(conn, req) {
+    matchResponse(req) {
 
-        const {action, id, color, secret} = req
-        const match = this.getMatchWithColorSecret(id, color, secret)
-        const {sync, conns, thisGame} = match
+        const match = this.getMatchForRequest(req)
+
+        const {action, color} = req
         const opponent = Opponent[color]
+        
+        const {thisGame} = match
         const thisTurn = thisGame && thisGame.thisTurn
 
-        const checkSync = (...args) => {
-            this.debug({action, color, sync})
-            Server.checkSync(sync, ...args)
+        const sync = next => {
+            match.sync[color] = action
+            this.debug({action, color, sync: match.sync})
+            Server.checkSync(match.sync, next)
         }
 
-        sync[color] = action
+        const reply = res => {
+            this.sendMessage(Object.values(match.conns), merge({}, {action}, res))
+        }
+
 
         switch (action) {
 
@@ -171,39 +190,35 @@ class Server extends Logger {
                     thisGame.checkFinished()
                 }
 
-                checkSync(() => {
+                sync(() => {
                     match.nextGame()
-                    this.sendMessage(Object.values(conns), {action})
+                    reply()
                 })
 
                 break
 
             case 'firstTurn':
 
-                checkSync(() => {
-                    const firstTurn = thisGame.firstTurn()
-                    const {dice} = firstTurn
-                    this.sendMessage(Object.values(conns), {action, dice})
+                sync(() => {
+                    const {dice} = thisGame.firstTurn()
+                    reply({dice})
                 })
 
                 break
 
             case 'movesFinished':
 
-                if (color == thisTurn.color) {
+                if (thisTurn.color == color) {
                     req.moves.forEach(move => thisTurn.move(move.origin, move.face))
                     thisTurn.finish()
                 }
 
-                checkSync(() => {
+                sync(() => {
 
                     const moves = thisTurn.moves.map(move => move.coords())
-                    
-                    this.sendMessage(conns[Opponent[thisTurn.color]], {action, moves})
-                    this.sendMessage(conns[thisTurn.color], {action})
 
-                    thisGame.checkFinished()
-                    match.updateScore()
+                    reply({moves})
+
                     this.checkMatchFinished(match)
                 })
 
@@ -211,9 +226,9 @@ class Server extends Logger {
 
             case 'nextTurn':
 
-                checkSync(() => {
+                sync(() => {
                     thisGame.nextTurn()
-                    this.sendMessage(Object.values(conns), {action})
+                    reply()
                 })
 
                 break
@@ -228,10 +243,10 @@ class Server extends Logger {
                     }
                 }
 
-                checkSync(() => {
+                sync(() => {
                     const isDouble = thisTurn.isDoubleOffered && !thisTurn.isRolled
                     const {dice} = thisTurn
-                    this.sendMessage(Object.values(conns), {isDouble, dice, action})
+                    reply({isDouble, dice})
                 })
 
                 break
@@ -246,13 +261,12 @@ class Server extends Logger {
                     }
                 }
 
-                checkSync(() => {
+                sync(() => {
 
                     const isAccept = !thisTurn.isDoubleDeclined
-                    this.sendMessage(Object.values(conns), {isAccept, action})
 
-                    thisGame.checkFinished()
-                    match.updateScore()
+                    reply({isAccept})
+
                     this.checkMatchFinished(match)
                 })
 
@@ -265,6 +279,9 @@ class Server extends Logger {
     }
 
     checkMatchFinished(match) {
+        if (match.thisGame && match.thisGame.checkFinished()) {
+            match.updateScore()
+        }
         if (match.hasWinner()) {
             this.info('Match', match.id, 'is finished')
             delete this.matches[match.id]
@@ -302,7 +319,8 @@ class Server extends Logger {
         return crypto.createHash('md5').update('' + this.connTicker).digest('hex')
     }
 
-    getMatchWithColorSecret(id, color, secret) {
+    getMatchForRequest(req) {
+        const {id, color, secret} = req
         Server.validateColor(color)
         if (!this.matches[id]) {
             throw new MatchNotFoundError('match not found')
@@ -335,6 +353,12 @@ class Server extends Logger {
     static matchIdFromSecret(str) {
         return crypto.createHash('sha256').update(str).digest('hex').substring(0, 8)
     }
+
+    static doMainIfEquals(lhs, rhs) {
+        if (lhs === rhs) {
+            Server.main(new Server)
+        }
+    }
 }
 
 
@@ -352,17 +376,12 @@ class MatchNotFoundError extends ServerError {}
 class MatchAlreadyJoinedError extends ServerError {}
 class NotYourTurnError extends ServerError {}
 
-Server.Errors = {
-    HandshakeError
-  , ValidateError
-  , MatchAlreadyExistsError
-  , MatchNotFoundError
-  , MatchAlreadyJoinedError
+
+Server.main = server => {
+    server.listen(process.env.HTTP_PORT || 8080)
+    return server
 }
 
-if (require.main === module) {
-    const server = new Server()
-    server.listen(process.env.HTTP_PORT || 8080)
-}
+Server.doMainIfEquals(require.main, module)
 
 module.exports = Server
