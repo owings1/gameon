@@ -88,73 +88,56 @@ class Client extends Logger {
     }
 
     async nextGame() {
-        const id = this.matchId
-        const {color} = this
-        await this.sendAndWait({action: 'nextGame', id, color}, 'nextGame')
+        const action = 'nextGame'
+        await this.matchRequest(action)
         return this.match.nextGame()
     }
 
     async firstTurn(game) {
-        const id = this.matchId
-        const {color} = this
-        const res = await this.sendAndWait({action: 'firstTurn', id, color}, 'firstTurn')
-        const {dice} = res
+        const action = 'firstTurn'
+        const {dice} = await this.matchRequest(action)
         game._rollFirst = () => dice
-        return game.firstTurn()
+        game.firstTurn()
     }
 
     async nextTurn(game) {
-        const id = this.matchId
-        const {color} = this
         const action = 'nextTurn'
-        const res = await this.sendAndWait(this.matchParams(action), action)
-        return game.nextTurn()
+        await this.matchRequest(action)
+        game.nextTurn()
     }
 
     async finishMoves(turn, game) {
-        const id = this.matchId
-        const {color} = this
         const action = 'movesFinished'
         const moves = turn.moves.map(move => move.coords())
-        const res = await this.sendAndWait(this.matchParams({action, moves}), action)
+        await this.matchRequest(action, {moves})
         turn.finish()
-        // check stateString
     }
 
     async waitForOpponentMoves(turn, game) {
-        const id = this.matchId
-        const {color} = this
         const action = 'movesFinished'
-        const res = await this.sendAndWait(this.matchParams(action), action)
-        const moves = res.moves.map(move => turn.move(move.origin, move.face))
+        const {moves} = await this.matchRequest(action)
+        moves.map(move => turn.move(move.origin, move.face))
         turn.finish()
-        // check stateString
     }
 
     async rollTurn(turn, game) {
-        const id = this.matchId
-        const {color} = this
         const action = 'turnOption'
         const isDouble = false
-        const {dice} = await this.sendAndWait(this.matchParams({action, isDouble}), action)
+        const {dice} = await this.matchRequest(action, {isDouble})
         turn.setRoll(dice)
     }
 
     async offerDouble(turn, game) {
-        const id = this.matchId
-        const {color} = this
         const action = 'turnOption'
         const isDouble = true
-        await this.sendAndWait(this.matchParams({action, isDouble}), action)
+        await this.matchRequest(action, {isDouble})
         turn.setDoubleOffered()
         await this.waitForDoubleResponse(turn, game)
     }
 
     async waitForOpponentOption(turn, game) {
-        const id = this.matchId
-        const {color} = this
         const action = 'turnOption'
-        const {isDouble, dice} = await this.sendAndWait(this.matchParams(action), action)
+        const {isDouble, dice} = await this.matchRequest(action)
         if (isDouble) {
             turn.setDoubleOffered()
         } else {
@@ -163,10 +146,8 @@ class Client extends Logger {
     }
 
     async waitForDoubleResponse(turn, game) {
-        const id = this.matchId
-        const {color} = this
         const action = 'doubleResponse'
-        const {isAccept} = await this.sendAndWait(this.matchParams(action), action)
+        const {isAccept} = await this.matchRequest(action)
         if (isAccept) {
             game.double()
         } else {
@@ -175,21 +156,22 @@ class Client extends Logger {
     }
 
     async declineDouble(turn, game) {
-        const id = this.matchId
-        const {color} = this
         const action = 'doubleResponse'
         const isAccept = false
-        await this.sendAndWait(this.matchParams({action, isAccept}), action)
+        await this.matchRequest(action, {isAccept})
         turn.setDoubleDeclined()
     }
 
     async acceptDouble(turn, game) {
-        const id = this.matchId
-        const {color} = this
         const action = 'doubleResponse'
         const isAccept = true
-        await this.sendAndWait(this.matchParams({action, isAccept}), action)
+        await this.matchRequest(action, {isAccept})
         game.double()
+    }
+
+    async matchRequest(action, params) {
+        const req = merge({}, this.matchParams(action), params)
+        return await this.sendAndWait(req, action)
     }
 
     async sendAndWait(msg, action) {

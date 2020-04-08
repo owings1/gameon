@@ -13,7 +13,7 @@ class Server extends Logger {
         super()
         this.app = express()
         this.matches = {}
-        this.socketClients = null
+        this.clients = null
         this.connTicker = 0
     }
 
@@ -24,20 +24,23 @@ class Server extends Logger {
                 this.httpServer = this.app.listen(port, () => {
                     try {
                         this.info('Listening on port', port)
-                        this.socketClients = {}
+                        this.clients = {}
                         this.socketServer = new WebSocketServer({httpServer: this.httpServer})
                         this.socketServer.on('request', req => {
                             const conn = req.accept(null, req.origin)
                             const connId = this.newConnectionId()
                             conn.connId = connId
                             this.info('Peer connected', conn.connId, conn.remoteAddress)
-                            this.socketClients[connId] = conn
+                            this.clients[connId] = conn
                             conn.on('close', () => {
                                 this.info('Peer disconnected', conn.connId)
                                 this.cancelMatchId(conn.matchId)
-                                delete this.socketClients[connId]
+                                delete this.clients[connId]
                             })
-                            conn.on('message', msg => this.receiveMessage(conn, msg))
+                            conn.on('message', msg => {
+                                const req = JSON.parse(msg.utf8Data)
+                                this.response(conn, req)
+                            })
                         })
                         resolve()
                     } catch (err) {
@@ -51,19 +54,17 @@ class Server extends Logger {
         
     }
 
-    receiveMessage(conn, msg) {
-
-        msg = JSON.parse(msg.utf8Data)
+    response(conn, req) {
 
         try {
 
-            var {action} = msg
+            var {action} = req
             if (action != 'establishSecret') {
                 if (!conn.secret) {
                     throw new HandshakeError('no secret')
                 }
                 var {secret} = conn
-                if (msg.secret != secret) {
+                if (req.secret != secret) {
                     throw new HandshakeError('bad secret')
                 }
             }
@@ -72,11 +73,11 @@ class Server extends Logger {
 
                 case 'establishSecret':
 
-                    if (!msg.secret || msg.secret.length != 64) {
+                    if (!req.secret || req.secret.length != 64) {
                         throw new HandshakeError('bad secret')
                     }
-                    if (!conn.secret || conn.secret == msg.secret) {
-                        conn.secret = msg.secret
+                    if (!conn.secret || conn.secret == req.secret) {
+                        conn.secret = req.secret
                         this.sendMessage(conn, {action: 'acknowledgeSecret'})
                         this.log('Client connected', conn.secret)
                     } else {
@@ -88,7 +89,7 @@ class Server extends Logger {
                 case 'startMatch':
 
                     var id = Server.matchIdFromSecret(secret)
-                    var {total, opts} = msg
+                    var {total, opts} = req
                     var match = new Match(total, opts)
                     match.id = id
                     match.secrets = {
@@ -114,7 +115,7 @@ class Server extends Logger {
 
                 case 'joinMatch':
 
-                    var {id} = msg
+                    var {id} = req
                     if (!this.matches[id]) {
                         throw new MatchNotFoundError('match not found')
                     }
@@ -135,7 +136,7 @@ class Server extends Logger {
                     break
 
                 default:
-                    this.matchResponse(conn, msg)
+                    this.matchResponse(conn, req)
                     break
 
             }
@@ -144,7 +145,7 @@ class Server extends Logger {
             this.sendMessage(conn, {error: err.message, name: err.name || err.constructor.name})
         }
         
-        this.debug('message received from', conn.color, conn.connId, msg)
+        this.debug('message received from', conn.color, conn.connId, req)
     }
 
     matchResponse(conn, req) {
