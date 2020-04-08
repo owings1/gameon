@@ -1015,6 +1015,16 @@ describe('Move', () => {
 
     const {Board, Piece} = Lib
 
+    describe('#coords', () => {
+
+        it('should return origin and face properties', () => {
+            const move = Board.setup().buildMove(White, 0, 1)
+            const result = move.coords()
+            expect(result.origin).to.equal(0)
+            expect(result.face).to.equal(1)
+        })
+    })
+
     describe('#copy', () => {
 
         it('should return new ComeInMove with same board, color, and face', () => {
@@ -1329,6 +1339,7 @@ describe('Util', () => {
             })
         })
     })
+
     describe('#uniqueInts', () => {
 
         it('should return [1,2,3] for [1,1,2,2,3,3]', () => {
