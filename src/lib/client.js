@@ -61,16 +61,16 @@ class Client extends Logger {
         }
     }
 
-    async startMatch(matchOpts) {
+    async startMatch(opts) {
+        const {total} = opts
         await this.connect()
-        const res = await this.sendAndWait({action: 'startMatch', total: matchOpts.total, opts: matchOpts}, 'matchCreated')
-        const {id} = res
+        const {id} = await this.sendAndWait({action: 'startMatch', total, opts}, 'matchCreated')
         this.info('Started new match', id)
         this.info('Waiting for opponent to join')
         await this.waitForMessage('opponentJoined')
         this.matchId = id
         this.info('Opponent joined', id)
-        this.match = new Match(matchOpts.total, matchOpts)
+        this.match = new Match(total, opts)
         this.color = White
         return this.match
     }
@@ -88,56 +88,46 @@ class Client extends Logger {
     }
 
     async nextGame() {
-        const action = 'nextGame'
-        await this.matchRequest(action)
-        return this.match.nextGame()
+        await this.matchRequest('nextGame')
+        this.match.nextGame()
     }
 
     async firstTurn(game) {
-        const action = 'firstTurn'
-        const {dice} = await this.matchRequest(action)
+        const {dice} = await this.matchRequest('firstTurn')
         game._rollFirst = () => dice
         game.firstTurn()
     }
 
     async nextTurn(game) {
-        const action = 'nextTurn'
-        await this.matchRequest(action)
+        await this.matchRequest('nextTurn')
         game.nextTurn()
     }
 
     async finishMoves(turn, game) {
-        const action = 'movesFinished'
         const moves = turn.moves.map(move => move.coords())
-        await this.matchRequest(action, {moves})
+        await this.matchRequest('movesFinished', {moves})
         turn.finish()
     }
 
     async waitForOpponentMoves(turn, game) {
-        const action = 'movesFinished'
-        const {moves} = await this.matchRequest(action)
-        moves.map(move => turn.move(move.origin, move.face))
+        const {moves} = await this.matchRequest('movesFinished')
+        moves.forEach(move => turn.move(move.origin, move.face))
         turn.finish()
     }
 
     async rollTurn(turn, game) {
-        const action = 'turnOption'
-        const isDouble = false
-        const {dice} = await this.matchRequest(action, {isDouble})
+        const {dice} = await this.matchRequest('turnOption', {isDouble: false})
         turn.setRoll(dice)
     }
 
     async offerDouble(turn, game) {
-        const action = 'turnOption'
-        const isDouble = true
-        await this.matchRequest(action, {isDouble})
+        await this.matchRequest('turnOption', {isDouble: true})
         turn.setDoubleOffered()
-        await this.waitForDoubleResponse(turn, game)
+        
     }
 
     async waitForOpponentOption(turn, game) {
-        const action = 'turnOption'
-        const {isDouble, dice} = await this.matchRequest(action)
+        const {isDouble, dice} = await this.matchRequest('turnOption')
         if (isDouble) {
             turn.setDoubleOffered()
         } else {
@@ -146,26 +136,19 @@ class Client extends Logger {
     }
 
     async waitForDoubleResponse(turn, game) {
-        const action = 'doubleResponse'
-        const {isAccept} = await this.matchRequest(action)
-        if (isAccept) {
-            game.double()
-        } else {
+        const {isAccept} = await this.matchRequest('doubleResponse')
+        if (!isAccept) {
             turn.setDoubleDeclined()
         }
     }
 
     async declineDouble(turn, game) {
-        const action = 'doubleResponse'
-        const isAccept = false
-        await this.matchRequest(action, {isAccept})
+        await this.matchRequest('doubleResponse', {isAccept: false})
         turn.setDoubleDeclined()
     }
 
     async acceptDouble(turn, game) {
-        const action = 'doubleResponse'
-        const isAccept = true
-        await this.matchRequest(action, {isAccept})
+        await this.matchRequest('doubleResponse', {isAccept: true})
         game.double()
     }
 
