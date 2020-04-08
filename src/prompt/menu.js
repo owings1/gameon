@@ -161,16 +161,6 @@ class Menu extends Logger {
                 }
             }
           , {
-                value : 'isJacoby'
-              , name  : 'Jacoby Rule'
-              , question : {
-                    name    : 'isJacoby'
-                  , message : 'Jacoby Rule'
-                  , type    : 'confirm'
-                  , default : () => matchOpts.isJacoby
-                }
-            }
-          , {
                 value : 'isCrawford'
               , name  : 'Crawford Rule'
               , question : {
@@ -178,6 +168,16 @@ class Menu extends Logger {
                   , message : 'Crawford Rule'
                   , type    : 'confirm'
                   , default : () => matchOpts.isCrawford
+                }
+            }
+          , {
+                value : 'isJacoby'
+              , name  : 'Jacoby Rule'
+              , question : {
+                    name    : 'isJacoby'
+                  , message : 'Jacoby Rule'
+                  , type    : 'confirm'
+                  , default : () => matchOpts.isJacoby
                 }
             }
           , {
