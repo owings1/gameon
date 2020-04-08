@@ -1,6 +1,3 @@
-const White = 'White'
-const Red = 'Red'
-
 const Lib          = require('../src/lib/game')
 const Util         = require('../src/lib/util')
 const Logger       = require('../src/lib/logger')
@@ -8,6 +5,9 @@ const Server       = require('../src/lib/server')
 const Client       = require('../src/lib/client')
 const Menu         = require('../src/prompt/menu')
 const PromptPlayer = require('../src/prompt/play')
+const Draw         = require('../src/prompt/draw')
+
+const {White, Red} = Lib
 
 const TestUtil = require('./util')
 const {
@@ -1660,14 +1660,14 @@ describe('LocalPlayer', () => {
         it('should include \'bar\' if origin is -1', () => {
             const board = Board.fromStateString(States.WhiteCornerCase24)
             const move = board.buildMove(White, -1, 4)
-            const result = PromptPlayer.describeMove(move)
+            const result = player.describeMove(move)
             expect(result).to.contain('bar')
         })
 
         it('should inclue 1 and 3 if origin is 0 and face is 2', () => {
             const board = Board.setup()
             const move = board.buildMove(White, 0, 2)
-            const result = PromptPlayer.describeMove(move)
+            const result = player.describeMove(move)
             expect(result).to.contain('1')
             expect(result).to.contain('3')
         })
@@ -1675,65 +1675,12 @@ describe('LocalPlayer', () => {
         it('should include \'home\' for red if origin is 0 and face is 2', () => {
             const board = Board.fromStateString(States.EitherOneMoveWin)
             const move = board.buildMove(Red, 0, 2)
-            const result = PromptPlayer.describeMove(move)
+            const result = player.describeMove(move)
             expect(result).to.contain('home')
         })
     })
 
-    describe('#drawBoard', () => {
 
-        // these are just for coverage
-        var game
-
-        beforeEach(() => game = new Game)
-
-        it('should not barf for initial board', () => {
-            PromptPlayer.drawBoard(game)
-        })
-
-        it('should not barf for RedHitComeIn3', () => {
-            game.board.setStateString(States.RedHitComeIn3)
-            PromptPlayer.drawBoard(game)
-        })
-
-        it('should not barf for WhiteCornerCase24', () => {
-            game.board.setStateString(States.WhiteCornerCase24)
-            PromptPlayer.drawBoard(game)
-        })
-
-        it('should not barf for WhiteGammon1', () => {
-            game.board.setStateString(States.WhiteGammon1)
-            PromptPlayer.drawBoard(game)
-        })
-
-        it('should not barf for RedGammon1', () => {
-            game.board.setStateString(States.RedGammon1)
-            PromptPlayer.drawBoard(game)
-        })
-
-        it('should not barf for instance', () => {
-            player.drawBoard(game)
-        })
-
-        it('should not barf when game isCrawford', () => {
-            game.opts.isCrawford = true
-            player.drawBoard(game)
-        })
-
-        it('should not barf when cubeOwner is red', () => {
-            game.cubeOwner = Red
-            player.drawBoard(game)
-        })
-
-        it('should not barf when cubeOwner is white', () => {
-            game.cubeOwner = White
-            player.drawBoard(game)
-        })
-
-        it('should not barf when match is passed', () => {
-            player.drawBoard(game, new Match(1))
-        })
-    })
 
     describe('#playGame', () => {
 
@@ -2044,6 +1991,62 @@ describe('LocalPlayer', () => {
     })
 })
 
+describe('Draw', () => {
+
+    const {Game, Match} = Lib
+
+    describe('#drawBoard', () => {
+
+        // these are just for coverage
+        var game
+
+        beforeEach(() => game = new Game)
+
+        it('should not barf for initial board', () => {
+            Draw.drawBoard(game)
+        })
+
+        it('should not barf for RedHitComeIn3', () => {
+            game.board.setStateString(States.RedHitComeIn3)
+            Draw.drawBoard(game)
+        })
+
+        it('should not barf for WhiteCornerCase24', () => {
+            game.board.setStateString(States.WhiteCornerCase24)
+            Draw.drawBoard(game)
+        })
+
+        it('should not barf for WhiteGammon1', () => {
+            game.board.setStateString(States.WhiteGammon1)
+            Draw.drawBoard(game)
+        })
+
+        it('should not barf for RedGammon1', () => {
+            game.board.setStateString(States.RedGammon1)
+            Draw.drawBoard(game)
+        })
+
+        it('should not barf when game isCrawford', () => {
+            game.opts.isCrawford = true
+            Draw.drawBoard(game)
+        })
+
+        it('should not barf when cubeOwner is red', () => {
+            game.cubeOwner = Red
+            Draw.drawBoard(game)
+        })
+
+        it('should not barf when cubeOwner is white', () => {
+            game.cubeOwner = White
+            Draw.drawBoard(game)
+        })
+
+        it('should not barf when match is passed', () => {
+            Draw.drawBoard(game, new Match(1))
+        })
+    })
+})
+
 describe('Server', () => {
 
     var server
@@ -2066,4 +2069,5 @@ describe('Client', () => {
 
 
 })
+
 
