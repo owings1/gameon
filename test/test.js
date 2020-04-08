@@ -1661,8 +1661,9 @@ describe('LocalPlayer', () => {
 
         it('should return without prompting if turn.isCantMove', async () => {
             const turn = game.firstTurn()
-            // force property
+            // force properties
             turn.isCantMove = true
+            turn.allowedMoveCount = 0
             await player.playRoll(turn, game)
         })
 
