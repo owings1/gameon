@@ -1,4 +1,4 @@
-const {Match, Game, Opponent, Red, White} = require('../lib/game')
+const {Match, Red, White} = require('../lib/game')
 
 const Client = require('../lib/client')
 const Draw   = require('./draw')
@@ -9,14 +9,15 @@ const chalk       = require('chalk')
 const inquirer    = require('inquirer')
 const sp          = Util.joinSpace
 
-class PromptPlayer extends Logger {
+class Player extends Logger {
 
     constructor() {
         super()
+        this.thisMatch = null
     }
 
     async playMatch(match) {
-        this.match = match
+        this.thisMatch = match
         this.info('Starting match')
         try {
             while (true) {
@@ -28,14 +29,14 @@ class PromptPlayer extends Logger {
                 }
             }
             const winner = match.getWinner()
-            this.info(winner, 'wins the match', match.scores[winner], 'to', match.scores[Opponent[winner]])
+            const loser = match.getLoser()
+            this.info(winner, 'wins the match', match.scores[winner], 'to', match.scores[loser])
         } catch (err) {
             this.error(err)
             this.warn('An error occurred, the match is canceled')
             await this.abortMatch()
         }
         
-        delete this.match
     }
 
     async abortMatch() {
@@ -43,41 +44,19 @@ class PromptPlayer extends Logger {
     }
 
     async nextGame() {
-        return this.match.nextGame()
+        return this.thisMatch.nextGame()
     }
 
     async updateScore() {
-        this.match.updateScore()
+        this.thisMatch.updateScore()
     }
 
-    drawBoard(...args) {
-        return PromptPlayer.drawBoard(...args)
-    }
-
-    prompt(questions) {
-        this._prompt = inquirer.prompt(Util.castToArray(questions))
-        return this._prompt
-    }
-
-    static validator(name, params) {
-        switch (name) {
-            case 'face':
-                var {faces} = params
-                return value => (faces.indexOf(+value) > -1) || 'Please enter one of ' + faces.join()
-            case 'origin':
-                var {choices} = params
-                return value => (choices.indexOf(value) > -1) || 'Please enter one of ' + choices.join()
-        }
-    }
-
-    static describeMove(move) {
-        const origin = move.isComeIn ? 'bar' : move.origin + 1
-        const dest = move.isBearoff ? 'home' : move.dest + 1
-        return sp(move.color, 'moves from', origin, 'to', dest)
+    async playGame(game) {
+        throw new Error('NotImplemented')
     }
 }
 
-class LocalPlayer extends PromptPlayer {
+class PromptPlayer extends Player {
 
     constructor() {
         super()
@@ -88,49 +67,51 @@ class LocalPlayer extends PromptPlayer {
         this.info('Starting game')
         const firstTurn = await this.firstTurn(game)
         this.info(firstTurn.color, 'wins the first roll with', firstTurn.dice.join())
-        await this.playRoll(firstTurn, game)
+
+        if (firstTurn.color == this.color) {
+            await this.playRoll(firstTurn, game)
+        } else {
+            this.info(firstTurn.color, 'rolled', firstTurn.diceSorted.join())
+            await this.waitForOpponentMoves(firstTurn, game)
+        }
 
         while (true) {
 
             var turn = await this.nextTurn(game)
+
             this.info(turn.color + "'s turn")
 
-            var action = game.canDouble(turn.color) ? await this.promptAction() : 'roll'
-
-            if (action == 'double') {
-                this.info(turn.color, 'wants to double the stakes to', game.cubeValue * 2)
-                turn.setDoubleOffered()
-                var accept = await this.promptAcceptDouble(turn)
-                if (accept) {
-                    game.double()
-                    this.log(Opponent[turn.color], 'accepts the double')
-                    this.log(game.cubeOwner, 'owns the cube at', game.cubeValue)
-                } else {
-                    turn.setDoubleDeclined()
-                    game.checkFinished()
-                    break
-                }
+            if (turn.color == this.color) {
+                await this.playTurn(turn, game)
+            } else {
+                await this.waitForOpponentTurn(turn, game)
             }
-
-            this._rollForTurn(turn, game.turns.length)
-
-            await this.playRoll(turn, game)
 
             if (game.checkFinished()) {
                 break
             }
         }
 
-        this.writeStdout(this.drawBoard(game, this.match))
+        this.drawBoard(game)
         this.info(game.winner, 'has won the game with', game.finalValue, 'points')
     }
 
-    async firstTurn(game) {
-        return game.firstTurn()
-    }
-
-    async nextTurn(game) {
-        return game.nextTurn()
+    async playTurn(turn, game) {
+        if (game.canDouble(turn.color)) {
+            var action = await this.promptAction()
+        }
+        if (action == 'double') {
+            await this.offerDouble(turn, game)
+            await this.waitForDoubleResponse(turn, game)
+            if (turn.isDoubleDeclined) {
+                return
+            } else {
+                game.double()
+            }
+            this.info('Opponent accepted the double')
+        }
+        await this.rollTurn(turn, game)
+        await this.playRoll(turn, game)
     }
 
     async playRoll(turn, game) {
@@ -140,37 +121,31 @@ class LocalPlayer extends PromptPlayer {
             await this.finishTurn(turn, game)
             return
         }
-        const drawBoard = () => this.writeStdout(this.drawBoard(game, this.match))
-        drawBoard()
         while (true) {
+            this.drawBoard(game)
             this.info(turn.color, 'rolled', turn.diceSorted.join(), 'with', turn.remainingFaces.join(), 'remaining')
             var moves = turn.getNextAvailableMoves()
             var origin = await this.promptOrigin(moves.map(move => move.origin), turn.moves.length > 0)
             if (origin == 'undo') {
                 turn.unmove()
-                drawBoard()
                 continue
             }
             var face = await this.promptFace(moves.filter(move => move.origin == origin).map(move => move.face))
             var move = turn.move(origin, face)
-            this.info(PromptPlayer.describeMove(move))
-            drawBoard()
+            this.info(this.describeMove(move))
             if (turn.getNextAvailableMoves().length == 0) {
+                this.drawBoard(game)
                 var finish = await this.promptFinishOrUndo()
                 if (finish == 'undo') {
                     turn.unmove()
-                    drawBoard()
                     continue
                 } else {
                     await this.finishTurn(turn, game)
+                    this.drawBoard(game)
                     break
                 }
             }
         }
-    }
-
-    async finishTurn(turn, game) {
-        turn.finish()
     }
 
     async promptAction() {
@@ -192,7 +167,7 @@ class LocalPlayer extends PromptPlayer {
         const answers = await this.prompt({
             name    : 'accept'
           , type    : 'confirm'
-          , message : sp('Does', Opponent[turn.color], 'accept the double?')
+          , message : sp('Does', turn.opponent, 'accept the double?')
         })
         return answers.accept
     }
@@ -215,7 +190,7 @@ class LocalPlayer extends PromptPlayer {
             name     : 'origin'
           , type     : 'input'
           , message
-          , validate : PromptPlayer.validator('origin', {choices})
+          , validate : value => (choices.indexOf(value) > -1) || 'Please enter one of ' + choices.join()
         }
         if (origins.length == 1) {
             question.default = '' + choices[0]
@@ -238,7 +213,7 @@ class LocalPlayer extends PromptPlayer {
             name     : 'face'
           , type     : 'input'
           , message  : 'Die [' + faces.join() + ']'
-          , validate : PromptPlayer.validator('face', {faces})
+          , validate : value => (faces.indexOf(+value) > -1) || 'Please enter one of ' + faces.join()
           , default  : '' + faces[0]
         })
         return +answers.face
@@ -259,20 +234,90 @@ class LocalPlayer extends PromptPlayer {
         return 'finish'
     }
 
+    prompt(questions) {
+        this._prompt = inquirer.prompt(Util.castToArray(questions))
+        return this._prompt
+    }
+
+    describeMove(move) {
+        const origin = move.isComeIn ? 'bar' : move.origin + 1
+        const dest = move.isBearoff ? 'home' : move.dest + 1
+        return sp(move.color, 'moves from', origin, 'to', dest)
+    }
+
+    drawBoard(game) {
+        this.writeStdout(Draw.drawBoard(game, this.thisMatch))
+    }
+
+    async finishTurn(turn, game) {
+        turn.finish()
+    }
+
+    async firstTurn(game) {
+        return game.firstTurn()
+    }
+
+    async nextTurn(game) {
+        return game.nextTurn()
+    }
+
+    async rollTurn(turn, game) {
+        this._rollForTurn(turn, game.turns.length)
+    }
+
     // allow override for testing
     _rollForTurn(turn, i) {
         turn.roll()
     }
+
+    async waitForOpponentTurn(turn, game) {
+        throw new Error('NotImplemented')
+    }
+
+    async waitForOpponentMoves(turn, game) {
+        throw new Error('NotImplemented')
+    }
+
+    async offerDouble(turn, game) {
+        this.info(turn.color, 'wants to double the stakes to', game.cubeValue * 2)
+        turn.setDoubleOffered()
+    }
+
+    async waitForDoubleResponse(turn, game) {
+        throw new Error('NotImplemented')
+    }
 }
 
-class SocketPlayer extends LocalPlayer {
+class LocalPlayer extends PromptPlayer {
+
+    constructor() {
+        super()
+        this.color = White
+    }
+
+    async waitForOpponentMoves(turn, game) {
+        await this.playRoll(turn, game)
+    }
+
+    async waitForOpponentTurn(turn, game) {
+        await this.playTurn(turn, game)
+    }
+
+    async waitForDoubleResponse(turn, game) {
+        const accept = await this.promptAcceptDouble(turn)
+        if (!accept) {
+            turn.setDoubleDeclined()
+        }
+    }
+}
+
+class SocketPlayer extends PromptPlayer {
 
     constructor(serverUrl) {
         super()
         this.serverUrl = serverUrl
         this.client = new Client(serverUrl)
         this.color = null
-        this.match = null
     }
 
     async startMatch(matchOpts) {
@@ -289,49 +334,14 @@ class SocketPlayer extends LocalPlayer {
 
     async nextGame() {
         await this.client.nextGame()
-        return this.match.thisGame
-    }
-
-    async playGame(game) {
-
-        const drawBoard = () => this.writeStdout(this.drawBoard(game, this.match))
-
-        this.info('Starting game')
-        const firstTurn = await this.firstTurn(game)
-        this.info(firstTurn.color, 'wins the first roll with', firstTurn.dice.join())
-        if (firstTurn.color == this.color) {
-            await this.playRoll(firstTurn, game)
-            drawBoard()
-        } else {
-            drawBoard()
-            this.info(firstTurn.color, 'rolled', firstTurn.dice.join())
-            await this.waitForOpponentMoves(firstTurn, game)
-        }
-
-        while (true) {
-
-            drawBoard()
-
-            var turn = await this.nextTurn(game)
-            this.info(turn.color + "'s turn")
-
-            if (turn.color == this.color) {
-                await this.playTurn(turn, game)
-            } else {
-                await this.waitForOpponentTurn(turn, game)
-            }
-
-            if (game.checkFinished()) {
-                break
-            }
-        }
-
-        this.writeStdout(this.drawBoard(game, this.match))
-        this.info(game.winner, 'has won the game with', game.finalValue, 'points')
+        return this.thisMatch.thisGame
     }
 
     async firstTurn(game) {
         await this.client.firstTurn(game)
+        if (game.thisTurn.color != this.color) {
+            this.drawBoard(game)
+        }
         return game.thisTurn
     }
 
@@ -340,32 +350,19 @@ class SocketPlayer extends LocalPlayer {
         return game.thisTurn
     }
 
-    async playTurn(turn, game) {
-        if (game.canDouble(turn.color)) {
-            var action = await this.promptAction()
-        }
-        if (action == 'double') {
-            await this.offerDouble(turn, game)
-            if (turn.isDoubleDeclined) {
-                return
-            }
-            this.info('Opponent accepted the double')
-        }
-        await this.rollTurn(turn, game)
-        await this.playRoll(turn, game)
-    }
-
     async offerDouble(turn, game) {
         this.info('Offering double to opponent for', game.cubeValue * 2, 'points')
-        this.info('Waiting for opponent response')
         await this.client.offerDouble(turn, game)
+    }
+
+    async waitForDoubleResponse(turn, game) {
+        this.info('Waiting for opponent response')
+        await this.client.waitForDoubleResponse(turn, game)
     }
 
     async acceptDouble(turn, game) {
         await this.client.acceptDouble(turn, game)
         this.info('You have accepted the double')
-        const drawBoard = () => this.writeStdout(this.drawBoard(game, this.match))
-        drawBoard()
     }
 
     async declineDouble(turn, game) {
@@ -395,18 +392,20 @@ class SocketPlayer extends LocalPlayer {
                 return
             }
         }
+        this.drawBoard(game)
         this.info(turn.color, 'rolled', turn.diceSorted.join())
-        await this.waitForOpponentMoves(turn, game)
-        if (turn.isCantMove) {
-            this.info(turn.color, 'has no moves')
-        } else {
-            turn.moves.forEach(move => this.info(PromptPlayer.describeMove(move)))
-        }
+        await this.waitForOpponentMoves(turn, game)   
     }
 
     async waitForOpponentMoves(turn, game) {
         this.info('Waiting for opponent to move')
         await this.client.waitForOpponentMoves(turn, game)
+        this.drawBoard(game)
+        if (turn.isCantMove) {
+            this.info(turn.color, 'has no moves')
+        } else {
+            turn.moves.forEach(move => this.info(this.describeMove(move)))
+        }
     }
 
     async abortMatch() {
@@ -414,7 +413,6 @@ class SocketPlayer extends LocalPlayer {
     }
 }
 
-PromptPlayer.drawBoard = Draw.drawBoard
 PromptPlayer.LocalPlayer = LocalPlayer
 PromptPlayer.SocketPlayer = SocketPlayer
 module.exports = PromptPlayer
