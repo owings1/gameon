@@ -100,6 +100,13 @@ class Match {
         const winner = Object.keys(this.scores).find(color => this.scores[color] >= this.total)
         return winner || null
     }
+
+    getLoser() {
+        if (this.hasWinner()) {
+            return Opponent[this.getWinner()]
+        }
+        return null
+    }
 }
 
 class Game {
