@@ -288,7 +288,8 @@ class SocketPlayer extends LocalPlayer {
     }
 
     async nextGame() {
-        return await this.client.nextGame()
+        await this.client.nextGame()
+        return this.match.thisGame
     }
 
     async playGame(game) {
@@ -296,7 +297,7 @@ class SocketPlayer extends LocalPlayer {
         const drawBoard = () => this.writeStdout(this.drawBoard(game, this.match))
 
         this.info('Starting game')
-        const firstTurn = await this.client.firstTurn(game)
+        const firstTurn = await this.firstTurn(game)
         this.info(firstTurn.color, 'wins the first roll with', firstTurn.dice.join())
         if (firstTurn.color == this.color) {
             await this.playRoll(firstTurn, game)
@@ -329,8 +330,14 @@ class SocketPlayer extends LocalPlayer {
         this.info(game.winner, 'has won the game with', game.finalValue, 'points')
     }
 
+    async firstTurn(game) {
+        await this.client.firstTurn(game)
+        return game.thisTurn
+    }
+
     async nextTurn(game) {
-        return await this.client.nextTurn(game)
+        await this.client.nextTurn(game)
+        return game.thisTurn
     }
 
     async playTurn(turn, game) {
