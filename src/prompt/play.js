@@ -733,6 +733,8 @@ class SocketPlayer extends LocalPlayer {
     }
 
     async offerDouble(turn, game) {
+        this.info('Offering double to opponent for', game.cubeValue * 2, 'points')
+        this.info('Waiting for opponent response')
         await this.client.offerDouble(turn, game)
     }
 
@@ -772,7 +774,11 @@ class SocketPlayer extends LocalPlayer {
         }
         this.info(turn.color, 'rolled', turn.diceSorted.join())
         await this.waitForOpponentMoves(turn, game)
-
+        if (turn.isCantMove) {
+            this.info(turn.color, 'has no moves')
+        } else {
+            turn.moves.forEach(move => this.info(PromptPlayer.describeMove(move)))
+        }
     }
 
     async waitForOpponentMoves(turn, game) {
