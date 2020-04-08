@@ -78,8 +78,17 @@ class Match {
     }
 
     updateScore() {
-        if (this.thisGame && this.thisGame.checkFinished()) {
-            this.scores[this.thisGame.winner] += this.thisGame.finalValue
+        if (this.thisGame) {
+            this.thisGame.checkFinished()
+        }
+        for (var color of Object.keys(this.scores)) {
+            this.scores[color] = Util.sumArray(
+                this.games.filter(
+                    game => game.getWinner() == color
+                ).map(game =>
+                    game.finalValue
+                )
+            )
         }
     }
 
@@ -146,6 +155,16 @@ class Game {
         this.thisTurn = new Turn(this.board, Opponent[this.thisTurn.color])
         this.turns.push(this.thisTurn)
         return this.thisTurn
+    }
+
+    hasWinner() {
+        this.checkFinished()
+        return this.winner != null
+    }
+
+    getWinner() {
+        this.checkFinished()
+        return this.winner
     }
 
     checkFinished() {
@@ -272,6 +291,7 @@ class Turn {
     }
 
     getNextAvailableMoves() {
+        this.assertIsRolled()
         const moveMap = {}
         this.allowedMoveSeries.filter(allowedMoves => {
             // compare the first parts of allowedMoves to this.moves

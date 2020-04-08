@@ -244,6 +244,51 @@ describe('Game', () => {
         })
     })
 
+    describe('#getWinner', () => {
+
+        it('should return null for new game', () => {
+            const result = game.getWinner()
+            expect(result).to.equal(null)
+        })
+
+        it('should return white after red first turn then force state to EitherOneMoveWin and white move', () => {
+            game._rollFirst = () => [1, 6]
+            makeRandomMoves(game.firstTurn()).finish()
+            game.board.setStateString(States.EitherOneMoveWin)
+            const turn = game.nextTurn()
+            turn.roll()
+            makeRandomMoves(turn).finish()
+            const result = game.getWinner()
+            expect(result).to.equal(White)
+        })
+
+        it('should return red after white first turn then force state to EitherOneMoveWin and red move', () => {
+            game._rollFirst = () => [6, 1]
+            makeRandomMoves(game.firstTurn()).finish()
+            game.board.setStateString(States.EitherOneMoveWin)
+            const turn = game.nextTurn()
+            turn.roll()
+            makeRandomMoves(turn).finish()
+            const result = game.getWinner()
+            expect(result).to.equal(Red)
+        })
+    })
+
+    describe('#hasWinner', () => {
+
+        it('should return false for new game', () => {
+            const result = game.hasWinner()
+            expect(result).to.equal(false)
+        })
+
+        it('should return true for EitherOneMoveWin after first turn', () => {
+            game.board.setStateString(States.EitherOneMoveWin)
+            makeRandomMoves(game.firstTurn()).finish()
+            const result = game.hasWinner()
+            expect(result).to.equal(true)
+        })
+    })
+
     describe('#nextTurn', () => {
 
         it('should throw GameFinishedError for finished game', () => {
