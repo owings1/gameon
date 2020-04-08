@@ -138,8 +138,6 @@ class Server extends Logger {
                     this.matchResponse(conn, msg)
                     break
 
-
-                    
             }
         } catch (err) {
             this.error(err)
@@ -152,15 +150,17 @@ class Server extends Logger {
     matchResponse(conn, req) {
 
         const {action, id, color, secret} = req
-        const opponent = Opponent[color]
         const match = this.getMatchWithColorSecret(id, color, secret)
         const {sync, conns, thisGame} = match
+        const opponent = Opponent[color]
         const thisTurn = thisGame && thisGame.thisTurn
 
         const checkSync = (...args) => {
             this.debug({action, color, sync})
-            Server.checkSync(...args)
+            Server.checkSync(sync, ...args)
         }
+
+        sync[color] = action
 
         switch (action) {
 
@@ -170,8 +170,7 @@ class Server extends Logger {
                     thisGame.checkFinished()
                 }
 
-                sync[color] = 'nextGame'
-                checkSync(sync, () => {
+                checkSync(() => {
                     match.nextGame()
                     this.sendMessage(Object.values(conns), {action})
                 })
@@ -180,8 +179,7 @@ class Server extends Logger {
 
             case 'firstTurn':
 
-                sync[color] = 'firstTurn'
-                checkSync(sync, () => {
+                checkSync(() => {
                     const firstTurn = thisGame.firstTurn()
                     const {dice} = firstTurn
                     this.sendMessage(Object.values(conns), {action, dice})
@@ -196,8 +194,7 @@ class Server extends Logger {
                     thisTurn.finish()
                 }
 
-                sync[color] = 'movesFinished'
-                checkSync(sync, () => {
+                checkSync(() => {
 
                     const moves = thisTurn.moves.map(move => move.coords())
                     
@@ -213,62 +210,51 @@ class Server extends Logger {
 
             case 'nextTurn':
 
-                sync[color] = 'nextTurn'
-                checkSync(sync, () => {
+                checkSync(() => {
                     thisGame.nextTurn()
                     this.sendMessage(Object.values(conns), {action})
                 })
 
                 break
 
-            case 'offerDouble':
-            case 'rollTurn':
             case 'turnOption':
 
-                if ('turnOption' == action) {
-                    Server.validateTurnFor(thisTurn, opponent)
-                } else {
-                    Server.validateTurnFor(thisTurn, color)
-                    if ('rollTurn' == action) {
-                        thisTurn.setRoll(this.roll())
-                    } else {
+                if (thisTurn.color == color) {
+                    if (req.isDouble) {
                         thisTurn.setDoubleOffered()
+                    } else {
+                        thisTurn.setRoll(this.roll())
                     }
                 }
 
-                sync[color] = 'turnOption'
-                checkSync(sync, () => {
-                    const {isDoubleOffered, isRolled, dice} = thisTurn
-                    this.sendMessage(Object.values(conns), {isDoubleOffered, isRolled, dice, action: 'turnOption'})
+                checkSync(() => {
+                    const isDouble = thisTurn.isDoubleOffered && !thisTurn.isRolled
+                    const {dice} = thisTurn
+                    this.sendMessage(Object.values(conns), {isDouble, dice, action})
                 })
 
                 break
 
-            case 'acceptDouble':
-            case 'declineDouble':
             case 'doubleResponse':
 
-                if ('doubleResponse' == action) {
-                    Server.validateTurnFor(thisTurn, color)
-                } else {
-                    Server.validateTurnFor(thisTurn, opponent)
-                    if ('declineDouble' == action) {
-                        thisTurn.setDoubleDeclined()
-                    } else {
+                if (thisTurn.color == opponent) {
+                    if (req.isAccept) {
                         thisGame.double()
+                    } else {
+                        thisTurn.setDoubleDeclined()
                     }
                 }
-                sync[color] = 'doubleResponse'
-                checkSync(sync, () => {
-                    const {isDoubleDeclined} = thisTurn
-                    const isAccepted = !isDoubleDeclined
-                    const {cubeValue, cubeOwner} = thisGame
-                    this.sendMessage(Object.values(conns), {isDoubleDeclined, isAccepted, cubeValue, cubeOwner, action: 'doubleResponse'})
+
+                checkSync(() => {
+
+                    const isAccept = !thisTurn.isDoubleDeclined
+                    this.sendMessage(Object.values(conns), {isAccept, action})
 
                     thisGame.checkFinished()
                     match.updateScore()
                     this.checkMatchFinished(match)
                 })
+
                 break
 
             default:
@@ -334,12 +320,6 @@ class Server extends Logger {
     static validateColor(color) {
         if (color != White && color != Red) {
             throw new ServerError('invalid color')
-        }
-    }
-
-    static validateTurnFor(turn, color) {
-        if (turn.color != color) {
-            throw new NotYourTurnError('It is not your turn')
         }
     }
 

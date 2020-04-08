@@ -134,59 +134,62 @@ class Client extends Logger {
     async rollTurn(turn, game) {
         const id = this.matchId
         const {color} = this
-        const action = 'rollTurn'
-        const res = await this.sendAndWait(this.matchParams(action), 'turnOption')
-        const {dice} = res
+        const action = 'turnOption'
+        const isDouble = false
+        const {dice} = await this.sendAndWait(this.matchParams({action, isDouble}), action)
         turn.setRoll(dice)
+    }
+
+    async offerDouble(turn, game) {
+        const id = this.matchId
+        const {color} = this
+        const action = 'turnOption'
+        const isDouble = true
+        await this.sendAndWait(this.matchParams({action, isDouble}), action)
+        turn.setDoubleOffered()
+        await this.waitForDoubleResponse(turn, game)
     }
 
     async waitForOpponentOption(turn, game) {
         const id = this.matchId
         const {color} = this
         const action = 'turnOption'
-        const res = await this.sendAndWait(this.matchParams(action), 'turnOption')
-        const {isRolled, dice, isDoubleOffered} = res
-        if (isDoubleOffered) {
+        const {isDouble, dice} = await this.sendAndWait(this.matchParams(action), action)
+        if (isDouble) {
             turn.setDoubleOffered()
-        }
-        if (dice) {
+        } else {
             turn.setRoll(dice)
         }
     }
 
-    async offerDouble(turn, game) {
+    async waitForDoubleResponse(turn, game) {
         const id = this.matchId
         const {color} = this
-        var action = 'offerDouble'
-        await this.sendAndWait(this.matchParams(action), 'turnOption')
-        //await new Promise(resolve => setTimeout(resolve, 1000))
-        turn.setDoubleOffered()
-        const res = await this.sendAndWait(this.matchParams('doubleResponse'), 'doubleResponse')
-        const {isDoubleDeclined, cubeValue, cubeOwner} = res
-        if (isDoubleDeclined) {
-            turn.setDoubleDeclined()
+        const action = 'doubleResponse'
+        const {isAccept} = await this.sendAndWait(this.matchParams(action), action)
+        if (isAccept) {
+            game.double()
         } else {
-            game.cubeValue = cubeValue
-            game.cubeOwner = cubeOwner
+            turn.setDoubleDeclined()
         }
     }
 
     async declineDouble(turn, game) {
         const id = this.matchId
         const {color} = this
-        const action = 'declineDouble'
-        await this.sendAndWait(this.matchParams(action), 'doubleResponse')
+        const action = 'doubleResponse'
+        const isAccept = false
+        await this.sendAndWait(this.matchParams({action, isAccept}), action)
         turn.setDoubleDeclined()
     }
 
     async acceptDouble(turn, game) {
         const id = this.matchId
         const {color} = this
-        const action = 'acceptDouble'
-        const res = await this.sendAndWait(this.matchParams(action), 'doubleResponse')
-        const {cubeValue, cubeOwner} = res
-        game.cubeValue = cubeValue
-        game.cubeOwner = cubeOwner
+        const action = 'doubleResponse'
+        const isAccept = true
+        await this.sendAndWait(this.matchParams({action, isAccept}), action)
+        game.double()
     }
 
     async sendAndWait(msg, action) {
