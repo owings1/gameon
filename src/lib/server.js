@@ -33,6 +33,7 @@ class Server extends Logger {
                             this.socketClients[connId] = conn
                             conn.on('close', () => {
                                 this.info('Peer disconnected', conn.connId)
+                                this.cancelMatchId(conn.matchId)
                                 delete this.socketClients[connId]
                             })
                             conn.on('message', msg => this.receiveMessage(conn, msg))
@@ -70,6 +71,7 @@ class Server extends Logger {
                     if (!conn.secret || conn.secret == msg.secret) {
                         conn.secret = msg.secret
                         this.sendMessage(conn, {action: 'acknowledgeSecret'})
+                        this.log('Client connected', conn.secret)
                     } else {
                         throw new HandshakeError('handshake disagreement')
                     }
@@ -78,6 +80,7 @@ class Server extends Logger {
                     var id = Server.gameIdFromSecret(secret)
                     var {total, opts} = msg
                     var match = new Match(total, opts)
+                    match.id = id
                     match.secrets = {
                         White : secret
                       , Red   : null
@@ -90,9 +93,12 @@ class Server extends Logger {
                         White : null
                       , Red   : null
                     }
+                    conn.matchId = id
                     conn.color = White
                     this.matches[id] = match
                     this.sendMessage(conn, {action: 'matchCreated', id})
+                    this.info('Match', id, 'created')
+                    this.logActiveMatches()
                     break
                 case 'joinMatch':
                     var {id} = msg
@@ -109,6 +115,8 @@ class Server extends Logger {
                     var {total, opts} = match
                     this.sendMessage(match.conns.White, {action: 'opponentJoined', id})
                     this.sendMessage(conn, {action: 'matchJoined', id, total, opts})
+                    this.info('Match', id, 'started')
+                    this.logActiveMatches()
                     break
                 case 'nextGame':
                     var {id, color} = msg
@@ -152,9 +160,12 @@ class Server extends Logger {
                     if (Server.checkSync(sync)) {
                         var moves = turn.moves.map(move => move.coords())
                         var stateString = game.board.stateString()
-                        game.checkFinished()
+                        this.checkMatchFinished(match)
                         this.sendMessage(conns[Opponent[turn.color]], {action, moves, stateString})
                         this.sendMessage(conns[turn.color], {action, stateString})
+                        game.checkFinished()
+                        match.updateScore()
+                        this.checkMatchFinished(match)
                         Server.clearSync(sync)
                     }
                     break
@@ -189,7 +200,7 @@ class Server extends Logger {
                         }
                     }
                     sync[color] = 'turnOption'
-                    this.info({sync})
+                    this.debug({action, color, sync})
                     if (Server.checkSync(sync)) {
                         var {isDoubleOffered, isRolled, dice} = turn
                         this.sendMessage(Object.values(conns), {isDoubleOffered, isRolled, dice, action: 'turnOption'})
@@ -213,7 +224,7 @@ class Server extends Logger {
                         }
                     }
                     sync[color] = 'doubleResponse'
-                    this.info({sync})
+                    this.debug({action, color, sync})
                     if (Server.checkSync(sync)) {
                         var {isDoubleDeclined} = turn
                         var isAccepted = !isDoubleDeclined
@@ -222,6 +233,8 @@ class Server extends Logger {
                             game.cubeOwner = Opponent[turn.color]
                         }
                         game.checkFinished()
+                        match.updateScore()
+                        this.checkMatchFinished(match)
                         var {cubeValue, cubeOwner} = game
                         this.sendMessage(Object.values(conns), {isDoubleDeclined, isAccepted, cubeValue, cubeOwner, action: 'doubleResponse'})
                         Server.clearSync(sync)
@@ -234,14 +247,34 @@ class Server extends Logger {
             this.sendMessage(conn, {error: err.message, name: err.name || err.constructor.name})
         }
         
-        this.info('message received from', conn.color, conn.connId, msg)
+        this.debug('message received from', conn.color, conn.connId, msg)
+    }
+
+    checkMatchFinished(match) {
+        if (match.hasWinner()) {
+            this.info('Match', match.id, 'is finished')
+            delete this.matches[match.id]
+            this.logActiveMatches()
+        }
+    }
+
+    logActiveMatches() {
+        this.info('There are now', Object.keys(this.matches).length, 'active matches')
+    }
+
+    cancelMatchId(id) {
+        if (id && this.matches[id]) {
+            this.info('Canceling match', id)
+            delete this.matches[id]
+            this.logActiveMatches()
+        }
     }
 
     sendMessage(conns, msg) {
         conns = Util.castToArray(conns)
         const str = JSON.stringify(msg)
         for (var conn of conns) {
-            this.info('Sending message to', conn.color, msg)
+            this.log('Sending message to', conn.color, msg)
             conn.sendUTF(str)
         }
     }
@@ -290,6 +323,7 @@ class Server extends Logger {
         delete sync.Red
         delete sync.White
     }
+
     static gameIdFromSecret(str) {
         return crypto.createHash('sha256').update(str).digest('hex').substring(0, 8)
     }
