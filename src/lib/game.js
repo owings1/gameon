@@ -122,6 +122,21 @@ class Game {
         return !this.opts.isCrawford && this.cubeValue < 64 && (this.cubeOwner == null || this.cubeOwner == color)
     }
 
+    double() {
+        if (this.isFinished) {
+            throw new GameFinishedError('The game is already over')
+        }
+        if (!this.thisTurn) {
+            throw new GameNotStartedError('The game has not started')
+        }
+        this.thisTurn.assertNotRolled()
+        if (!this.canDouble(this.thisTurn.color)) {
+            throw new DoubleNotAllowedError(this.thisTurn.color + ' cannot double')
+        }
+        this.cubeValue *= 2
+        this.cubeOwner = this.thisTurn.opponent
+    }
+
     firstTurn() {
         if (this.isFinished) {
             throw new GameFinishedError('The game is already over')
@@ -214,6 +229,7 @@ class Turn {
     constructor(board, color) {
         this.board = board
         this.color = color
+        this.opponent = Opponent[color]
         this.moves = []
         this.dice = null
         this.diceSorted = null
@@ -953,6 +969,7 @@ class TurnNotFinishedError extends IllegalStateError {}
 class HasNotRolledError extends IllegalStateError {}
 class AlreadyRolledError extends IllegalStateError {}
 class HasNotDoubledError extends IllegalStateError {}
+class DoubleNotAllowedError extends IllegalStateError {}
 
 class PieceOnBarError extends IllegalMoveError {}
 class NoPieceOnBarError extends IllegalMoveError {}

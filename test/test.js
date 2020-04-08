@@ -229,6 +229,41 @@ describe('Game', () => {
         })
     })
 
+    describe('#double', () => {
+
+        it('should throw GameFinishedError if game is finished', () => {
+            game.isFinished = true
+            const err = getError(() => game.double())
+            expect(err.name).to.equal('GameFinishedError')
+        })
+
+        it('should throw GameNotStartedError before first turn', () => {
+            const err = getError(() => game.double())
+            expect(err.name).to.equal('GameNotStartedError')
+        })
+
+        it('should throw AlreadyRolledError when first turn is active', () => {
+            game.firstTurn()
+            const err = getError(() => game.double())
+            expect(err.name).to.equal('AlreadyRolledError')
+        })
+
+        it('should double score before second turn', () => {
+            makeRandomMoves(game.firstTurn()).finish()
+            game.nextTurn()
+            game.double()
+            expect(game.cubeValue).to.equal(2)
+        })
+
+        it('should not allow player to double twice with DoubleNotAllowedError', () => {
+            makeRandomMoves(game.firstTurn()).finish()
+            game.nextTurn()
+            game.double()
+            const err = getError(() => game.double())
+            expect(err.name).to.equal('DoubleNotAllowedError')
+        })
+    })
+
     describe('#firstTurn', () => {
 
         it('should throw GameFinishedError for finished game', () => {
