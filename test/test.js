@@ -1314,6 +1314,21 @@ describe('Util', () => {
         })
     })
 
+    describe('#sumArray', () => {
+
+        const expCases = [
+            {input: [1, 2], exp: 3},
+            {input: [], exp: 0},
+            {input: [5, 5], exp: 10}
+        ]
+
+        expCases.forEach(({input, exp}) => {
+            it('should return ' + exp + ' for ' + JSON.stringify(input), () => {
+                const result = Util.sumArray(input)
+                expect(result).to.equal(exp)
+            })
+        })
+    })
     describe('#uniqueInts', () => {
 
         it('should return [1,2,3] for [1,1,2,2,3,3]', () => {

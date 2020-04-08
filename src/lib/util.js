@@ -32,6 +32,10 @@ class Util {
         return b - a
     }
 
+    static sumArray(arr) {
+        return arr.reduce((acc, cur) => acc + cur, 0)
+    }
+
     static uniqueInts(arr) {
         const map = {}
         arr.forEach(it => map[it] = true)
