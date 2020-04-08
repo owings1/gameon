@@ -1431,6 +1431,7 @@ describe('Logger', () => {
 describe('Menu', () => {
 
     const {LocalPlayer} = PromptPlayer
+    const {Match} = Lib
 
     var player
     var menu
@@ -1509,6 +1510,65 @@ describe('Menu', () => {
             ])
             await menu.mainMenu()
         })
+
+        it('should join online match with choice joinOnline for mock method', async () => {
+            var id
+            var serverUrl
+            menu.newSocketPlayer = url => { 
+                return {
+                    joinMatch : i => {
+                        id = i
+                        serverUrl = url
+                    }
+                }
+            }
+            menu.prompt = MockPrompter([
+                {mainChoice: 'joinOnline'},
+                {matchId: '12345678', serverUrl: 'mockUrl'},
+                {mainChoice: 'quit'}
+            ])
+            await menu.mainMenu()
+            expect(id).to.equal('12345678')
+            expect(serverUrl).to.equal('mockUrl')
+        })
+
+        it('should throw Error for joinOnline with mock method', async () => {
+            const e = new Error
+            menu.newSocketPlayer = () => { 
+                return {
+                    joinMatch : () => {
+                        throw e
+                    }
+                }
+            }
+            menu.prompt = MockPrompter([
+                {mainChoice: 'joinOnline'},
+                {matchId: '12345678', serverUrl: 'mockUrl'}
+            ])
+            const err = await getErrorAsync(() => menu.mainMenu())
+            expect(err).to.equal(e)
+        })
+
+        it('should log MatchNotFoundError and continue for joinOnline with mock method', async () => {
+            const e = new Error
+            e.name = 'MatchNotFoundError'
+            menu.newSocketPlayer = () => { 
+                return {
+                    joinMatch : () => {
+                        throw e
+                    }
+                }
+            }
+            menu.prompt = MockPrompter([
+                {mainChoice: 'joinOnline'},
+                {matchId: '12345678', serverUrl: 'mockUrl'},
+                {mainChoice: 'quit'}
+            ])
+            var err
+            menu.error = er => err = er
+            await menu.mainMenu()
+            expect(err).to.equal(e)
+        })
     })
 
     describe('#matchMenu', () => {
@@ -1569,6 +1629,28 @@ describe('Menu', () => {
                 {matchChoice: 'quit'}
             ])
             await menu.matchMenu()
+        })
+
+        it('should call play local match for choice start with mock method', async () => {
+            var match
+            menu.newLocalPlayer = () => { return {playMatch : m => match = m}}
+            menu.prompt = MockPrompter([
+                {matchChoice: 'start'},
+                {matchChoice: 'quit'}
+            ])
+            await menu.matchMenu()
+            expect(match instanceof Match).to.equal(true)
+        })
+
+        it('should call play online match for choice start and isOnline with mock method', async () => {
+            var matchOpts
+            menu.newSocketPlayer = () => { return {startMatch : o => matchOpts = o}}
+            menu.prompt = MockPrompter([
+                {matchChoice: 'start'},
+                {matchChoice: 'quit'}
+            ])
+            await menu.matchMenu(true)
+            expect(typeof(matchOpts.total)).to.equal('number')
         })
     })
 
