@@ -1,13 +1,13 @@
 const Lib             = require('./game')
 const Logger          = require('./logger')
 const Util            = require('./util')
-const ServerErrors    = require('./server').Errors
 const WebSocketClient = require('websocket').client
 
 const crypto = require('crypto')
 const merge  = require('merge')
 const uuid   = require('uuid')
-const {White, Red, Match, Opponent} = Lib
+
+const {White, Red, Match} = Lib
 
 class Client extends Logger {
 
@@ -39,6 +39,7 @@ class Client extends Logger {
             })
             this.socketClient.connect(this.serverUrl)
         })
+
         await new Promise((resolve, reject) => {
             this.conn.once('message', msg => {
                 msg = JSON.parse(msg.utf8Data)
@@ -52,6 +53,12 @@ class Client extends Logger {
             })
             this.sendMessage({action: 'establishSecret', secret: this.secret})
         })
+    }
+
+    async close() {
+        if (this.conn) {
+            this.conn.close()
+        }
     }
 
     async startMatch(matchOpts) {
@@ -197,7 +204,7 @@ class Client extends Logger {
                     return
                 }
                 if (action && msg.action != action) {
-                    reject(new Error('unexpected action ' + action))
+                    reject(new ClientError('Expecting response ' + action + ', but got ' + msg.action + ' instead'))
                     return
                 }
                 resolve(msg)
@@ -222,7 +229,11 @@ class Client extends Logger {
     }
 
     static buildServerError(msg, fallbackMessage) {
-        return new (ServerErrors[msg.name] || Error)(msg.error || fallbackMessage || 'Generic server error')
+        const err = new ClientError(msg.error || fallbackMessage || 'Generic server error')
+        if (msg.name) {
+            err.name = msg.name
+        }
+        return err
     }
 }
 

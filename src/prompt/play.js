@@ -37,189 +37,6 @@ const Chars = {
     }
 }
 
-class Menu {
-
-    prompt(questions) {
-        this._prompt = inquirer.prompt(Util.castToArray(questions))
-        return this._prompt
-    }
-
-    async mainMenu() {
-        const getMainChoices = () => [
-            {
-                value : 'newLocal'
-              , name  : 'New Local Match'
-            }
-          , {
-                value : 'newOnline'
-              , name  : 'New Online Match'
-            }
-          , {
-                value : 'joinOnline'
-              , name  : 'Join Online Match'
-            }
-          , {
-                value : 'quit'
-              , name  : 'Quit'
-            }
-        ]
-        while (true) {
-            var mainChoices = getMainChoices()
-            var answers = await this.prompt({
-                name    : 'mainChoice'
-              , message : 'Select option'
-              , type    : 'rawlist'
-              , choices : mainChoices
-            })
-            var {mainChoice} = answers
-            if (mainChoice == 'newLocal' || mainChoice == 'newOnline') {
-                var matchOpts = await this.newMatchMenu(mainChoice == 'newOnline')
-                if (!matchOpts) {
-                    continue
-                }
-                if (mainChoice == 'newLocal') {
-                    var player = this.newLocalPlayer()
-                    await player.playMatch(new Match(matchOpts.total, matchOpts))
-                }
-                var player = this.newSocketPlayer(matchOpts.serverUrl)
-                await player.startMatch(matchOpts)
-            }
-            if (mainChoice == 'joinOnline') {
-                var joinAnswers = await this.prompt([
-                    {
-                        name    : 'serverUrl'
-                      , message : 'Server URL'
-                      , type    : 'input'
-                      , default : 'ws://localhost:8080'
-                    }
-                  , {
-                        name    : 'matchId'
-                      , message : 'Match ID'
-                      , type    : 'input'
-                      , when    : answers => answers.serverUrl
-                    }
-                ])
-                if (joinAnswers.serverUrl && joinAnswers.matchId) {
-                    var player = this.newSocketPlayer(joinAnswers.serverUrl)
-                    await player.joinMatch(joinAnswers.matchId)
-                }
-            }
-            if (mainChoice == 'quit') {
-                break
-            }
-        }
-    }
-
-    newLocalPlayer() {
-        return new LocalPlayer
-    }
-
-    newSocketPlayer(serverUrl) {
-        return new SocketPlayer(serverUrl)
-    }
-
-    async newMatchMenu(isOnline) {
-        const matchOpts = {
-            total      : 1
-          , isJacoby   : false
-          , isCrawford : true
-          , serverUrl  : null
-        }
-        const getMainChoices = () => {
-            var choices = [
-                {
-                    value : 'start'
-                  , name  : 'Start Match'
-                }
-            ]
-            if (isOnline) {
-                choices.push({
-                    value : 'serverUrl'
-                  , name  : 'Server URL'
-                  , question : {
-                        name    : 'serverUrl'
-                      , message : 'Server URL'
-                      , type    : 'input'
-                      , default : () => matchOpts.serverUrl || 'ws://localhost:8080'
-                    }
-                })
-            }
-            choices = choices.concat([
-                {
-                    value : 'total'
-                  , name  : 'Match Total'
-                  , question : {
-                        name     : 'total'
-                      , message  : 'Match Total'
-                      , type     : 'input'
-                      , default  : () => '' + matchOpts.total
-                      , validate : PromptPlayer.validator('matchTotal')
-                    }
-                }
-              , {
-                    value : 'isJacoby'
-                  , name  : 'Jacoby Rule'
-                  , question : {
-                        name    : 'isJacoby'
-                      , message : 'Jacoby Rule'
-                      , type    : 'confirm'
-                      , default : () => matchOpts.isJacoby
-                    }
-                }
-              , {
-                    value : 'isCrawford'
-                  , name  : 'Crawford Rule'
-                  , question : {
-                        name    : 'isCrawford'
-                      , message : 'Crawford Rule'
-                      , type    : 'confirm'
-                      , default : () => matchOpts.isCrawford
-                    }
-                }
-              , {
-                    value : 'quit'
-                  , name  : 'Cancel'
-                }
-            ])
-            return choices
-        }
-
-        while (true) {
-            var mainChoices = getMainChoices()
-            var maxLength = Math.max(...mainChoices.map(choice => choice.name.length))
-            mainChoices.forEach(choice => {
-                if (choice.question) {
-                    choice.name = sp(choice.name.padEnd(maxLength + 1, ' '), ':', matchOpts[choice.value])
-                }
-            })
-            var answers = await this.prompt({
-                name    : 'mainChoice'
-              , message : 'Select option'
-              , type    : 'rawlist'
-              , choices : mainChoices
-            })
-            var {mainChoice} = answers
-            if (mainChoice == 'start') {
-                return matchOpts
-            }
-            if (mainChoice == 'quit') {
-                return
-            }
-            var question = mainChoices.find(choice => choice.value == mainChoice).question
-            answers = await this.prompt(question)
-            matchOpts[question.name] = answers[question.name]
-            matchOpts.total = +matchOpts.total
-        }
-    }
-
-    static doMainIfEquals(lhs, rhs) {
-        if (lhs === rhs) {
-            Menu.main(new Menu)
-        }
-    }
-}
-
-
 class PromptPlayer extends Logger {
 
     constructor() {
@@ -229,17 +46,28 @@ class PromptPlayer extends Logger {
     async playMatch(match) {
         this.match = match
         this.info('Starting match')
-        while (true) {
-            var game = await this.nextGame()
-            await this.playGame(game)
-            await this.updateScore()
-            if (match.hasWinner()) {
-                break
+        try {
+            while (true) {
+                var game = await this.nextGame()
+                await this.playGame(game)
+                await this.updateScore()
+                if (match.hasWinner()) {
+                    break
+                }
             }
+            const winner = match.getWinner()
+            this.info(winner, 'wins the match', match.scores[winner], 'to', match.scores[Opponent[winner]])
+        } catch (err) {
+            this.error(err)
+            this.warn('An error occurred, the match is canceled')
+            await this.abortMatch()
         }
-        const winner = match.getWinner()
-        this.info(winner, 'wins the match', match.scores[winner], 'to', match.scores[Opponent[winner]])
+        
         delete this.match
+    }
+
+    async abortMatch() {
+        
     }
 
     async nextGame() {
@@ -267,11 +95,6 @@ class PromptPlayer extends Logger {
             case 'origin':
                 var {choices} = params
                 return value => (choices.indexOf(value) > -1) || 'Please enter one of ' + choices.join()
-            case 'matchTotal':
-                return value => {
-                    value = +value
-                    return !isNaN(value) && Number.isInteger(value) && value > 0 || 'Please enter a number > 0'
-                }
         }
     }
 
@@ -373,7 +196,7 @@ class PromptPlayer extends Logger {
                 writeHome(Red)
             }
             if (match && d == 1) {
-                wr(' ' + match.scores.Red + 'pts')
+                wr(' ' + match.scores.Red + '/' + match.total + 'pts')
             }
             if (cubeValue && cubeOwner == Red) {
                 wr(' ')
@@ -446,7 +269,7 @@ class PromptPlayer extends Logger {
                 writeHome(White)
             }
             if (match && d == 1) {
-                wr(' ' + match.scores.White + 'pts')
+                wr(' ' + match.scores.White + '/' + match.total + 'pts')
             }
             if (cubeValue && cubeOwner == White) {
                 wr(' ')
@@ -497,10 +320,9 @@ class LocalPlayer extends PromptPlayer {
                 turn.setDoubleOffered()
                 var accept = await this.promptAcceptDouble(turn)
                 if (accept) {
-                    game.cubeValue *= 2
-                    game.cubeOwner = Opponent[turn.color]
+                    game.double()
                     this.log(Opponent[turn.color], 'accepts the double')
-                    this.log(Opponent[turn.color], 'owns the cube at', game.cubeValue)
+                    this.log(game.cubeOwner, 'owns the cube at', game.cubeValue)
                 } else {
                     turn.setDoubleDeclined()
                     game.checkFinished()
@@ -570,12 +392,18 @@ class LocalPlayer extends PromptPlayer {
     }
 
     async promptAction() {
+        const choices = ['r', 'd']
         const answers = await this.prompt({
-            name    : 'action'
-          , type    : 'rawlist'
-          , choices : ['roll', 'double']
+            name     : 'action'
+          , message  : '(r)oll or (d)ouble'
+          , default  : () => 'r'
+          , type     : 'input'
+          , validate : value => choices.indexOf(value.toLowerCase()) > -1 || sp('Please enter one of', choices.join())
         })
-        return answers.action
+        if (answers.action.toLowerCase() == 'd') {
+            return 'double'
+        }
+        return 'roll'
     }
 
     async promptAcceptDouble(turn) {
@@ -635,12 +463,18 @@ class LocalPlayer extends PromptPlayer {
     }
 
     async promptFinishOrUndo() {
+        const choices = ['f', 'u']
         const answers = await this.prompt({
-            name    : 'finish'
-          , type    : 'rawlist'
-          , choices : ['finish', 'undo']
+            name     : 'finish'
+          , message  : '(f)inish or (u)ndo'
+          , default  : () => 'f'
+          , type     : 'input'
+          , validate : value => choices.indexOf(value.toLowerCase()) > -1 || sp('Please enter one of', choices.join())
         })
-        return answers.finish
+        if (answers.finish.toLowerCase() == 'u') {
+            return 'undo'
+        }
+        return 'finish'
     }
 
     // allow override for testing
@@ -785,17 +619,12 @@ class SocketPlayer extends LocalPlayer {
         this.info('Waiting for opponent to move')
         await this.client.waitForOpponentMoves(turn, game)
     }
+
+    async abortMatch() {
+        await this.client.close()
+    }
 }
 
-Menu.main = function(menu) {
-    menu.mainMenu()
-    return menu
-}
-
-Menu.doMainIfEquals(require.main, module)
-
-
-PromptPlayer.Menu = Menu
 PromptPlayer.LocalPlayer = LocalPlayer
 PromptPlayer.SocketPlayer = SocketPlayer
 module.exports = PromptPlayer

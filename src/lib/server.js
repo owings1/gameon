@@ -14,6 +14,7 @@ class Server extends Logger {
         this.app = express()
         this.matches = {}
         this.socketClients = null
+        this.connTicker = 0
     }
 
     listen(port) {
@@ -51,8 +52,11 @@ class Server extends Logger {
     }
 
     receiveMessage(conn, msg) {
+
         msg = JSON.parse(msg.utf8Data)
+
         try {
+
             var {action} = msg
             if (action != 'establishSecret') {
                 if (!conn.secret) {
@@ -63,8 +67,11 @@ class Server extends Logger {
                     throw new HandshakeError('bad secret')
                 }
             }
+
             switch (action) {
+
                 case 'establishSecret':
+
                     if (!msg.secret || msg.secret.length != 64) {
                         throw new HandshakeError('bad secret')
                     }
@@ -75,9 +82,12 @@ class Server extends Logger {
                     } else {
                         throw new HandshakeError('handshake disagreement')
                     }
+
                     break
+
                 case 'startMatch':
-                    var id = Server.gameIdFromSecret(secret)
+
+                    var id = Server.matchIdFromSecret(secret)
                     var {total, opts} = msg
                     var match = new Match(total, opts)
                     match.id = id
@@ -99,8 +109,11 @@ class Server extends Logger {
                     this.sendMessage(conn, {action: 'matchCreated', id})
                     this.info('Match', id, 'created')
                     this.logActiveMatches()
+
                     break
+
                 case 'joinMatch':
+
                     var {id} = msg
                     if (!this.matches[id]) {
                         throw new MatchNotFoundError('match not found')
@@ -111,135 +124,21 @@ class Server extends Logger {
                     }
                     match.secrets.Red = secret
                     match.conns.Red = conn
+                    conn.matchId = id
                     conn.color = Red
                     var {total, opts} = match
                     this.sendMessage(match.conns.White, {action: 'opponentJoined', id})
                     this.sendMessage(conn, {action: 'matchJoined', id, total, opts})
                     this.info('Match', id, 'started')
                     this.logActiveMatches()
+
                     break
-                case 'nextGame':
-                    var {id, color} = msg
-                    var match = this.getMatchWithColorSecret(id, color, secret)
-                    var {sync, conns} = match
-                    if (match.thisGame) {
-                        match.thisGame.checkFinished()
-                    }
-                    sync[color] = 'nextGame'
-                    if (Server.checkSync(sync)) {
-                        match.nextGame()
-                        this.sendMessage(conns.White, {action})
-                        this.sendMessage(conns.Red, {action})
-                        Server.clearSync(sync)
-                    }
+
+                default:
+                    this.matchResponse(conn, msg)
                     break
-                case 'firstTurn':
-                    var {id, color} = msg
-                    var match = this.getMatchWithColorSecret(id, color, secret)
-                    var {sync, conns} = match
-                    sync[color] = 'firstTurn'
-                    if (Server.checkSync(sync)) {
-                        var turn = match.thisGame.firstTurn()
-                        var {dice} = turn
-                        this.sendMessage(Object.values(conns), {action, dice})
-                        Server.clearSync(sync)
-                    }
-                    break
-                case 'movesFinished':
-                    var {id, color} = msg
-                    var match = this.getMatchWithColorSecret(id, color, secret)
-                    var {sync, conns} = match
-                    var game = match.thisGame
-                    var turn = game.thisTurn
-                    if (color == turn.color) {
-                        var {moves} = msg
-                        moves.forEach(move => turn.move(move.origin, move.face))
-                        turn.finish()
-                    }
-                    sync[color] = 'movesFinished'
-                    if (Server.checkSync(sync)) {
-                        var moves = turn.moves.map(move => move.coords())
-                        var stateString = game.board.stateString()
-                        this.checkMatchFinished(match)
-                        this.sendMessage(conns[Opponent[turn.color]], {action, moves, stateString})
-                        this.sendMessage(conns[turn.color], {action, stateString})
-                        game.checkFinished()
-                        match.updateScore()
-                        this.checkMatchFinished(match)
-                        Server.clearSync(sync)
-                    }
-                    break
-                case 'nextTurn':
-                    var {id, color} = msg
-                    var match = this.getMatchWithColorSecret(id, color, secret)
-                    var {sync, conns} = match
-                    sync[color] = 'nextTurn'
-                    if (Server.checkSync(sync)) {
-                        match.thisGame.nextTurn()
-                        this.sendMessage(Object.values(conns), {action})
-                        Server.clearSync(sync)
-                    }
-                    break
-                case 'offerDouble':
-                case 'rollTurn':
-                case 'turnOption':
-                    var {id, color} = msg
-                    var match = this.getMatchWithColorSecret(id, color, secret)
-                    var {sync, conns} = match
-                    var game = match.thisGame
-                    var turn = game.thisTurn
-                    if (action == 'turnOption') {
-                        Server.validateTurnFor(turn, Opponent[color])
-                    } else {
-                        Server.validateTurnFor(turn, color)
-                        if (action == 'rollTurn') {
-                            var dice = this.roll()
-                            turn.setRoll(dice)
-                        } else {
-                            turn.setDoubleOffered()
-                        }
-                    }
-                    sync[color] = 'turnOption'
-                    this.debug({action, color, sync})
-                    if (Server.checkSync(sync)) {
-                        var {isDoubleOffered, isRolled, dice} = turn
-                        this.sendMessage(Object.values(conns), {isDoubleOffered, isRolled, dice, action: 'turnOption'})
-                        Server.clearSync(sync)
-                    }
-                    break
-                case 'acceptDouble':
-                case 'declineDouble':
-                case 'doubleResponse':
-                    var {id, color} = msg
-                    var match = this.getMatchWithColorSecret(id, color, secret)
-                    var {sync, conns} = match
-                    var game = match.thisGame
-                    var turn = game.thisTurn
-                    if (action == 'doubleResponse') {
-                        Server.validateTurnFor(turn, color)
-                    } else {
-                        Server.validateTurnFor(turn, Opponent[color])
-                        if (action == 'declineDouble') {
-                            turn.setDoubleDeclined()
-                        }
-                    }
-                    sync[color] = 'doubleResponse'
-                    this.debug({action, color, sync})
-                    if (Server.checkSync(sync)) {
-                        var {isDoubleDeclined} = turn
-                        var isAccepted = !isDoubleDeclined
-                        if (isAccepted) {
-                            game.cubeValue *= 2
-                            game.cubeOwner = Opponent[turn.color]
-                        }
-                        game.checkFinished()
-                        match.updateScore()
-                        this.checkMatchFinished(match)
-                        var {cubeValue, cubeOwner} = game
-                        this.sendMessage(Object.values(conns), {isDoubleDeclined, isAccepted, cubeValue, cubeOwner, action: 'doubleResponse'})
-                        Server.clearSync(sync)
-                    }
-                    break
+
+
                     
             }
         } catch (err) {
@@ -248,6 +147,134 @@ class Server extends Logger {
         }
         
         this.debug('message received from', conn.color, conn.connId, msg)
+    }
+
+    matchResponse(conn, req) {
+
+        const {action, id, color, secret} = req
+        const opponent = Opponent[color]
+        const match = this.getMatchWithColorSecret(id, color, secret)
+        const {sync, conns, thisGame} = match
+        const thisTurn = thisGame && thisGame.thisTurn
+
+        const checkSync = (...args) => {
+            this.debug({action, color, sync})
+            Server.checkSync(...args)
+        }
+
+        switch (action) {
+
+            case 'nextGame':
+
+                if (thisGame) {
+                    thisGame.checkFinished()
+                }
+
+                sync[color] = 'nextGame'
+                checkSync(sync, () => {
+                    match.nextGame()
+                    this.sendMessage(Object.values(conns), {action})
+                })
+
+                break
+
+            case 'firstTurn':
+
+                sync[color] = 'firstTurn'
+                checkSync(sync, () => {
+                    const firstTurn = thisGame.firstTurn()
+                    const {dice} = firstTurn
+                    this.sendMessage(Object.values(conns), {action, dice})
+                })
+
+                break
+
+            case 'movesFinished':
+
+                if (color == thisTurn.color) {
+                    req.moves.forEach(move => thisTurn.move(move.origin, move.face))
+                    thisTurn.finish()
+                }
+
+                sync[color] = 'movesFinished'
+                checkSync(sync, () => {
+
+                    const moves = thisTurn.moves.map(move => move.coords())
+                    
+                    this.sendMessage(conns[Opponent[thisTurn.color]], {action, moves})
+                    this.sendMessage(conns[thisTurn.color], {action})
+
+                    thisGame.checkFinished()
+                    match.updateScore()
+                    this.checkMatchFinished(match)
+                })
+
+                break
+
+            case 'nextTurn':
+
+                sync[color] = 'nextTurn'
+                checkSync(sync, () => {
+                    thisGame.nextTurn()
+                    this.sendMessage(Object.values(conns), {action})
+                })
+
+                break
+
+            case 'offerDouble':
+            case 'rollTurn':
+            case 'turnOption':
+
+                if ('turnOption' == action) {
+                    Server.validateTurnFor(thisTurn, opponent)
+                } else {
+                    Server.validateTurnFor(thisTurn, color)
+                    if ('rollTurn' == action) {
+                        thisTurn.setRoll(this.roll())
+                    } else {
+                        thisTurn.setDoubleOffered()
+                    }
+                }
+
+                sync[color] = 'turnOption'
+                checkSync(sync, () => {
+                    const {isDoubleOffered, isRolled, dice} = thisTurn
+                    this.sendMessage(Object.values(conns), {isDoubleOffered, isRolled, dice, action: 'turnOption'})
+                })
+
+                break
+
+            case 'acceptDouble':
+            case 'declineDouble':
+            case 'doubleResponse':
+
+                if ('doubleResponse' == action) {
+                    Server.validateTurnFor(thisTurn, color)
+                } else {
+                    Server.validateTurnFor(thisTurn, opponent)
+                    if ('declineDouble' == action) {
+                        thisTurn.setDoubleDeclined()
+                    } else {
+                        thisGame.double()
+                    }
+                }
+                sync[color] = 'doubleResponse'
+                checkSync(sync, () => {
+                    const {isDoubleDeclined} = thisTurn
+                    const isAccepted = !isDoubleDeclined
+                    const {cubeValue, cubeOwner} = thisGame
+                    this.sendMessage(Object.values(conns), {isDoubleDeclined, isAccepted, cubeValue, cubeOwner, action: 'doubleResponse'})
+
+                    thisGame.checkFinished()
+                    match.updateScore()
+                    this.checkMatchFinished(match)
+                })
+                break
+
+            default:
+                this.warn('Bad action', action)
+                break
+        }
     }
 
     checkMatchFinished(match) {
@@ -265,6 +292,8 @@ class Server extends Logger {
     cancelMatchId(id) {
         if (id && this.matches[id]) {
             this.info('Canceling match', id)
+            const match = this.matches[id]
+            this.sendMessage(Object.values(match.conns), {action: 'matchCanceled'})
             delete this.matches[id]
             this.logActiveMatches()
         }
@@ -274,15 +303,14 @@ class Server extends Logger {
         conns = Util.castToArray(conns)
         const str = JSON.stringify(msg)
         for (var conn of conns) {
-            this.log('Sending message to', conn.color, msg)
-            conn.sendUTF(str)
+            if (conn && conn.connected) {
+                this.log('Sending message to', conn.color, msg)
+                conn.sendUTF(str)
+            }
         }
     }
 
     newConnectionId() {
-        if (!this.connTicker) {
-            this.connTicker = 0
-        }
         this.connTicker += 1
         return crypto.createHash('md5').update('' + this.connTicker).digest('hex')
     }
@@ -315,19 +343,17 @@ class Server extends Logger {
         }
     }
 
-    static checkSync(sync) {
-        return sync.White == sync.Red
+    static checkSync(sync, cb) {
+        if (sync.White == sync.Red) {
+            cb()
+            delete sync.Red
+            delete sync.White
+        }
     }
 
-    static clearSync(sync) {
-        delete sync.Red
-        delete sync.White
-    }
-
-    static gameIdFromSecret(str) {
+    static matchIdFromSecret(str) {
         return crypto.createHash('sha256').update(str).digest('hex').substring(0, 8)
     }
-
 }
 
 

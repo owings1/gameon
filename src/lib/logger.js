@@ -23,6 +23,16 @@ class Logger {
             format: Logger.format
         })
         this.loglevel = Levels[process.env.LOG_LEVEL || 'info']
+        const oldError = this.error
+        this.error = (...args) => {
+            args = args.map(arg => {
+                if (arg instanceof Error) {
+                    return [arg.name || arg.constructor.name, arg.message].join(': ')
+                }
+                return arg
+            })
+            return oldError.call(this, ...args)
+        }
     }
 
     getStdout() {
