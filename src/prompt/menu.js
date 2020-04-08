@@ -254,7 +254,7 @@ class Menu extends Logger {
     }
 }
 
-Menu.main = function(menu) {
+Menu.main = menu => {
     menu.mainMenu()
     return menu
 }

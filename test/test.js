@@ -1693,7 +1693,7 @@ describe('LocalPlayer', () => {
         it('should play RedWinWith66 for white first move 6,1 then red 6,6', async () => {
             game.board.setStateString(States.RedWinWith66)
             game._rollFirst = () => [6, 1]
-            player._rollForTurn = turn => turn.setRoll([6, 6])
+            player.rollTurn = turn => turn.setRoll([6, 6])
             player.prompt = MockPrompter([
                 // white's first turn
                 {origin: '12'},
@@ -1730,7 +1730,7 @@ describe('LocalPlayer', () => {
         it('should play RedWinWith66 for white first move 6,1 then red double, white accept, red rolls 6,6 backgammon', async () => {
             game.board.setStateString(States.RedWinWith66)
             game._rollFirst = () => [6, 1]
-            player._rollForTurn = turn => turn.setRoll([6, 6])
+            player.rollTurn = turn => turn.setRoll([6, 6])
             player.prompt = MockPrompter([
                 // white's first turn
                 {origin: '12'},
@@ -1755,15 +1755,12 @@ describe('LocalPlayer', () => {
         it('should play RedWinWith66, white 6,1, red double, white accept, red 6,5, white 1,2, red cant double 6,6, backgammon', async () => {
             game.board.setStateString(States.RedWinWith66)
             game._rollFirst = () => [6, 1]
-            player._rollForTurn = (turn, i) => {
-                if (i == 2) {
-                    turn.setRoll([6, 5])
-                } else if (i == 3) {
-                    turn.setRoll([1, 2])
-                } else if (i == 4) {
-                    turn.setRoll([6, 6])
-                }
-            }
+            const rolls = [
+                [6, 5],
+                [1, 2],
+                [6, 6]
+            ]
+            player.rollTurn = turn => turn.setRoll(rolls.shift())
             player.prompt = MockPrompter([
                 // white's first turn
                 {origin: '12'},
@@ -1978,14 +1975,14 @@ describe('LocalPlayer', () => {
         })
     })
 
-    describe('#_rollForTurn', () => {
+    describe('#rollTurn', () => {
 
         const {Turn} = Lib
 
         // coverage
-        it('should roll', () => {
+        it('should roll', async () => {
             const turn = new Turn(Board.setup(), White)
-            player._rollForTurn(turn)
+            await player.rollTurn(turn)
             expect(turn.isRolled).to.equal(true)
         })
     })

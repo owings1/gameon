@@ -31,11 +31,16 @@ class Player extends Logger {
             const winner = match.getWinner()
             const loser = match.getLoser()
             this.info(winner, 'wins the match', match.scores[winner], 'to', match.scores[loser])
+            await this.endMatch()
         } catch (err) {
             this.error(err)
             this.warn('An error occurred, the match is canceled')
             await this.abortMatch()
         }
+        
+    }
+
+    async endMatch() {
         
     }
 
@@ -262,12 +267,12 @@ class PromptPlayer extends Player {
     }
 
     async rollTurn(turn, game) {
-        this._rollForTurn(turn, game.turns.length)
+        turn.roll()
     }
 
-    // allow override for testing
-    _rollForTurn(turn, i) {
-        turn.roll()
+    async offerDouble(turn, game) {
+        this.info(turn.color, 'wants to double the stakes to', game.cubeValue * 2)
+        turn.setDoubleOffered()
     }
 
     async waitForOpponentTurn(turn, game) {
@@ -276,11 +281,6 @@ class PromptPlayer extends Player {
 
     async waitForOpponentMoves(turn, game) {
         throw new Error('NotImplemented')
-    }
-
-    async offerDouble(turn, game) {
-        this.info(turn.color, 'wants to double the stakes to', game.cubeValue * 2)
-        turn.setDoubleOffered()
     }
 
     async waitForDoubleResponse(turn, game) {
@@ -406,6 +406,10 @@ class SocketPlayer extends PromptPlayer {
         } else {
             turn.moves.forEach(move => this.info(this.describeMove(move)))
         }
+    }
+
+    async endMatch() {
+        await this.client.close()
     }
 
     async abortMatch() {
