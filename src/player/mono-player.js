@@ -1,5 +1,6 @@
 const {Match, Red, White} = require('../lib/core')
 
+const Base   = require('./base-player')
 const Client = require('../lib/client')
 const Draw   = require('../term/draw')
 const Logger = require('../lib/logger')
@@ -10,49 +11,53 @@ const inquirer        = require('inquirer')
 const sp              = Util.joinSpace
 const {randomElement} = Util
 
-class MonoPlayer extends Logger {
+class MonoPlayer extends Base {
 
-    constructor() {
-        super()
-        this.thisMatch = null
-    }
+    //// @implement
+    //async playTurn(turn, game) {
+    //    if (game.canDouble(turn.color)) {
+    //        var action = await this.turnOption(turn, game)
+    //    }
+    //    if (action == 'double') {
+    //        await this.offerDouble(turn, game)
+    //        await this.decideDouble(turn, game)
+    //        //await this.waitForDoubleResponse(turn, game)
+    //        if (turn.isDoubleDeclined) {
+    //            return
+    //        } else {
+    //            game.double()
+    //        }
+    //        this.info('Opponent accepted the double')
+    //    }
+    //    await this.rollTurn(turn, game)
+    //    await this.playRoll(turn, game)
+    //}
+    //
+    //// @default
+    //async rollTurn(turn, game) {
+    //    turn.roll()
+    //}
+    //
+    //// @abstract
+    //async turnOption(turn, game) {
+    //    throw new Error('NotImplemented')
+    //}
+    //
+    //// @abstract
+    //async offerDouble(turn, game) {
+    //    throw new Error('NotImplemented')
+    //}
+    //
+    //// @abstract
+    //async decideDouble(turn, game) {
+    //    throw new Error('NotImplemented')
+    //}
+    //async waitForDoubleResponse(turn, game) {
+    //    throw new Error('NotImplemented')
+    //}
 
-    async playMatch(match) {
-        this.thisMatch = match
-        this.info('Starting match')
-        while (true) {
-            var game = await this.nextGame()
-            await this.playGame(game)
-            await this.updateScore()
-            if (match.hasWinner()) {
-                break
-            }
-        }
-        const winner = match.getWinner()
-        const loser = match.getLoser()
-        this.info(winner, 'wins the match', match.scores[winner], 'to', match.scores[loser])
-        await this.endMatch()        
-    }
-
-    async endMatch() {
-        
-    }
-
-    async abortMatch() {
-        
-    }
-
-    async nextGame() {
-        return this.thisMatch.nextGame()
-    }
-
-    async updateScore() {
-        this.thisMatch.updateScore()
-    }
-
-    async playGame(game) {
-        throw new Error('NotImplemented')
-    }
+    // @abstract BasePlayer
+    // async playRoll(turn, game)
 }
 
 class PromptPlayer extends MonoPlayer {
@@ -61,58 +66,26 @@ class PromptPlayer extends MonoPlayer {
         super()
     }
 
-    async playGame(game) {
-
-        this.info('Starting game')
-        const firstTurn = await this.firstTurn(game)
-        this.info(firstTurn.color, 'wins the first roll with', firstTurn.dice.join())
-
-        if (firstTurn.color == this.color) {
-            await this.playRoll(firstTurn, game)
-        } else {
-            this.info(firstTurn.color, 'rolled', firstTurn.diceSorted.join())
-            await this.waitForOpponentMoves(firstTurn, game)
-        }
-
-        while (true) {
-
-            var turn = await this.nextTurn(game)
-
-            this.info(turn.color + "'s turn")
-
-            if (turn.color == this.color) {
-                await this.playTurn(turn, game)
-            } else {
-                await this.waitForOpponentTurn(turn, game)
-            }
-
-            if (game.checkFinished()) {
-                break
-            }
-        }
-
-        this.drawBoard(game)
-        this.info(game.winner, 'has won the game with', game.finalValue, 'points')
+    // @implement
+    async turnOption(turn, game) {
+        return await this.promptAction()
     }
 
-    async playTurn(turn, game) {
-        if (game.canDouble(turn.color)) {
-            var action = await this.promptAction(turn, game)
-        }
-        if (action == 'double') {
-            await this.offerDouble(turn, game)
-            await this.waitForDoubleResponse(turn, game)
-            if (turn.isDoubleDeclined) {
-                return
-            } else {
-                game.double()
-            }
-            this.info('Opponent accepted the double')
-        }
-        await this.rollTurn(turn, game)
-        await this.playRoll(turn, game)
+    // @implement
+    async offerDouble(turn, game) {
+        this.info(turn.color, 'wants to double the stakes to', game.cubeValue * 2)
+        turn.setDoubleOffered()
     }
 
+    // @implement
+    async decideDouble(turn, game) {
+        const accept = await this.promptAcceptDouble(turn, game)
+        if (!accept) {
+            turn.setDoubleDeclined()
+        }
+    }
+
+    // @implement
     async playRoll(turn, game) {
         if (turn.isCantMove) {
             this.info(turn.color, 'rolls', turn.dice.join())
@@ -147,7 +120,17 @@ class PromptPlayer extends MonoPlayer {
         }
     }
 
-    async promptAction(turn, game) {
+    // @override
+    async endGame(game) {
+        this.drawBoard(game)
+    }
+
+    // @default
+    async finishTurn(turn, game) {
+        turn.finish()
+    }
+
+    async promptAction() {
         const choices = ['r', 'd']
         const answers = await this.prompt({
             name     : 'action'
@@ -248,64 +231,9 @@ class PromptPlayer extends MonoPlayer {
         this.writeStdout(Draw.drawBoard(game, this.thisMatch))
     }
 
-    async finishTurn(turn, game) {
-        turn.finish()
-    }
-
-    async firstTurn(game) {
-        return game.firstTurn()
-    }
-
-    async nextTurn(game) {
-        return game.nextTurn()
-    }
-
-    async rollTurn(turn, game) {
-        turn.roll()
-    }
-
-    async offerDouble(turn, game) {
-        this.info(turn.color, 'wants to double the stakes to', game.cubeValue * 2)
-        turn.setDoubleOffered()
-    }
-
-    async waitForOpponentTurn(turn, game) {
-        throw new Error('NotImplemented')
-    }
-
-    async waitForOpponentMoves(turn, game) {
-        throw new Error('NotImplemented')
-    }
-
-    async waitForDoubleResponse(turn, game) {
-        throw new Error('NotImplemented')
-    }
 }
 
-class LocalPlayer extends PromptPlayer {
-
-    constructor() {
-        super()
-        this.color = White
-    }
-
-    async waitForOpponentMoves(turn, game) {
-        await this.playRoll(turn, game)
-    }
-
-    async waitForOpponentTurn(turn, game) {
-        await this.playTurn(turn, game)
-    }
-
-    async waitForDoubleResponse(turn, game) {
-        const accept = await this.promptAcceptDouble(turn, game)
-        if (!accept) {
-            turn.setDoubleDeclined()
-        }
-    }
-}
-
-class RandomPlayer extends LocalPlayer {
+class RandomPlayer extends PromptPlayer {
 
     constructor(delay) {
         super()
@@ -331,11 +259,15 @@ class RandomPlayer extends LocalPlayer {
         return randomElement(origins)
     }
 
+    async decideDouble(turn, game) {
+        
+    }
+
     async promptAcceptDouble(turn, game) {
         return true
     }
 
-    async promptAction(turn, game) {
+    async promptAction() {
         return 'roll'
     }
 }
@@ -344,26 +276,36 @@ class SocketPlayer extends PromptPlayer {
 
     constructor(serverUrl) {
         super()
-        this.serverUrl = serverUrl
         this.client = new Client(serverUrl)
         this.color = null
     }
 
-    async startMatch(matchOpts) {
-        this.color = White
-        return await this.client.startMatch(matchOpts)
+    // @override PromptPlayer
+    async playRoll(turn, game) {
+        if (turn.color == this.color) {
+            await super.playRoll(turn, game)
+        } else {
+            this.info(turn.color, 'rolled', turn.diceSorted.join())
+            await this.waitForOpponentMoves(turn, game)
+        }
     }
 
-    async joinMatch(matchId) {
-        this.color = Red
-        return await this.client.joinMatch(matchId)
+    // @override PromptPlayer
+    async playTurn(turn, game) {
+        if (turn.color == this.color) {
+            await super.playTurn(turn, game)
+        } else {
+            await this.waitForOpponentTurn(turn, game)
+        }
     }
 
+    // @override BasePlayer
     async nextGame() {
         await this.client.nextGame()
         return this.thisMatch.thisGame
     }
 
+    // @override MonoPlayer
     async firstTurn(game) {
         await this.client.firstTurn(game)
         if (game.thisTurn.color != this.color) {
@@ -372,19 +314,45 @@ class SocketPlayer extends PromptPlayer {
         return game.thisTurn
     }
 
+    // @override MonoPlayer
     async nextTurn(game) {
         await this.client.nextTurn(game)
         return game.thisTurn
     }
 
+    // @override PromptPlayer
     async offerDouble(turn, game) {
         this.info('Offering double to opponent for', game.cubeValue * 2, 'points')
         await this.client.offerDouble(turn, game)
     }
 
-    async waitForDoubleResponse(turn, game) {
+    // @override PromptPlayer
+    async decideDouble(turn, game) {
         this.info('Waiting for opponent response')
         await this.client.waitForDoubleResponse(turn, game)
+    }
+
+    // @override BasePlayer
+    async endMatch() {
+        await super.endMatch()
+        await this.client.close()
+    }
+
+    // @override BasePlayer
+    async abortMatch() {
+        await super.abortMatch()
+        await this.client.close()
+    }
+
+    // @override MonoPlayer
+    async rollTurn(turn, game) {
+        await this.client.rollTurn(turn, game)
+    }
+
+    // @override PromptPlayer
+    async finishTurn(turn, game) {
+        this.info('Finishing turn')
+        await this.client.finishMoves(turn, game)
     }
 
     async acceptDouble(turn, game) {
@@ -396,13 +364,14 @@ class SocketPlayer extends PromptPlayer {
         await this.client.declineDouble(turn, game)
     }
 
-    async rollTurn(turn, game) {
-        await this.client.rollTurn(turn, game)
+    async startMatch(matchOpts) {
+        this.color = White
+        return await this.client.startMatch(matchOpts)
     }
 
-    async finishTurn(turn, game) {
-        this.info('Finishing turn')
-        await this.client.finishMoves(turn, game)
+    async joinMatch(matchId) {
+        this.color = Red
+        return await this.client.joinMatch(matchId)
     }
 
     async waitForOpponentTurn(turn, game) {
@@ -434,17 +403,10 @@ class SocketPlayer extends PromptPlayer {
             turn.moves.forEach(move => this.info(this.describeMove(move)))
         }
     }
-
-    async endMatch() {
-        await this.client.close()
-    }
-
-    async abortMatch() {
-        await this.client.close()
-    }
 }
 
-PromptPlayer.RandomPlayer = RandomPlayer
-PromptPlayer.LocalPlayer  = LocalPlayer
-PromptPlayer.SocketPlayer = SocketPlayer
-module.exports = PromptPlayer
+MonoPlayer.RandomPlayer = RandomPlayer
+MonoPlayer.PromptPlayer = PromptPlayer
+MonoPlayer.SocketPlayer = SocketPlayer
+
+module.exports = MonoPlayer

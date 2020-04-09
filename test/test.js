@@ -3,7 +3,7 @@ const Util         = require('../src/lib/util')
 const Logger       = require('../src/lib/logger')
 const Server       = require('../src/lib/server')
 const Client       = require('../src/lib/client')
-const PromptPlayer = require('../src/player/mono-player')
+const MonoPlayer   = require('../src/player/mono-player')
 const Menu         = require('../src/term/menu')
 const Draw         = require('../src/term/draw')
 
@@ -1377,7 +1377,7 @@ describe('Logger', () => {
 
 describe('Menu', () => {
 
-    const {LocalPlayer} = PromptPlayer
+    const {PromptPlayer} = MonoPlayer
     const {Match} = Core
 
     var player
@@ -1385,7 +1385,7 @@ describe('Menu', () => {
 
     beforeEach(() => {
         menu = new Menu
-        player = new LocalPlayer
+        player = new PromptPlayer
         player.loglevel = 1
         player.stdout = {write: () => {}}
     })
@@ -1625,15 +1625,15 @@ describe('Menu', () => {
     })
 })
 
-describe('LocalPlayer', () => {
+describe('PromptPlayer', () => {
 
     const {Board, Game, Match} = Core
-    const {LocalPlayer} = PromptPlayer
+    const {PromptPlayer} = MonoPlayer
 
     var player
 
     beforeEach(() => {
-        player = new LocalPlayer
+        player = new PromptPlayer
         player.loglevel = 1
         player.stdout = {write: () => {}}
     })
@@ -1662,8 +1662,6 @@ describe('LocalPlayer', () => {
             expect(result).to.contain('home')
         })
     })
-
-
 
     describe('#playGame', () => {
 

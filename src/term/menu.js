@@ -1,7 +1,8 @@
-const Core    = require('../lib/core')
-const Logger = require('../lib/logger')
-const Player = require('.../player/mono-player')
-const Util   = require('../lib/util')
+const Core       = require('../lib/core')
+const Logger     = require('../lib/logger')
+const MonoPlayer = require('../player/mono-player')
+const DualPlayer = require('../player/dual-player')
+const Util       = require('../lib/util')
 
 const {Match} = Core
 
@@ -39,18 +40,18 @@ class Menu extends Logger {
             if (mainChoice == 'joinOnline') {
                 await this.joinMenu()
             } else {
-                await this.matchMenu(mainChoice == 'newOnline', mainChoice == 'watchRobots')
+                await this.matchMenu(mainChoice == 'newOnline', mainChoice == 'playRobot', mainChoice == 'watchRobots')
             }
         }
     }
 
-    async matchMenu(isOnline, isRobots) {
+    async matchMenu(isOnline, isRobot, isRobots) {
 
         const {matchOpts} = this
 
         while (true) {
 
-            var matchChoices = this.getMatchChoices(matchOpts, isOnline, isRobots)
+            var matchChoices = this.getMatchChoices(matchOpts, isOnline, isRobot, isRobots)
 
             var answers = await this.prompt({
                 name    : 'matchChoice'
@@ -68,6 +69,8 @@ class Menu extends Logger {
             if (matchChoice == 'start') {
                 if (isOnline) {
                     await this.startOnlineMatch(matchOpts)
+                } else if (isRobot) {
+                    await this.playRobot(matchOpts)
                 } else if (isRobots) {
                     await this.playRobots(matchOpts)
                 } else {
@@ -115,6 +118,12 @@ class Menu extends Logger {
         await this.playMatch(player, match)
     }
 
+    async playRobot(matchOpts) {
+        const player = this.newVsRobotPlayer(matchOpts.delay)
+        const match = new Match(matchOpts.total, matchOpts)
+        await this.playMatch(player, match)
+    }
+
     async playRobots(matchOpts) {
         const player = this.newRobotsPlayer(matchOpts.delay)
         const match = new Match(matchOpts.total, matchOpts)
@@ -143,15 +152,19 @@ class Menu extends Logger {
     }
 
     newLocalPlayer() {
-        return new Player.LocalPlayer
+        return new MonoPlayer.PromptPlayer
     }
 
     newSocketPlayer(serverUrl) {
-        return new Player.SocketPlayer(serverUrl)
+        return new MonoPlayer.SocketPlayer(serverUrl)
     }
 
     newRobotsPlayer(delay) {
-        return new Player.RandomPlayer(delay)
+        return new MonoPlayer.RandomPlayer(delay)
+    }
+
+    newVsRobotPlayer(delay) {
+        return new DualPlayer(this.newLocalPlayer(), this.newRobotsPlayer(delay))
     }
 
     prompt(questions) {
@@ -212,11 +225,11 @@ class Menu extends Logger {
             }
           , {
                 value : 'delay'
-              , name  : 'Action Delay'
+              , name  : 'Robot Delay'
               , when  : () => isRobots
               , question : {
                     name     : 'delay'
-                  , message  : 'Action Delay (seconds)'
+                  , message  : 'Robot Delay (seconds)'
                   , type     : 'input'
                   , default  : () => matchOpts.delay
                   , validate : value => !isNaN(+value) && +value >= 0 || 'Please enter a number >= 0'
@@ -242,6 +255,10 @@ class Menu extends Logger {
           , {
                 value : 'joinOnline'
               , name  : 'Join Online Match'
+            }
+          , {
+                value : 'playRobot'
+              , name  : 'Play a Robot'
             }
           , {
                 value : 'watchRobots'
