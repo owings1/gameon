@@ -19,25 +19,18 @@ class Player extends Logger {
     async playMatch(match) {
         this.thisMatch = match
         this.info('Starting match')
-        try {
-            while (true) {
-                var game = await this.nextGame()
-                await this.playGame(game)
-                await this.updateScore()
-                if (match.hasWinner()) {
-                    break
-                }
+        while (true) {
+            var game = await this.nextGame()
+            await this.playGame(game)
+            await this.updateScore()
+            if (match.hasWinner()) {
+                break
             }
-            const winner = match.getWinner()
-            const loser = match.getLoser()
-            this.info(winner, 'wins the match', match.scores[winner], 'to', match.scores[loser])
-            await this.endMatch()
-        } catch (err) {
-            this.error(err)
-            this.warn('An error occurred, the match is canceled')
-            await this.abortMatch()
         }
-        
+        const winner = match.getWinner()
+        const loser = match.getLoser()
+        this.info(winner, 'wins the match', match.scores[winner], 'to', match.scores[loser])
+        await this.endMatch()        
     }
 
     async endMatch() {
@@ -322,13 +315,13 @@ class SocketPlayer extends PromptPlayer {
 
     async startMatch(matchOpts) {
         this.color = White
-        const match = await this.client.startMatch(matchOpts)
+        return await this.client.startMatch(matchOpts)
         await this.playMatch(match)
     }
 
     async joinMatch(matchId) {
         this.color = Red
-        const match = await this.client.joinMatch(matchId)
+        return await this.client.joinMatch(matchId)
         await this.playMatch(match)
     }
 
