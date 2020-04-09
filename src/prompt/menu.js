@@ -40,7 +40,7 @@ class Menu extends Logger {
             if (mainChoice == 'joinOnline') {
                 await this.joinOnlineMatch()
             } else {
-                await this.matchMenu(mainChoice == 'newOnline')
+                await this.matchMenu(mainChoice == 'newOnline', mainChoice == 'watchRobots')
             }
         }
     }
@@ -53,13 +53,17 @@ class Menu extends Logger {
         return new Player.SocketPlayer(this.serverUrl)
     }
 
-    async matchMenu(isOnline) {
+    newRobotsPlayer(delay) {
+        return new Player.RandomPlayer(delay)
+    }
+
+    async matchMenu(isOnline, isRobots) {
 
         const {matchOpts} = this
 
         while (true) {
 
-            var matchChoices = this.getMatchChoices(matchOpts, isOnline)
+            var matchChoices = this.getMatchChoices(matchOpts, isOnline, isRobots)
 
             var answers = await this.prompt({
                 name    : 'matchChoice'
@@ -77,6 +81,8 @@ class Menu extends Logger {
             if (matchChoice == 'start') {
                 if (isOnline) {
                     await this.startOnlineMatch(matchOpts)
+                } else if (isRobots) {
+                    await this.playRobots(matchOpts)
                 } else {
                     await this.playLocalMatch(matchOpts)
                 }
@@ -89,6 +95,7 @@ class Menu extends Logger {
 
             matchOpts[question.name] = answers[question.name]
             matchOpts.total = +matchOpts.total
+            matchOpts.delay = +matchOpts.delay
             if (question.name == 'serverUrl') {
                 this.serverUrl = answers[question.name]
             }
@@ -109,6 +116,12 @@ class Menu extends Logger {
             this.error(err)
             return
         }
+        await this.playMatch(player, match)
+    }
+
+    async playRobots(matchOpts) {
+        const player = this.newRobotsPlayer(matchOpts.delay)
+        const match = new Match(matchOpts.total, matchOpts)
         await this.playMatch(player, match)
     }
 
@@ -144,7 +157,7 @@ class Menu extends Logger {
         return this._prompt
     }
 
-    getMatchChoices(matchOpts, isOnline) {
+    getMatchChoices(matchOpts, isOnline, isRobots) {
         return Menu.formatChoices([
             {
                 value : 'start'
@@ -171,7 +184,7 @@ class Menu extends Logger {
                   , default  : () => '' + matchOpts.total
                   , validate : value => {
                         value = +value
-                        return !isNaN(value) && Number.isInteger(value) && value > 0 || 'Please enter a number > 0'
+                        return !isNaN(+value) && Number.isInteger(+value) && value > 0 || 'Please enter a number > 0'
                     }
                 }
             }
@@ -196,6 +209,18 @@ class Menu extends Logger {
                 }
             }
           , {
+                value : 'delay'
+              , name  : 'Action Delay'
+              , when  : () => isRobots
+              , question : {
+                    name     : 'delay'
+                  , message  : 'Action Delay (seconds)'
+                  , type     : 'input'
+                  , default  : () => matchOpts.delay
+                  , validate : value => !isNaN(+value) && +value >= 0 || 'Please enter a number >= 0'
+                }
+            }
+          , {
                 value : 'quit'
               , name  : 'Cancel'
             }
@@ -215,6 +240,10 @@ class Menu extends Logger {
           , {
                 value : 'joinOnline'
               , name  : 'Join Online Match'
+            }
+          , {
+                value : 'watchRobots'
+              , name  : 'Watch Robots Play'
             }
           , {
                 value : 'quit'
@@ -245,6 +274,7 @@ class Menu extends Logger {
             total      : 1
           , isJacoby   : false
           , isCrawford : true
+          , delay      : 0.5
         }
     }
 

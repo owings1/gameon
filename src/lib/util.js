@@ -24,6 +24,11 @@ class Util {
         return args.join(' ')
     }
 
+    static randomElement(arr) {
+        const i = Math.floor(Math.random() * arr.length)
+        return arr[i]
+    }
+
     static sortNumericAsc(a, b) {
         return a - b
     }

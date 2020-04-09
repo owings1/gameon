@@ -5,9 +5,10 @@ const Draw   = require('./draw')
 const Logger = require('../lib/logger')
 const Util   = require('../lib/util')
 
-const chalk       = require('chalk')
-const inquirer    = require('inquirer')
-const sp          = Util.joinSpace
+const chalk           = require('chalk')
+const inquirer        = require('inquirer')
+const sp              = Util.joinSpace
+const {randomElement} = Util
 
 class Player extends Logger {
 
@@ -96,7 +97,7 @@ class PromptPlayer extends Player {
 
     async playTurn(turn, game) {
         if (game.canDouble(turn.color)) {
-            var action = await this.promptAction()
+            var action = await this.promptAction(turn, game)
         }
         if (action == 'double') {
             await this.offerDouble(turn, game)
@@ -123,12 +124,12 @@ class PromptPlayer extends Player {
             this.drawBoard(game)
             this.info(turn.color, 'rolled', turn.diceSorted.join(), 'with', turn.remainingFaces.join(), 'remaining')
             var moves = turn.getNextAvailableMoves()
-            var origin = await this.promptOrigin(moves.map(move => move.origin), turn.moves.length > 0)
+            var origin = await this.promptOrigin(moves.map(move => move.origin), turn.moves.length > 0, turn, game)
             if (origin == 'undo') {
                 turn.unmove()
                 continue
             }
-            var face = await this.promptFace(moves.filter(move => move.origin == origin).map(move => move.face))
+            var face = await this.promptFace(moves.filter(move => move.origin == origin).map(move => move.face), turn, game)
             var move = turn.move(origin, face)
             this.info(this.describeMove(move))
             if (turn.getNextAvailableMoves().length == 0) {
@@ -146,7 +147,7 @@ class PromptPlayer extends Player {
         }
     }
 
-    async promptAction() {
+    async promptAction(turn, game) {
         const choices = ['r', 'd']
         const answers = await this.prompt({
             name     : 'action'
@@ -161,7 +162,7 @@ class PromptPlayer extends Player {
         return 'roll'
     }
 
-    async promptAcceptDouble(turn) {
+    async promptAcceptDouble(turn, game) {
         const answers = await this.prompt({
             name    : 'accept'
           , type    : 'confirm'
@@ -202,7 +203,7 @@ class PromptPlayer extends Player {
         return +answers.origin - 1
     }
 
-    async promptFace(faces) {
+    async promptFace(faces, turn, game) {
         faces = Util.uniqueInts(faces).sort(Util.sortNumericDesc)
         if (faces.length == 1) {
             return faces[0]
@@ -297,10 +298,45 @@ class LocalPlayer extends PromptPlayer {
     }
 
     async waitForDoubleResponse(turn, game) {
-        const accept = await this.promptAcceptDouble(turn)
+        const accept = await this.promptAcceptDouble(turn, game)
         if (!accept) {
             turn.setDoubleDeclined()
         }
+    }
+}
+
+class RandomPlayer extends LocalPlayer {
+
+    constructor(delay) {
+        super()
+        this.delay = delay == 0 ? delay : delay || 0.5
+    }
+
+    async pauseSeconds(seconds) {
+        if (seconds > 0) {
+            await new Promise(resolve => setTimeout(resolve, seconds * 1000))
+        }
+    }
+
+    async promptFinishOrUndo() {
+        return 'finish'
+    }
+
+    async promptFace(faces, turn, game) {
+        return randomElement(faces)
+    }
+
+    async promptOrigin(origins, canUndo, turn, game) {
+        await this.pauseSeconds(this.delay)
+        return randomElement(origins)
+    }
+
+    async promptAcceptDouble(turn, game) {
+        return true
+    }
+
+    async promptAction(turn, game) {
+        return 'roll'
     }
 }
 
@@ -410,6 +446,7 @@ class SocketPlayer extends PromptPlayer {
     }
 }
 
+PromptPlayer.RandomPlayer = RandomPlayer
 PromptPlayer.LocalPlayer = LocalPlayer
 PromptPlayer.SocketPlayer = SocketPlayer
 module.exports = PromptPlayer
