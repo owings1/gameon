@@ -16,15 +16,18 @@ class Server extends Logger {
         this.app = express()
         this.matches = {}
         this.connTicker = 0
+        this.httpServer = null
+        this.port = null
+        this.socketServer = null
     }
 
     listen(port) {
 
-        this.port = port
         return new Promise((resolve, reject) => {
             try {
                 this.httpServer = this.app.listen(port, () => {
-                    this.info('Listening on port', port)
+                    this.port = this.httpServer.address().port
+                    this.info('Listening on port', this.port)
                     try {
                         this.socketServer = this.createSocketServer(this.httpServer)
                         resolve()
@@ -36,6 +39,16 @@ class Server extends Logger {
                 reject(err)
             }
         })
+    }
+
+    close() {
+        Object.keys(this.matches).forEach(id => this.cancelMatchId(id))
+        if (this.socketServer) {
+            Object.values(this.socketServer.conns).forEach(conn => conn.close())
+        }
+        if (this.httpServer) {
+            this.httpServer.close()
+        }
     }
 
     createSocketServer(httpServer) {
@@ -122,7 +135,7 @@ class Server extends Logger {
                     this.matches[id] = match
                     this.sendMessage(conn, {action: 'matchCreated', id})
                     this.info('Match', id, 'created')
-                    this.logActiveMatches()
+                    this.logActive()
 
                     break
 
@@ -144,7 +157,7 @@ class Server extends Logger {
                     this.sendMessage(match.conns.White, {action: 'opponentJoined', id})
                     this.sendMessage(conn, {action: 'matchJoined', id, total, opts})
                     this.info('Match', id, 'started')
-                    this.logActiveMatches()
+                    this.logActive()
 
                     break
 
@@ -155,7 +168,7 @@ class Server extends Logger {
             }
         } catch (err) {
             this.error(err)
-            this.sendMessage(conn, {error: err.message, name: err.name || err.constructor.name})
+            this.sendMessage(conn, Server.makeErrorObject(err))
         }
         
         this.debug('message received from', conn.color, conn.connId, req)
@@ -177,10 +190,13 @@ class Server extends Logger {
             Server.checkSync(match.sync, next)
         }
 
-        const reply = res => {
-            this.sendMessage(Object.values(match.conns), merge({}, {action}, res))
+        const refuse = err => {
+            this.sendMessage(Object.values(match.conns), Server.makeErrorObject(err))
         }
 
+        const reply = res => {
+            this.sendMessage(Object.values(match.conns), merge({action}, res))
+        }
 
         switch (action) {
 
@@ -209,6 +225,10 @@ class Server extends Logger {
             case 'movesFinished':
 
                 if (thisTurn.color == color) {
+                    if (!Array.isArray(req.moves)) {
+                        refuse('moves missing or invalid format')
+                        break
+                    }
                     req.moves.forEach(move => thisTurn.move(move.origin, move.face))
                     thisTurn.finish()
                 }
@@ -285,12 +305,14 @@ class Server extends Logger {
         if (match.hasWinner()) {
             this.info('Match', match.id, 'is finished')
             delete this.matches[match.id]
-            this.logActiveMatches()
+            this.logActive()
         }
     }
 
-    logActiveMatches() {
-        this.info('There are now', Object.keys(this.matches).length, 'active matches')
+    logActive() {
+        const numConns = this.socketServer ? Object.keys(this.socketServer.conns).length : 0
+        const numMatches = Object.keys(this.matches).length
+        this.info('There are now', numMatches, 'active matches, and', numConns, 'active connections')
     }
 
     cancelMatchId(id) {
@@ -299,7 +321,7 @@ class Server extends Logger {
             const match = this.matches[id]
             this.sendMessage(Object.values(match.conns), {action: 'matchCanceled'})
             delete this.matches[id]
-            this.logActiveMatches()
+            this.logActive()
         }
     }
 
@@ -336,9 +358,21 @@ class Server extends Logger {
         return Dice.rollTwo()
     }
 
+    static makeErrorObject(err) {
+        if (typeof(err) == 'string') {
+            err = new RequestError(err)
+        }
+        return {
+            isError: true
+            , error: err.message
+            , name: err.name || err.constructor.name
+            , isRequestError: err.isRequestError
+        }
+    }
+
     static validateColor(color) {
         if (color != White && color != Red) {
-            throw new ServerError('invalid color')
+            throw new RequestError('invalid color')
         }
     }
 
@@ -362,19 +396,20 @@ class Server extends Logger {
 }
 
 
-class ServerError extends Error {
+class RequestError extends Error {
     constructor(...args) {
         super(...args)
         this.name = this.constructor.name
+        this.isRequestError = true
     }
 }
 
-class HandshakeError extends ServerError {}
-class ValidateError extends ServerError {}
-class MatchAlreadyExistsError extends ServerError {}
-class MatchNotFoundError extends ServerError {}
-class MatchAlreadyJoinedError extends ServerError {}
-class NotYourTurnError extends ServerError {}
+class HandshakeError extends RequestError {}
+class ValidateError extends RequestError {}
+class MatchAlreadyExistsError extends RequestError {}
+class MatchNotFoundError extends RequestError {}
+class MatchAlreadyJoinedError extends RequestError {}
+class NotYourTurnError extends RequestError {}
 
 
 Server.main = server => {

@@ -16,17 +16,18 @@ class Client extends Logger {
         this.serverUrl = serverUrl
         this.socketClient = new WebSocketClient
         this.conn = null
+        this.isHandshake = null
         this.secret = Client.generateSecret()
         this.matchId = null
     }
 
     async connect() {
-        
+
+        if (this.conn && this.conn.connected) {
+            return
+        }
+
         await new Promise((resolve, reject) => {
-            if (this.conn) {
-                resolve()
-                return
-            }
             this.socketClient.on('error', reject)
             this.socketClient.on('connect', conn => {
                 this.conn = conn
@@ -64,10 +65,10 @@ class Client extends Logger {
     async startMatch(opts) {
         const {total} = opts
         await this.connect()
-        const {id} = await this.sendAndWait({action: 'startMatch', total, opts}, 'matchCreated')
+        const {id} = await this.sendAndWaitForResponse({action: 'startMatch', total, opts}, 'matchCreated')
         this.info('Started new match', id)
         this.info('Waiting for opponent to join')
-        await this.waitForMessage('opponentJoined')
+        await this.waitForResponse('opponentJoined')
         this.matchId = id
         this.info('Opponent joined', id)
         this.match = new Match(total, opts)
@@ -78,7 +79,7 @@ class Client extends Logger {
     async joinMatch(id) {
         await this.connect()
         this.info('Joining match', id)
-        const res = await this.sendAndWait({action: 'joinMatch', id}, 'matchJoined')
+        const res = await this.sendAndWaitForResponse({action: 'joinMatch', id}, 'matchJoined')
         this.matchId = res.id
         const {total, opts} = res
         this.info('Joined match', res.id, 'to', total, 'points')
@@ -123,7 +124,6 @@ class Client extends Logger {
     async offerDouble(turn, game) {
         await this.matchRequest('turnOption', {isDouble: true})
         turn.setDoubleOffered()
-        
     }
 
     async waitForOpponentOption(turn, game) {
@@ -154,28 +154,36 @@ class Client extends Logger {
 
     async matchRequest(action, params) {
         const req = merge({}, this.matchParams(action), params)
-        return await this.sendAndWait(req, action)
+        return await this.sendAndWaitForResponse(req, action)
     }
 
-    async sendAndWait(msg, action) {
-        const p = this.waitForMessage(action)
+    async sendAndWaitForResponse(msg, action) {
+        const p = this.waitForResponse(action)
         this.sendMessage(msg)
         return await p
     }
 
-    async waitForMessage(action) {
+    async sendAndWait(msg) {
+        const p = this.waitForMessage()
+        this.sendMessage(msg)
+        return await p
+    }
+
+    async waitForResponse(action) {
+        const msg = await this.waitForMessage()
+        if (msg.error) {
+            throw Client.buildServerError(msg)
+        }
+        if (action && msg.action != action) {
+            throw new ClientError('Expecting response ' + action + ', but got ' + msg.action + ' instead')
+        }
+        return msg
+    }
+
+    async waitForMessage() {
         return await new Promise((resolve, reject) => {
             this.conn.once('message', msg => {
-                msg = JSON.parse(msg.utf8Data)
-                if (msg.error) {
-                    reject(Client.buildServerError(msg))
-                    return
-                }
-                if (action && msg.action != action) {
-                    reject(new ClientError('Expecting response ' + action + ', but got ' + msg.action + ' instead'))
-                    return
-                }
-                resolve(msg)
+                resolve(JSON.parse(msg.utf8Data))
             })
         })
     }
@@ -188,7 +196,7 @@ class Client extends Logger {
     }
 
     sendMessage(msg) {
-        msg.secret = this.secret
+        msg = merge({secret: this.secret}, msg)
         this.conn.sendUTF(JSON.stringify(msg))
     }
 
@@ -197,7 +205,7 @@ class Client extends Logger {
     }
 
     static buildServerError(msg, fallbackMessage) {
-        const err = new ClientError(msg.error || fallbackMessage || 'Generic server error')
+        const err = new ClientError(msg.error || fallbackMessage || 'Unknown server error')
         if (msg.name) {
             err.name = msg.name
         }
