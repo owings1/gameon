@@ -1,6 +1,6 @@
 const Core    = require('../lib/core')
 const Logger = require('../lib/logger')
-const Player = require('./play')
+const Player = require('.../player/mono-player')
 const Util   = require('../lib/util')
 
 const {Match} = Core
@@ -14,7 +14,6 @@ class Menu extends Logger {
 
     constructor() {
         super()
-        this.serverUrl = this.getDefaultServerUrl()
         this.matchOpts = this.getDefaultMatchOpts()
     }
 
@@ -38,23 +37,11 @@ class Menu extends Logger {
             }
 
             if (mainChoice == 'joinOnline') {
-                await this.joinOnlineMatch()
+                await this.joinMenu()
             } else {
                 await this.matchMenu(mainChoice == 'newOnline', mainChoice == 'watchRobots')
             }
         }
-    }
-
-    newLocalPlayer() {
-        return new Player.LocalPlayer
-    }
-
-    newSocketPlayer(serverUrl) {
-        return new Player.SocketPlayer(this.serverUrl)
-    }
-
-    newRobotsPlayer(delay) {
-        return new Player.RandomPlayer(delay)
     }
 
     async matchMenu(isOnline, isRobots) {
@@ -96,10 +83,19 @@ class Menu extends Logger {
             matchOpts[question.name] = answers[question.name]
             matchOpts.total = +matchOpts.total
             matchOpts.delay = +matchOpts.delay
-            if (question.name == 'serverUrl') {
-                this.serverUrl = answers[question.name]
-            }
         }
+    }
+
+    async joinMenu() {
+        const {matchOpts} = this
+        const questions = this.getJoinQuestions(matchOpts)
+        const answers = await this.prompt(questions)
+        if (!answers.matchId || !answers.serverUrl) {
+            return
+        }
+        matchOpts.serverUrl = answers.serverUrl
+        matchOpts.matchId = answers.matchId
+        await this.joinOnlineMatch(matchOpts)
     }
 
     async playLocalMatch(matchOpts) {
@@ -125,16 +121,10 @@ class Menu extends Logger {
         await this.playMatch(player, match)
     }
 
-    async joinOnlineMatch() {
-        const questions = this.getJoinQuestions()
-        const answers = await this.prompt(questions)
-        if (!answers.matchId || !answers.serverUrl) {
-            return
-        }
-        this.serverUrl = answers.serverUrl
-        const player = this.newSocketPlayer(this.serverUrl)
+    async joinOnlineMatch(matchOpts) {
+        const player = this.newSocketPlayer(matchOpts.serverUrl)
         try {
-            var match = await player.joinMatch(answers.matchId)
+            var match = await player.joinMatch(matchOpts.matchId)
         } catch (err) {
             this.error(err)
             return
@@ -150,6 +140,18 @@ class Menu extends Logger {
             this.warn('An error occurred, the match is canceled')
             await player.abortMatch()
         }
+    }
+
+    newLocalPlayer() {
+        return new Player.LocalPlayer
+    }
+
+    newSocketPlayer(serverUrl) {
+        return new Player.SocketPlayer(serverUrl)
+    }
+
+    newRobotsPlayer(delay) {
+        return new Player.RandomPlayer(delay)
     }
 
     prompt(questions) {
@@ -171,7 +173,7 @@ class Menu extends Logger {
                     name    : 'serverUrl'
                   , message : 'Server URL'
                   , type    : 'input'
-                  , default : () => this.serverUrl
+                  , default : () => matchOpts.serverUrl
                 }
             }
           , {
@@ -252,7 +254,7 @@ class Menu extends Logger {
         ])
     }
 
-    getJoinQuestions() {
+    getJoinQuestions(matchOpts) {
         return [
             {
                 name     : 'matchId'
@@ -264,7 +266,7 @@ class Menu extends Logger {
                 name    : 'serverUrl'
               , message : 'Server URL'
               , type    : 'input'
-              , default : () => this.serverUrl
+              , default : () => matchOpts.serverUrl
             }
         ]
     }
@@ -275,6 +277,7 @@ class Menu extends Logger {
           , isJacoby   : false
           , isCrawford : true
           , delay      : 0.5
+          , serverUrl  : this.getDefaultServerUrl()
         }
     }
 

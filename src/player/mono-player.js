@@ -1,7 +1,7 @@
 const {Match, Red, White} = require('../lib/core')
 
 const Client = require('../lib/client')
-const Draw   = require('./draw')
+const Draw   = require('../term/draw')
 const Logger = require('../lib/logger')
 const Util   = require('../lib/util')
 
@@ -10,7 +10,7 @@ const inquirer        = require('inquirer')
 const sp              = Util.joinSpace
 const {randomElement} = Util
 
-class Player extends Logger {
+class MonoPlayer extends Logger {
 
     constructor() {
         super()
@@ -55,7 +55,7 @@ class Player extends Logger {
     }
 }
 
-class PromptPlayer extends Player {
+class PromptPlayer extends MonoPlayer {
 
     constructor() {
         super()
@@ -352,13 +352,11 @@ class SocketPlayer extends PromptPlayer {
     async startMatch(matchOpts) {
         this.color = White
         return await this.client.startMatch(matchOpts)
-        await this.playMatch(match)
     }
 
     async joinMatch(matchId) {
         this.color = Red
         return await this.client.joinMatch(matchId)
-        await this.playMatch(match)
     }
 
     async nextGame() {
@@ -447,6 +445,6 @@ class SocketPlayer extends PromptPlayer {
 }
 
 PromptPlayer.RandomPlayer = RandomPlayer
-PromptPlayer.LocalPlayer = LocalPlayer
+PromptPlayer.LocalPlayer  = LocalPlayer
 PromptPlayer.SocketPlayer = SocketPlayer
 module.exports = PromptPlayer

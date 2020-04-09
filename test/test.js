@@ -1,11 +1,11 @@
-const Core          = require('../src/lib/core')
+const Core         = require('../src/lib/core')
 const Util         = require('../src/lib/util')
 const Logger       = require('../src/lib/logger')
 const Server       = require('../src/lib/server')
 const Client       = require('../src/lib/client')
-const Menu         = require('../src/prompt/menu')
-const PromptPlayer = require('../src/prompt/play')
-const Draw         = require('../src/prompt/draw')
+const PromptPlayer = require('../src/player/mono-player')
+const Menu         = require('../src/term/menu')
+const Draw         = require('../src/term/draw')
 
 const {White, Red} = Core
 
@@ -1544,7 +1544,7 @@ describe('Menu', () => {
 
         })
 
-        it('should set serverUrl to opts and instance property', async () => {
+        it('should set serverUrl to matchOpts', async () => {
             menu.prompt = MockPrompter([
                 {matchChoice: 'serverUrl'},
                 {serverUrl: 'ws://localhost:8100'},
@@ -1552,7 +1552,6 @@ describe('Menu', () => {
             ])
             await menu.matchMenu(true)
             expect(menu.matchOpts.serverUrl).to.equal('ws://localhost:8100')
-            expect(menu.serverUrl).to.equal('ws://localhost:8100')
         })
 
         it('should quit', async () => {
