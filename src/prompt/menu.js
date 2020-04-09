@@ -97,12 +97,19 @@ class Menu extends Logger {
 
     async playLocalMatch(matchOpts) {
         const player = this.newLocalPlayer()
-        await player.playMatch(new Match(matchOpts.total, matchOpts))
+        const match = new Match(matchOpts.total, matchOpts)
+        await this.playMatch(player, match)
     }
 
     async startOnlineMatch(matchOpts) {
         const player = this.newSocketPlayer(matchOpts.serverUrl)
-        await player.startMatch(matchOpts)
+        try {
+            var match = await player.startMatch(matchOpts)
+        } catch (err) {
+            this.error(err)
+            return
+        }
+        await this.playMatch(player, match)
     }
 
     async joinOnlineMatch() {
@@ -114,13 +121,21 @@ class Menu extends Logger {
         this.serverUrl = answers.serverUrl
         const player = this.newSocketPlayer(this.serverUrl)
         try {
-            await player.joinMatch(answers.matchId)
+            var match = await player.joinMatch(answers.matchId)
         } catch (err) {
-            if (err.name == 'MatchNotFoundError') {
-                this.error(err)
-            } else {
-                throw err
-            }
+            this.error(err)
+            return
+        }
+        await this.playMatch(player, match)
+    }
+
+    async playMatch(player, match) {
+        try {
+            await player.playMatch(match)
+        } catch (err) {
+            this.error(err)
+            this.warn('An error occurred, the match is canceled')
+            await player.abortMatch()
         }
     }
 
