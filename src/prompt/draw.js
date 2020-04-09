@@ -1,4 +1,4 @@
-const {Red, White} = require('../lib/game')
+const {Red, White} = require('../lib/core')
 
 const chalk  = require('chalk')
 const Util   = require('../lib/util')

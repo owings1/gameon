@@ -1,4 +1,4 @@
-const {Match, Red, White} = require('../lib/game')
+const {Match, Red, White} = require('../lib/core')
 
 const Client = require('../lib/client')
 const Draw   = require('./draw')

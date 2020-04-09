@@ -1,9 +1,9 @@
-const Lib    = require('../lib/game')
+const Core    = require('../lib/core')
 const Logger = require('../lib/logger')
 const Player = require('./play')
 const Util   = require('../lib/util')
 
-const {Match} = Lib
+const {Match} = Core
 
 const inquirer  = require('inquirer')
 const sp        = Util.joinSpace

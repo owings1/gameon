@@ -1,1 +1,1 @@
-module.exports = require('./lib/game')
+module.exports = require('./lib/core')

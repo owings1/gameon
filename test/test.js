@@ -1,4 +1,4 @@
-const Lib          = require('../src/lib/game')
+const Core          = require('../src/lib/core')
 const Util         = require('../src/lib/util')
 const Logger       = require('../src/lib/logger')
 const Server       = require('../src/lib/server')
@@ -7,7 +7,7 @@ const Menu         = require('../src/prompt/menu')
 const PromptPlayer = require('../src/prompt/play')
 const Draw         = require('../src/prompt/draw')
 
-const {White, Red} = Lib
+const {White, Red} = Core
 
 const TestUtil = require('./util')
 const {
@@ -22,7 +22,7 @@ const {
 
 describe('Match', () => {
 
-    const {Match, Board} = Lib
+    const {Match, Board} = Core
 
     describe('#constructor', () => {
 
@@ -71,7 +71,7 @@ describe('Match', () => {
 
 describe('Game', () => {
 
-    const {Game, Board} = Lib
+    const {Game, Board} = Core
 
     var game
 
@@ -319,7 +319,7 @@ describe('Game', () => {
 
 describe('Turn', () => {
 
-	const {Turn, Board, Piece} = Lib
+	const {Turn, Board, Piece} = Core
 
     describe('#assertIsRolled', () => {
 
@@ -557,7 +557,7 @@ describe('Turn', () => {
 
 describe('Board', () => {
 
-    const {Board, Piece} = Lib
+    const {Board, Piece} = Core
 
     describe('#constructor', () => {
 
@@ -999,7 +999,7 @@ describe('Board', () => {
 
 describe('Move', () => {
 
-    const {Board, Piece} = Lib
+    const {Board, Piece} = Core
 
     describe('#coords', () => {
 
@@ -1043,7 +1043,7 @@ describe('Move', () => {
 
 describe('SequenceTree', () => {
 
-    const {Board, SequenceTree, Piece} = Lib
+    const {Board, SequenceTree, Piece} = Core
 
     describe('#buildNodes', () => {
 
@@ -1134,7 +1134,7 @@ describe('SequenceTree', () => {
 
 describe('Dice', () => {
 
-    const {Dice} = Lib
+    const {Dice} = Core
 
     describe('#checkOne', () => {
 
@@ -1234,7 +1234,7 @@ describe('Dice', () => {
 
 describe('Piece', () => {
 
-    const {Piece} = Lib
+    const {Piece} = Core
 
     describe('#toString', () => {
 
@@ -1378,7 +1378,7 @@ describe('Logger', () => {
 describe('Menu', () => {
 
     const {LocalPlayer} = PromptPlayer
-    const {Match} = Lib
+    const {Match} = Core
 
     var player
     var menu
@@ -1628,7 +1628,7 @@ describe('Menu', () => {
 
 describe('LocalPlayer', () => {
 
-    const {Board, Game, Match} = Lib
+    const {Board, Game, Match} = Core
     const {LocalPlayer} = PromptPlayer
 
     var player
@@ -1961,7 +1961,7 @@ describe('LocalPlayer', () => {
 
     describe('#rollTurn', () => {
 
-        const {Turn} = Lib
+        const {Turn} = Core
 
         // coverage
         it('should roll', async () => {
@@ -1974,7 +1974,7 @@ describe('LocalPlayer', () => {
 
 describe('Draw', () => {
 
-    const {Game, Match} = Lib
+    const {Game, Match} = Core
 
     describe('#drawBoard', () => {
 

@@ -1,4 +1,4 @@
-const Lib             = require('./game')
+const Core             = require('./core')
 const Logger          = require('./logger')
 const Util            = require('./util')
 const WebSocketServer = require('websocket').server
@@ -7,7 +7,7 @@ const crypto = require('crypto')
 const express = require('express') // maybe we don't need express
 const merge = require('merge')
 
-const {White, Red, Match, Opponent, Dice} = Lib
+const {White, Red, Match, Opponent, Dice} = Core
 
 class Server extends Logger {
 

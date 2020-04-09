@@ -1,4 +1,4 @@
-const Lib             = require('./game')
+const Core             = require('./core')
 const Logger          = require('./logger')
 const Util            = require('./util')
 const WebSocketClient = require('websocket').client
@@ -7,7 +7,7 @@ const crypto = require('crypto')
 const merge  = require('merge')
 const uuid   = require('uuid')
 
-const {White, Red, Match} = Lib
+const {White, Red, Match} = Core
 
 class Client extends Logger {
 
