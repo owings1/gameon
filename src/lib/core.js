@@ -173,6 +173,7 @@ class Game {
             return null
         }
         this.thisTurn = new Turn(this.board, Opponent[this.thisTurn.color])
+        this.thisTurn.isFirstTurn = true
         return this.thisTurn
     }
 
