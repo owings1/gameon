@@ -1,6 +1,6 @@
-const Core             = require('./core')
-const Logger          = require('./logger')
-const Util            = require('./util')
+const Core            = require('../lib/core')
+const Logger          = require('../lib/logger')
+const Util            = require('../lib/util')
 const WebSocketServer = require('websocket').server
 
 const crypto = require('crypto')
