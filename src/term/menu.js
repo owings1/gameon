@@ -4,7 +4,12 @@ const MonoPlayer = require('../player/mono-player')
 const DualPlayer = require('../player/dual-player')
 const Util       = require('../lib/util')
 
-const {Match} = Core
+const Coordinator = require('../lib/coordinator')
+const nClient     = require('../net/client')
+const NetPlayer   = require('../net/player')
+const TermPlayer  = require('./player')
+
+const {White, Red, Match} = Core
 
 const inquirer  = require('inquirer')
 const sp        = Util.joinSpace
@@ -102,20 +107,28 @@ class Menu extends Logger {
     }
 
     async playLocalMatch(matchOpts) {
-        const player = this.newLocalPlayer()
+        //const player = this.newLocalPlayer()
+        //const match = new Match(matchOpts.total, matchOpts)
+        //await this.playMatch(player, match)
+        const coordinator = new Coordinator
         const match = new Match(matchOpts.total, matchOpts)
-        await this.playMatch(player, match)
+        await coordinator.runMatch(match, new TermPlayer(White), new TermPlayer(Red))
     }
 
     async startOnlineMatch(matchOpts) {
-        const player = this.newSocketPlayer(matchOpts.serverUrl)
-        try {
-            var match = await player.startMatch(matchOpts)
-        } catch (err) {
-            this.error(err)
-            return
-        }
-        await this.playMatch(player, match)
+        //const player = this.newSocketPlayer(matchOpts.serverUrl)
+        //try {
+        //    var match = await player.startMatch(matchOpts)
+        //} catch (err) {
+        //    this.error(err)
+        //    return
+        //}
+        //await this.playMatch(player, match)
+        const coordinator = new Coordinator
+        const client = new nClient(matchOpts.serverUrl)
+        await client.connect()
+        const match = await client.startMatch(matchOpts)
+        await coordinator.runMatch(match, new TermPlayer(White), new NetPlayer(client, Red))
     }
 
     async playRobot(matchOpts) {
@@ -131,14 +144,19 @@ class Menu extends Logger {
     }
 
     async joinOnlineMatch(matchOpts) {
-        const player = this.newSocketPlayer(matchOpts.serverUrl)
-        try {
-            var match = await player.joinMatch(matchOpts.matchId)
-        } catch (err) {
-            this.error(err)
-            return
-        }
-        await this.playMatch(player, match)
+        //const player = this.newSocketPlayer(matchOpts.serverUrl)
+        //try {
+        //    var match = await player.joinMatch(matchOpts.matchId)
+        //} catch (err) {
+        //    this.error(err)
+        //    return
+        //}
+        //await this.playMatch(player, match)
+        const coordinator = new Coordinator
+        const client = new nClient(matchOpts.serverUrl)
+        await client.connect()
+        const match = await client.joinMatch(matchOpts.matchId)
+        await coordinator.runMatch(match, new NetPlayer(client, White), new TermPlayer(Red))
     }
 
     async playMatch(player, match) {

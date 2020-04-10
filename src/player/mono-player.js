@@ -13,51 +13,31 @@ const {randomElement} = Util
 
 class MonoPlayer extends Base {
 
-    //// @implement
-    //async playTurn(turn, game) {
-    //    if (game.canDouble(turn.color)) {
-    //        var action = await this.turnOption(turn, game)
-    //    }
-    //    if (action == 'double') {
-    //        await this.offerDouble(turn, game)
-    //        await this.decideDouble(turn, game)
-    //        //await this.waitForDoubleResponse(turn, game)
-    //        if (turn.isDoubleDeclined) {
-    //            return
-    //        } else {
-    //            game.double()
-    //        }
-    //        this.info('Opponent accepted the double')
-    //    }
-    //    await this.rollTurn(turn, game)
-    //    await this.playRoll(turn, game)
-    //}
-    //
-    //// @default
-    //async rollTurn(turn, game) {
-    //    turn.roll()
-    //}
-    //
-    //// @abstract
-    //async turnOption(turn, game) {
-    //    throw new Error('NotImplemented')
-    //}
-    //
-    //// @abstract
-    //async offerDouble(turn, game) {
-    //    throw new Error('NotImplemented')
-    //}
-    //
-    //// @abstract
-    //async decideDouble(turn, game) {
-    //    throw new Error('NotImplemented')
-    //}
-    //async waitForDoubleResponse(turn, game) {
-    //    throw new Error('NotImplemented')
-    //}
+}
 
-    // @abstract BasePlayer
-    // async playRoll(turn, game)
+class RandomBase extends MonoPlayer {
+
+    // @implement
+    async turnOption(turn, game) {
+        // always roll
+        return
+    }
+
+    // @abstract
+    async decideDouble(turn, game) {
+        // always accept
+        return
+    }
+
+    // @default
+    async playRoll(turn, game) {
+        this.chooseMoves(turn, game).forEach(move => turn.move(move.origin, move.face))
+        turn.finish()
+    }
+
+    chooseMoves(turn, game) {
+        return Util.castToArray(randomElement(turn.allowedMoveSeries))
+    }
 }
 
 class PromptPlayer extends MonoPlayer {
@@ -69,12 +49,6 @@ class PromptPlayer extends MonoPlayer {
     // @implement
     async turnOption(turn, game) {
         return await this.promptAction()
-    }
-
-    // @implement
-    async offerDouble(turn, game) {
-        this.info(turn.color, 'wants to double the stakes to', game.cubeValue * 2)
-        turn.setDoubleOffered()
     }
 
     // @implement
@@ -118,6 +92,12 @@ class PromptPlayer extends MonoPlayer {
                 }
             }
         }
+    }
+
+    // @override
+    async offerDouble(turn, game) {
+        this.info(turn.color, 'wants to double the stakes to', game.cubeValue * 2)
+        turn.setDoubleOffered()
     }
 
     // @override
@@ -405,6 +385,7 @@ class SocketPlayer extends PromptPlayer {
     }
 }
 
+MonoPlayer.RandomBase = RandomBase
 MonoPlayer.RandomPlayer = RandomPlayer
 MonoPlayer.PromptPlayer = PromptPlayer
 MonoPlayer.SocketPlayer = SocketPlayer

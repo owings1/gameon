@@ -17,15 +17,25 @@ class DualPlayer extends Base {
         this.players.Red.opponent = white
     }
 
-    // @implement
-    async playTurn(turn, game) {
-        await this.players[turn.color].playTurn(turn, game)
+    async playMatch(match) {
+        this.players.White.thisMatch = match
+        this.players.Red.thisMatch = match
+        return super.playMatch(match)
     }
-
     // @implement
     async playRoll(turn, game) {
         await this.players[turn.color].playRoll(turn, game)
     }
+
+    // @override
+    async playTurn(turn, game) {
+        await this.players[turn.color].playTurn(turn, game)
+    }
+
+    // @abstract BasePlayer
+    //async turnOption(turn, game)
+    //async decideDouble(turn, game)
+
 }
 
 

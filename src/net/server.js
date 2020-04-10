@@ -222,6 +222,43 @@ class Server extends Logger {
 
                 break
 
+            case 'n_rollTurn':
+
+                if (thisTurn.color == color) {
+                    thisTurn.setRoll(this.roll())
+                }
+
+                sync(() => {
+                    const {dice} = thisTurn
+                    reply({dice})
+                })
+
+                break
+
+            case 'n_playRoll':
+
+                if (thisTurn.color == color) {
+                    if (!Array.isArray(req.moves)) {
+                        refuse('moves missing or invalid format')
+                        break
+                    }
+                    req.moves.forEach(move => thisTurn.move(move.origin, move.face))
+                    
+                }
+
+                sync(() => {
+
+                    thisTurn.finish()
+
+                    const moves = thisTurn.moves.map(move => move.coords())
+
+                    reply({moves})
+
+                    this.checkMatchFinished(match)
+                })
+
+                break
+
             case 'movesFinished':
 
                 if (thisTurn.color == color) {

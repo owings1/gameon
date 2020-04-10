@@ -1,10 +1,12 @@
 const Logger = require('../lib/logger')
+const {EventEmitter} = require('events')
 
-class Player extends Logger {
+class Player extends EventEmitter {
 
     constructor() {
         super()
-        this.thisMatch = null
+        this.log = new Logger
+        Logger.logify(this)
     }
 
     async playMatch(match) {
@@ -89,6 +91,14 @@ class Player extends Logger {
         this.thisMatch.updateScore()
     }
 
+    getStdout() {
+        return this.stdout || process.stdout
+    }
+
+    writeStdout(str) {
+        this.getStdout().write(str)
+    }
+
     // @default
     async firstTurn(game) {
         return game.firstTurn()
@@ -104,13 +114,13 @@ class Player extends Logger {
         turn.roll()
     }
 
-    // @abstract
-    async turnOption(turn, game) {
-        throw new Error('NotImplemented')
+    // @default
+    async offerDouble(turn, game) {
+        turn.setDoubleOffered()
     }
 
     // @abstract
-    async offerDouble(turn, game) {
+    async turnOption(turn, game) {
         throw new Error('NotImplemented')
     }
 
@@ -118,7 +128,11 @@ class Player extends Logger {
     async decideDouble(turn, game) {
         throw new Error('NotImplemented')
     }
-        
+
+    // @abstract
+    async playRoll(turn, game) {
+        throw new Error('NotImplemented')
+    }
 }
 
 module.exports = Player
