@@ -116,7 +116,6 @@ class Game {
         this.board = Board.setup()
         this.cubeOwner = null
         this.cubeValue = 1
-        this.turns = []
         this.thisTurn = null
         this.winner = null
         this.isFinished = false
@@ -157,7 +156,6 @@ class Game {
         const firstColor = Dice.getWinner(dice)
         this.thisTurn = new Turn(this.board, firstColor)
         this.thisTurn.setRoll(dice)
-        this.turns.push(this.thisTurn)
         return this.thisTurn
     }
 
@@ -175,7 +173,6 @@ class Game {
             return null
         }
         this.thisTurn = new Turn(this.board, Opponent[this.thisTurn.color])
-        this.turns.push(this.thisTurn)
         return this.thisTurn
     }
 
