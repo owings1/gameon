@@ -441,6 +441,13 @@ class Turn {
         })
         const dedupSeries = Object.values(seriesMap)
 
+        // end states
+        const endStatesMap = {}
+        allowedBranches.forEach(branch =>
+            endStatesMap[branch[branch.length - 1].board.stateString()] = true
+        )
+        const allowedEndStates = Object.keys(endStatesMap)
+
         const maximalAllowedFaces = Math.max(...dedupSeries.map(allowedMoves => allowedMoves.length))
         
         const allowedFaces = dedupSeries.length < 1 ? [] : dedupSeries.find(
@@ -453,6 +460,7 @@ class Turn {
           , isForceMove       : dedupSeries.length == 1
           , isCantMove        : maxDepth == 0
           , allowedFaces
+          , allowedEndStates
         }
     }
 
