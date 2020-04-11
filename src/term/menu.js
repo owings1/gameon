@@ -1,7 +1,5 @@
 const Core       = require('../lib/core')
 const Logger     = require('../lib/logger')
-const MonoPlayer = require('../player/mono-player')
-const DualPlayer = require('../player/dual-player')
 const Util       = require('../lib/util')
 
 const Coordinator   = require('../lib/coordinator')
