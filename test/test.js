@@ -2256,26 +2256,26 @@ describe('Server', () => {
             })
         })
 
-        describe('movesFinished', () => {
+        describe('playRoll', () => {
 
             it('should reply with same moves', async () => {
                 const game = server.matches[id].nextGame()
                 game._rollFirst = () => [2, 1]
                 game.firstTurn()
-                client2.sendAndWait({action: 'movesFinished', color: Red, id})
+                client2.sendAndWait({action: 'playRoll', color: Red, id})
                 const moves = [
                     {origin: 0, face: 1},
                     {origin: 0, face: 2}
                 ]
-                const res = await client.sendAndWait({action: 'movesFinished', color: White, id, moves})
+                const res = await client.sendAndWait({action: 'playRoll', color: White, id, moves})
                 expect(JSON.stringify(res.moves)).to.equal(JSON.stringify(moves))
             })
 
             it('should return RequestError for missing moves', async () => {
                 const game = server.matches[id].nextGame()
                 game.firstTurn()
-                client2.sendAndWait({action: 'movesFinished', color: Red, id})
-                const res = await client.sendAndWait({action: 'movesFinished', color: White, id})
+                client2.sendAndWait({action: 'playRoll', color: Red, id})
+                const res = await client.sendAndWait({action: 'playRoll', color: White, id})
                 expect(res.isRequestError).to.equal(true)
             })
         })

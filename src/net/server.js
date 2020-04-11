@@ -235,7 +235,7 @@ class Server extends Logger {
 
                 break
 
-            case 'n_playRoll':
+            case 'playRoll':
 
                 if (thisTurn.color == color) {
                     if (!Array.isArray(req.moves)) {
@@ -270,28 +270,6 @@ class Server extends Logger {
                 sync(() => {
                     const isDouble = thisTurn.isDoubleOffered && !thisTurn.isRolled
                     reply({isDouble})
-                })
-
-                break
-
-            case 'movesFinished':
-
-                if (thisTurn.color == color) {
-                    if (!Array.isArray(req.moves)) {
-                        refuse('moves missing or invalid format')
-                        break
-                    }
-                    req.moves.forEach(move => thisTurn.move(move.origin, move.face))
-                    thisTurn.finish()
-                }
-
-                sync(() => {
-
-                    const moves = thisTurn.moves.map(move => move.coords())
-
-                    reply({moves})
-
-                    this.checkMatchFinished(match)
                 })
 
                 break

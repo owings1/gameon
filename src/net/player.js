@@ -34,7 +34,7 @@ class NetPlayer extends Base {
             }
             if (!turn.isDoubleDeclined && turn.color == this.opponent.color) {
                 const moves = turn.moves.map(move => move.coords())
-                this.coordinator.holds.push(this.client.matchRequest('n_playRoll', {moves}))
+                this.coordinator.holds.push(this.client.matchRequest('playRoll', {moves}))
             }
         })
 
@@ -81,7 +81,7 @@ class NetPlayer extends Base {
     }
 
     async playRoll(turn, game, match) {
-        const {moves} = await this.client.matchRequest('n_playRoll')
+        const {moves} = await this.client.matchRequest('playRoll')
         moves.forEach(move => turn.move(move.origin, move.face))
     }
 }
