@@ -62,7 +62,7 @@ class NetPlayer extends Base {
     }
 
     async rollTurn(turn, game, match) {
-        const {dice} = await this.client.matchRequest('n_rollTurn')
+        const {dice} = await this.client.matchRequest('rollTurn')
         turn.setRoll(dice)
     }
 

@@ -222,7 +222,7 @@ class Server extends Logger {
 
                 break
 
-            case 'n_rollTurn':
+            case 'rollTurn':
 
                 if (thisTurn.color == color) {
                     thisTurn.setRoll(this.roll())

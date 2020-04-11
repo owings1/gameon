@@ -2336,7 +2336,9 @@ describe('Server', () => {
             })
         })
 
-        
+        describe('rollTurn', () => {
+            it('should return same dice')
+        })
     })
 
     describe('#roll', () => {
