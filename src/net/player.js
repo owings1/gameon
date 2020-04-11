@@ -44,7 +44,7 @@ class NetPlayer extends Base {
 
         this.on('doubleOffered', (turn, game, match) => {
             if (turn.color == this.opponent.color) {
-                this.coordinator.holds.push(this.client.matchRequest('n_turnOption', {isDouble: true}))
+                this.coordinator.holds.push(this.client.matchRequest('turnOption', {isDouble: true}))
             }
         })
 
@@ -67,7 +67,7 @@ class NetPlayer extends Base {
     }
 
     async turnOption(turn, game, match) {
-        const {isDouble} = await this.client.matchRequest('n_turnOption')
+        const {isDouble} = await this.client.matchRequest('turnOption')
         if (isDouble) {
             turn.setDoubleOffered()
         }

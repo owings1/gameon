@@ -259,7 +259,7 @@ class Server extends Logger {
 
                 break
 
-            case 'n_turnOption':
+            case 'turnOption':
 
                 if (thisTurn.color == color) {
                     if (req.isDouble) {
@@ -283,23 +283,6 @@ class Server extends Logger {
 
                 break
 
-            case 'turnOption':
-
-                if (thisTurn.color == color) {
-                    if (req.isDouble) {
-                        thisTurn.setDoubleOffered()
-                    } else {
-                        thisTurn.setRoll(this.roll())
-                    }
-                }
-
-                sync(() => {
-                    const isDouble = thisTurn.isDoubleOffered && !thisTurn.isRolled
-                    const {dice} = thisTurn
-                    reply({isDouble, dice})
-                })
-
-                break
 
             case 'doubleResponse':
 

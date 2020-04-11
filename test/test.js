@@ -2291,23 +2291,22 @@ describe('Server', () => {
 
         describe('turnOption', () => {
 
-            it('should return dice for isDouble=false', async () => {
+            it('should return isDouble for isDouble=false', async () => {
                 const game = server.matches[id].nextGame()
                 makeRandomMoves(game.firstTurn(), true)
                 game.nextTurn()
-                client2.sendAndWait({action: 'turnOption', color: Red, id})
+                client2.sendAndWait({action: 'turnOption', isDouble: false, color: Red, id})
                 const res = await client.sendAndWait({action: 'turnOption', color: White, id})
-                expect(res.dice).to.have.length(2)
+                expect(res.isDouble).to.equal(false)
             })
 
-            it('should return isDouble=true and not return dice for isDouble=true', async () => {
+            it('should return isDouble=true for isDouble=true', async () => {
                 const game = server.matches[id].nextGame()
                 game._rollFirst = () => [2, 1]
                 makeRandomMoves(game.firstTurn(), true)
                 game.nextTurn()
                 client2.sendAndWait({action: 'turnOption', color: Red, id, isDouble: true})
                 const res = await client.sendAndWait({action: 'turnOption', color: White, id})
-                expect(!!res.dice).to.equal(false)
                 expect(res.isDouble).to.equal(true)
             })
         })
