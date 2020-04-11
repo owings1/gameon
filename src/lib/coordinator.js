@@ -44,6 +44,7 @@ class Coordinator {
 
             if (game.canDouble(turn.color)) {
                 await players[turn.color].turnOption(turn, game, match)
+                await this.emitAll(players, 'afterOption', turn, game, match)
             }
             if (turn.isDoubleOffered) {
                 await this.emitAll(players, 'doubleOffered', turn, game, match)

@@ -20,7 +20,7 @@ test_dist:
   tags:
     - docker
   before_script:
-    - apk add git
+    - apk add git p7zip xz curl perl-utils
   script:
     - npm install
     - npm run-script dist
@@ -47,7 +47,7 @@ publish_s3:
   tags:
     - docker
   before_script:
-    - apk add git
+    - apk add git p7zip xz curl perl-utils
   script:
     - npm install
     - npm run-script dist_and_publish

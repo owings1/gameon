@@ -17,7 +17,6 @@ class NetPlayer extends Base {
             this.coordinator.holds.push(new Promise(async (resolve) => {
                 await this.client.matchRequest('nextGame')
                 const {dice} = await this.client.matchRequest('firstTurn')
-                this.logger.info({dice})
                 game._rollFirst = () => {
                     return dice
                 }
@@ -40,6 +39,12 @@ class NetPlayer extends Base {
 
         this.on('turnStart', (turn, game, match) => {
             this.coordinator.holds.push(this.client.matchRequest('nextTurn'))
+        })
+
+        this.on('afterOption', (turn, game, match) => {
+            if (turn.color != this.color && !turn.isDoubleOffered) {
+                this.coordinator.holds.push(this.client.matchRequest('turnOption'))
+            }
         })
 
         this.on('doubleOffered', (turn, game, match) => {

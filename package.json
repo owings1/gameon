@@ -43,14 +43,20 @@
     "/oclif.manifest.json",
     "/src"
   ],
+  "repository": "https://git.int.dougowings.net/owings/gameon.git",
+  "bin": {
+    "gameon": "./bin/run"
+  },
   "oclif": {
-    "commands": "./src/commands",
     "bin": "gameon",
     "plugins": [
       "@oclif/plugin-help",
       "@oclif/plugin-update"
     ],
-    "topics": {},
+    "hooks": {
+      "init": "./src/hooks/init",
+      "update": "./src/hooks/update"
+    },
     "update": {
       "s3": {
         "bucket": "gameon"
@@ -59,6 +65,9 @@
     "macos": {
       "identifier": "net.dougowings.gameon"
     }
+  },
+  "engines": {
+    "node": ">=8.0.0"
   },
   "author": "Doug Owings <doug@dougowings.net>"
 }
