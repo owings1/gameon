@@ -1379,7 +1379,7 @@ describe('Logger', () => {
     })
 })
 
-describe.skip('Menu', () => {
+describe('Menu', () => {
 
     const {Match} = Core
 
@@ -1461,7 +1461,8 @@ describe.skip('Menu', () => {
             await menu.mainMenu()
         })
 
-        it('should join online match with choice joinOnline for mock method', async () => {
+        // TODO: refactor
+        it.skip('should join online match with choice joinOnline for mock method', async () => {
             var id
             var serverUrl
             menu.newSocketPlayer = url => { 
@@ -1483,7 +1484,8 @@ describe.skip('Menu', () => {
             expect(serverUrl).to.equal('mockUrl')
         })
 
-        it('should log MatchNotFoundError and continue for joinOnline with mock method', async () => {
+        // TODO: refactor
+        it.skip('should log MatchNotFoundError and continue for joinOnline with mock method', async () => {
             const e = new Error
             e.name = 'MatchNotFoundError'
             menu.newSocketPlayer = () => { 
@@ -1507,6 +1509,7 @@ describe.skip('Menu', () => {
 
     describe('#matchMenu', () => {
 
+        
         it('should set match total to 5', async () => {
             menu.prompt = MockPrompter([
                 {matchChoice: 'total'},
@@ -1514,7 +1517,7 @@ describe.skip('Menu', () => {
                 {matchChoice: 'quit'}
             ])
             await menu.matchMenu()
-            expect(menu.matchOpts.total).to.equal(5)
+            expect(menu.opts.total).to.equal(5)
         })
 
         it('should invalidate total=-1', async () => {
@@ -1533,7 +1536,7 @@ describe.skip('Menu', () => {
                 {matchChoice: 'quit'}
             ])
             await menu.matchMenu()
-            expect(menu.matchOpts.isJacoby).to.equal(true)
+            expect(menu.opts.isJacoby).to.equal(true)
         })
 
         it('should set isCrawford to false', async () => {
@@ -1543,18 +1546,18 @@ describe.skip('Menu', () => {
                 {matchChoice: 'quit'}
             ])
             await menu.matchMenu()
-            expect(menu.matchOpts.isCrawford).to.equal(false)
+            expect(menu.opts.isCrawford).to.equal(false)
 
         })
 
-        it('should set serverUrl to matchOpts', async () => {
+        it('should set serverUrl to opts', async () => {
             menu.prompt = MockPrompter([
                 {matchChoice: 'serverUrl'},
                 {serverUrl: 'ws://localhost:8100'},
                 {matchChoice: 'quit'}
             ])
             await menu.matchMenu(true)
-            expect(menu.matchOpts.serverUrl).to.equal('ws://localhost:8100')
+            expect(menu.opts.serverUrl).to.equal('ws://localhost:8100')
         })
 
         it('should quit', async () => {
@@ -1564,7 +1567,8 @@ describe.skip('Menu', () => {
             await menu.matchMenu()
         })
 
-        it('should call play local match for choice start with mock method', async () => {
+        // TODO: refactor
+        it.skip('should call play local match for choice start with mock method', async () => {
             var match
             menu.newLocalPlayer = () => { return {playMatch : m => match = m}}
             menu.prompt = MockPrompter([
@@ -1575,15 +1579,16 @@ describe.skip('Menu', () => {
             expect(match instanceof Match).to.equal(true)
         })
 
-        it('should call play online match for choice start and isOnline with mock method', async () => {
-            var matchOpts
-            menu.newSocketPlayer = () => { return {startMatch : o => matchOpts = o, playMatch: () => {}}}
+        // TODO: refactor
+        it.skip('should call play online match for choice start and isOnline with mock method', async () => {
+            var opts
+            menu.newSocketPlayer = () => { return {startMatch : o => opts = o, playMatch: () => {}}}
             menu.prompt = MockPrompter([
                 {matchChoice: 'start'},
                 {matchChoice: 'quit'}
             ])
             await menu.matchMenu(true)
-            expect(typeof(matchOpts.total)).to.equal('number')
+            expect(typeof(opts.total)).to.equal('number')
         })
     })
 
