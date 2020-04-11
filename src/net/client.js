@@ -41,25 +41,19 @@ class Client extends Logger {
             this.socketClient.connect(this.serverUrl)
         })
 
-        await new Promise((resolve, reject) => {
-            this.conn.once('message', msg => {
-                msg = JSON.parse(msg.utf8Data)
-                if (msg.action == 'acknowledgeSecret') {
-                    this.info('Server handshake success')
-                    this.isHandshake = true
-                    resolve()
-                } else {
-                    reject(Client.buildServerError(msg, 'Unexpected handshake response'))
-                }
-            })
-            this.sendMessage({action: 'establishSecret', secret: this.secret})
-        })
+        await this.handshake()
     }
 
     async close() {
         if (this.conn) {
             this.conn.close()
         }
+    }
+
+    async handshake() {
+        await this.sendAndWaitForResponse({action: 'establishSecret'}, 'acknowledgeSecret')
+        this.info('Server handshake success')
+        this.isHandshake = true
     }
 
     async startMatch(opts) {
@@ -150,13 +144,11 @@ class Client extends Logger {
     }
 }
 
-
 class ClientError extends Error {
     constructor(...args) {
         super(...args)
         this.name = this.constructor.name
     }
 }
-
 
 module.exports = Client

@@ -19,7 +19,13 @@ class TermPlayer extends Base {
         this.on('gameStart', (game, match, players) => {
             this.isDualTerm = this.opponent.isTerm
         })
+        this.on('firstRoll', (turn, game, match) => {
+            this.infoOnce(turn.color, 'wins the first roll with', turn.dice.join())
+        })
         this.on('afterRoll', turn => {
+            if (turn.color != this.color && !this.isDualTerm) {
+                this.drawBoard()
+            }
             this.infoOnce(turn.color, 'rolls', turn.diceSorted.join())
         })
         this.on('turnStart', turn => {
@@ -91,7 +97,7 @@ class TermPlayer extends Base {
                 this.drawBoard()
                 var isFinish = await this.promptFinish()
                 if (isFinish) {
-                    this.drawBoard()
+                    //this.drawBoard()
                     break
                 }
                 turn.unmove()

@@ -13,7 +13,7 @@ const {White, Red, Match} = Core
 const inquirer  = require('inquirer')
 const sp        = Util.joinSpace
 
-const DefaultServerUrl = 'ws://localhost:8080'
+const DefaultServerUrl = 'ws://bg.dougowings.net:8080'
 
 class Menu extends Logger {
 
