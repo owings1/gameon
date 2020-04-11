@@ -4,10 +4,11 @@ const MonoPlayer = require('../player/mono-player')
 const DualPlayer = require('../player/dual-player')
 const Util       = require('../lib/util')
 
-const Coordinator = require('../lib/coordinator')
-const nClient     = require('../net/client')
-const NetPlayer   = require('../net/player')
-const TermPlayer  = require('./player')
+const Coordinator   = require('../lib/coordinator')
+const Client        = require('../net/client')
+const NetPlayer     = require('../net/player')
+const TermPlayer    = require('./player')
+const {RandomRobot} = require('../robot/player')
 
 const {White, Red, Match} = Core
 
@@ -20,7 +21,7 @@ class Menu extends Logger {
 
     constructor() {
         super()
-        this.matchOpts = this.getDefaultMatchOpts()
+        this.opts = this.getDefaultOpts()
     }
 
     async mainMenu() {
@@ -52,11 +53,11 @@ class Menu extends Logger {
 
     async matchMenu(isOnline, isRobot, isRobots) {
 
-        const {matchOpts} = this
+        const {opts} = this
 
         while (true) {
 
-            var matchChoices = this.getMatchChoices(matchOpts, isOnline, isRobot, isRobots)
+            var matchChoices = this.getMatchChoices(opts, isOnline, isRobot, isRobots)
 
             var answers = await this.prompt({
                 name    : 'matchChoice'
@@ -73,13 +74,13 @@ class Menu extends Logger {
 
             if (matchChoice == 'start') {
                 if (isOnline) {
-                    await this.startOnlineMatch(matchOpts)
+                    await this.startOnlineMatch(opts)
                 } else if (isRobot) {
-                    await this.playRobot(matchOpts)
+                    await this.playRobot(opts)
                 } else if (isRobots) {
-                    await this.playRobots(matchOpts)
+                    await this.playRobots(opts)
                 } else {
-                    await this.playLocalMatch(matchOpts)
+                    await this.playLocalMatch(opts)
                 }
                 continue
             }
@@ -88,75 +89,68 @@ class Menu extends Logger {
 
             answers = await this.prompt(question)
 
-            matchOpts[question.name] = answers[question.name]
-            matchOpts.total = +matchOpts.total
-            matchOpts.delay = +matchOpts.delay
+            opts[question.name] = answers[question.name]
+            opts.total = +opts.total
+            opts.delay = +opts.delay
         }
     }
 
     async joinMenu() {
-        const {matchOpts} = this
-        const questions = this.getJoinQuestions(matchOpts)
+        const {opts} = this
+        const questions = this.getJoinQuestions(opts)
         const answers = await this.prompt(questions)
         if (!answers.matchId || !answers.serverUrl) {
             return
         }
-        matchOpts.serverUrl = answers.serverUrl
-        matchOpts.matchId = answers.matchId
-        await this.joinOnlineMatch(matchOpts)
+        opts.serverUrl = answers.serverUrl
+        opts.matchId = answers.matchId
+        await this.joinOnlineMatch(opts)
     }
 
-    async playLocalMatch(matchOpts) {
-        //const player = this.newLocalPlayer()
-        //const match = new Match(matchOpts.total, matchOpts)
-        //await this.playMatch(player, match)
+    async playLocalMatch(opts) {
         const coordinator = new Coordinator
-        const match = new Match(matchOpts.total, matchOpts)
+        const match = new Match(opts.total, opts)
         await coordinator.runMatch(match, new TermPlayer(White), new TermPlayer(Red))
     }
 
-    async startOnlineMatch(matchOpts) {
-        //const player = this.newSocketPlayer(matchOpts.serverUrl)
-        //try {
-        //    var match = await player.startMatch(matchOpts)
-        //} catch (err) {
-        //    this.error(err)
-        //    return
-        //}
-        //await this.playMatch(player, match)
+    async startOnlineMatch(opts) {
         const coordinator = new Coordinator
-        const client = new nClient(matchOpts.serverUrl)
+        const client = new Client(opts.serverUrl)
         await client.connect()
-        const match = await client.startMatch(matchOpts)
-        await coordinator.runMatch(match, new TermPlayer(White), new NetPlayer(client, Red))
+        try {
+            const match = await client.startMatch(opts)
+            await coordinator.runMatch(match, new TermPlayer(White), new NetPlayer(client, Red))
+        } finally {
+            await client.close()
+        }
     }
 
-    async playRobot(matchOpts) {
-        const player = this.newVsRobotPlayer(matchOpts.delay)
-        const match = new Match(matchOpts.total, matchOpts)
-        await this.playMatch(player, match)
-    }
-
-    async playRobots(matchOpts) {
-        const player = this.newRobotsPlayer(matchOpts.delay)
-        const match = new Match(matchOpts.total, matchOpts)
-        await this.playMatch(player, match)
-    }
-
-    async joinOnlineMatch(matchOpts) {
-        //const player = this.newSocketPlayer(matchOpts.serverUrl)
-        //try {
-        //    var match = await player.joinMatch(matchOpts.matchId)
-        //} catch (err) {
-        //    this.error(err)
-        //    return
-        //}
-        //await this.playMatch(player, match)
+    async playRobot(opts) {
         const coordinator = new Coordinator
-        const client = new nClient(matchOpts.serverUrl)
+        const match = new Match(opts.total, opts)
+        const robot = new TermPlayer.Robot(new RandomRobot(Red), opts)
+        await coordinator.runMatch(match, new TermPlayer(White), robot)
+    }
+
+    async playRobots(opts) {
+        const coordinator = new Coordinator
+        const match = new Match(opts.total, opts)
+        const white = new TermPlayer.Robot(new RandomRobot(White), opts)
+        const red = new TermPlayer.Robot(new RandomRobot(Red), opts)
+        await coordinator.runMatch(match, white, red)
+    }
+
+    async joinOnlineMatch(opts) {
+        const coordinator = new Coordinator
+        const client = new Client(opts.serverUrl)
         await client.connect()
-        const match = await client.joinMatch(matchOpts.matchId)
-        await coordinator.runMatch(match, new NetPlayer(client, White), new TermPlayer(Red))
+        try {
+            const match = await client.joinMatch(opts.matchId)
+            await coordinator.runMatch(match, new NetPlayer(client, White), new TermPlayer(Red))
+        } finally {
+            await client.close()
+        }
+        
     }
 
     async playMatch(player, match) {
@@ -169,28 +163,12 @@ class Menu extends Logger {
         }
     }
 
-    newLocalPlayer() {
-        return new MonoPlayer.PromptPlayer
-    }
-
-    newSocketPlayer(serverUrl) {
-        return new MonoPlayer.SocketPlayer(serverUrl)
-    }
-
-    newRobotsPlayer(delay) {
-        return new MonoPlayer.RandomPlayer(delay)
-    }
-
-    newVsRobotPlayer(delay) {
-        return new DualPlayer(this.newLocalPlayer(), this.newRobotsPlayer(delay))
-    }
-
     prompt(questions) {
         this._prompt = inquirer.prompt(Util.castToArray(questions))
         return this._prompt
     }
 
-    getMatchChoices(matchOpts, isOnline, isRobots) {
+    getMatchChoices(opts, isOnline, isRobot, isRobots) {
         return Menu.formatChoices([
             {
                 value : 'start'
@@ -204,7 +182,7 @@ class Menu extends Logger {
                     name    : 'serverUrl'
                   , message : 'Server URL'
                   , type    : 'input'
-                  , default : () => matchOpts.serverUrl
+                  , default : () => opts.serverUrl
                 }
             }
           , {
@@ -214,7 +192,7 @@ class Menu extends Logger {
                     name     : 'total'
                   , message  : 'Match Total'
                   , type     : 'input'
-                  , default  : () => '' + matchOpts.total
+                  , default  : () => '' + opts.total
                   , validate : value => {
                         value = +value
                         return !isNaN(+value) && Number.isInteger(+value) && value > 0 || 'Please enter a number > 0'
@@ -228,7 +206,7 @@ class Menu extends Logger {
                     name    : 'isCrawford'
                   , message : 'Crawford Rule'
                   , type    : 'confirm'
-                  , default : () => matchOpts.isCrawford
+                  , default : () => opts.isCrawford
                 }
             }
           , {
@@ -238,18 +216,18 @@ class Menu extends Logger {
                     name    : 'isJacoby'
                   , message : 'Jacoby Rule'
                   , type    : 'confirm'
-                  , default : () => matchOpts.isJacoby
+                  , default : () => opts.isJacoby
                 }
             }
           , {
                 value : 'delay'
               , name  : 'Robot Delay'
-              , when  : () => isRobots
+              , when  : () => isRobot || isRobots
               , question : {
                     name     : 'delay'
                   , message  : 'Robot Delay (seconds)'
                   , type     : 'input'
-                  , default  : () => matchOpts.delay
+                  , default  : () => opts.delay
                   , validate : value => !isNaN(+value) && +value >= 0 || 'Please enter a number >= 0'
                 }
             }
@@ -289,7 +267,7 @@ class Menu extends Logger {
         ])
     }
 
-    getJoinQuestions(matchOpts) {
+    getJoinQuestions(opts) {
         return [
             {
                 name     : 'matchId'
@@ -301,12 +279,12 @@ class Menu extends Logger {
                 name    : 'serverUrl'
               , message : 'Server URL'
               , type    : 'input'
-              , default : () => matchOpts.serverUrl
+              , default : () => opts.serverUrl
             }
         ]
     }
 
-    getDefaultMatchOpts() {
+    getDefaultOpts() {
         return {
             total      : 1
           , isJacoby   : false

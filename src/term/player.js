@@ -5,14 +5,15 @@ const Logger = require('../lib/logger')
 const Util   = require('../lib/util')
 
 const inquirer = require('inquirer')
+const merge    = require('merge')
 
 const {White, Red} = Core
 const sp           = Util.joinSpace
 
 class TermPlayer extends Base {
 
-    constructor(...args) {
-        super(...args)
+    constructor(color) {
+        super(color)
         this.logger = new Logger
         this.isTerm = true
         this.on('gameStart', (game, match, players) => {
@@ -115,7 +116,7 @@ class TermPlayer extends Base {
         return sp(move.color, 'moves from', origin, 'to', dest)
     }
 
-    async drawBoard(isOnce) {
+    drawBoard(isOnce) {
 
         if (isOnce && this.isDualTerm && this.color == Red) {
             return
@@ -217,5 +218,51 @@ class TermPlayer extends Base {
         return this._prompt
     }
 }
+
+class TermRobot extends TermPlayer {
+
+    constructor(robot, opts) {
+        super(robot.color)
+        this.opts = merge({delay: 0.5}, opts)
+        this.isRobot = true
+        this.robot = robot
+    }
+
+    async playRoll(turn, game, match) {
+        this.thisMoves = await this.robot.getMoves(turn, game, match)
+        await super.playRoll(turn, game, match)
+    }
+
+    async promptTurnOption() {
+        return false
+    }
+
+    async promptDecideDouble() {
+        return true
+    }
+
+    async promptOrigin(origins) {
+        this.thisMove = this.thisMoves.shift()
+        await this.delay()
+        return this.thisMove.origin
+    }
+
+    async promptFace(faces) {
+        await this.delay()
+        return this.thisMove.face
+    }
+
+    async promptFinish() {
+        return true
+    }
+
+    async delay() {
+        if (this.opts.delay > 0) {
+            await new Promise(resolve => setTimeout(resolve, this.opts.delay * 1000))
+        }
+    }
+}
+
+TermPlayer.Robot = TermRobot
 
 module.exports = TermPlayer

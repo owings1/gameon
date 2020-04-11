@@ -27,8 +27,12 @@ class NetPlayer extends Base {
                 resolve()
             }))
         })
+
         this.on('turnEnd', (turn, game, match) => {
-            if (turn.color == this.opponent.color) {
+            if (game.checkFinished()) {
+                return
+            }
+            if (!turn.isDoubleDeclined && turn.color == this.opponent.color) {
                 const moves = turn.moves.map(move => move.coords())
                 this.coordinator.holds.push(this.client.matchRequest('n_playRoll', {moves}))
             }
@@ -36,6 +40,24 @@ class NetPlayer extends Base {
 
         this.on('turnStart', (turn, game, match) => {
             this.coordinator.holds.push(this.client.matchRequest('nextTurn'))
+        })
+
+        this.on('doubleOffered', (turn, game, match) => {
+            if (turn.color == this.opponent.color) {
+                this.coordinator.holds.push(this.client.matchRequest('n_turnOption', {isDouble: true}))
+            }
+        })
+
+        this.on('doubleAccepted', (turn, game, match) => {
+            if (turn.color == this.color) {
+                this.coordinator.holds.push(this.client.matchRequest('doubleResponse', {isAccept: true}))
+            }
+        })
+
+        this.on('doubleDeclined', (turn, game, match) => {
+            if (turn.color == this.color) {
+                this.coordinator.holds.push(this.client.matchRequest('doubleResponse', {isAccept: false}))
+            }
         })
     }
 
@@ -45,11 +67,17 @@ class NetPlayer extends Base {
     }
 
     async turnOption(turn, game, match) {
-        // to double, call turn.setDoubleOffered()
+        const {isDouble} = await this.client.matchRequest('n_turnOption')
+        if (isDouble) {
+            turn.setDoubleOffered()
+        }
     }
 
     async decideDouble(turn, game, match) {
-        // to decline, call turn.setDoubleDeclined()
+        const {isAccept} = await this.client.matchRequest('doubleResponse')
+        if (!isAccept) {
+            turn.setDoubleDeclined()
+        }
     }
 
     async playRoll(turn, game, match) {

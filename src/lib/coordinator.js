@@ -1,4 +1,5 @@
 const Core = require('../lib/core')
+const Logger = require('../lib/logger')
 
 const {White, Red, Opponent} = Core
 
@@ -6,6 +7,7 @@ class Coordinator {
 
     constructor() {
         this.holds = []
+        this.logger = new Logger
     }
 
     async runMatch(match, white, red) {
@@ -45,6 +47,7 @@ class Coordinator {
             }
             if (turn.isDoubleOffered) {
                 await this.emitAll(players, 'doubleOffered', turn, game, match)
+                this.logger.debug('decideDouble', turn.opponent)
                 await players[turn.opponent].decideDouble(turn, game, match)
             }
             if (turn.isDoubleDeclined) {

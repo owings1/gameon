@@ -151,7 +151,7 @@ class Game {
             throw new GameAlreadyStartedError('The game has already started')
         }
         do {
-            var dice = this._rollFirst()
+            var dice = [2, 1]//this._rollFirst()
         } while (dice[0] == dice[1])
         const firstColor = Dice.getWinner(dice)
         this.thisTurn = new Turn(this.board, firstColor)
@@ -287,7 +287,7 @@ class Turn {
         this.assertNotFinished()
         this.assertNotRolled()
 
-        this.dice = this._roll()
+        this.dice = [6, 1]//this._roll()
         this.diceSorted = this.dice.slice(0).sort(Util.sortNumericDesc)
         this.isRolled = true
 
@@ -327,6 +327,11 @@ class Turn {
     }
 
     move(origin, face) {
+        if (typeof(origin) == 'object') {
+            // allow a move or coords to be passed
+            face = origin.face
+            origin = origin.origin
+        }
         this.assertNotFinished()
         this.assertIsRolled()
         const nextMoves = this.getNextAvailableMoves()

@@ -259,6 +259,21 @@ class Server extends Logger {
 
                 break
 
+            case 'n_turnOption':
+
+                if (thisTurn.color == color) {
+                    if (req.isDouble) {
+                        thisTurn.setDoubleOffered()
+                    }
+                }
+
+                sync(() => {
+                    const isDouble = thisTurn.isDoubleOffered && !thisTurn.isRolled
+                    reply({isDouble})
+                })
+
+                break
+
             case 'movesFinished':
 
                 if (thisTurn.color == color) {

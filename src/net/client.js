@@ -88,10 +88,6 @@ class Client extends Logger {
         return this.match
     }
 
-
-
-
-
     async matchRequest(action, params) {
         const req = merge({}, this.matchParams(action), params)
         return await this.sendAndWaitForResponse(req, action)
@@ -137,6 +133,7 @@ class Client extends Logger {
 
     sendMessage(msg) {
         msg = merge({secret: this.secret}, msg)
+        this.debug('sendMessage', msg)
         this.conn.sendUTF(JSON.stringify(msg))
     }
 
