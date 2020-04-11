@@ -7,13 +7,38 @@ stages:
   - publish
 
 test:
+  stage: test
   tags:
     - docker
   script:
     - npm install
     - npm test
 
+test_dist:
+  stage: test
+  when: manual
+  tags:
+    - docker
+  script:
+    - npm install
+    - npm run-script dist
+
+test_docker:
+  stage: test
+  when: manual
+  tags:
+    - shell
+  before_script:
+    - export IMAGE_TAG=${HUB_IMAGE_BASE}:${CI_JOB_ID}
+    - docker login -u "$DOCKERHUB_USER" -p "$DOCKERHUB_PASS"
+  script:
+    - docker build -t "$IMAGE_TAG" .
+    - docker rmi "$IMAGE_TAG"
+  after_script:
+    - docker logout
+
 publish_s3:
+  stage: publish
   only:
     - tags
     - /^v[0-9]+[0-9.]+$/
@@ -24,12 +49,12 @@ publish_s3:
     - npm run-script dist_and_publish
 
 publish_docker:
+  stage: publish
   only:
     - tags
     - /^v[0-9]+[0-9.]+$/
   tags:
     - shell
-
   before_script:
     - export IMAGE_TAG=${HUB_IMAGE_BASE}:${CI_COMMIT_TAG:1}
     - docker login -u "$DOCKERHUB_USER" -p "$DOCKERHUB_PASS"
