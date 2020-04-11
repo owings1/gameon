@@ -19,6 +19,8 @@ test_dist:
   when: manual
   tags:
     - docker
+  before_script:
+    - apk add git
   script:
     - npm install
     - npm run-script dist
@@ -44,6 +46,8 @@ publish_s3:
     - /^v[0-9]+[0-9.]+$/
   tags:
     - docker
+  before_script:
+    - apk add git
   script:
     - npm install
     - npm run-script dist_and_publish
