@@ -1,7 +1,10 @@
 image: node:alpine
+variables:
+  HUB_IMAGE_BASE: owings1/gameon
 
 stages:
   - test
+  - publish
 
 test:
   tags:
@@ -9,3 +12,30 @@ test:
   script:
     - npm install
     - npm test
+
+publish_s3:
+  only:
+    - tags
+    - /^v[0-9]+[0-9.]+$/
+  tags:
+    - docker
+  script:
+    - npm install
+    - npm run-script dist_and_publish
+
+publish_docker:
+  only:
+    - tags
+    - /^v[0-9]+[0-9.]+$/
+  tags:
+    - shell
+
+  before_script:
+    - export IMAGE_TAG=${HUB_IMAGE_BASE}:${CI_COMMIT_TAG:1}
+    - docker login -u "$DOCKERHUB_USER" -p "$DOCKERHUB_PASS"
+  script:
+    - docker build -t "$IMAGE_TAG" .
+    - docker push "$IMAGE_TAG"
+    - docker rmi "$IMAGE_TAG"
+  after_script:
+    - docker logout
