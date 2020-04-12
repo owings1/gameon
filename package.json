@@ -1,6 +1,6 @@
 {
   "name": "gameon",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "backgammon",
   "main": "index.js",
   "scripts": {
@@ -48,6 +48,7 @@
     "gameon": "./bin/run"
   },
   "oclif": {
+    "commands": "./src/commands",
     "bin": "gameon",
     "plugins": [
       "@oclif/plugin-help",
