@@ -10,6 +10,10 @@ describe('Net', () => {
     require('./suites/net.test')
 })
 
+describe('Player', () => {
+    require('./suites/player.test')
+})
+
 describe('Term', () => {
     require('./suites/term.test')
 })
