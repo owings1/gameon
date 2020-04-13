@@ -1339,6 +1339,14 @@ describe('Util', () => {
             expect(JSON.stringify(result)).to.equal(JSON.stringify(exp))
         })
     })
+
+    describe('#uniqueStrings', () => {
+        it('should return [a, b] for [a, a, b]', () => {
+            const input = ['a', 'a', 'b']
+            const result = Util.uniqueStrings(input)
+            expect(JSON.stringify(result)).to.equal(JSON.stringify(['a', 'b']))
+        })
+    })
 })
 
 describe('Logger', () => {
@@ -1452,59 +1460,6 @@ describe('Menu', () => {
             expect(err.message).to.contain('Validation failed for matchId')
         })
 
-        it('should go back to main menu then quick when serverUrl is empty for joinOnline', async () => {
-            menu.prompt = MockPrompter([
-                {mainChoice: 'joinOnline'},
-                {matchId: '12345678', serverUrl: ''},
-                {mainChoice: 'quit'}
-            ])
-            await menu.mainMenu()
-        })
-
-        // TODO: refactor
-        it.skip('should join online match with choice joinOnline for mock method', async () => {
-            var id
-            var serverUrl
-            menu.newSocketPlayer = url => { 
-                return {
-                    joinMatch : i => {
-                        id = i
-                        serverUrl = url
-                    },
-                    playMatch: () => {}
-                }
-            }
-            menu.prompt = MockPrompter([
-                {mainChoice: 'joinOnline'},
-                {matchId: '12345678', serverUrl: 'mockUrl'},
-                {mainChoice: 'quit'}
-            ])
-            await menu.mainMenu()
-            expect(id).to.equal('12345678')
-            expect(serverUrl).to.equal('mockUrl')
-        })
-
-        // TODO: refactor
-        it.skip('should log MatchNotFoundError and continue for joinOnline with mock method', async () => {
-            const e = new Error
-            e.name = 'MatchNotFoundError'
-            menu.newSocketPlayer = () => { 
-                return {
-                    joinMatch : () => {
-                        throw e
-                    }
-                }
-            }
-            menu.prompt = MockPrompter([
-                {mainChoice: 'joinOnline'},
-                {matchId: '12345678', serverUrl: 'mockUrl'},
-                {mainChoice: 'quit'}
-            ])
-            var err
-            menu.error = er => err = er
-            await menu.mainMenu()
-            expect(err).to.equal(e)
-        })
     })
 
     describe('#matchMenu', () => {
@@ -1550,45 +1505,11 @@ describe('Menu', () => {
 
         })
 
-        it('should set serverUrl to opts', async () => {
-            menu.prompt = MockPrompter([
-                {matchChoice: 'serverUrl'},
-                {serverUrl: 'ws://localhost:8100'},
-                {matchChoice: 'quit'}
-            ])
-            await menu.matchMenu(true)
-            expect(menu.opts.serverUrl).to.equal('ws://localhost:8100')
-        })
-
         it('should quit', async () => {
             menu.prompt = MockPrompter([
                 {matchChoice: 'quit'}
             ])
             await menu.matchMenu()
-        })
-
-        // TODO: refactor
-        it.skip('should call play local match for choice start with mock method', async () => {
-            var match
-            menu.newLocalPlayer = () => { return {playMatch : m => match = m}}
-            menu.prompt = MockPrompter([
-                {matchChoice: 'start'},
-                {matchChoice: 'quit'}
-            ])
-            await menu.matchMenu()
-            expect(match instanceof Match).to.equal(true)
-        })
-
-        // TODO: refactor
-        it.skip('should call play online match for choice start and isOnline with mock method', async () => {
-            var opts
-            menu.newSocketPlayer = () => { return {startMatch : o => opts = o, playMatch: () => {}}}
-            menu.prompt = MockPrompter([
-                {matchChoice: 'start'},
-                {matchChoice: 'quit'}
-            ])
-            await menu.matchMenu(true)
-            expect(typeof(opts.total)).to.equal('number')
         })
     })
 
@@ -2064,9 +1985,9 @@ describe('Server', () => {
         await server.listen()
         const url = 'ws://localhost:' + server.port
         client = new Client(url)
-        client.loglevel = 1
+        client.logger.loglevel = 1
         client2 = new Client(url)
-        client2.loglevel = 1
+        client2.logger.loglevel = 1
     })
 
     afterEach(async () => {
