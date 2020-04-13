@@ -11,6 +11,8 @@ const {RandomRobot} = require('../robot/player')
 const {White, Red, Match} = Core
 
 const inquirer  = require('inquirer')
+const os        = require('os')
+const {resolve} = require('path')
 const sp        = Util.joinSpace
 
 const DefaultServerUrl = 'ws://bg.dougowings.net:8080'
@@ -33,6 +35,7 @@ class Menu extends Logger {
               , message : 'Select option'
               , type    : 'rawlist'
               , choices : mainChoices
+              , pageSize : 10
             })
 
             var {mainChoice} = answers
@@ -41,7 +44,9 @@ class Menu extends Logger {
                 break
             }
 
-            if (mainChoice == 'joinOnline') {
+            if (mainChoice == 'settings') {
+                await this.settingsMenu()
+            } else if (mainChoice == 'joinOnline') {
                 await this.joinMenu()
             } else {
                 await this.matchMenu(mainChoice == 'newOnline', mainChoice == 'playRobot', mainChoice == 'watchRobots')
@@ -93,26 +98,53 @@ class Menu extends Logger {
         }
     }
 
+    async settingsMenu() {
+
+        const {opts} = this
+
+        while (true) {
+
+            var settingsChoices = this.getSettingsChoices(opts)
+            var answers = await this.prompt([{
+                name    : 'settingChoice'
+              , message : 'Select Option'
+              , type    : 'rawlist'
+              , choices : settingsChoices
+            }])
+
+            var {settingChoice} = answers
+
+            if (settingChoice == 'done') {
+                break
+            }
+
+            var question = settingsChoices.find(choice => choice.value == settingChoice).question
+
+            answers = await this.prompt(question)
+
+            opts[question.name] = answers[question.name]
+        }
+    }
+
     async joinMenu() {
         const {opts} = this
         const questions = this.getJoinQuestions(opts)
         const answers = await this.prompt(questions)
-        if (!answers.matchId || !answers.serverUrl) {
+        if (!answers.matchId) {
             return
         }
-        opts.serverUrl = answers.serverUrl
         opts.matchId = answers.matchId
         await this.joinOnlineMatch(opts)
     }
 
     async playLocalMatch(opts) {
-        const coordinator = new Coordinator
+        const coordinator = new Coordinator(opts)
         const match = new Match(opts.total, opts)
         await coordinator.runMatch(match, new TermPlayer(White), new TermPlayer(Red))
     }
 
     async startOnlineMatch(opts) {
-        const coordinator = new Coordinator
+        const coordinator = new Coordinator(opts)
         const client = new Client(opts.serverUrl)
         await client.connect()
         try {
@@ -124,14 +156,14 @@ class Menu extends Logger {
     }
 
     async playRobot(opts) {
-        const coordinator = new Coordinator
+        const coordinator = new Coordinator(opts)
         const match = new Match(opts.total, opts)
         const robot = new TermPlayer.Robot(new RandomRobot(Red), opts)
         await coordinator.runMatch(match, new TermPlayer(White), robot)
     }
 
     async playRobots(opts) {
-        const coordinator = new Coordinator
+        const coordinator = new Coordinator(opts)
         const match = new Match(opts.total, opts)
         const white = new TermPlayer.Robot(new RandomRobot(White), opts)
         const red = new TermPlayer.Robot(new RandomRobot(Red), opts)
@@ -139,7 +171,7 @@ class Menu extends Logger {
     }
 
     async joinOnlineMatch(opts) {
-        const coordinator = new Coordinator
+        const coordinator = new Coordinator(opts)
         const client = new Client(opts.serverUrl)
         await client.connect()
         try {
@@ -171,17 +203,6 @@ class Menu extends Logger {
             {
                 value : 'start'
               , name  : 'Start Match'
-            }
-          , {
-                value : 'serverUrl'
-              , name  : 'Server URL'
-              , when  : () => isOnline
-              , question : {
-                    name    : 'serverUrl'
-                  , message : 'Server URL'
-                  , type    : 'input'
-                  , default : () => opts.serverUrl
-                }
             }
           , {
                 value : 'total'
@@ -259,8 +280,52 @@ class Menu extends Logger {
               , name  : 'Watch Robots Play'
             }
           , {
+                value : 'settings'
+              , name  : 'Settings'
+            }
+          , {
                 value : 'quit'
               , name  : 'Quit'
+            }
+        ])
+    }
+
+    getSettingsChoices(opts) {
+        return Menu.formatChoices([
+            {
+                value : 'done'
+              , name  : 'Done'
+            }
+          , {
+                value : 'serverUrl'
+              , name  : 'Server URL'
+              , question : {
+                    name    : 'serverUrl'
+                  , message : 'Server URL'
+                  , type    : 'input'
+                  , default : () => opts.serverUrl
+                }
+            }
+          , {
+                value    : 'isRecord'
+              , name     : 'Record Matches'
+              , question : {
+                    name    : 'isRecord'
+                  , message : 'Record Matches'
+                  , type    : 'confirm'
+                  , default : () => opts.isRecord
+                }
+            }
+          , {
+                value    : 'recordDir'
+              , name     : 'Record Dir'
+              , when     : () => opts.isRecord
+              , question : {
+                    name    : 'recordDir'
+                  , message : 'Record Dir'
+                  , type    : 'input'
+                  , default : () => opts.recordDir
+                }
             }
         ])
     }
@@ -273,12 +338,6 @@ class Menu extends Logger {
               , type     : 'input'
               , validate : value => value.length == 8 || 'Invalid match ID format'
             }
-          , {
-                name    : 'serverUrl'
-              , message : 'Server URL'
-              , type    : 'input'
-              , default : () => opts.serverUrl
-            }
         ]
     }
 
@@ -289,11 +348,17 @@ class Menu extends Logger {
           , isCrawford : true
           , delay      : 0.5
           , serverUrl  : this.getDefaultServerUrl()
+          , isRecord   : false
+          , recordDir  : this.getDefaultRecordDir()
         }
     }
 
     getDefaultServerUrl() {
         return DefaultServerUrl
+    }
+
+    getDefaultRecordDir() {
+        return resolve(os.homedir(), 'gameon')
     }
 
     static doMainIfEquals(lhs, rhs) {
