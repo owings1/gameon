@@ -1,7 +1,11 @@
 #!/usr/bin/env node
+if (process.argv.length > 2) {
+    require('@oclif/command').run()
+    .then(require('@oclif/command/flush'))
+    .catch(require('@oclif/errors/handle'))
+} else {
+    require('../src/commands/match').run()
+    .catch(require('@oclif/errors/handle'))
+}
 
-require('../src/commands/game').run()
-.catch(require('@oclif/errors/handle'))
-//require('@oclif/command').run()
-//.then(require('@oclif/command/flush'))
-//.catch(require('@oclif/errors/handle'))
+
