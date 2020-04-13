@@ -1,5 +1,6 @@
-const Core = require('../lib/core')
+const Core   = require('../lib/core')
 const Logger = require('../lib/logger')
+const Util   = require('../lib/util')
 
 const fse   = require('fs-extra')
 const merge = require('merge')
@@ -7,22 +8,24 @@ const path  = require('path')
 
 const {White, Red, Opponent} = Core
 
-const DefaultOpts = {
-    isRecord  : false
-  , recordDir : null
-}
-
 class Coordinator {
+
+    static defaults() {
+        return {
+            isRecord  : false
+          , recordDir : null
+        }
+    }
 
     constructor(opts) {
         this.holds = []
         this.logger = new Logger
-        this.opts = merge(DefaultOpts, opts)
+        this.opts = Util.defaults(Coordinator.defaults(), opts)
         if (this.opts.isRecord) {
             try {
                 this.opts.recordDir = path.resolve(this.opts.recordDir)
             } catch (err) {
-                throw new Error('invalid recordDir', err)
+                throw new InvalidDirError('invalid recordDir', err)
             }
         }
     }
@@ -66,7 +69,8 @@ class Coordinator {
         firstTurn.finish()
         await this.emitAll(players, 'turnEnd', firstTurn, game, match)
 
-        do {
+        while (!game.checkFinished()) {
+
             var turn = game.nextTurn()
             await this.emitAll(players, 'turnStart', turn, game, match)
 
@@ -94,7 +98,7 @@ class Coordinator {
             turn.finish()
             await this.emitAll(players, 'turnEnd', turn, game, match)
             
-        } while (!game.checkFinished())
+        }
 
         await this.emitAll(players, 'gameEnd', game, match)
     }
@@ -126,9 +130,14 @@ class Coordinator {
             it.coordinator = this
             it.emit(...args)
         })
-        await Promise.all(this.holds)
-        this.holds.splice(0)
+        await Promise.all(this.holds.splice(0))
     }
 }
 
+class InvalidDirError extends Error {
+    constructor(...args) {
+        super(...args)
+        this.name = 'InvalidDirError'
+    }
+}
 module.exports = Coordinator

@@ -2,6 +2,7 @@ const {expect} = require('@oclif/test')
 
 const Util = require('../src/lib/util')
 
+const tmp = require('tmp')
 
 const States = {
     Initial           : '0|0|2:White|0:|0:|0:|0:|5:Red|0:|3:Red|0:|0:|0:|5:White|5:Red|0:|0:|0:|3:White|0:|5:White|0:|0:|0:|0:|2:Red|0|0'
@@ -25,8 +26,11 @@ const States = {
     // should allow bearoff with the 5
  ,  RedBearoff51easy  : '0|0|0:|1:Red|1:Red|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0|14'
  ,  EitherOneMoveWin  : '0|0|1:Red|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|1:White|14|14'
+ ,  Either65Win       : '0|0|0:|0:|0:|0:|1:Red|1:Red|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|1:White|1:White|0:|0:|0:|0:|13|13'
  ,  RedWinWith66      : '0|0|2:White|0:|0:|0:|0:|4:Red|0:|0:|0:|0:|0:|5:White|0:|0:|0:|0:|3:White|0:|5:White|0:|0:|0:|0:|0:|0|11'
  ,  WhiteTakes61      : '0|0|2:White|0:|0:|0:|0:|5:Red|0:|3:Red|0:|0:|0:|4:White|5:Red|0:|0:|0:|2:White|2:White|5:White|0:|0:|0:|0:|2:Red|0|0'
+ ,  WhiteWin          : '0|0|1:Red|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|15|14'
+ ,  RedWin            : '0|0|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|1:White|14|15'
 }
 
 function requireSrc(p) {
@@ -47,6 +51,14 @@ async function getErrorAsync(cb) {
     } catch (err) {
         return err
     }
+}
+
+function tmpFile() {
+    return tmp.fileSync().name
+}
+
+function tmpDir() {
+    return tmp.dirSync().name
 }
 
 function randomElement(arr) {
@@ -164,6 +176,8 @@ module.exports = {
     makeRandomMoves,
     randomElement,
     requireSrc,
+    tmpDir,
+    tmpFile,
     MockPrompter,
     States
 }

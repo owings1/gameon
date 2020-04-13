@@ -1,3 +1,7 @@
+describe('Coordinator', () => {
+    require('./suites/coordinator.test')
+})
+
 describe('Core', () => {
     require('./suites/core.test')
 })
