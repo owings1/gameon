@@ -3,7 +3,6 @@ const uuid  = require('uuid')
 
 class Util {
 
-    // used with permission
     static castToArray(val) {
         if (Array.isArray(val)) {
             return val
