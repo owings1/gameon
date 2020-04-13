@@ -19,20 +19,7 @@ class Logger {
     }
 
     constructor() {
-        Logging(this, {
-            format: Logger.format
-        })
-        this.loglevel = Levels[process.env.LOG_LEVEL || 'info']
-        const oldError = this.error
-        this.error = (...args) => {
-            args = args.map(arg => {
-                if (arg instanceof Error) {
-                    return [arg.name || arg.constructor.name, arg.message].join(': ')
-                }
-                return arg
-            })
-            return oldError.call(this, ...args)
-        }
+        Logger.logify(this)
     }
 
     getStdout() {
