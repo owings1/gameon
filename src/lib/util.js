@@ -1,3 +1,6 @@
+const merge = require('merge')
+const uuid  = require('uuid')
+
 class Util {
 
     // used with permission
@@ -12,6 +15,10 @@ class Util {
         return arr
     }
 
+    static defaults(defaults, ...opts) {
+        return Util.propsFrom(Util.merge({}, defaults, ...opts), defaults)
+    }
+
     static intRange(a, b) {
         const range = []
         for (var i = a; i <= b; i++) {
@@ -22,6 +29,20 @@ class Util {
 
     static joinSpace(...args) {
         return args.join(' ')
+    }
+
+    static merge(...args) {
+        return merge(...args)
+    }
+
+    static propsFrom(obj, keys) {
+        keys = Array.isArray(keys) ? keys : Object.keys(keys)
+        obj = obj || {}
+        const ret = {}
+        for (var k of keys) {
+            ret[k] = obj[k]
+        }
+        return ret
     }
 
     static randomElement(arr) {
@@ -42,9 +63,21 @@ class Util {
     }
 
     static uniqueInts(arr) {
+        return Util.uniquePrimitives(arr).map(it => +it)
+    }
+
+    static uniqueStrings(arr) {
+        return Util.uniquePrimitives(arr).map(it => '' + it)
+    }
+
+    static uniquePrimitives(arr) {
         const map = {}
         arr.forEach(it => map[it] = true)
-        return Object.keys(map).map(it => +it)
+        return Object.keys(map)
+    }
+
+    static uuid() {
+        return uuid.v4()
     }
 }
 
