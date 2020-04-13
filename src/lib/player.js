@@ -13,6 +13,7 @@ class Player extends EventEmitter {
         this.on('matchStart', match => this.thisMatch = match)
         this.on('gameStart', (game, match, players) => {
             this.thisGame = game
+            this.opponent = players[Opponent[this.color]]
         })
     }
 

@@ -41,7 +41,6 @@ class Coordinator {
             await this.emitAll(players, 'beforeNextGame', match, players)
             await this.runGame(players, match.nextGame(), match)
             if (this.opts.isRecord) {
-                this.logger.info('foooo')
                 var gameFile = path.resolve(matchDir, ['game', match.games.length].join('_') + '.json')
                 await this.recordGame(match.thisGame, gameFile, players)
             }
@@ -50,15 +49,13 @@ class Coordinator {
 
         await this.emitAll(players, 'matchEnd', match)
         if (this.opts.isRecord) {
-            this.logger.info('barrrr')
             const matchFile = path.resolve(matchDir, 'match.json')
             await this.recordMatch(match, matchFile, players)
         }
     }
 
     async runGame(players, game, match) {
-        players.White.opponent = players.Red
-        players.Red.opponent = players.White
+
         await this.emitAll(players, 'gameStart', game, match, players)
 
         const firstTurn = game.firstTurn()
