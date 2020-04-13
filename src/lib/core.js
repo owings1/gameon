@@ -1,10 +1,10 @@
 const Util   = require('./util')
-const merge  = require('merge')
 
 const {intRange} = Util
 
 const White = 'White'
 const Red   = 'Red'
+
 const ColorAbbr = {
     White : 'W'
   , Red   : 'R'
