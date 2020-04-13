@@ -524,6 +524,7 @@ class Turn {
           , isForceMove      : this.isForceMove
           , isCantMove       : this.isCantMove
           , isFirstTurn      : this.isFirstTurn
+          , isFinished       : this.isFinished
           , allowedEndStates : this.allowedEndStates
           , moves            : this.moves.map(move => move.coords())
         }
@@ -706,8 +707,19 @@ class Board {
         ]).join('|')
     }
 
+    originForColorPoint(color, point) {
+        return Board.originForColorPoint(color, point)
+    }
+
     toString() {
         return this.stateString()
+    }
+
+    static originForColorPoint(color, point) {
+        if (color == Red) {
+            return point - 1
+        }
+        return 24 - point
     }
 
     static fromStateString(str) {
