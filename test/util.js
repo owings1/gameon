@@ -29,6 +29,10 @@ const States = {
  ,  WhiteTakes61      : '0|0|2:White|0:|0:|0:|0:|5:Red|0:|3:Red|0:|0:|0:|4:White|5:Red|0:|0:|0:|2:White|2:White|5:White|0:|0:|0:|0:|2:Red|0|0'
 }
 
+function requireSrc(p) {
+    return require('../src/' + p)
+}
+
 function getError(cb) {
     try {
         cb()
@@ -159,6 +163,7 @@ module.exports = {
     getErrorAsync,
     makeRandomMoves,
     randomElement,
+    requireSrc,
     MockPrompter,
     States
 }
