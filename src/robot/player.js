@@ -21,6 +21,10 @@ class Robot extends Base {
     async getMoves(turn, game, match) {
         throw new Error('NotImplemented')
     }
+
+    meta() {
+        return merge({isRobot: this.isRobot, opts: this.opts}, super.meta())
+    }
 }
 
 class RandomRobot extends Robot {

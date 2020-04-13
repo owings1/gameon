@@ -267,6 +267,10 @@ class TermRobot extends TermPlayer {
             await new Promise(resolve => setTimeout(resolve, this.opts.delay * 1000))
         }
     }
+
+    meta() {
+        return this.robot.meta()
+    }
 }
 
 TermPlayer.Robot = TermRobot
