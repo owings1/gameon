@@ -140,7 +140,15 @@ class Menu extends Logger {
     async playLocalMatch(opts) {
         const coordinator = new Coordinator(opts)
         const match = new Match(opts.total, opts)
-        await coordinator.runMatch(match, new TermPlayer(White), new TermPlayer(Red))
+        const players = {
+            White : new TermPlayer(White)
+          , Red   : new TermPlayer(Red)
+        }
+        try {
+            await coordinator.runMatch(match, players.White, players.Red)
+        } finally {
+            await Promise.all(Object.values(players).map(player => player.destroy()))
+        }
     }
 
     async startOnlineMatch(opts) {
@@ -149,25 +157,18 @@ class Menu extends Logger {
         await client.connect()
         try {
             const match = await client.startMatch(opts)
-            await coordinator.runMatch(match, new TermPlayer(White), new NetPlayer(client, Red))
+            const players = {
+                White : new TermPlayer(White)
+              , Red   : new NetPlayer(client, Red)
+            }
+            try {
+                await coordinator.runMatch(match, players.White, players.Red)
+            } finally {
+                await Promise.all(Object.values(players).map(player => player.destroy()))
+            }
         } finally {
             await client.close()
         }
-    }
-
-    async playRobot(opts) {
-        const coordinator = new Coordinator(opts)
-        const match = new Match(opts.total, opts)
-        const robot = new TermPlayer.Robot(new RandomRobot(Red), opts)
-        await coordinator.runMatch(match, new TermPlayer(White), robot)
-    }
-
-    async playRobots(opts) {
-        const coordinator = new Coordinator(opts)
-        const match = new Match(opts.total, opts)
-        const white = new TermPlayer.Robot(new RandomRobot(White), opts)
-        const red = new TermPlayer.Robot(new RandomRobot(Red), opts)
-        await coordinator.runMatch(match, white, red)
     }
 
     async joinOnlineMatch(opts) {
@@ -176,20 +177,45 @@ class Menu extends Logger {
         await client.connect()
         try {
             const match = await client.joinMatch(opts.matchId)
-            await coordinator.runMatch(match, new NetPlayer(client, White), new TermPlayer(Red))
+            const players = {
+                White : new NetPlayer(client, White)
+              , Red   : new TermPlayer(Red)
+            }
+            try {
+                await coordinator.runMatch(match, players.White, players.Red)
+            } finally {
+                await Promise.all(Object.values(players).map(player => player.destroy()))
+            }
         } finally {
             await client.close()
         }
-        
     }
 
-    async playMatch(player, match) {
+    async playRobot(opts) {
+        const coordinator = new Coordinator(opts)
+        const match = new Match(opts.total, opts)
+        const players = {
+            White : new TermPlayer(White)
+          , Red   : new TermPlayer.Robot(new RandomRobot(Red), opts)
+        }
         try {
-            await player.playMatch(match)
-        } catch (err) {
-            this.error(err)
-            this.warn('An error occurred, the match is canceled')
-            await player.abortMatch()
+            await coordinator.runMatch(match, players.White, players.Red)
+        } finally {
+            await Promise.all(Object.values(players).map(player => player.destroy()))
+        }
+    }
+
+    async playRobots(opts) {
+        const coordinator = new Coordinator(opts)
+        const match = new Match(opts.total, opts)
+        const players = {
+            White : new TermPlayer.Robot(new RandomRobot(White), opts)
+          , Red   : new TermPlayer.Robot(new RandomRobot(Red), opts)
+        }
+        try {
+            await coordinator.runMatch(match, players.White, players.Red)
+        } finally {
+            await Promise.all(Object.values(players).map(player => player.destroy()))
         }
     }
 
