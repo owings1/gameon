@@ -1,9 +1,7 @@
-const Logger = require('./logger')
 const Util   = require('./util')
 const merge  = require('merge')
 
 const {intRange} = Util
-const sp         = Util.joinSpace
 
 const White = 'White'
 const Red   = 'Red'
@@ -32,25 +30,22 @@ const Opponent = {
   , Red   : White
 }
 
-const Defaults = {
-    Match : {
-        isCrawford : true
-      , isJacoby   : false
-    }
-  , Game : {
-        isCrawford : false
-      , isJacoby   : false
-    }
-}
-
 class Match {
+
+    static defaults() {
+        return {
+            isCrawford : true
+          , isJacoby   : false
+        }
+    }
 
     constructor(total, opts) {
         if (!Number.isInteger(total) || total < 1) {
             throw new ArgumentError('total must be integer > 0')
         }
+        this.uuid = Util.uuid()
         this.total = total
-        this.opts = merge({}, Defaults.Match, opts)
+        this.opts = Util.defaults(Match.defaults(), opts)
         this.games = []
         this.scores = {
             Red   : 0
@@ -58,6 +53,7 @@ class Match {
         }
         this.thisGame = null
         this.winner = null
+        this.isFinished = false
     }
 
     nextGame() {
@@ -71,7 +67,7 @@ class Match {
                            undefined != Object.entries(this.scores).find(([color, score]) =>
                                score + 1 == this.total
                            )
-        const opts = merge({}, this.opts, {isCrawford})
+        const opts = Util.merge({}, this.opts, {isCrawford})
         this.thisGame = new Game(opts)
         this.games.push(this.thisGame)
         return this.thisGame
@@ -92,6 +88,15 @@ class Match {
         }
     }
 
+    checkFinished() {
+        if (this.isFinished) {
+            return true
+        }
+        this.updateScore()
+        this.isFinished = this.hasWinner()
+        return this.isFinished
+    }
+
     hasWinner() {
         return this.getWinner() != null
     }
@@ -107,12 +112,31 @@ class Match {
         }
         return null
     }
+
+    meta() {
+        return {
+            uuid      : this.uuid
+          , total     : this.total
+          , scores    : this.scores
+          , winner    : this.getWinner()
+          , loser     : this.getLoser()
+          , gameCount : this.games.length
+        }
+    }
 }
 
 class Game {
 
+    static defaults() {
+        return {
+            isCrawford : false
+          , isJacoby   : false
+        }
+    }
+
     constructor(opts) {
-        this.opts = merge({}, Defaults.Game, opts)
+        this.uuid = Util.uuid()
+        this.opts = Util.defaults(Game.defaults(), opts)
         this.board = Board.setup()
         this.cubeOwner = null
         this.cubeValue = 1
@@ -122,6 +146,7 @@ class Game {
         this.isPass = false
         this.endState = null
         this.finalValue = null
+        this.turns = []
     }
 
     canDouble(color) {
@@ -156,6 +181,8 @@ class Game {
         const firstColor = Dice.getWinner(dice)
         this.thisTurn = new Turn(this.board, firstColor)
         this.thisTurn.setRoll(dice)
+        this.thisTurn.isFirstTurn = true
+        this.turns.push(this.thisTurn)
         return this.thisTurn
     }
 
@@ -167,13 +194,13 @@ class Game {
             throw new GameNotStartedError('The game has not started')
         }
         if (!this.thisTurn.isFinished) {
-            throw new TurnNotFinishedError(sp(this.thisTurn.color, 'has not finished the current turn'))
+            throw new TurnNotFinishedError([this.thisTurn.color, 'has not finished the current turn'])
         }
         if (this.checkFinished()) {
             return null
         }
         this.thisTurn = new Turn(this.board, Opponent[this.thisTurn.color])
-        this.thisTurn.isFirstTurn = true
+        this.turns.push(this.thisTurn)
         return this.thisTurn
     }
 
@@ -185,6 +212,11 @@ class Game {
     getWinner() {
         this.checkFinished()
         return this.winner
+    }
+
+    getLoser() {
+        const winner = this.getWinner()
+        return winner ? Opponent[winner] : null
     }
 
     checkFinished() {
@@ -221,6 +253,21 @@ class Game {
             this.endState = this.board.stateString()
         }
         return this.isFinished
+    }
+
+    meta() {
+        return {
+            uuid       : this.uuid
+          , winner     : this.getWinner()
+          , loser      : this.getLoser()
+          , finalValue : this.finalValue
+          , cubeValue  : this.cubeValue
+          , opts       : this.opts
+          , isPass     : this.isPass
+          , endState   : this.endState
+          , turnCount  : this.turns.length
+          , turns      : this.turns.map(turn => turn.meta())
+        }
     }
 
     // allow override for testing
@@ -261,7 +308,7 @@ class Turn {
 
         this.assertNotFinished()
         if (!this.isDoubleOffered) {
-            throw new HasNotDoubledError(sp(this.color, 'has not doubled'))
+            throw new HasNotDoubledError([this.color, 'has not doubled'])
         }
 
         this.isDoubleDeclined = true
@@ -336,13 +383,13 @@ class Turn {
         this.assertIsRolled()
         const nextMoves = this.getNextAvailableMoves()
         if (nextMoves.length == 0) {
-            throw new NoMovesRemainingError(sp(this.color, 'has no more moves to do'))
+            throw new NoMovesRemainingError([this.color, 'has no more moves to do'])
         }
         const matchingMove = nextMoves.find(move => move.origin == origin && move.face == face)
         if (!matchingMove) {
             // this will throw a more specific error
             this.board.buildMove(this.color, origin, face)
-            throw new IllegalMoveError(sp('move not available for', this.color))
+            throw new IllegalMoveError(['move not available for', this.color])
         }
         const move = this.board.move(this.color, origin, face)
         this.moves.push(move)
@@ -354,7 +401,7 @@ class Turn {
     unmove() {
         this.assertNotFinished()
         if (this.moves.length == 0) {
-            throw new NoMovesMadeError(sp(this.color, 'has no moves to undo'))
+            throw new NoMovesMadeError([this.color, 'has no moves to undo'])
         }
         const move = this.moves.pop()
         move.undo()
@@ -372,7 +419,7 @@ class Turn {
             if (!isAllMoved) {
                 const isWin = this.board.hasWinner() && this.board.getWinner() == this.color
                 if (!isWin) {
-                    throw new MovesRemainingError(sp(this.color, 'has more moves to do'))
+                    throw new MovesRemainingError([this.color, 'has more moves to do'])
                 }
             }
         }
@@ -382,19 +429,19 @@ class Turn {
 
     assertNotFinished() {
         if (this.isFinished) {
-            throw new TurnAlreadyFinishedError(sp('turn is already finished for', this.color))
+            throw new TurnAlreadyFinishedError(['turn is already finished for', this.color])
         }
     }
 
     assertIsRolled() {
         if (!this.isRolled) {
-            throw new HasNotRolledError(sp(this.color, 'has not rolled'))
+            throw new HasNotRolledError([this.color, 'has not rolled'])
         }
     }
 
     assertNotRolled() {
         if (this.isRolled) {
-            throw new AlreadyRolledError(sp(this.color, 'has already rolled'))
+            throw new AlreadyRolledError([this.color, 'has already rolled'])
         }
     }
 
@@ -445,11 +492,9 @@ class Turn {
         const dedupSeries = Object.values(seriesMap)
 
         // end states
-        const endStatesMap = {}
-        allowedBranches.forEach(branch =>
-            endStatesMap[branch[branch.length - 1].board.stateString()] = true
-        )
-        const allowedEndStates = Object.keys(endStatesMap)
+        const allowedEndStates = Util.uniqueStrings(allowedBranches.map(branch =>
+            branch[branch.length - 1].board.stateString()
+        ))
 
         const maximalAllowedFaces = Math.max(...dedupSeries.map(allowedMoves => allowedMoves.length))
         
@@ -464,6 +509,23 @@ class Turn {
           , isCantMove        : maxDepth == 0
           , allowedFaces
           , allowedEndStates
+        }
+    }
+
+    meta() {
+        return {
+            color            : this.color
+          , dice             : this.dice
+          , diceSorted       : this.diceSorted
+          , startState       : this.startState
+          , endState         : this.endState
+          , isDoubleOffered  : this.isDoubleOffered
+          , isDoubleDeclined : this.isDoubleDeclined
+          , isForceMove      : this.isForceMove
+          , isCantMove       : this.isCantMove
+          , isFirstTurn      : this.isFirstTurn
+          , allowedEndStates : this.allowedEndStates
+          , moves            : this.moves.map(move => move.coords())
         }
     }
 
@@ -517,11 +579,11 @@ class Board {
             return new ComeInMove(this, color, face)
         }
         if (this.hasBar(color)) {
-            throw new PieceOnBarError(sp(color, 'has a piece on the bar'))
+            throw new PieceOnBarError([color, 'has a piece on the bar'])
         }
         const slot = this.slots[origin]
         if (slot.length < 1 || slot[0].color != color) {
-            throw new NoPieceOnSlotError(sp(color, 'does not have a piece on slot', origin + 1))
+            throw new NoPieceOnSlotError([color, 'does not have a piece on slot', origin + 1])
         }
         const dest = origin + face * Direction[color]
         const isBearoff = dest < 0 || dest > 23
@@ -775,12 +837,12 @@ class ComeInMove extends Move {
     constructor(board, color, face) {
 
         if (!board.hasBar(color)) {
-            throw new NoPieceOnBarError(sp(color, 'does not have a piece on the bar'))
+            throw new NoPieceOnBarError([color, 'does not have a piece on the bar'])
         }
         const dest = Direction[color] == 1 ? face - 1 : 24 - face
         const destSlot = board.slots[dest]
         if (destSlot.length > 1 && destSlot[0].color != color) {
-            throw new OccupiedSlotError(sp(color, 'cannot come in on space', dest + 1))
+            throw new OccupiedSlotError([color, 'cannot come in on space', dest + 1])
         }
 
         super(board, color, -1, face)
@@ -818,7 +880,7 @@ class RegularMove extends Move {
         const destSlot = board.slots[dest]
 
         if (destSlot.length > 1 && destSlot[0].color != color) {
-            throw new OccupiedSlotError(sp(color, 'may not occupy space', dest + 1))
+            throw new OccupiedSlotError([color, 'may not occupy space', dest + 1])
         }
 
         super(board, color, origin, face)
@@ -849,13 +911,13 @@ class BearoffMove extends Move {
     constructor(board, color, origin, face) {
 
         if (!board.mayBearoff(color)) {
-            throw new MayNotBearoffError(sp(color, 'may not bare off'))
+            throw new MayNotBearoffError([color, 'may not bare off'])
         }
         // get distance to home
         const homeDistance = Direction[color] == 1 ? 24 - origin : origin + 1
         // make sure no piece is behind
         if (face > homeDistance && board.hasPieceBehind(color, origin)) {
-            throw new IllegalBareoffError(sp('cannot bear off with a piece behind'))
+            throw new IllegalBareoffError(['cannot bear off with a piece behind'])
         }
 
         super(board, color, origin, face)
@@ -952,8 +1014,11 @@ class Dice {
 
 class GameError extends Error {
 
-    constructor(...args) {
-        super(...args)
+    constructor(message, ...args) {
+        if (Array.isArray(message)) {
+            message = Util.joinSpace(...message)
+        }
+        super(message, ...args)
         this.name = this.constructor.name
         this.isGameError = true
     }
