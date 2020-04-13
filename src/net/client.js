@@ -3,16 +3,16 @@ const Logger          = require('../lib/logger')
 const Util            = require('../lib/util')
 const WebSocketClient = require('websocket').client
 
+const {merge} = Util
+
 const crypto = require('crypto')
-const merge  = require('merge')
-const uuid   = require('uuid')
 
 const {White, Red, Match} = Core
 
-class Client extends Logger {
+class Client {
 
     constructor(serverUrl) {
-        super()
+        this.logger = new Logger
         this.serverUrl = serverUrl
         this.socketClient = new WebSocketClient
         this.conn = null
@@ -52,7 +52,7 @@ class Client extends Logger {
 
     async handshake() {
         await this.sendAndWaitForResponse({action: 'establishSecret'}, 'acknowledgeSecret')
-        this.info('Server handshake success')
+        this.logger.info('Server handshake success')
         this.isHandshake = true
     }
 
@@ -60,11 +60,11 @@ class Client extends Logger {
         const {total} = opts
         await this.connect()
         const {id} = await this.sendAndWaitForResponse({action: 'startMatch', total, opts}, 'matchCreated')
-        this.info('Started new match', id)
-        this.info('Waiting for opponent to join')
+        this.logger.info('Started new match', id)
+        this.logger.info('Waiting for opponent to join')
         await this.waitForResponse('opponentJoined')
         this.matchId = id
-        this.info('Opponent joined', id)
+        this.logger.info('Opponent joined', id)
         this.match = new Match(total, opts)
         this.color = White
         return this.match
@@ -72,11 +72,11 @@ class Client extends Logger {
 
     async joinMatch(id) {
         await this.connect()
-        this.info('Joining match', id)
+        this.logger.info('Joining match', id)
         const res = await this.sendAndWaitForResponse({action: 'joinMatch', id}, 'matchJoined')
         this.matchId = res.id
         const {total, opts} = res
-        this.info('Joined match', res.id, 'to', total, 'points')
+        this.logger.info('Joined match', res.id, 'to', total, 'points')
         this.match = new Match(total, opts)
         this.color = Red
         return this.match
@@ -127,12 +127,12 @@ class Client extends Logger {
 
     sendMessage(msg) {
         msg = merge({secret: this.secret}, msg)
-        this.debug('sendMessage', msg)
+        this.logger.debug('sendMessage', msg)
         this.conn.sendUTF(JSON.stringify(msg))
     }
 
     static generateSecret() {
-        return crypto.createHash('sha256').update(uuid.v4()).digest('hex')
+        return crypto.createHash('sha256').update(Util.uuid()).digest('hex')
     }
 
     static buildServerError(msg, fallbackMessage) {
