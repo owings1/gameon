@@ -94,7 +94,6 @@ class Menu extends Logger {
 
             opts[question.name] = answers[question.name]
             opts.total = +opts.total
-            opts.delay = +opts.delay
         }
     }
 
@@ -123,6 +122,7 @@ class Menu extends Logger {
             answers = await this.prompt(question)
 
             opts[question.name] = answers[question.name]
+            opts.delay = +opts.delay
         }
     }
 
@@ -138,7 +138,7 @@ class Menu extends Logger {
     }
 
     async playLocalMatch(opts) {
-        const coordinator = new Coordinator(opts)
+        const coordinator = this.newCoordinator(opts)
         const match = new Match(opts.total, opts)
         const players = {
             White : new TermPlayer(White)
@@ -152,8 +152,8 @@ class Menu extends Logger {
     }
 
     async startOnlineMatch(opts) {
-        const coordinator = new Coordinator(opts)
-        const client = new Client(opts.serverUrl)
+        const coordinator = this.newCoordinator(opts)
+        const client = this.newClient(opts.serverUrl)
         await client.connect()
         try {
             const match = await client.startMatch(opts)
@@ -172,8 +172,8 @@ class Menu extends Logger {
     }
 
     async joinOnlineMatch(opts) {
-        const coordinator = new Coordinator(opts)
-        const client = new Client(opts.serverUrl)
+        const coordinator = this.newCoordinator(opts)
+        const client = this.newClient(opts.serverUrl)
         await client.connect()
         try {
             const match = await client.joinMatch(opts.matchId)
@@ -192,7 +192,7 @@ class Menu extends Logger {
     }
 
     async playRobot(opts) {
-        const coordinator = new Coordinator(opts)
+        const coordinator = this.newCoordinator(opts)
         const match = new Match(opts.total, opts)
         const players = {
             White : new TermPlayer(White)
@@ -206,7 +206,7 @@ class Menu extends Logger {
     }
 
     async playRobots(opts) {
-        const coordinator = new Coordinator(opts)
+        const coordinator = this.newCoordinator(opts)
         const match = new Match(opts.total, opts)
         const players = {
             White : new TermPlayer.Robot(new RandomRobot(White), opts)
@@ -217,11 +217,6 @@ class Menu extends Logger {
         } finally {
             await Promise.all(Object.values(players).map(player => player.destroy()))
         }
-    }
-
-    prompt(questions) {
-        this._prompt = inquirer.prompt(Util.castToArray(questions))
-        return this._prompt
     }
 
     getMatchChoices(opts, isOnline, isRobot, isRobots) {
@@ -262,18 +257,6 @@ class Menu extends Logger {
                   , message : 'Jacoby Rule'
                   , type    : 'confirm'
                   , default : () => opts.isJacoby
-                }
-            }
-          , {
-                value : 'delay'
-              , name  : 'Robot Delay'
-              , when  : () => isRobot || isRobots
-              , question : {
-                    name     : 'delay'
-                  , message  : 'Robot Delay (seconds)'
-                  , type     : 'input'
-                  , default  : () => opts.delay
-                  , validate : value => !isNaN(+value) && +value >= 0 || 'Please enter a number >= 0'
                 }
             }
           , {
@@ -353,6 +336,17 @@ class Menu extends Logger {
                   , default : () => opts.recordDir
                 }
             }
+          , {
+                value : 'delay'
+              , name  : 'Robot Delay'
+              , question : {
+                    name     : 'delay'
+                  , message  : 'Robot Delay (seconds)'
+                  , type     : 'input'
+                  , default  : () => opts.delay
+                  , validate : value => !isNaN(+value) && +value >= 0 || 'Please enter a number >= 0'
+                }
+            }
         ])
     }
 
@@ -362,7 +356,7 @@ class Menu extends Logger {
                 name     : 'matchId'
               , message  : 'Match ID'
               , type     : 'input'
-              , validate : value => value.length == 8 || 'Invalid match ID format'
+              , validate : value => !value || value.length == 8 || 'Invalid match ID format'
             }
         ]
     }
@@ -385,6 +379,19 @@ class Menu extends Logger {
 
     getDefaultRecordDir() {
         return resolve(os.homedir(), 'gameon')
+    }
+
+    newCoordinator(opts) {
+        return new Coordinator(opts)
+    }
+
+    newClient(serverUrl) {
+        return new Client(serverUrl)
+    }
+
+    prompt(questions) {
+        this._prompt = inquirer.prompt(Util.castToArray(questions))
+        return this._prompt
     }
 
     static doMainIfEquals(lhs, rhs) {

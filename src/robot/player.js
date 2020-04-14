@@ -1,7 +1,7 @@
 const Base   = require('../lib/player')
 const Util   = require('../lib/util')
 
-const merge = require('merge')
+const {merge} = Util
 
 class Robot extends Base {
 

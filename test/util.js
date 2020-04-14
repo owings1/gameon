@@ -37,6 +37,10 @@ function requireSrc(p) {
     return require('../src/' + p)
 }
 
+function noop() {
+
+}
+
 function getError(cb) {
     try {
         cb()
@@ -178,6 +182,7 @@ module.exports = {
     requireSrc,
     tmpDir,
     tmpFile,
+    noop,
     MockPrompter,
     States
 }

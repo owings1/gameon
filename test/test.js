@@ -18,6 +18,10 @@ describe('Player', () => {
     require('./suites/player.test')
 })
 
+describe('Robot', () => {
+    require('./suites/robot.test')
+})
+
 describe('Term', () => {
     require('./suites/term.test')
 })

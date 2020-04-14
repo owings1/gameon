@@ -7,6 +7,7 @@ const {
     randomElement,
     requireSrc,
     MockPrompter,
+    noop,
     States
 } = TestUtil
 
@@ -107,6 +108,40 @@ describe('Menu', () => {
         })
     })
 
+    describe('#joinMenu', () => {
+
+        it('should go to joinOnlineMatch for matchId with mock method', async () => {
+            var isCalled = false
+            menu.prompt = MockPrompter([
+                {matchId: '12345678'}
+            ])
+            menu.joinOnlineMatch = () => isCalled = true
+            await menu.joinMenu()
+            expect(isCalled).to.equal(true)
+        })
+
+        it('should not go to joinOnlineMatch without matchId with mock method', async () => {
+            var isCalled = false
+            menu.prompt = MockPrompter([
+                {matchId: ''}
+            ])
+            menu.joinOnlineMatch = () => isCalled = true
+            await menu.joinMenu()
+            expect(isCalled).to.equal(false)
+        })
+    })
+
+    describe('#joinOnlineMatch', () => {
+
+        it('should get call runMatch with mock method and mock client', async () => {
+            var isCalled = false
+            menu.newClient = () => { return {connect : noop, joinMatch: noop, close: noop}}
+            menu.newCoordinator = () => { return {runMatch: () => isCalled = true}}
+            await menu.joinOnlineMatch(menu.opts)
+            expect(isCalled).to.equal(true)
+        })
+    })
+
     describe('#main', () => {
 
         // coverage tricks
@@ -144,11 +179,18 @@ describe('Menu', () => {
             expect(err.message).to.contain('Validation failed for matchId')
         })
 
+        it('should go to settings menu then done then quit', async () => {
+            menu.prompt = MockPrompter([
+                {mainChoice: 'settings'},
+                {settingChoice: 'done'},
+                {mainChoice: 'quit'}
+            ])
+            await menu.mainMenu()
+        })
     })
 
     describe('#matchMenu', () => {
 
-        
         it('should set match total to 5', async () => {
             menu.prompt = MockPrompter([
                 {matchChoice: 'total'},
@@ -195,6 +237,96 @@ describe('Menu', () => {
             ])
             await menu.matchMenu()
         })
+
+        it('should go to startOnlineMatch with isOnline and mock method, then quit', async () => {
+            var isCalled = false
+            menu.prompt = MockPrompter([
+                {matchChoice: 'start'},
+                {matchChoice: 'quit'}
+            ])
+            menu.startOnlineMatch = () => isCalled = true
+            await menu.matchMenu(true)
+            expect(isCalled).to.equal(true)
+        })
+
+        it('should go to playRobot with isRobot and mock method, then quit', async () => {
+            var isCalled = false
+            menu.prompt = MockPrompter([
+                {matchChoice: 'start'},
+                {matchChoice: 'quit'}
+            ])
+            menu.playRobot = () => isCalled = true
+            await menu.matchMenu(false, true)
+            expect(isCalled).to.equal(true)
+        })
+
+        it('should go to playRobots with isRobots and mock method, then quit', async () => {
+            var isCalled = false
+            menu.prompt = MockPrompter([
+                {matchChoice: 'start'},
+                {matchChoice: 'quit'}
+            ])
+            menu.playRobots = () => isCalled = true
+            await menu.matchMenu(false, false, true)
+            expect(isCalled).to.equal(true)
+        })
+
+        it('should go to playLocalMatch with mock method, then quit', async () => {
+            var isCalled = false
+            menu.prompt = MockPrompter([
+                {matchChoice: 'start'},
+                {matchChoice: 'quit'}
+            ])
+            menu.playLocalMatch = () => isCalled = true
+            await menu.matchMenu()
+            expect(isCalled).to.equal(true)
+        })
+    })
+
+    describe('#newClient', () => {
+
+        it('should return new client', () => {
+            const client = menu.newClient('mockUrl')
+            expect(client.constructor.name).to.equal('Client')
+        })
+    })
+
+    describe('#newCoordinator', () => {
+
+        it('should return new coordinator', () => {
+            const coordinator = menu.newCoordinator()
+            expect(coordinator.constructor.name).to.equal('Coordinator')
+        })
+    })
+
+    describe('#playLocalMatch', () => {
+
+        it('should call runMatch for mock coordinator', async () => {
+            var isCalled = false
+            menu.newCoordinator = () => {return {runMatch: () => isCalled = true}}
+            await menu.playLocalMatch(menu.opts)
+            expect(isCalled).to.equal(true)
+        })
+    })
+
+    describe('#playRobot', () => {
+
+        it('should call runMatch for mock coordinator', async () => {
+            var isCalled = false
+            menu.newCoordinator = () => {return {runMatch: () => isCalled = true}}
+            await menu.playRobot(menu.opts)
+            expect(isCalled).to.equal(true)
+        })
+    })
+
+    describe('#playRobots', () => {
+
+        it('should call runMatch for mock coordinator', async () => {
+            var isCalled = false
+            menu.newCoordinator = () => {return {runMatch: () => isCalled = true}}
+            await menu.playRobots(menu.opts)
+            expect(isCalled).to.equal(true)
+        })
     })
 
     describe('#prompt', () => {
@@ -218,6 +350,50 @@ describe('Menu', () => {
             inquirer.prompt = questions => q = questions
             menu.prompt()
             expect(Array.isArray(q)).to.equal(true)
+        })
+    })
+
+    describe('#settingsMenu', () => {
+
+        it('should set serverUrl then done', async () => {
+            menu.prompt = MockPrompter([
+                {settingChoice: 'serverUrl'},
+                {serverUrl: 'ws://localhost:8811'},
+                {settingChoice: 'done'}
+            ])
+            await menu.settingsMenu()
+            expect(menu.opts.serverUrl).to.equal('ws://localhost:8811')
+        })
+
+        it('should set robot delay to 4 then done', async () => {
+            menu.prompt = MockPrompter([
+                {settingChoice: 'delay'},
+                {delay: '4'},
+                {settingChoice: 'done'}
+            ])
+            await menu.settingsMenu()
+            expect(menu.opts.delay).to.equal(4)
+        })
+
+        it('should invalidate robot delay foo', async () => {
+            menu.prompt = MockPrompter([
+                {settingChoice: 'delay'},
+                {delay: 'foo'},
+                {settingChoice: 'done'}
+            ])
+            const err = await getErrorAsync(() => menu.settingsMenu())
+            expect(err.message).to.contain('Validation failed for delay')
+        })
+    })
+
+    describe('#startOnlineMatch', () => {
+
+        it('should get call runMatch with mock method and mock client', async () => {
+            var isCalled = false
+            menu.newClient = () => { return {connect : noop, startMatch: noop, close: noop}}
+            menu.newCoordinator = () => { return {runMatch: () => isCalled = true}}
+            await menu.startOnlineMatch(menu.opts)
+            expect(isCalled).to.equal(true)
         })
     })
 })
@@ -409,6 +585,15 @@ describe('TermPlayer', () => {
         })
     })
 
+    describe('#getStdout', () => {
+
+        it('should return process.stdout when stdout not set', () => {
+            player.stdout = null
+            const result = player.getStdout()
+            expect(result).to.equal(process.stdout)
+        })
+    })
+
     describe('#playRoll', () => {
 
         var game
@@ -519,6 +704,12 @@ describe('TermPlayer', () => {
             const result = await player.promptTurnOption()
             expect(result).to.equal(true)
         })
+
+        it('should invalidate foo', async () => {
+            player.prompt = MockPrompter({action: 'foo'})
+            const err = await getErrorAsync(() => player.promptTurnOption())
+            expect(err.message).to.contain('Validation failed for action')
+        })
     })
 
     describe('#promptFace', () => {
@@ -554,6 +745,12 @@ describe('TermPlayer', () => {
             const result = await player.promptFinish()
             expect(result).to.equal(false)
         })
+
+        it('should invalidate for foo', async () => {
+            player.prompt = MockPrompter({finish: 'foo'})
+            const err = await getErrorAsync(() => player.promptFinish())
+            expect(err.message).to.contain('Validation failed for finish')
+        })
     })
 
     describe('#promptOrigin', () => {
@@ -586,10 +783,98 @@ describe('TermPlayer', () => {
     describe('#rollTurn', () => {
 
         // coverage
+
         it('should roll', async () => {
             const turn = new Turn(Board.setup(), White)
             await player.rollTurn(turn)
             expect(turn.isRolled).to.equal(true)
+        })
+    })
+
+    describe('events', () => {
+
+        // coverage
+
+        var game
+        var players
+
+        beforeEach(() => {
+            game = new Game
+            players = {
+                White : player,
+                Red   : new RandomRobot(Red)
+            }
+            game._rollFirst = () => [6, 1]
+            makeRandomMoves(game.firstTurn(), true)
+        })
+
+        describe('afterRoll', () => {
+
+            it('should pass for red turn with isDualTerm=false', () => {
+                player.emit('gameStart', game, null, players)
+                const turn = game.nextTurn()
+                turn.roll()
+                player.emit('afterRoll', turn)
+            })
+        })
+
+        describe('turnEnd', () => {
+
+            it('should pass for red cant move', () => {
+                player.emit('gameStart', game, null, players)
+                // place red on bar
+                game.board.bars.Red.push(game.board.slots[5].pop())
+                const turn = game.nextTurn()
+                turn.setRoll([6, 6])
+                turn.finish()
+                player.emit('turnEnd', turn)
+            })
+        })
+    })
+})
+
+describe('Robot', () => {
+
+    it('should play robot v robot double after 3 turns', async function () {
+        this.timeout(1000)
+        const white = new TermPlayer.Robot(new RandomRobot(White), {delay: 0})
+        const red = new TermPlayer.Robot(new RandomRobot(Red), {delay: 0})
+        white.logger.loglevel = 1
+        red.logger.loglevel = 1
+        white.stdout = {write: () => {}}
+        red.stdout = {write: () => {}}
+        white.robot.turnOption = (turn, game) => {
+            if (game.turns.length > 3) {
+                turn.setDoubleOffered()
+            }
+        }
+        red.robot.turnOption = (turn, game) => {
+            if (game.turns.length > 3) {
+                turn.setDoubleOffered()
+            }
+        }
+        white.robot.decideDouble = turn => turn.setDoubleDeclined()
+        red.robot.decideDouble = turn => turn.setDoubleDeclined()
+        const match = new Match(1, {isCrawford: false})
+        const coordinator = new Coordinator
+        await coordinator.runMatch(match, white, red)
+        expect(match.checkFinished()).to.equal(true)
+    })
+
+    describe('#delay', () => {
+
+        it('should delay for delay=0.01', async () => {
+            const player = new TermPlayer.Robot(new RandomRobot(White), {delay: 0.01})
+            await player.delay()
+        })
+    })
+
+    describe('#meta', () => {
+
+        it('should have isRobot=true', async () => {
+            const player = new TermPlayer.Robot(new RandomRobot(White), {delay: 0.01})
+            const result = player.meta()
+            expect(result.isRobot).to.equal(true)
         })
     })
 })

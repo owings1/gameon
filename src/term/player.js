@@ -5,9 +5,9 @@ const Logger = require('../lib/logger')
 const Util   = require('../lib/util')
 
 const inquirer = require('inquirer')
-const merge    = require('merge')
 
 const {White, Red} = Core
+const {merge}      = Util
 const sp           = Util.joinSpace
 
 class TermPlayer extends Base {
@@ -59,7 +59,7 @@ class TermPlayer extends Base {
 
     // @override
     async turnOption(turn, game, match) {
-        const isDouble = await this.promptTurnOption()
+        const isDouble = await this.promptTurnOption(turn, game, match)
         if (isDouble) {
             turn.setDoubleOffered()
         }
@@ -67,7 +67,7 @@ class TermPlayer extends Base {
 
     // @override
     async decideDouble(turn, game, match) {
-        const isAccept = await this.promptDecideDouble()
+        const isAccept = await this.promptDecideDouble(turn, game, match)
         if (!isAccept) {
             turn.setDoubleDeclined()
         }
@@ -239,12 +239,14 @@ class TermRobot extends TermPlayer {
         await super.playRoll(turn, game, match)
     }
 
-    async promptTurnOption() {
-        return false
+    async promptTurnOption(turn, game, match) {
+        await this.robot.turnOption(turn, game, match)
+        return turn.isDoubleOffered
     }
 
-    async promptDecideDouble() {
-        return true
+    async promptDecideDouble(turn, game, match) {
+        await this.robot.decideDouble(turn, game, match)
+        return !turn.isDoubleDeclined
     }
 
     async promptOrigin(origins) {
@@ -269,7 +271,7 @@ class TermRobot extends TermPlayer {
     }
 
     meta() {
-        return this.robot.meta()
+        return merge(super.meta(), this.robot.meta())
     }
 }
 

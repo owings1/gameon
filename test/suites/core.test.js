@@ -597,6 +597,14 @@ describe('Turn', () => {
             turn.setDoubleDeclined()
             expect(turn.isFinished).to.equal(true)
         })
+
+        it('should allow double call', () => {
+            const turn = new Turn(Board.setup(), White)
+            turn.setDoubleOffered()
+            turn.setDoubleDeclined()
+            turn.setDoubleDeclined()
+            expect(turn.isFinished).to.equal(true)
+        })
     })
 
     describe('#setDoubleOffered', () => {
