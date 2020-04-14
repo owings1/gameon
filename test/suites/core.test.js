@@ -7,7 +7,8 @@ const {
     makeRandomMoves,
     randomElement,
     requireSrc,
-    States
+    States,
+    Structures
 } = TestUtil
 
 const Core = requireSrc('lib/core')
@@ -698,6 +699,14 @@ describe('Board', () => {
 		})
 	})
 
+    describe('#fromStateStructure', () => {
+
+        it('should give board meeting initial string for initial structure', () => {
+            const board = Board.fromStateStructure(Structures.Initial)
+            expect(board.stateString()).to.equal(States.Initial)
+        })
+    })
+
 	describe('#getPossibleMovesForFace', () => {
 
 		it('should return singleton isComeIn face=2 with white from bar on sparse board', () => {
@@ -1126,6 +1135,15 @@ describe('Board', () => {
             board.setup()
             const result = board.stateString()
             expect(result).to.equal(States.Initial)
+        })
+    })
+
+    describe('#stateStructure', () => {
+
+        it('should return expected for initial state', () => {
+            const board = Board.setup()
+            const result = board.stateStructure()
+            expect(JSON.stringify(result)).to.equal(JSON.stringify(Structures.Initial))
         })
     })
 

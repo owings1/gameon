@@ -711,6 +711,28 @@ class Board {
         ]).join('|')
     }
 
+    stateStructure() {
+        return [
+            this.bars.White.length * Direction.White
+          , this.bars.Red.length * Direction.Red
+        ].concat(this.slots.map(slot =>
+            slot.length > 0 ? Direction[slot[0].color] * slot.length : 0
+        )).concat([
+            this.homes.White.length * Direction.White
+          , this.homes.Red.length * Direction.Red
+        ])
+    }
+
+    setStateStructure(structure) {
+        this.bars.White = Piece.make(Math.abs(structure[0]), White)
+        this.bars.Red = Piece.make(Math.abs(structure[1]), Red)
+        for (var i = 0; i < 24; i++) {
+            this.slots[i] = Piece.make(Math.abs(structure[i + 2]), structure[i + 2] < 0 ? Red : White)
+        }
+        this.homes.White = Piece.make(Math.abs(structure[26]), White)
+        this.homes.Red = Piece.make(Math.abs(structure[27]), Red)
+    }
+
     originForColorPoint(color, point) {
         return Board.originForColorPoint(color, point)
     }
@@ -744,6 +766,12 @@ class Board {
     static fromStateString(str) {
         const board = new Board
         board.setStateString(str)
+        return board
+    }
+
+    static fromStateStructure(structure) {
+        const board = new Board
+        board.setStateStructure(structure)
         return board
     }
 }

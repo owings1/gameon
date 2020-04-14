@@ -33,6 +33,10 @@ const States = {
  ,  RedWin            : '0|0|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|1:White|14|15'
 }
 
+const Structures = {
+    Initial : [0, 0, 2, 0, 0, 0, 0, -5, 0, -3, 0, 0, 0, 5, -5, 0, 0, 0, 3, 0, 5, 0, 0, 0, 0, -2, 0, 0]
+}
+
 function requireSrc(p) {
     return require('../src/' + p)
 }
@@ -184,5 +188,6 @@ module.exports = {
     tmpFile,
     noop,
     MockPrompter,
-    States
+    States,
+    Structures
 }
