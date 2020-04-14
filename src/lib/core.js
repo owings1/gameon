@@ -719,6 +719,21 @@ class Board {
         return this.stateString()
     }
 
+    inverted() {
+        const board = new Board
+        board.bars.White = Piece.make(this.bars.Red.length, White)
+        board.bars.Red = Piece.make(this.bars.White.length, Red)
+        board.homes.White = Piece.make(this.homes.Red.length, White)
+        board.homes.Red = Piece.make(this.homes.White.length, Red)
+        this.slots.forEach((slot, i) => {
+            if (slot.length > 0) {
+                const j = 23 - i
+                board.slots[j] = Piece.make(slot.length, Opponent[slot[0].color])
+            }
+        })
+        return board
+    }
+
     static originForColorPoint(color, point) {
         if (color == Red) {
             return point - 1

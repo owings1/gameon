@@ -782,6 +782,21 @@ describe('Board', () => {
         })
     })
 
+    describe('#inverted', () => {
+
+        it('should preserve initial state', () => {
+            const board = Board.setup()
+            const result = board.inverted()
+            expect(result.stateString()).to.equal(States.Initial)
+        })
+
+        it('should return WhiteGammon1 for RedGammon1', () => {
+            const board = Board.fromStateString(States.RedGammon1)
+            const result = board.inverted()
+            expect(result.stateString()).to.equal(States.WhiteGammon1)
+        })
+    })
+
     describe('#isAllHome', () => {
 
         it('should return true when red has 15 in home', () => {
