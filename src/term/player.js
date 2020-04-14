@@ -12,8 +12,15 @@ const sp           = Util.joinSpace
 
 class TermPlayer extends Base {
 
-    constructor(color) {
+    static defaults() {
+        return {
+            fastForced: false
+        }
+    }
+
+    constructor(color, opts) {
         super(color)
+        this.opts = Util.defaults(TermPlayer.defaults(), opts)
         this.logger = new Logger
         this.isTerm = true
         this.on('gameStart', (game, match, players) => {
@@ -79,6 +86,15 @@ class TermPlayer extends Base {
             return
         }
         while (true) {
+            if (this.opts.fastForced && turn.allowedEndStates.length == 1) {
+                this.logger.info('Forced move for', turn.color, 'with', turn.diceSorted.join())
+                turn.allowedMoveSeries[0].forEach(move => {
+                    turn.move(move)
+                    this.describeMove(move)
+                })
+                //this.drawBoard()
+                break
+            }
             this.drawBoard()
             this.info(this.color, 'rolled', turn.diceSorted.join(), 'with', turn.remainingFaces.join(), 'remaining')
             var moves = turn.getNextAvailableMoves()

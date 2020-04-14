@@ -10,17 +10,20 @@ const {RandomRobot} = require('../robot/player')
 
 const {White, Red, Match} = Core
 
+const fs        = require('fs')
+const fse       = require('fs-extra')
 const inquirer  = require('inquirer')
 const os        = require('os')
-const {resolve} = require('path')
+const path      = require('path')
 const sp        = Util.joinSpace
 
 const DefaultServerUrl = 'ws://bg.dougowings.net:8080'
 
 class Menu extends Logger {
 
-    constructor() {
+    constructor(optsFile) {
         super()
+        this.optsFile = optsFile
         this.opts = this.getDefaultOpts()
     }
 
@@ -52,6 +55,8 @@ class Menu extends Logger {
                 await this.matchMenu(mainChoice == 'newOnline', mainChoice == 'playRobot', mainChoice == 'watchRobots')
             }
         }
+
+        await this.saveOpts()
     }
 
     async matchMenu(isOnline, isRobot, isRobots) {
@@ -72,7 +77,7 @@ class Menu extends Logger {
             var {matchChoice} = answers
 
             if (matchChoice == 'quit') {
-                return
+                break
             }
 
             if (matchChoice == 'start') {
@@ -95,6 +100,8 @@ class Menu extends Logger {
             opts[question.name] = answers[question.name]
             opts.total = +opts.total
         }
+
+        await this.saveOpts()
     }
 
     async settingsMenu() {
@@ -124,6 +131,8 @@ class Menu extends Logger {
             opts[question.name] = answers[question.name]
             opts.delay = +opts.delay
         }
+
+        await this.saveOpts()
     }
 
     async joinMenu() {
@@ -141,8 +150,8 @@ class Menu extends Logger {
         const coordinator = this.newCoordinator(opts)
         const match = new Match(opts.total, opts)
         const players = {
-            White : new TermPlayer(White)
-          , Red   : new TermPlayer(Red)
+            White : new TermPlayer(White, opts)
+          , Red   : new TermPlayer(Red, opts)
         }
         try {
             await coordinator.runMatch(match, players.White, players.Red)
@@ -158,7 +167,7 @@ class Menu extends Logger {
         try {
             const match = await client.startMatch(opts)
             const players = {
-                White : new TermPlayer(White)
+                White : new TermPlayer(White, opts)
               , Red   : new NetPlayer(client, Red)
             }
             try {
@@ -179,7 +188,7 @@ class Menu extends Logger {
             const match = await client.joinMatch(opts.matchId)
             const players = {
                 White : new NetPlayer(client, White)
-              , Red   : new TermPlayer(Red)
+              , Red   : new TermPlayer(Red, opts)
             }
             try {
                 await coordinator.runMatch(match, players.White, players.Red)
@@ -195,7 +204,7 @@ class Menu extends Logger {
         const coordinator = this.newCoordinator(opts)
         const match = new Match(opts.total, opts)
         const players = {
-            White : new TermPlayer(White)
+            White : new TermPlayer(White, opts)
           , Red   : new TermPlayer.Robot(new RandomRobot(Red), opts)
         }
         try {
@@ -316,6 +325,16 @@ class Menu extends Logger {
                 }
             }
           , {
+                value : 'fastForced'
+              , name  : 'Fast Forced Moves'
+              , question : {
+                    name    : 'fastForced'
+                  , message : 'Fast Forced Moves'
+                  , type    : 'confirm'
+                  , default : () => opts.fastForced
+                }
+            }
+          , {
                 value    : 'isRecord'
               , name     : 'Record Matches'
               , question : {
@@ -362,7 +381,14 @@ class Menu extends Logger {
     }
 
     getDefaultOpts() {
-        return {
+        if (this.optsFile) {
+            fse.ensureDirSync(path.dirname(this.optsFile))
+            if (!fs.existsSync(this.optsFile)) {
+                fse.writeJsonSync(this.optsFile, {})
+            }
+            var opts = JSON.parse(fs.readFileSync(this.optsFile))
+        }
+        return Util.merge({
             total      : 1
           , isJacoby   : false
           , isCrawford : true
@@ -370,6 +396,14 @@ class Menu extends Logger {
           , serverUrl  : this.getDefaultServerUrl()
           , isRecord   : false
           , recordDir  : this.getDefaultRecordDir()
+          , fastForced : false
+        }, opts)
+    }
+
+    async saveOpts() {
+        if (this.optsFile) {
+            await fse.ensureDir(path.dirname(this.optsFile))
+            await fse.writeJson(this.optsFile, this.opts, {spaces: 2})
         }
     }
 
@@ -378,7 +412,7 @@ class Menu extends Logger {
     }
 
     getDefaultRecordDir() {
-        return resolve(os.homedir(), 'gameon')
+        return path.resolve(os.homedir(), 'gameon')
     }
 
     newCoordinator(opts) {
