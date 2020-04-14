@@ -647,7 +647,7 @@ describe('NetPlayer', () => {
 
     it('should play robot v robot over net', async function () {
 
-        this.timeout(5000)
+        this.timeout(20000)
 
         const {east, west} = await eastAndWest({total: 1})
 
