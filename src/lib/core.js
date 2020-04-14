@@ -306,6 +306,10 @@ class Turn {
 
     setDoubleDeclined() {
 
+        if (this.isDoubleDeclined) {
+            return
+        }
+
         this.assertNotFinished()
         if (!this.isDoubleOffered) {
             throw new HasNotDoubledError([this.color, 'has not doubled'])
