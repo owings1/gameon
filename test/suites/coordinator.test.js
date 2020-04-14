@@ -76,27 +76,27 @@ describe('#emitAll', () => {
 
     it('should await promises in holds', async () => {
         var isCalled = false
-        coordinator.holds.push(new Promise(resolve => {
+        players.White.holds.push(new Promise(resolve => {
             setTimeout(() => {
                 isCalled = true
                 resolve()
             }, 10)
         }))
-        await coordinator.emitAll([], 'foo')
+        await coordinator.emitAll([players.White], 'foo')
         expect(isCalled).to.equal(true)
     })
 
     it('should remove all holds', async () => {
         var isCalled = false
-        coordinator.holds.push(new Promise(resolve => {
+        players.White.holds.push(new Promise(resolve => {
             setTimeout(() => {
                 isCalled = true
                 resolve()
             }, 10)
         }))
-        await coordinator.emitAll([], 'foo')
+        await coordinator.emitAll([players.White], 'foo')
         expect(isCalled).to.equal(true)
-        expect(coordinator.holds).to.have.length(0)
+        expect(players.White.holds).to.have.length(0)
     })
 
     it('should call listener on white', async () => {

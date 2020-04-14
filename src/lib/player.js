@@ -10,6 +10,7 @@ class Player extends EventEmitter {
         super()
         this.name = this.constructor.name
         this.color = color
+        this.holds = []
         this.on('matchStart', match => this.thisMatch = match)
         this.on('gameStart', (game, match, players) => {
             this.thisGame = game

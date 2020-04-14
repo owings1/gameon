@@ -155,7 +155,7 @@ describe('#uniqueStrings', () => {
     })
 })
 
-describe('uuid', () => {
+describe('#uuid', () => {
 
     it('should return string of length 36', () => {
         const result = Util.uuid()

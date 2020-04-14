@@ -3,16 +3,17 @@ const Logger          = require('../lib/logger')
 const Util            = require('../lib/util')
 const WebSocketServer = require('websocket').server
 
-const crypto = require('crypto')
+const crypto  = require('crypto')
 const express = require('express') // maybe we don't need express
-const merge = require('merge')
 
 const {White, Red, Match, Opponent, Dice} = Core
 
-class Server extends Logger {
+const {merge} = Util
+
+class Server {
 
     constructor() {
-        super()
+        this.logger = new Logger
         this.app = express()
         this.matches = {}
         this.connTicker = 0
@@ -27,7 +28,7 @@ class Server extends Logger {
             try {
                 this.httpServer = this.app.listen(port, () => {
                     this.port = this.httpServer.address().port
-                    this.info('Listening on port', this.port)
+                    this.logger.info('Listening on port', this.port)
                     try {
                         this.socketServer = this.createSocketServer(this.httpServer)
                         resolve()
@@ -61,13 +62,13 @@ class Server extends Logger {
             const conn = req.accept(null, req.origin)
             const connId = this.newConnectionId()
 
-            this.info('Peer connected', connId, conn.remoteAddress)
+            this.logger.info('Peer connected', connId, conn.remoteAddress)
 
             conn.connId = connId
             server.conns[connId] = conn
 
             conn.on('close', () => {
-                this.info('Peer disconnected', connId)
+                this.logger.info('Peer disconnected', connId)
                 this.cancelMatchId(conn.matchId)
                 delete server.conns[connId]
             })
@@ -105,7 +106,7 @@ class Server extends Logger {
                     if (!conn.secret || conn.secret == req.secret) {
                         conn.secret = req.secret
                         this.sendMessage(conn, {action: 'acknowledgeSecret'})
-                        this.log('Client connected', conn.secret)
+                        this.logger.log('Client connected', conn.secret)
                     } else {
                         throw new HandshakeError('handshake disagreement')
                     }
@@ -134,7 +135,7 @@ class Server extends Logger {
                     conn.color = White
                     this.matches[id] = match
                     this.sendMessage(conn, {action: 'matchCreated', id})
-                    this.info('Match', id, 'created')
+                    this.logger.info('Match', id, 'created')
                     this.logActive()
 
                     break
@@ -156,7 +157,7 @@ class Server extends Logger {
                     var {total, opts} = match
                     this.sendMessage(match.conns.White, {action: 'opponentJoined', id})
                     this.sendMessage(conn, {action: 'matchJoined', id, total, opts})
-                    this.info('Match', id, 'started')
+                    this.logger.info('Match', id, 'started')
                     this.logActive()
 
                     break
@@ -167,11 +168,11 @@ class Server extends Logger {
 
             }
         } catch (err) {
-            this.error(err)
+            this.logger.error(err)
             this.sendMessage(conn, Server.makeErrorObject(err))
         }
         
-        this.debug('message received from', conn.color, conn.connId, req)
+        this.logger.debug('message received from', conn.color, conn.connId, req)
     }
 
     matchResponse(req) {
@@ -186,7 +187,7 @@ class Server extends Logger {
 
         const sync = next => {
             match.sync[color] = action
-            this.debug({action, color, sync: match.sync})
+            this.logger.debug({action, color, sync: match.sync})
             Server.checkSync(match.sync, next)
         }
 
@@ -306,7 +307,7 @@ class Server extends Logger {
                 break
 
             default:
-                this.warn('Bad action', action)
+                this.logger.warn('Bad action', action)
                 break
         }
     }
@@ -316,7 +317,7 @@ class Server extends Logger {
             match.updateScore()
         }
         if (match.hasWinner()) {
-            this.info('Match', match.id, 'is finished')
+            this.logger.info('Match', match.id, 'is finished')
             delete this.matches[match.id]
             this.logActive()
         }
@@ -325,12 +326,12 @@ class Server extends Logger {
     logActive() {
         const numConns = this.socketServer ? Object.keys(this.socketServer.conns).length : 0
         const numMatches = Object.keys(this.matches).length
-        this.info('There are now', numMatches, 'active matches, and', numConns, 'active connections')
+        this.logger.info('There are now', numMatches, 'active matches, and', numConns, 'active connections')
     }
 
     cancelMatchId(id) {
         if (id && this.matches[id]) {
-            this.info('Canceling match', id)
+            this.logger.info('Canceling match', id)
             const match = this.matches[id]
             this.sendMessage(Object.values(match.conns), {action: 'matchCanceled'})
             delete this.matches[id]
@@ -343,7 +344,7 @@ class Server extends Logger {
         const str = JSON.stringify(msg)
         for (var conn of conns) {
             if (conn && conn.connected) {
-                this.log('Sending message to', conn.color, msg)
+                this.logger.log('Sending message to', conn.color, msg)
                 conn.sendUTF(str)
             }
         }

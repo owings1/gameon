@@ -14,7 +14,7 @@ class NetPlayer extends Base {
         this.isNet = true
 
         this.on('gameStart', (game, match, players) => {
-            this.coordinator.holds.push(new Promise(async (resolve) => {
+            this.holds.push(new Promise(async (resolve) => {
                 await this.client.matchRequest('nextGame')
                 const {dice} = await this.client.matchRequest('firstTurn')
                 game._rollFirst = () => {
@@ -28,40 +28,41 @@ class NetPlayer extends Base {
         })
 
         this.on('turnEnd', (turn, game, match) => {
-            if (game.checkFinished()) {
-                return
-            }
+            //if (game.checkFinished()) {
+            //    return
+            //}
             if (!turn.isDoubleDeclined && turn.color == this.opponent.color) {
                 const moves = turn.moves.map(move => move.coords())
-                this.coordinator.holds.push(this.client.matchRequest('playRoll', {moves}))
+                this.holds.push(this.client.matchRequest('playRoll', {moves}))
             }
+            game.checkFinished()
         })
 
         this.on('turnStart', (turn, game, match) => {
-            this.coordinator.holds.push(this.client.matchRequest('nextTurn'))
+            this.holds.push(this.client.matchRequest('nextTurn'))
         })
 
         this.on('afterOption', (turn, game, match) => {
             if (turn.color != this.color && !turn.isDoubleOffered) {
-                this.coordinator.holds.push(this.client.matchRequest('turnOption'))
+                this.holds.push(this.client.matchRequest('turnOption'))
             }
         })
 
         this.on('doubleOffered', (turn, game, match) => {
             if (turn.color == this.opponent.color) {
-                this.coordinator.holds.push(this.client.matchRequest('turnOption', {isDouble: true}))
+                this.holds.push(this.client.matchRequest('turnOption', {isDouble: true}))
             }
         })
 
         this.on('doubleAccepted', (turn, game, match) => {
             if (turn.color == this.color) {
-                this.coordinator.holds.push(this.client.matchRequest('doubleResponse', {isAccept: true}))
+                this.holds.push(this.client.matchRequest('doubleResponse', {isAccept: true}))
             }
         })
 
         this.on('doubleDeclined', (turn, game, match) => {
             if (turn.color == this.color) {
-                this.coordinator.holds.push(this.client.matchRequest('doubleResponse', {isAccept: false}))
+                this.holds.push(this.client.matchRequest('doubleResponse', {isAccept: false}))
             }
         })
     }

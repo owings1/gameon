@@ -18,7 +18,6 @@ class Coordinator {
     }
 
     constructor(opts) {
-        this.holds = []
         this.logger = new Logger
         this.opts = Util.defaults(Coordinator.defaults(), opts)
         if (this.opts.isRecord) {
@@ -126,11 +125,12 @@ class Coordinator {
     }
 
     async emitAll(emitters, ...args) {
+        var holds = []
         Object.values(emitters).forEach(it => {
-            it.coordinator = this
             it.emit(...args)
+            holds = holds.concat(Util.castToArray(it.holds).splice(0))
         })
-        await Promise.all(this.holds.splice(0))
+        await Promise.all(holds.splice(0))
     }
 }
 

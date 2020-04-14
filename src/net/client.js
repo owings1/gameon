@@ -31,7 +31,7 @@ class Client {
             this.socketClient.on('error', reject)
             this.socketClient.on('connect', conn => {
                 this.conn = conn
-                conn.on('error', err => this.error(err))
+                conn.on('error', err => this.logger.error(err))
                 conn.on('close', () => {
                     this.conn = null
                     this.isHandshake = false
@@ -62,8 +62,8 @@ class Client {
         const {id} = await this.sendAndWaitForResponse({action: 'startMatch', total, opts}, 'matchCreated')
         this.logger.info('Started new match', id)
         this.logger.info('Waiting for opponent to join')
-        await this.waitForResponse('opponentJoined')
         this.matchId = id
+        await this.waitForResponse('opponentJoined')
         this.logger.info('Opponent joined', id)
         this.match = new Match(total, opts)
         this.color = White
@@ -93,16 +93,10 @@ class Client {
         return await p
     }
 
-    async sendAndWait(msg) {
-        const p = this.waitForMessage()
-        this.sendMessage(msg)
-        return await p
-    }
-
     async waitForResponse(action) {
         const msg = await this.waitForMessage()
         if (msg.error) {
-            throw Client.buildServerError(msg)
+            throw Client.buildError(msg)
         }
         if (action && msg.action != action) {
             throw new ClientError('Expecting response ' + action + ', but got ' + msg.action + ' instead')
@@ -135,7 +129,7 @@ class Client {
         return crypto.createHash('sha256').update(Util.uuid()).digest('hex')
     }
 
-    static buildServerError(msg, fallbackMessage) {
+    static buildError(msg, fallbackMessage) {
         const err = new ClientError(msg.error || fallbackMessage || 'Unknown server error')
         if (msg.name) {
             err.name = msg.name
