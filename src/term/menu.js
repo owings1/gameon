@@ -1,21 +1,21 @@
-const Core       = require('../lib/core')
-const Logger     = require('../lib/logger')
-const Util       = require('../lib/util')
+const Core   = require('../lib/core')
+const Logger = require('../lib/logger')
+const Util   = require('../lib/util')
 
 const Coordinator   = require('../lib/coordinator')
 const Client        = require('../net/client')
 const NetPlayer     = require('../net/player')
 const TermPlayer    = require('./player')
-const {RandomRobot} = require('../robot/player')
+const Robot         = require('../robot/player')
 
 const {White, Red, Match} = Core
 
-const fs        = require('fs')
-const fse       = require('fs-extra')
-const inquirer  = require('inquirer')
-const os        = require('os')
-const path      = require('path')
-const sp        = Util.joinSpace
+const fs       = require('fs')
+const fse      = require('fs-extra')
+const inquirer = require('inquirer')
+const os       = require('os')
+const path     = require('path')
+const sp       = Util.joinSpace
 
 const DefaultServerUrl = 'ws://bg.dougowings.net:8080'
 
@@ -205,7 +205,7 @@ class Menu extends Logger {
         const match = new Match(opts.total, opts)
         const players = {
             White : new TermPlayer(White, opts)
-          , Red   : new TermPlayer.Robot(new RandomRobot(Red), opts)
+          , Red   : new TermPlayer.Robot(new Robot.BestRobot(Red), opts)
         }
         try {
             await coordinator.runMatch(match, players.White, players.Red)
@@ -218,8 +218,8 @@ class Menu extends Logger {
         const coordinator = this.newCoordinator(opts)
         const match = new Match(opts.total, opts)
         const players = {
-            White : new TermPlayer.Robot(new RandomRobot(White), opts)
-          , Red   : new TermPlayer.Robot(new RandomRobot(Red), opts)
+            White : new TermPlayer.Robot(new Robot.BestRobot(White), opts)
+          , Red   : new TermPlayer.Robot(new Robot.BestRobot(Red), opts)
         }
         try {
             await coordinator.runMatch(match, players.White, players.Red)
