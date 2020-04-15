@@ -830,6 +830,10 @@ class BoardAnalyzer {
         // TODO
         throw new Error('NotImplemented')
     }
+
+    static forStateString(str) {
+        return new BoardAnalyzer(Board.fromStateString(str))
+    }
 }
 
 class SequenceTree {
