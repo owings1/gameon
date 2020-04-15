@@ -506,6 +506,22 @@ class Turn {
             allowedMoves => allowedMoves.length == maximalAllowedFaces
         ).map(move => move.face).sort(Util.sortNumericDesc)
 
+        // end states to move series
+        const endStatesToSeries = {}
+        allowedEndStates.forEach(endState => {
+            const branch = allowedBranches.find(branch =>
+                branch[branch.length - 1].board.stateString() == endState
+            )
+            const leaf = branch[branch.length - 1]
+            const moves = [leaf.thisMove]
+            var node = leaf.parent
+            while (node && node.thisMove) {
+                moves.unshift(node.thisMove)
+                node = node.parent
+            }
+            endStatesToSeries[endState] = moves.map(move => move.coords())
+        })
+
         return {
             allowedMoveSeries : dedupSeries
           , allowedMoveCount  : maxDepth
@@ -513,7 +529,12 @@ class Turn {
           , isCantMove        : maxDepth == 0
           , allowedFaces
           , allowedEndStates
+          , endStatesToSeries
         }
+    }
+
+    originForPoint(point) {
+        return this.board.originForColorPoint(this.color, point)
     }
 
     meta() {
@@ -773,6 +794,39 @@ class Board {
         const board = new Board
         board.setStateStructure(structure)
         return board
+    }
+}
+
+class BoardAnalyzer {
+
+    constructor(board) {
+        this.board = board
+    }
+
+    slotsHeld(color) {
+        return Object.keys(this.board.slots).filter(i => {
+            const slot = this.board.slots[i]
+            return slot.length > 1 && slot[0].color == color
+        })
+    }
+
+    blots(color) {
+        return Object.keys(this.board.slots).filter(i => {
+            const slot = this.board.slots[i]
+            return slot.length == 1 && slot[0].color == color
+        })
+    }
+
+    // for the hitter
+    directShots(color) {
+        // TODO
+        throw new Error('NotImplemented')
+    }
+
+    // for the hitter
+    indirectShots(color) {
+        // TODO
+        throw new Error('NotImplemented')
     }
 }
 
@@ -1123,4 +1177,4 @@ class NoMovesRemainingError extends IllegalMoveError {}
 class NoMovesMadeError extends IllegalMoveError {}
 class MovesRemainingError extends IllegalMoveError {}
 
-module.exports = {Match, Game, Board, SequenceTree, BoardNode, Piece, Dice, Turn, White, Red, Opponent}
+module.exports = {Match, Game, Board, BoardAnalyzer, SequenceTree, BoardNode, Piece, Dice, Turn, White, Red, Opponent}
