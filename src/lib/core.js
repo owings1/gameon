@@ -538,21 +538,23 @@ class Turn {
     }
 
     meta() {
-        return {
-            color            : this.color
-          , dice             : this.dice
-          , diceSorted       : this.diceSorted
-          , startState       : this.startState
-          , endState         : this.endState
-          , isDoubleOffered  : this.isDoubleOffered
-          , isDoubleDeclined : this.isDoubleDeclined
-          , isForceMove      : this.isForceMove
-          , isCantMove       : this.isCantMove
-          , isFirstTurn      : this.isFirstTurn
-          , isFinished       : this.isFinished
-          , allowedEndStates : this.allowedEndStates
-          , moves            : this.moves.map(move => move.coords())
+        const meta = {
+            color       : this.color
+          , dice        : this.dice
+          , diceSorted  : this.diceSorted
+          , startState  : this.startState
+          , endState    : this.endState
+          , isForceMove : this.isForceMove
+          , isCantMove  : this.isCantMove
+          , isFirstTurn : this.isFirstTurn
+          , isFinished  : this.isFinished
+          , moves       : this.moves.map(move => move.coords())
         }
+        if (this.isDoubleOffered) {
+            meta.isDoubleOffered = this.isDoubleOffered
+            meta.isDoubleDeclined = this.isDoubleDeclined
+        }
+        return meta
     }
 
     // allow override for testing

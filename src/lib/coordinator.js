@@ -96,7 +96,6 @@ class Coordinator {
 
             turn.finish()
             await this.emitAll(players, 'turnEnd', turn, game, match)
-            
         }
 
         await this.emitAll(players, 'gameEnd', game, match)
@@ -104,23 +103,23 @@ class Coordinator {
 
     async recordMatch(match, file, players) {
         this.logger.info('Recording match')
-        const meta = merge(match.meta(), {
+        const meta = merge({
             players : {
                 White : players.White.meta()
               , Red   : players.Red.meta()
             }
-        })
+        }, match.meta())
         await fse.writeJson(file, meta, {spaces: 2})
     }
 
     async recordGame(game, file, players) {
         this.logger.info('Recording game')
-        const meta = merge(game.meta(), {
+        const meta = merge({
             players : {
                 White : players.White.meta()
               , Red   : players.Red.meta()
             }
-        })
+        }, game.meta())
         await fse.writeJson(file, meta, {spaces: 2})
     }
 

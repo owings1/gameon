@@ -8,11 +8,9 @@ const {merge} = Util
 
 class Robot extends Base {
 
-    constructor(color, opts) {
-        super(color)
+    constructor(...args) {
+        super(...args)
         this.isRobot = true
-        this.opts = merge({}, opts)
-        this.logger = new Logger
     }
 
     async playRoll(turn, game, match) {
@@ -67,6 +65,7 @@ class RobotDelegator extends Robot {
     constructor(...args) {
         super(...args)
         this.delegates = []
+        this.logger = new Logger
     }
 
     addDelegate(robot, weight) {
@@ -284,7 +283,6 @@ class SafetyRobot extends ConfidenceRobot {
         return rankings
         // TODO: direct shots, indirect shots weighting
     }
-    
 }
 
 class RobotError extends Error {
