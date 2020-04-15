@@ -101,7 +101,7 @@ class RobotDelegator extends Robot {
                     rankings[endState] = 0
                 }
                 if (localWeight > 1 || localWeight < 0) {
-                    this.logger.warn(delegate.robot.name, 'gave weight', localWeight)
+                    this.logger.debug('WARN', delegate.robot.name, 'gave weight', localWeight)
                 }
                 this.logger.debug({localWeight, robot: delegate.robot.name})
                 rankings[endState] += localWeight * delegate.weight
