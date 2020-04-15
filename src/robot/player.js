@@ -217,23 +217,12 @@ class FirstTurnRobot extends ConfidenceRobot {
 class HittingRobot extends ConfidenceRobot {
 
     async getRankings(turn, game, match) {
-        const them = Opponent[turn.color]
-        const baseline = turn.board.bars[them].length
-        const stateHits = {}
+        const barCounts = {}
         turn.allowedEndStates.forEach(endState => {
-            const board = Board.fromStateString(endState)
-            stateHits[endState] = board.bars[them].length - baseline
+            const analyzer = BoardAnalyzer.forStateString(endState)
+            barCounts[endState] = analyzer.board.bars[Opponent[turn.color]].length
         })
-        const maxHits = Math.max(...Object.values(stateHits))
-        const rankings = {}
-        turn.allowedEndStates.forEach(endState => {
-            if (maxHits == 0) {
-                rankings[endState] = 0
-            } else {
-                rankings[endState] = stateHits[endState] / maxHits
-            }  
-        })
-        return rankings
+        return Util.spreadRanking(barCounts)
     }
 }
 
@@ -241,25 +230,12 @@ class OccupyRobot extends ConfidenceRobot {
 
     // maximum number of points held
     async getRankings(turn, game, match) {
-        const stateCounts = {}
-        const baseline = (new BoardAnalyzer(turn.board)).slotsHeld(turn.color).length
+        const pointCounts = {}
         turn.allowedEndStates.forEach(endState => {
-            const board = Board.fromStateString(endState)
-            const analyzer = new BoardAnalyzer(board)
-            stateCounts[endState] = analyzer.slotsHeld(turn.color).length - baseline
+            const analyzer = BoardAnalyzer.forStateString(endState)
+            pointCounts[endState] = analyzer.slotsHeld(turn.color).length
         })
-        const maxGained = Math.max(...Object.values(stateCounts))
-        const rankings = {}
-        turn.allowedEndStates.forEach(endState => {
-            if (maxGained == 0) {
-                rankings[endState] = 0
-            } else if (maxGained < 1) {
-                rankings[endState] = maxGained / stateCounts[endState]
-            } else {
-                rankings[endState] = stateCounts[endState] / maxGained
-            }  
-        })
-        return rankings
+        return Util.spreadRanking(pointCounts)
     }
 }
 
@@ -268,26 +244,12 @@ class SafetyRobot extends ConfidenceRobot {
     // minimum number of blots left
     async getRankings(turn, game, match) {
 
-        const stateCounts = {}
-        
-        const baseline = (new BoardAnalyzer(turn.board)).blots(turn.color).length
+        const blotCounts = {}
         turn.allowedEndStates.forEach(endState => {
-            const board = Board.fromStateString(endState)
-            const analyzer = new BoardAnalyzer(board)
-            stateCounts[endState] = analyzer.blots(turn.color).length - baseline
+            const analyzer = BoardAnalyzer.forStateString(endState)
+            blotCounts[endState] = analyzer.blots(turn.color).length
         })
-        const maxGained = Math.max(...Object.values(stateCounts))
-        const rankings = {}
-        turn.allowedEndStates.forEach(endState => {
-            if (maxGained == 0) {
-                rankings[endState] = 0
-            } else if (maxGained < 1) {
-                rankings[endState] = 1 - maxGained / stateCounts[endState]
-            } else {
-                rankings[endState] = 1 - stateCounts[endState] / maxGained
-            }  
-        })
-        return rankings
+        return Util.spreadRanking(blotCounts, true)
         // TODO: direct shots, indirect shots weighting
     }
 }
