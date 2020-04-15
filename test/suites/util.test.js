@@ -136,6 +136,58 @@ describe('#sumArray', () => {
     })
 })
 
+describe('#spreadRanking', () => {
+
+    const expCases = [
+        {
+            input : {a: 0, b: 1, c: 2},
+            exp   : {a: 0, b: 1/3, c: 2/3},
+            edesc : '{a:0, b:1/3, c:2/3}'
+        },
+        {
+            input : {a: 0, b: 0, c: 0},
+            exp   : {a: 1/3, b: 1/3, c: 1/3},
+            edesc : '{a:1/3, b:1/3, c:1/3}'
+        },
+        {
+            input : {a: -1, b: -1, c: -1},
+            exp   : {a: 1/3, b: 1/3, c: 1/3},
+            edesc : '{a:1/3, b:1/3, c:1/3}'
+        },
+        {
+            input : {a: 0, b: 1, c: 2},
+            exp   : {a: 2/3, b: 1/3, c:0},
+            edesc : '{a: 2/3, b: 1/3, c:0}',
+            isInverse: true
+        }
+    ]
+
+    expCases.forEach(({input, exp, edesc, isInverse}) => {
+
+        var desc = 'should return ' + (edesc || JSON.stringify(exp)) + ' for ' + JSON.stringify(input)
+        if (isInverse) {
+            desc += ' with isInverse=true'
+        }
+
+        it(desc, () => {
+            const result = Util.spreadRanking(input, isInverse)
+            expect(JSON.stringify(result)).to.equal(JSON.stringify(exp))
+        })
+
+        it('should return same value after 2 calls for ' + JSON.stringify(input), () => {
+            const result1 = Util.spreadRanking(input)
+            const result2 = Util.spreadRanking(result1)
+            expect(JSON.stringify(result1)).to.equal(JSON.stringify(result2))
+        })
+
+        it('should invert and back again for 2 invert calls for ' + JSON.stringify(input), () => {
+            const result1 = Util.spreadRanking(input)
+            const result2 = Util.spreadRanking(Util.spreadRanking(result1, true), true)
+            expect(JSON.stringify(result1)).to.equal(JSON.stringify(result2))
+        })
+    })
+})
+
 describe('#uniqueInts', () => {
 
     it('should return [1,2,3] for [1,1,2,2,3,3]', () => {

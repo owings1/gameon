@@ -57,6 +57,30 @@ class Util {
         return b - a
     }
 
+    static spreadRanking(obj, isInverse) {
+        const size = Object.keys(obj).length
+        const iobj = {}
+        for (var k in obj) {
+            iobj[k] = isInverse ? -obj[k] : obj[k]
+        }
+        const minRaw = Math.min(...Object.values(iobj))
+        const normObj = {}
+        for (var k in obj) {
+            normObj[k] = iobj[k] - minRaw
+        }
+        const scale = Util.sumArray(Object.values(normObj))
+        const spreadObj = {}
+        for (var k in obj) {
+            if (scale == 0) {
+                // all values are equal
+                spreadObj[k] = 1 / size
+            } else {
+                spreadObj[k] = normObj[k] / scale
+            }
+        }
+        return spreadObj
+    }
+
     static sumArray(arr) {
         return arr.reduce((acc, cur) => acc + cur, 0)
     }
