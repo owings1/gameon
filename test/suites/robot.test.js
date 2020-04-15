@@ -14,6 +14,12 @@ const Robot = requireSrc('robot/player')
 
 const {White, Red, Game} = Core
 
+var game
+
+beforeEach(() => {
+    game = new Game
+})
+
 describe('Robot', () => {
 
     describe('#getMoves', () => {
@@ -33,13 +39,11 @@ describe('Robot', () => {
     })
 })
 
-describe('#RandomRobot', () => {
+describe('RandomRobot', () => {
 
-    var game
     var robot
 
     beforeEach(() => {
-        game = new Game
         robot = new Robot.RandomRobot(White)
     })
 
@@ -52,5 +56,42 @@ describe('#RandomRobot', () => {
             turn.finish()
         })
     })
-    
+})
+
+describe('FirstTurnRobot', () => {
+
+    const firstRolls = [
+        [6,1]
+      , [5,1]
+      , [4,1]
+      , [3,1]
+      , [2,1]
+      , [6,2]
+      , [5,2]
+      , [4,2]
+      , [3,2]
+      , [6,3]
+      , [5,3]
+      , [4,3]
+      , [6,4]
+      , [5,4]
+      , [6,5]
+    ]
+
+    var robot
+
+    beforeEach(() => {
+        robot = new Robot.FirstTurnRobot(White)
+    })
+
+    describe('#playRoll', () => {
+
+        firstRolls.forEach(dice => {
+            it('should have valid move for ' + dice.join(), async () => {
+                game._rollFirst = () => dice
+                const turn = game.firstTurn()
+                await robot.playRoll(turn, game)
+            })
+        })
+    })
 })

@@ -659,6 +659,36 @@ describe('Turn', () => {
             expect(turn.board.slots[4][0].color).to.equal(Red)
         })
     })
+
+    describe('endStatesToSeries', () => {
+
+        it('should have expected value for sparse board with 2,1 roll', () => {
+            const board = new Board
+            board.slots[0] = Piece.make(2, White)
+
+            // build expected board outcomes
+            const b1 = board.copy()
+            const b2 = board.copy()
+            b1.slots[1].push(b1.slots[0].pop())
+            b1.slots[2].push(b1.slots[0].pop())
+            b2.slots[3].push(b2.slots[0].pop())
+
+            const turn = new Turn(board, White)
+            turn.setRoll([2, 1])
+
+            const result = turn.endStatesToSeries
+            const statesActual = Object.keys(result).sort()
+            const statesExp = [b1.stateString(), b2.stateString()].sort()
+            expect(JSON.stringify(statesActual)).to.equal(JSON.stringify(statesExp))
+
+            const b1MovesActual = result[b1.stateString()]
+            const b1MovesExp = [{origin: 0, face: 2}, {origin: 0, face: 1}] // could be 0:1|0:2
+            const b2MovesAcutal = result[b2.stateString()]
+            const b2MovesExp = [{origin: 0, face: 2}, {origin: 2, face: 1}] // could be 0:1|1:2
+            expect(JSON.stringify(b1MovesActual)).to.equal(JSON.stringify(b1MovesExp))
+            expect(JSON.stringify(b2MovesAcutal)).to.equal(JSON.stringify(b2MovesExp))
+        })
+    })
 })
 
 describe('Board', () => {
