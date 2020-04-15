@@ -117,6 +117,13 @@ class RobotDelegator extends Robot {
         return moves
     }
 
+    async destroy() {
+        await Promise.all([super.destroy()].concat(this.delegates.map(delegate =>
+            delegate.robot.destroy()
+        )))
+        this.delegates = null
+    }
+
     meta() {
         return merge(super.meta(), {
             delegates : this.delegates.map(({robot, weight}) => merge({weight}, robot.meta()))

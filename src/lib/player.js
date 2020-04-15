@@ -18,7 +18,7 @@ class Player extends EventEmitter {
         })
     }
 
-    destroy() {
+    async destroy() {
         this.removeAllListeners()
     }
 

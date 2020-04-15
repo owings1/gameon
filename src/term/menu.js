@@ -156,7 +156,7 @@ class Menu extends Logger {
         try {
             await coordinator.runMatch(match, players.White, players.Red)
         } finally {
-            await Promise.all(Object.values(players).map(player => player.destroy()))
+            await this.destroyAll(players)
         }
     }
 
@@ -173,7 +173,7 @@ class Menu extends Logger {
             try {
                 await coordinator.runMatch(match, players.White, players.Red)
             } finally {
-                await Promise.all(Object.values(players).map(player => player.destroy()))
+                await this.destroyAll(players)
             }
         } finally {
             await client.close()
@@ -193,7 +193,7 @@ class Menu extends Logger {
             try {
                 await coordinator.runMatch(match, players.White, players.Red)
             } finally {
-                await Promise.all(Object.values(players).map(player => player.destroy()))
+                await this.destroyAll(players)
             }
         } finally {
             await client.close()
@@ -210,7 +210,7 @@ class Menu extends Logger {
         try {
             await coordinator.runMatch(match, players.White, players.Red)
         } finally {
-            await Promise.all(Object.values(players).map(player => player.destroy()))
+            await this.destroyAll(players)
         }
     }
 
@@ -224,8 +224,12 @@ class Menu extends Logger {
         try {
             await coordinator.runMatch(match, players.White, players.Red)
         } finally {
-            await Promise.all(Object.values(players).map(player => player.destroy()))
+            await this.destroyAll(players)
         }
+    }
+
+    async destroyAll(players) {
+        await Promise.all(Object.values(players).map(player => player.destroy()))
     }
 
     getMatchChoices(opts, isOnline, isRobot, isRobots) {

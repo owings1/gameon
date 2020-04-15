@@ -286,6 +286,10 @@ class TermRobot extends TermPlayer {
         }
     }
 
+    async destroy() {
+        await Promise.all([this.robot.destroy(), super.destroy()])
+    }
+
     meta() {
         return merge(super.meta(), this.robot.meta())
     }
