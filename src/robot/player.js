@@ -217,12 +217,26 @@ class FirstTurnRobot extends ConfidenceRobot {
 class HittingRobot extends ConfidenceRobot {
 
     async getRankings(turn, game, match) {
-        const barCounts = {}
+
+        const them = Opponent[turn.color]
+        const baseline = turn.board.bars[them].length
+
+        const counts ={}
+        const zeros = []
+
         turn.allowedEndStates.forEach(endState => {
-            const analyzer = BoardAnalyzer.forStateString(endState)
-            barCounts[endState] = analyzer.board.bars[Opponent[turn.color]].length
+            const board = Board.fromStateString(endState)
+            const added = board.bars[them].length - baseline
+            counts[endState] = added
+            if (added < 1) {
+                zeros.push(endState)
+            }
         })
-        return Util.spreadRanking(barCounts)
+
+        const rankings = Util.spreadRanking(counts)
+        zeros.forEach(endState => rankings[endState] = 0)
+
+        return rankings
     }
 }
 
