@@ -828,22 +828,50 @@ class BoardAnalyzer {
     }
 
     blots(color) {
-        return Object.keys(this.board.slots).filter(i => {
+
+        const blots = []
+
+        const blotSlots = Object.keys(this.board.slots).filter(i => {
             const slot = this.board.slots[i]
             return slot.length == 1 && slot[0].color == color
         }).map(i => +i)
-    }
 
-    // for the hitter
-    directShots(color) {
-        // TODO
-        throw new Error('NotImplemented')
-    }
+        if (blotSlots.length == 0) {
+            return blots
+        }
 
-    // for the hitter
-    indirectShots(color) {
-        // TODO
-        throw new Error('NotImplemented')
+        const opponentSlots = this.board.listSlotsWithColor(Opponent[color])
+        const opponentPoints = opponentSlots.map(i => this.board.colorPointForOrigin(color, i))
+        const hasBar = this.board.bars[Opponent[color]].length > 0
+
+        blotSlots.forEach(origin => {
+
+            const point = this.board.colorPointForOrigin(color, origin)
+            const attackerPoints = opponentPoints.filter(p => p < point)
+            const attackerDistances = attackerPoints.map(p => point - p)
+            if (hasBar) {
+                attackerDistances.push(point)
+            }
+            const minDistance = Math.min(...attackerDistances)
+            const directCount = attackerDistances.filter(n => n < 7).length
+            const indirectCount = attackerDistances.filter(n => n > 6 && n < 12).length
+            // TODO: risk factor?
+            const attackerSlots = attackerPoints.map(p => this.board.originForColorPoint(color, p))
+
+            blots.push({
+                point
+              , origin
+              , minDistance
+              , directCount
+              , indirectCount
+              , attackerDistances
+              , attackerPoints
+              , attackerSlots
+              , hasBar
+            })
+        })
+
+        return blots
     }
 
     isDisengaged() {
@@ -856,6 +884,14 @@ class BoardAnalyzer {
         const backmostRed = Math.max(...this.board.listSlotsWithColor(Red))
         const backmostWhite = Math.min(...this.board.listSlotsWithColor(White))
         return backmostWhite > backmostRed
+    }
+
+    piecesOnPoint(color, point) {
+        return this.board.slots[this.board.originForColorPoint(color, point)].filter(piece => piece.color == color).length
+    }
+
+    pointsOccupied(color) {
+        return this.board.listSlotsWithColor(color).map(i => this.board.colorPointForOrigin(color, i))
     }
 
     primes(color) {
