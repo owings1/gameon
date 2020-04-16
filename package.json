@@ -10,14 +10,17 @@
     "test": "nyc --reporter=text-summary mocha test/test.js && nyc report --reporter=lcov",
     "version": "oclif-dev readme && git add README.md",
     "dist": "oclif-dev pack",
+    "mac": "oclif-dev pack:macos",
     "dist_and_publish": "oclif-dev pack && oclif-dev publish"
   },
   "license": "MIT",
   "dependencies": {
     "@oclif/command": "^1.5.14",
     "@oclif/config": "^1.13.0",
+    "@oclif/plugin-autocomplete": "^0.1.5",
     "@oclif/plugin-help": "^2.2.1",
     "@oclif/plugin-update": "^1.3.9",
+    "@oclif/plugin-warn-if-update-available": "^1.7.0",
     "better-logging": "^3.5.0",
     "chalk": "^2.4.2",
     "express": "^4.17.1",
@@ -54,7 +57,9 @@
     "bin": "gameon",
     "plugins": [
       "@oclif/plugin-help",
-      "@oclif/plugin-update"
+      "@oclif/plugin-update",
+      "@oclif/plugin-warn-if-update-available",
+      "@oclif/plugin-autocomplete"
     ],
     "hooks": {
       "init": "./src/hooks/init",
