@@ -274,7 +274,7 @@ class Menu extends Logger {
             }
           , {
                 value : 'quit'
-              , name  : 'Cancel'
+              , name  : 'Back'
             }
         ])
     }
