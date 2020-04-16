@@ -136,8 +136,9 @@ class BestRobot extends RobotDelegator {
     constructor(...args) {
         super(...args)
         this.addDelegate(new FirstTurnRobot(...args), 10)
-        this.addDelegate(new OccupyRobot(...args), 6)
-        this.addDelegate(new SafetyRobot(...args), 5)
+        this.addDelegate(new PrimeRobot(...args), 6)
+        this.addDelegate(new OccupyRobot(...args), 5)
+        this.addDelegate(new SafetyRobot(...args), 4)
         this.addDelegate(new HittingRobot(...args), 4)
         this.addDelegate(new RandomRobot(...args), 1)
     }
@@ -253,6 +254,36 @@ class OccupyRobot extends ConfidenceRobot {
     }
 }
 
+class PrimeRobot extends ConfidenceRobot {
+
+    async getRankings(turn, game, match) {
+
+        const scores = {}
+        const zeros = []
+
+        turn.allowedEndStates.forEach(endState => {
+            const analyzer = BoardAnalyzer.forStateString(endState)
+            const primes = analyzer.primes(turn.color)
+            if (primes.length) {
+                const maxSize = Math.max(...primes.map(prime => prime.size))
+                scores[endState] = maxSize + this.sizeBonus(maxSize)
+            } else {
+                scores[endState] = 0
+                zeros.push(endState)
+            }
+        })
+
+        const rankings = Util.spreadRanking(scores)
+        zeros.forEach(endState => rankings[endState] = 0)
+
+        return rankings
+    }
+
+    sizeBonus(size) {
+        return (size - 2) * 2
+    }
+}
+
 class SafetyRobot extends ConfidenceRobot {
 
     // minimum number of blots left
@@ -289,6 +320,7 @@ module.exports = {
   , FirstTurnRobot
   , HittingRobot
   , OccupyRobot
+  , PrimeRobot
   , SafetyRobot
   , RobotDelegator
 }

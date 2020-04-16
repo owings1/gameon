@@ -236,6 +236,56 @@ describe('OccupyRobot', () => {
     })
 })
 
+describe('PrimeRobot', () => {
+
+    var robot
+
+    beforeEach(() => {
+        robot = new Robot.PrimeRobot(White)
+        game._rollFirst = () => [1, 2]
+        makeRandomMoves(game.firstTurn(), true)
+    })
+
+    describe('#getRankings', () => {
+
+        it('should rank PrimeCase1Best best for PrimeCase1Start for 2,1 roll', async () => {
+            game.board.setStateString(States.PrimeCase1Start)
+            const turn = game.nextTurn()
+            turn.setRoll([2, 1])
+            const result = await robot.getRankings(turn, game)
+            const maxRank = Math.max(...Object.values(result))
+            expect(result[States.PrimeCase1Best]).to.equal(maxRank)
+        })
+
+        it('should rank only one best for PrimeCase1Start for 2,1 roll', async () => {
+            game.board.setStateString(States.PrimeCase1Start)
+            const turn = game.nextTurn()
+            turn.setRoll([2, 1])
+            const result = await robot.getRankings(turn, game)
+            const maxRank = Math.max(...Object.values(result))
+            const bests = turn.allowedEndStates.filter(str => result[str] == maxRank)
+            expect(bests).to.have.length(1)
+        })
+
+        it('should rank PrimeCase1Bad 0 for PrimeCase1Start for 2,1 roll', async () => {
+            game.board.setStateString(States.PrimeCase1Start)
+            const turn = game.nextTurn()
+            turn.setRoll([2, 1])
+            const result = await robot.getRankings(turn, game)
+            expect(result[States.PrimeCase1Bad]).to.equal(0)
+        })
+
+        it('should rank PrimeCase1Med > 0 and < 1 for PrimeCase1Start for 2,1 roll', async () => {
+            game.board.setStateString(States.PrimeCase1Start)
+            const turn = game.nextTurn()
+            turn.setRoll([2, 1])
+            const result = await robot.getRankings(turn, game)
+            expect(result[States.PrimeCase1Med]).to.be.greaterThan(0)
+            expect(result[States.PrimeCase1Med]).to.be.lessThan(1)
+        })
+    })
+})
+
 describe('SafetyRobot', () => {
 
     var robot
