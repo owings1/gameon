@@ -13,7 +13,7 @@ const {
 
 const Core = requireSrc('lib/core')
 
-const {White, Red, Match, Game, Board, Turn, Piece, Dice, SequenceTree} = Core
+const {White, Red, Match, Game, Board, BoardAnalyzer, Turn, Piece, Dice, SequenceTree} = Core
 
 describe('Match', () => {
 
@@ -456,6 +456,14 @@ describe('Turn', () => {
             const result = turn.meta()
             expect(result.moves).to.have.length(1)
         })
+
+        it('should set isDoubleOffered and isDoubleDeclined when double is offered', () => {
+            const turn = new Turn(Board.setup(), White)
+            turn.setDoubleOffered()
+            const result = turn.meta()
+            expect(result.isDoubleOffered).to.equal(true)
+            expect(result.isDoubleDeclined).to.equal(false)
+        })
     })
 
     describe('#move', () => {
@@ -693,6 +701,10 @@ describe('Turn', () => {
 
 describe('Board', () => {
 
+    var board
+
+    beforeEach(() => board = new Board)
+
     describe('#constructor', () => {
 
         it('should construct', () => {
@@ -703,16 +715,30 @@ describe('Board', () => {
     describe('#clear', () => {
 
         it('should make 24 slots', () => {
-            const board = new Board()
             board.clear()
             expect(board.slots).to.have.length(24)
+        })
+    })
+
+    describe('#colorPointForOrigin', () => {
+
+        const expCases = [
+            {input: [Red, 5], exp: 6},
+            {input: [White, 5], exp: 19},
+            {input: [White, 18], exp: 6}
+        ]
+
+        expCases.forEach(({input, exp}) => {
+            it('should return ' + exp + ' for ' + input.join(), () => {
+                const result = board.colorPointForOrigin(...input)
+                expect(result).to.equal(exp)
+            })
         })
     })
 
     describe('#copy', () => {
 
         it('should have two pieces on slot 0 copying setup board, but slot arrays non-identical', () => {
-            const board = new Board()
             board.setup()
             const copy = board.copy()
             expect(copy.slots[0]).to.have.length(2)
@@ -740,7 +766,6 @@ describe('Board', () => {
 	describe('#getPossibleMovesForFace', () => {
 
 		it('should return singleton isComeIn face=2 with white from bar on sparse board', () => {
-			const board = new Board
 			board.bars.White = Piece.make(1, White)
 			const result = board.getPossibleMovesForFace(White, 2)
 			expect(result).to.have.length(1)
@@ -749,7 +774,6 @@ describe('Board', () => {
 		})
 
 		it('should return empty for white face=5 with one on 0 and red 2 on 5', () => {
-			const board = new Board
 			board.slots[0] = Piece.make(1, White)
 			board.slots[5] = Piece.make(2, Red)
 			const result = board.getPossibleMovesForFace(White, 5)
@@ -757,7 +781,6 @@ describe('Board', () => {
 		})
 
 		it('should throw when non IllegalMoveError is thrown', () => {
-			const board = new Board
 			board.setup()
 			board.buildMove = () => { throw new Error }
 			const err = getError(() => board.getPossibleMovesForFace(White, 1))
@@ -768,27 +791,23 @@ describe('Board', () => {
     describe('#getWinner', () => {
 
         it('should return null for empty board', () => {
-            const board = new Board()
             const result = board.getWinner()
             expect(result).to.equal(null)
         })
 
         it('should return null for setup board', () => {
-            const board = new Board()
             board.setup()
             const result = board.getWinner()
             expect(result).to.equal(null)
         })
 
         it('should return white when home has 15', () => {
-            const board = new Board()
             board.homes.White = Piece.make(15, White)
             const result = board.getWinner()
             expect(result).to.equal(White)
         })
 
         it('should return red when home has 15', () => {
-            const board = new Board()
             board.homes.Red = Piece.make(15, Red)
             const result = board.getWinner()
             expect(result).to.equal(Red)
@@ -796,8 +815,8 @@ describe('Board', () => {
     })
 
     describe('#hasBar', () => {
+
         it('should return true for white with one on bar', () => {
-            const board = new Board()
             board.bars.White = Piece.make(1, White)
             const result = board.hasBar(White)
             expect(result).to.equal(true)
@@ -807,14 +826,12 @@ describe('Board', () => {
     describe('#hasWinner', () => {
 
         it('should return true when red has 15 in home', () => {
-            const board = new Board()
             board.homes.Red = Piece.make(15, Red)
             const result = board.hasWinner()
             expect(result).to.equal(true)
         })
 
         it('should return true when white has 15 in home', () => {
-            const board = new Board()
             board.homes.White = Piece.make(15, White)
             const result = board.hasWinner()
             expect(result).to.equal(true)
@@ -839,7 +856,6 @@ describe('Board', () => {
     describe('#isAllHome', () => {
 
         it('should return true when red has 15 in home', () => {
-            const board = new Board()
             board.homes.Red = Piece.make(15, Red)
             const result = board.isAllHome(Red)
             expect(result).to.equal(true)
@@ -903,7 +919,6 @@ describe('Board', () => {
 	describe('#listSlotsWithColor', () => {
 
 		it('should return [5,7,12,23] for red on setup', () => {
-			const board = new Board
 			board.setup()
 			const result = board.listSlotsWithColor(Red)
 			const exp = [5, 7, 12, 23]
@@ -914,21 +929,18 @@ describe('Board', () => {
     describe('#mayBearoff', () => {
 
         it('should return false for white with one on bar', () => {
-            const board = new Board()
             board.bars.White = Piece.make(1, White)
             const result = board.mayBearoff(White)
             expect(result).to.equal(false)
         })
 
         it('should return true for red with none on bar and 15 on 0', () => {
-            const board = new Board()
             board.slots[0] = Piece.make(15, Red)
             const result = board.mayBearoff(Red)
             expect(result).to.equal(true)
         })
 
         it('should return false for red with none on bar and 1 on 0 and 14 on 23', () => {
-            const board = new Board()
             board.slots[23] = Piece.make(14, Red)
             board.slots[0] = Piece.make(1, Red)
             const result = board.mayBearoff(Red)
@@ -938,10 +950,8 @@ describe('Board', () => {
 
     describe('#move', () => {
 
-        var board
 
         beforeEach(() => {
-            board = new Board()
             board.setup()
         })
 
@@ -1132,13 +1142,11 @@ describe('Board', () => {
     describe('#originForColorPoint', () => {
 
         it('should return 18 for White 6 point', () => {
-            const board = new Board
             const result = board.originForColorPoint(White, 6)
             expect(result).to.equal(18)
         })
 
         it('should return 5 for Red 6 point', () => {
-            const board = new Board
             const result = board.originForColorPoint(Red, 6)
             expect(result).to.equal(5)
         })
@@ -1155,13 +1163,11 @@ describe('Board', () => {
     describe('#stateString', () => {
 
         it('should return all zeros and no slot colors for blank board', () => {
-            const board = new Board
             const result = board.stateString()
             expect(result).to.equal(States.Blank)
         })
 
         it('should return expected value for setup board', () => {
-            const board = new Board
             board.setup()
             const result = board.stateString()
             expect(result).to.equal(States.Initial)
@@ -1171,7 +1177,7 @@ describe('Board', () => {
     describe('#stateStructure', () => {
 
         it('should return expected for initial state', () => {
-            const board = Board.setup()
+            board.setup()
             const result = board.stateStructure()
             expect(JSON.stringify(result)).to.equal(JSON.stringify(Structures.Initial))
         })
@@ -1180,10 +1186,30 @@ describe('Board', () => {
 	describe('#toString', () => {
 
 		it('should return state string', () => {
-			const board = new Board
 			expect(board.toString()).to.equal(board.stateString())
 		})
 	})
+})
+
+describe('BoardAnalyzer', () => {
+
+    describe('primes', () => {
+
+        it('should return 1 prime of size 5 for white for White5PointPrime1', () => {
+            const analyzer = Board.fromStateString(States.White5PointPrime1).newAnalyzer()
+            const result = analyzer.primes(White)
+            expect(result).to.have.length(1)
+            expect(result[0].size).to.equal(5)
+        })
+
+        it('should retun 2 primes of size 3 for red for RedTwo3Primes1', () => {
+            const analyzer = Board.fromStateString(States.RedTwo3Primes1).newAnalyzer()
+            const result = analyzer.primes(Red)
+            expect(result).to.have.length(2)
+            expect(result[0].size).to.equal(3)
+            expect(result[1].size).to.equal(3)
+        })
+    })
 })
 
 describe('Move', () => {

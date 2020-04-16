@@ -760,6 +760,10 @@ class Board {
         return Board.originForColorPoint(color, point)
     }
 
+    colorPointForOrigin(color, origin) {
+        return Board.colorPointForOrigin(color, origin)
+    }
+
     toString() {
         return this.stateString()
     }
@@ -779,11 +783,22 @@ class Board {
         return board
     }
 
+    newAnalyzer() {
+        return new BoardAnalyzer(this)
+    }
+
     static originForColorPoint(color, point) {
         if (color == Red) {
             return point - 1
         }
         return 24 - point
+    }
+
+    static colorPointForOrigin(color, origin) {
+        if (color == Red) {
+            return origin + 1
+        }
+        return 24 - origin
     }
 
     static fromStateString(str) {
@@ -809,14 +824,14 @@ class BoardAnalyzer {
         return Object.keys(this.board.slots).filter(i => {
             const slot = this.board.slots[i]
             return slot.length > 1 && slot[0].color == color
-        })
+        }).map(i => +i)
     }
 
     blots(color) {
         return Object.keys(this.board.slots).filter(i => {
             const slot = this.board.slots[i]
             return slot.length == 1 && slot[0].color == color
-        })
+        }).map(i => +i)
     }
 
     // for the hitter
@@ -829,6 +844,30 @@ class BoardAnalyzer {
     indirectShots(color) {
         // TODO
         throw new Error('NotImplemented')
+    }
+
+    primes(color) {
+        const slotsHeld = this.slotsHeld(color)
+        const pointsHeld = slotsHeld.map(i => this.board.colorPointForOrigin(color, i))
+        pointsHeld.sort(Util.sortNumericAsc)
+        const primes = []
+        while (pointsHeld.length > 1) {
+            var pointStart = pointsHeld.shift()
+            var pointEnd = pointStart
+            while (pointsHeld[0] == pointEnd + 1) {
+                pointEnd = pointsHeld.shift()
+            }
+            if (pointEnd > pointStart) {
+                primes.push({
+                    pointStart
+                  , pointEnd
+                  , start : this.board.originForColorPoint(color, pointStart)
+                  , end   : this.board.originForColorPoint(color, pointEnd)
+                  , size  : pointEnd - pointStart + 1
+                })
+            }
+        }
+        return primes
     }
 
     static forStateString(str) {
