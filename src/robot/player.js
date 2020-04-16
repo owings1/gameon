@@ -58,6 +58,12 @@ class ConfidenceRobot extends Robot {
     async getRankings(turn, game, match) {
         throw new Error('NotImplemented')
     }
+
+    zeroRankings(turn) {
+        const rankings = {}
+        turn.allowedEndStates.forEach(endState => rankings[endState] = 0)
+        return rankings
+    }
 }
 
 class RobotDelegator extends Robot {
@@ -158,8 +164,7 @@ class RandomRobot extends ConfidenceRobot {
 class FirstTurnRobot extends ConfidenceRobot {
 
     async getRankings(turn, game, match) {
-        const rankings = {}
-        turn.allowedEndStates.forEach(stateString => rankings[stateString] = 0)
+        const rankings = this.zeroRankings(turn)
         if (game.turns.length > 2 || turn.dice[0] == turn.dice[1]) {
             return rankings
         }
@@ -222,7 +227,7 @@ class HittingRobot extends ConfidenceRobot {
         const them = Opponent[turn.color]
         const baseline = turn.board.bars[them].length
 
-        const counts ={}
+        const counts = {}
         const zeros = []
 
         turn.allowedEndStates.forEach(endState => {
@@ -245,6 +250,9 @@ class OccupyRobot extends ConfidenceRobot {
 
     // maximum number of points held
     async getRankings(turn, game, match) {
+        if (turn.board.newAnalyzer().isDisengaged()) {
+            return this.zeroRankings(turn)
+        }
         const pointCounts = {}
         turn.allowedEndStates.forEach(endState => {
             const analyzer = BoardAnalyzer.forStateString(endState)
@@ -257,6 +265,10 @@ class OccupyRobot extends ConfidenceRobot {
 class PrimeRobot extends ConfidenceRobot {
 
     async getRankings(turn, game, match) {
+
+        if (turn.board.newAnalyzer().isDisengaged()) {
+            return this.zeroRankings(turn)
+        }
 
         const scores = {}
         const zeros = []
@@ -288,6 +300,10 @@ class SafetyRobot extends ConfidenceRobot {
 
     // minimum number of blots left
     async getRankings(turn, game, match) {
+
+        if (turn.board.newAnalyzer().isDisengaged()) {
+            return this.zeroRankings(turn)
+        }
 
         const blotCounts = {}
         turn.allowedEndStates.forEach(endState => {

@@ -846,6 +846,18 @@ class BoardAnalyzer {
         throw new Error('NotImplemented')
     }
 
+    isDisengaged() {
+        if (this.board.hasWinner()) {
+            return true
+        }
+        if (this.board.hasBar(White) || this.board.hasBar(Red)) {
+            return false
+        }
+        const backmostRed = Math.max(...this.board.listSlotsWithColor(Red))
+        const backmostWhite = Math.min(...this.board.listSlotsWithColor(White))
+        return backmostWhite > backmostRed
+    }
+
     primes(color) {
         const slotsHeld = this.slotsHeld(color)
         const pointsHeld = slotsHeld.map(i => this.board.colorPointForOrigin(color, i))

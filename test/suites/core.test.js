@@ -1193,6 +1193,33 @@ describe('Board', () => {
 
 describe('BoardAnalyzer', () => {
 
+    describe('isDisengaged', () => {
+
+        it('should return false for Initial', () => {
+            const analyzer = BoardAnalyzer.forStateString(States.Initial)
+            const result = analyzer.isDisengaged()
+            expect(result).to.equal(false)
+        })
+
+        it('should return true for Either65Win', () => {
+            const analyzer = BoardAnalyzer.forStateString(States.Either65Win)
+            const result = analyzer.isDisengaged()
+            expect(result).to.equal(true)
+        })
+
+        it('should return true for WhiteGammon1', () => {
+            const analyzer = BoardAnalyzer.forStateString(States.WhiteGammon1)
+            const result = analyzer.isDisengaged()
+            expect(result).to.equal(true)
+        })
+
+        it('should return false for EngagedWithBar', () => {
+            const analyzer = BoardAnalyzer.forStateString(States.EngagedWithBar)
+            const result = analyzer.isDisengaged()
+            expect(result).to.equal(false)
+        })
+    })
+
     describe('primes', () => {
 
         it('should return 1 prime of size 5 for white for White5PointPrime1', () => {
