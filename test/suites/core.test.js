@@ -1220,7 +1220,22 @@ describe('BoardAnalyzer', () => {
         })
     })
 
-    describe('primes', () => {
+    describe('#piecesOnPoint', () => {
+
+        it('should return 5 for white 6 for initial state', () => {
+            const analyzer = BoardAnalyzer.forStateString(States.Initial)
+            const result = analyzer.piecesOnPoint(White, 6)
+            expect(result).to.equal(5)
+        })
+
+        it('should return 5 for red 6 for initial state', () => {
+            const analyzer = BoardAnalyzer.forStateString(States.Initial)
+            const result = analyzer.piecesOnPoint(Red, 6)
+            expect(result).to.equal(5)
+        })
+    })
+
+    describe('#primes', () => {
 
         it('should return 1 prime of size 5 for white for White5PointPrime1', () => {
             const analyzer = Board.fromStateString(States.White5PointPrime1).newAnalyzer()
