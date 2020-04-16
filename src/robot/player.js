@@ -142,11 +142,13 @@ class BestRobot extends RobotDelegator {
     constructor(...args) {
         super(...args)
         this.addDelegate(new FirstTurnRobot(...args), 10)
+        this.addDelegate(new BearoffRobot(...args), 6)
         this.addDelegate(new PrimeRobot(...args), 6)
-        this.addDelegate(new OccupyRobot(...args), 5)
-        this.addDelegate(new SafetyRobot(...args), 4)
+        this.addDelegate(new SafetyRobot(...args), 6)
+        this.addDelegate(new OccupyRobot(...args), 4.5)
+        this.addDelegate(new RunningRobot(...args), 4)
         this.addDelegate(new HittingRobot(...args), 4)
-        this.addDelegate(new RandomRobot(...args), 1)
+        //this.addDelegate(new RandomRobot(...args), 1)
     }
 }
 
@@ -158,6 +160,30 @@ class RandomRobot extends ConfidenceRobot {
         const rankings = {}
         turn.allowedEndStates.forEach(stateString => rankings[stateString] = weight)
         return rankings
+    }
+}
+
+class BearoffRobot extends ConfidenceRobot {
+
+    async getRankings(turn, game, match) {
+
+        if (!turn.board.mayBearoff(turn.color)) {
+            return this.zeroRankings(turn)
+        }
+
+        const baseline = turn.board.homes[turn.color].length
+
+        const scores = {}
+        turn.allowedEndStates.forEach(endState => {
+            const analyzer = BoardAnalyzer.forStateString(endState)
+            const homes = analyzer.board.homes[turn.color].length - baseline
+            scores[endState] = homes * 10
+            if (analyzer.isDisengaged()) {
+                const pointsCovered = analyzer.board.listSlotsWithColor(turn.color).length
+                scores[endState] += pointsCovered
+            }
+        })
+        return Util.spreadRanking(scores)
     }
 }
 
@@ -230,6 +256,7 @@ class HittingRobot extends ConfidenceRobot {
         const counts = {}
         const zeros = []
 
+        // TODO: quadrant/pip offset
         turn.allowedEndStates.forEach(endState => {
             const board = Board.fromStateString(endState)
             const added = board.bars[them].length - baseline
@@ -240,7 +267,7 @@ class HittingRobot extends ConfidenceRobot {
         })
 
         const rankings = Util.spreadRanking(counts)
-        zeros.forEach(endState => rankings[endState] = 0)
+        //zeros.forEach(endState => rankings[endState] = 0)
 
         return rankings
     }
@@ -296,6 +323,28 @@ class PrimeRobot extends ConfidenceRobot {
     }
 }
 
+class RunningRobot extends ConfidenceRobot {
+
+    async getRankings(turn, game, match) {
+        const scores = {}
+        turn.allowedEndStates.forEach(endState => {
+            const analyzer = BoardAnalyzer.forStateString(endState)
+            scores[endState] = Util.sumArray(analyzer.pointsOccupied(turn.color).map(point =>
+                point * analyzer.piecesOnPoint(turn.color, point) * this.quadrantMultiplier(point)
+            ))
+        })
+        return Util.spreadRanking(scores, true)
+    }
+
+    quadrantMultiplier(point) {
+        const quadrant = Math.ceil(point / 6)
+        if (quadrant == 4) {
+            return 6
+        }
+        return quadrant - 1
+    }
+}
+
 class SafetyRobot extends ConfidenceRobot {
 
     // minimum number of blots left
@@ -305,13 +354,32 @@ class SafetyRobot extends ConfidenceRobot {
             return this.zeroRankings(turn)
         }
 
-        const blotCounts = {}
+        const scores = {}
+        const zeros = []
         turn.allowedEndStates.forEach(endState => {
             const analyzer = BoardAnalyzer.forStateString(endState)
-            blotCounts[endState] = analyzer.blots(turn.color).length
+            const blots = analyzer.blots(turn.color)
+            var score = 0
+            var directCount = 0
+            blots.forEach(blot => {
+                directCount += blot.directCount
+                score += blot.directCount * 4
+                score += blot.indirectCount
+                score *= this.quadrantMultiplier(blot.point)
+            })
+            scores[endState] = score
+            if (directCount == 0) {
+                zeros.push(endState)
+            }
         })
-        return Util.spreadRanking(blotCounts, true)
-        // TODO: direct shots, indirect shots weighting
+        const rankings = Util.spreadRanking(scores, true)
+        zeros.forEach(endState => rankings[endState] = 1)
+        return rankings
+    }
+
+    quadrantMultiplier(point) {
+        const quadrant = Math.ceil(point / 6)
+        return (4 - quadrant) * 2
     }
 }
 
@@ -333,6 +401,7 @@ module.exports = {
     Robot
   , RandomRobot
   , BestRobot
+  , BearoffRobot
   , FirstTurnRobot
   , HittingRobot
   , OccupyRobot

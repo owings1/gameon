@@ -59,6 +59,58 @@ describe('RandomRobot', () => {
     })
 })
 
+describe('BearoffRobot', () => {
+
+    var robot
+
+    beforeEach(() => {
+        robot = new Robot.BearoffRobot(White)
+        game._rollFirst = () => [1, 2]
+        makeRandomMoves(game.firstTurn(), true)
+    })
+
+    describe('#getRankings', () => {
+
+        it('should rank Bearoff1Best best for Bearoff1Start with 5,3', async () => {
+            game.board.setStateString(States.Bearoff1Start)
+            const turn = game.nextTurn()
+            turn.setRoll([5, 3])
+            const result = await robot.getRankings(turn, game)
+            const maxRank = Math.max(...Object.values(result))
+            expect(result[States.Bearoff1Best]).to.equal(maxRank)
+        })
+
+        it('should rank only one best for Bearoff1Start with 5,3', async () => {
+            game.board.setStateString(States.Bearoff1Start)
+            const turn = game.nextTurn()
+            turn.setRoll([5, 3])
+            const result = await robot.getRankings(turn, game)
+            const maxRank = Math.max(...Object.values(result))
+            const bests = turn.allowedEndStates.filter(str => result[str] == maxRank)
+            expect(bests).to.have.length(1)
+        })
+
+        it('should rank Bearoff2Best best for Bearoff2Start with 1,3', async () => {
+            game.board.setStateString(States.Bearoff2Start)
+            const turn = game.nextTurn()
+            turn.setRoll([1, 3])
+            const result = await robot.getRankings(turn, game)
+            const maxRank = Math.max(...Object.values(result))
+            expect(result[States.Bearoff2Best]).to.equal(maxRank)
+        })
+
+        it('should rank only one best for Bearoff2Start with 1,3', async () => {
+            game.board.setStateString(States.Bearoff2Start)
+            const turn = game.nextTurn()
+            turn.setRoll([1, 3])
+            const result = await robot.getRankings(turn, game)
+            const maxRank = Math.max(...Object.values(result))
+            const bests = turn.allowedEndStates.filter(str => result[str] == maxRank)
+            expect(bests).to.have.length(1)
+        })
+    })
+})
+
 describe('FirstTurnRobot', () => {
 
     const firstRolls = [

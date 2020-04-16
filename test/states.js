@@ -49,4 +49,10 @@ module.exports = {
   , PrimeCase1Best    : '0|1|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|2:White|2:White|2:White|0:|0:|0:|0:|0:|0|0'
   , PrimeCase1Med     : '0|1|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|1:White|0:|0:|2:White|3:White|0:|0:|0:|0:|0:|0|0'
   , PrimeCase1Bad     : '0|1|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|1:White|0:|0:|1:White|2:White|1:White|0:|0:|1:White|0:|0:|0|0'
+    // one piece on each inside point, should take 2 home for 5,3
+  , Bearoff1Start     : '0|0|15:Red|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|1:White|1:White|1:White|1:White|1:White|1:White|9|0'
+  , Bearoff1Best      : '0|0|15:Red|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|1:White|0:|1:White|0:|1:White|1:White|11|0'
+    // can't go home, should spread to 1 and 3 points for 1,3
+  , Bearoff2Start     : '0|0|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|2:White|0:|0:|0:|2:White|0:|11|0'
+  , Bearoff2Best      : '0|0|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|1:White|0:|0:|1:White|1:White|1:White|11|0'
 }
