@@ -5,6 +5,8 @@ const {intRange} = Util
 const White = 'White'
 const Red   = 'Red'
 
+const Colors = {White, Red}
+
 const ColorAbbr = {
     White : 'W'
   , Red   : 'R'
@@ -64,9 +66,7 @@ class Match {
             throw new MatchFinishedError('Match is already finished')
         }
         const isCrawford = this.opts.isCrawford &&
-                           undefined != Object.entries(this.scores).find(([color, score]) =>
-                               score + 1 == this.total
-                           )
+              undefined != Object.values(this.scores).find(score => score + 1 == this.total)
         const opts = Util.merge({}, this.opts, {isCrawford})
         this.thisGame = new Game(opts)
         this.games.push(this.thisGame)
