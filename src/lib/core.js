@@ -836,7 +836,7 @@ class BoardAnalyzer {
     piecesInPointRange(color, px, py) {
         var count = 0
         for (var p = px; p <= py; p++) {
-            count += this.piecesOnPoint(p)
+            count += this.piecesOnPoint(color, p)
         }
         return count
     }
