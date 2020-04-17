@@ -91,6 +91,7 @@ class RobotDelegator extends Robot {
         if (turn.isCantMove) {
             return []
         }
+        const startState = turn.board.stateString()
         // [{robot, weight, rankings}]
         const delegates = []
         for (var delegate of this.delegates) {
@@ -114,12 +115,13 @@ class RobotDelegator extends Robot {
         })
         const maxWeight = Math.max(...Object.values(rankings))
         //this.logger.debug({rankings, maxWeight})
-        const stateString = turn.allowedEndStates.find(endState => rankings[endState] == maxWeight)
-        const moves = turn.endStatesToSeries[stateString]
+        const endState = turn.allowedEndStates.find(endState => rankings[endState] == maxWeight)
+        const moves = turn.endStatesToSeries[endState]
         if (!moves) {
-            this.logger.error({maxWeight, rankings, stateString, allowedEndStates: turn.allowedEndStates})
+            this.logger.error({maxWeight, rankings, endState, allowedEndStates: turn.allowedEndStates})
             throw new UndecidedMoveError('Cannot find moves among delegates')
         }
+        this.emit('turnData', turn, {startState, endState, rankings, moves})
         return moves
     }
 
@@ -143,10 +145,10 @@ class BestRobot extends RobotDelegator {
         super(...args)
         this.addDelegate(new FirstTurnRobot(...args), 10)
         this.addDelegate(new BearoffRobot(...args), 6)
-        this.addDelegate(new PrimeRobot(...args), 6)
-        this.addDelegate(new SafetyRobot(...args), 6)
+        this.addDelegate(new PrimeRobot(...args), 5.5)
+        this.addDelegate(new SafetyRobot(...args), 5)
         this.addDelegate(new OccupyRobot(...args), 4.5)
-        this.addDelegate(new RunningRobot(...args), 4)
+        this.addDelegate(new RunningRobot(...args), 4.4)
         this.addDelegate(new HittingRobot(...args), 4)
         //this.addDelegate(new RandomRobot(...args), 1)
     }
@@ -327,6 +329,7 @@ class RunningRobot extends ConfidenceRobot {
 
     async getRankings(turn, game, match) {
         const scores = {}
+        //const bkBefore = turn.board.newAnalyzer().countPiecesInPointRange(turn.color, 19, 24)
         turn.allowedEndStates.forEach(endState => {
             const analyzer = BoardAnalyzer.forStateString(endState)
             scores[endState] = Util.sumArray(analyzer.pointsOccupied(turn.color).map(point =>
@@ -339,9 +342,9 @@ class RunningRobot extends ConfidenceRobot {
     quadrantMultiplier(point) {
         const quadrant = Math.ceil(point / 6)
         if (quadrant == 4) {
-            return 6
+            return 8
         }
-        return quadrant - 1
+        return (quadrant - 1) / 2
     }
 }
 

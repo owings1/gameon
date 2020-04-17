@@ -1,6 +1,6 @@
 {
   "name": "gameon",
-  "version": "1.0.4",
+  "version": "1.0.5",
   "description": "backgammon",
   "main": "index.js",
   "scripts": {
@@ -64,6 +64,11 @@
     "hooks": {
       "init": "./src/hooks/init",
       "update": "./src/hooks/update"
+    },
+    "topics": {
+      "dataset": {
+        "description": "Manage AI datasets"
+      }
     },
     "update": {
       "s3": {

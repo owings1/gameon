@@ -827,6 +827,14 @@ class BoardAnalyzer {
         }).map(i => +i)
     }
 
+    piecesInPointRange(color, px, py) {
+        var count = 0
+        for (var p = px; p <= py; p++) {
+            count += this.piecesOnPoint(p)
+        }
+        return count
+    }
+
     blots(color) {
 
         const blots = []
@@ -1270,4 +1278,4 @@ class NoMovesRemainingError extends IllegalMoveError {}
 class NoMovesMadeError extends IllegalMoveError {}
 class MovesRemainingError extends IllegalMoveError {}
 
-module.exports = {Match, Game, Board, BoardAnalyzer, SequenceTree, BoardNode, Piece, Dice, Turn, White, Red, Opponent}
+module.exports = {Colors, Match, Game, Board, BoardAnalyzer, SequenceTree, BoardNode, Piece, Dice, Turn, White, Red, Opponent}
