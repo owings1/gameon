@@ -9,40 +9,63 @@ const {
     States
 } = Test
 
+const Coordinator = requireSrc('lib/coordinator')
 const Core  = requireSrc('lib/core')
 const Robot = requireSrc('robot/player')
 const Util  = requireSrc('lib/util')
 
-const {White, Red, Game} = Core
+const {White, Red, Game, Match} = Core
 
 var game
+var robot
+
+function doFirstTurn() {
+    game._rollFirst = () => [1, 2]
+    makeRandomMoves(game.firstTurn(), true)
+}
 
 beforeEach(() => {
     game = new Game
 })
 
+afterEach(async () => {
+    if (robot) {
+        await robot.destroy()
+    }
+})
+
 describe('Robot', () => {
 
+    beforeEach(() => {
+        robot = new Robot.Robot(White)
+    })
+
     describe('#getMoves', () => {
+
         it('should throw NotImplemented', async () => {
-            const robot = new Robot.Robot(White)
             const err = await getErrorAsync(() => robot.getMoves())
             expect(err.message).to.equal('NotImplemented')
         })
     })
 
     describe('#meta', () => {
+
         it('should say isRobot', () => {
-            const robot = new Robot.Robot(White)
             const result = robot.meta()
             expect(result.isRobot).to.equal(true)
+        })
+    })
+
+    describe('#playRoll', () => {
+        it('should pass for isCantMove', async () => {
+            // hack a turn
+            const turn = {isCantMove: true}
+            await robot.playRoll(turn)
         })
     })
 })
 
 describe('RandomRobot', () => {
-
-    var robot
 
     beforeEach(() => {
         robot = new Robot.RandomRobot(White)
@@ -61,12 +84,10 @@ describe('RandomRobot', () => {
 
 describe('BearoffRobot', () => {
 
-    var robot
 
     beforeEach(() => {
         robot = new Robot.BearoffRobot(White)
-        game._rollFirst = () => [1, 2]
-        makeRandomMoves(game.firstTurn(), true)
+        doFirstTurn()
     })
 
     describe('#getRankings', () => {
@@ -111,6 +132,44 @@ describe('BearoffRobot', () => {
     })
 })
 
+describe('ConfidenceRobot', () => {
+
+
+    beforeEach(() => robot = new Robot.ConfidenceRobot(White))
+
+    describe('#getMoves', () => {
+
+        it('should return empty array for isCantMove', async () => {
+            // hack a turn
+            const turn = {isCantMove: true}
+            const result = await robot.getMoves(turn)
+            expect(result).to.have.length(0)
+        })
+
+        it('should throw UndecidedMoveError when moves are empty', async () => {
+            robot.getRankings = () => []
+            // hack a turn
+            const turn = {isRolled: true}
+            const err = await getErrorAsync(() => robot.getMoves(turn))
+            expect(err.name).to.equal('UndecidedMoveError')
+        })
+
+        it('should throw HasNotRolledError when isRolled=false', async () => {
+            doFirstTurn()
+            const err = await getErrorAsync(() => robot.getMoves(game.nextTurn(), game))
+            expect(err.name).to.equal('HasNotRolledError')
+        })
+    })
+
+    describe('#getRankings', () => {
+
+        it('should throw NotImplemented for base class', async () => {
+            const err = await getErrorAsync(() => robot.getRankings())
+            expect(err.message).to.equal('NotImplemented')
+        })
+    })
+})
+
 describe('FirstTurnRobot', () => {
 
     const firstRolls = [
@@ -130,8 +189,6 @@ describe('FirstTurnRobot', () => {
       , [5,4]
       , [6,5]
     ]
-
-    var robot
 
     beforeEach(() => {
         robot = new Robot.FirstTurnRobot(White)
@@ -201,12 +258,9 @@ describe('FirstTurnRobot', () => {
 
 describe('HittingRobot', () => {
 
-    var robot
-
     beforeEach(() => {
         robot = new Robot.HittingRobot(White)
-        game._rollFirst = () => [1, 2]
-        makeRandomMoves(game.firstTurn(), true)
+        doFirstTurn()
     })
 
     describe('#getRankings', () => {
@@ -251,12 +305,9 @@ describe('HittingRobot', () => {
 
 describe('OccupyRobot', () => {
 
-    var robot
-
     beforeEach(() => {
         robot = new Robot.OccupyRobot(White)
-        game._rollFirst = () => [1, 2]
-        makeRandomMoves(game.firstTurn(), true)
+        doFirstTurn()
     })
 
     describe('#getRankings', () => {
@@ -290,12 +341,9 @@ describe('OccupyRobot', () => {
 
 describe('PrimeRobot', () => {
 
-    var robot
-
     beforeEach(() => {
         robot = new Robot.PrimeRobot(White)
-        game._rollFirst = () => [1, 2]
-        makeRandomMoves(game.firstTurn(), true)
+        doFirstTurn()
     })
 
     describe('#getRankings', () => {
@@ -340,12 +388,9 @@ describe('PrimeRobot', () => {
 
 describe('SafetyRobot', () => {
 
-    var robot
-
     beforeEach(() => {
         robot = new Robot.SafetyRobot(White)
-        game._rollFirst = () => [1, 2]
-        makeRandomMoves(game.firstTurn(), true)
+        doFirstTurn()
     })
 
     describe('#getRankings', () => {
@@ -385,5 +430,128 @@ describe('SafetyRobot', () => {
             expect(result[States.SafetyCase1Med]).to.be.greaterThan(0)
             expect(result[States.SafetyCase1Med]).to.be.lessThan(1)
         })
+    })
+})
+
+describe('RobotDelegator', () => {
+
+    var rando
+
+    beforeEach(() => {
+        robot = new Robot.RobotDelegator(White)
+        rando = new Robot.RandomRobot(White)
+    })
+
+    afterEach(async () => {
+        await rando.destroy()
+    })
+
+    describe('#addDelegate', () => {
+
+        it('should throw InvalidRobotError if for base Robot', async () => {
+            const baseRobot = new Robot.Robot(White)
+            const err = getError(() => robot.addDelegate(baseRobot, 0, 0))
+            await baseRobot.destroy()
+            expect(err.name).to.equal('InvalidRobotError')
+        })
+    })
+
+    describe('#getMoves', () => {
+
+        it('should throw NoDelegatesError with empty delegates', async () => {
+            const err = await getErrorAsync(() => robot.getMoves())
+            expect(err.name).to.equal('NoDelegatesError')
+        })
+
+        it('should return empty for turn isCantMove', async () => {
+            robot.addDelegate(rando, 1, 0)
+            // fake a turn
+            const turn = {isCantMove: true}
+            const result = await robot.getMoves(turn)
+            expect(result).to.have.length(0)
+        })
+
+        it('should throw HasNotRolledError if not rolled', async () => {
+            robot.addDelegate(rando, 1, 0)
+            doFirstTurn()
+            const err = await getErrorAsync(() => robot.getMoves(game.nextTurn(), game))
+            expect(err.name).to.equal('HasNotRolledError')
+        })
+
+        it('should warn when delegate sets a ranking less than 0', async () => {
+            var msg = ''
+            robot.logger.warn = (...args) => msg += args.join(' ')
+            rando.getRankings = turn => {
+                const rankings = rando.zeroRankings(turn)
+                const key = Object.keys(rankings).pop()
+                rankings[key] = -1
+                return rankings
+            }
+            game._rollFirst = () => [1, 2]
+            makeRandomMoves(game.firstTurn(), true)
+            robot.addDelegate(rando, 1, 0)
+            const turn = game.nextTurn()
+            turn.roll()
+            const result = await robot.getMoves(turn, game)
+            expect(msg).to.have.length.greaterThan(0)
+        })
+
+        it('should throw UndecidedMoveError when delegate ranks invalid state highest', async () => {
+            robot.addDelegate(rando, 1, 0)
+            rando.getRankings = turn => {
+                return {invalidStr: 1}
+            }
+            doFirstTurn()
+            const turn = game.nextTurn()
+            turn.roll()
+            robot.logger.loglevel = -1
+            const err = await getErrorAsync(() => robot.getMoves(turn, game))
+            expect(err.name).to.equal('UndecidedMoveError')
+        })
+    })
+
+    describe('#meta', () => {
+
+        it('should have delegates length 1', () => {
+            robot.addDelegate(rando, 1, 0)
+            const result = robot.meta()
+            expect(result.delegates).to.have.length(1)
+        })
+    })
+
+    describe('#validateWeight', () => {
+
+        it('should throw InvalidWeightError for string', () => {
+            const err = getError(() => robot.validateWeight('1'))
+            expect(err.name).to.equal('InvalidWeightError')
+        })
+
+        it('should throw InvalidWeightError for NaN', () => {
+            const err = getError(() => robot.validateWeight(NaN))
+            expect(err.name).to.equal('InvalidWeightError')
+        })
+
+        it('should throw InvalidWeightError for Infinity', () => {
+            const err = getError(() => robot.validateWeight(Infinity))
+            expect(err.name).to.equal('InvalidWeightError')
+        })
+
+        it('should throw InvalidWeightError for -Infinity', () => {
+            const err = getError(() => robot.validateWeight(-Infinity))
+            expect(err.name).to.equal('InvalidWeightError')
+        })
+    })
+})
+
+describe('BestRobot', () => {
+
+    it('should run a match', async function() {
+        this.timeout(20000)
+        const coordinator = new Coordinator
+        const players = [new Robot.BestRobot(White), new Robot.BestRobot(Red)]
+        const match = new Match(1)
+        await coordinator.runMatch(match, ...players)
+        await players[0].destroy()
+        await players[1].destroy()
     })
 })

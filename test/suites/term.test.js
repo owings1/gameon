@@ -8,8 +8,12 @@ const {
     requireSrc,
     MockPrompter,
     noop,
+    tmpFile,
     States
 } = TestUtil
+
+const fse = require('fs-extra')
+const fs = require('fs')
 
 const Menu        = requireSrc('term/menu')
 const Draw        = requireSrc('term/draw')
@@ -105,6 +109,25 @@ describe('Menu', () => {
             Menu.main = () => isCalled = true
             Menu.doMainIfEquals(null, null)
             expect(isCalled).to.equal(true)
+        })
+    })
+
+    describe('#getDefaultOpts', () => {
+
+        it('should merge optsFile if specified', () => {
+            menu.optsFile = tmpFile()
+            fse.writeJsonSync(menu.optsFile, {total: 5})
+            const result = menu.getDefaultOpts()
+            expect(result.total).to.equal(5)
+            fse.removeSync(menu.optsFile)
+        })
+
+        it('should normalize opts file if not exists', () => {
+            menu.optsFile = tmpFile()
+            fse.removeSync(menu.optsFile)
+            menu.getDefaultOpts()
+            JSON.parse(fs.readFileSync(menu.optsFile))
+            fse.removeSync(menu.optsFile)
         })
     })
 
@@ -386,6 +409,17 @@ describe('Menu', () => {
         })
     })
 
+    describe('#saveOpts', () => {
+
+        it('should write default opts', async () => {
+            const opts = menu.getDefaultOpts()
+            menu.optsFile = tmpFile()
+            await menu.saveOpts()
+            const result = JSON.parse(fs.readFileSync(menu.optsFile))
+            await fse.remove(menu.optsFile)
+            expect(JSON.stringify(result)).to.equal(JSON.stringify(opts))
+        })
+    })
     describe('#startOnlineMatch', () => {
 
         it('should get call runMatch with mock method and mock client', async () => {
@@ -641,6 +675,20 @@ describe('TermPlayer', () => {
             turn.finish()
             expect(turn.isFinished).to.equal(true)
             expect(game.board.stateString()).to.equal(States.WhiteTakes61)
+        })
+
+        it('should not prompt with fastForced on force move', async () => {
+            game._rollFirst = () => [1, 2]
+            makeRandomMoves(game.firstTurn(), true)
+            game.board.setStateString(States.EitherOneMoveWin)
+            player.prompt = () => {throw new Error}
+            player.opts.fastForced = true
+            const turn = game.nextTurn()
+            turn.roll()
+            await player.playRoll(turn, game)
+            turn.finish()
+            expect(game.checkFinished()).to.equal(true)
+            expect(game.getWinner()).to.equal(White)
         })
     })
 

@@ -1232,6 +1232,21 @@ describe('BoardAnalyzer', () => {
         })
     })
 
+    describe('#piecesInPointRange', () => {
+
+        it('should return 5 for white 1-6 for initial state', () => {
+            const analyzer = new BoardAnalyzer(Board.setup())
+            const result = analyzer.piecesInPointRange(White, 1, 6)
+            expect(result).to.equal(5)
+        })
+
+        it('should return 0 for white 1-5 for initial state', () => {
+            const analyzer = new BoardAnalyzer(Board.setup())
+            const result = analyzer.piecesInPointRange(White, 1, 5)
+            expect(result).to.equal(0)
+        })
+    })
+
     describe('#piecesOnPoint', () => {
 
         it('should return 5 for white 6 for initial state', () => {
