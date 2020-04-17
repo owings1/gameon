@@ -403,6 +403,7 @@ class UndecidedMoveError extends RobotError {}
 
 module.exports = {
     Robot
+  , ConfidenceRobot
   , RandomRobot
   , BestRobot
   , BearoffRobot

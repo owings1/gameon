@@ -1288,4 +1288,24 @@ class NoMovesRemainingError extends IllegalMoveError {}
 class NoMovesMadeError extends IllegalMoveError {}
 class MovesRemainingError extends IllegalMoveError {}
 
-module.exports = {Colors, Match, Game, Board, BoardAnalyzer, SequenceTree, BoardNode, Piece, Dice, Turn, White, Red, Opponent}
+// as needed
+const Errors = {
+    HasNotRolledError
+}
+
+module.exports = {
+    Colors
+  , Match
+  , Game
+  , Board
+  , BoardAnalyzer
+  , SequenceTree
+  , BoardNode
+  , Piece
+  , Dice
+  , Turn
+  , White
+  , Red
+  , Opponent
+  , Errors
+}
