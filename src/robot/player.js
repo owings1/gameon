@@ -3,6 +3,7 @@ const Base = require('../lib/player')
 const Util = require('../lib/util')
 
 const {Board} = Core
+const {HasNotRolledError} = Core.Errors
 const {merge, spreadRanking, sumArray} = Util
 
 class Robot extends Base {
@@ -42,6 +43,9 @@ class ConfidenceRobot extends Robot {
     async getMoves(turn, game, match) {
         if (turn.isCantMove) {
             return []
+        }
+        if (!turn.isRolled) {
+            throw new HasNotRolledError('Turn is not rolled')
         }
         const rankings = await this.getRankings(turn, game, match)
         if (rankings.length == 0) {
@@ -87,6 +91,9 @@ class RobotDelegator extends Robot {
         }
         if (turn.isCantMove) {
             return []
+        }
+        if (!turn.isRolled) {
+            throw new HasNotRolledError('Turn is not rolled')
         }
         const startState = turn.board.stateString()
         // [{robot, weight, doubleWeight, rankings}]
