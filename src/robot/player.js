@@ -136,7 +136,7 @@ class RobotDelegator extends Robot {
     }
 
     validateWeight(value) {
-        if (typeof(value) != 'number' || isNaN(value) || value == Infinity) {
+        if (typeof(value) != 'number' || isNaN(value) || Math.abs(value) == Infinity) {
             throw new InvalidWeightError('Invalid weight for delegate')
         }
     }
