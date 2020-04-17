@@ -202,7 +202,7 @@ class FirstTurnRobot extends ConfidenceRobot {
 
     async getRankings(turn, game, match) {
         const rankings = this.zeroRankings(turn)
-        if (game.turns.length > 2 || turn.dice[0] == turn.dice[1]) {
+        if (!game || game.turns.length > 2 || turn.dice[0] == turn.dice[1]) {
             return rankings
         }
         const board = turn.board.copy()
