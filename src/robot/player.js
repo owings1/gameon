@@ -126,7 +126,7 @@ class RobotDelegator extends Robot {
         await Promise.all([super.destroy()].concat(this.delegates.map(delegate =>
             delegate.robot.destroy()
         )))
-        this.delegates = null
+        this.delegates.splice(0)
     }
 
     meta() {
