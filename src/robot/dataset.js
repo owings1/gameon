@@ -25,14 +25,14 @@ class Helper {
 
     constructor(opts) {
         this.opts = Util.defaults(Helper.defaults(), opts)
+        this.outDir = resolve(this.opts.outDir)
         this.logger = new Logger
     }
 
     async run() {
 
-        const {opts} = this
+        const {opts, outDir} = this
 
-        const outDir = resolve(opts.outDir)
         await fse.ensureDir(outDir)
         const players = {
             White : new Robot.BestRobot(White)

@@ -432,12 +432,6 @@ class Menu extends Logger {
         return this._prompt
     }
 
-    static doMainIfEquals(lhs, rhs) {
-        if (lhs === rhs) {
-            Menu.main(new Menu)
-        }
-    }
-
     static formatChoices(choices) {
         const maxLength = Math.max(...choices.map(choice => choice.name.length))
         choices.forEach(choice => {
@@ -448,12 +442,5 @@ class Menu extends Logger {
         return choices.filter(choice => !('when' in choice) || choice.when())
     }
 }
-
-Menu.main = menu => {
-    menu.mainMenu()
-    return menu
-}
-
-Menu.doMainIfEquals(require.main, module)
 
 module.exports = Menu

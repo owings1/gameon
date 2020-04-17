@@ -1,7 +1,6 @@
 const Logging = require('better-logging')
-
-const chalk     = require('chalk')
-const stripAnsi = require('strip-ansi')
+const Util    = require('./util')
+const chalk   = require('chalk')
 
 const Levels = {
    debug : 4
@@ -15,7 +14,7 @@ const Levels = {
 class Logger {
 
     static format(ctx) {
-        return chalk.grey(stripAnsi(ctx.type).toUpperCase()) + ' ' + ctx.msg
+        return chalk.grey(Util.stripAnsi(ctx.type).toUpperCase()) + ' ' + ctx.msg
     }
 
     constructor() {

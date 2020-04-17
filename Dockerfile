@@ -10,4 +10,6 @@ RUN npm install
 
 COPY . .
 
-CMD node src/net/server.js
+RUN npm install -g .
+
+CMD gameon server

@@ -4,14 +4,19 @@ const Helper = require('../../robot/dataset').Helper
 
 class CreateCommand extends Command {
 
-    async run() {
+    async init() {
         const {flags} = this.parse(CreateCommand)
-        const opts = {
-            outDir   : flags.outdir
-          , numGames : +flags.games
+        this.flags = flags
+        this.opts = {
+            outDir   : this.flags.outdir
+          , numGames : +this.flags.games
         }
-        const helper = new Helper(opts)
-        await helper.run()
+        this.helper = this.helper || new Helper(this.opts)
+    }
+
+    async run() {
+        await this.init()
+        await this.helper.run()
     }
 }
 

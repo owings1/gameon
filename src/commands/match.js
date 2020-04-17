@@ -6,9 +6,19 @@ const path = require('path')
 
 class MatchCommand extends Command {
 
+    async init() {
+        const {flags} = this.parse(this.constructor)
+        this.flags = flags
+        this.helper = this.helper || new Menu(this.getSettingsFile())
+    }
+
     async run() {
-        const {flags} = this.parse(MatchCommand)
-        await Menu.main(new Menu(path.resolve(os.homedir(), '.gameon/settings.json')))
+        await this.init()
+        await this.helper.mainMenu()
+    }
+
+    getSettingsFile() {
+        return path.resolve(os.homedir(), '.gameon/settings.json')
     }
 }
 

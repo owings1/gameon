@@ -90,28 +90,6 @@ describe('Menu', () => {
         menu = new Menu
     })
 
-    describe('#doMainIfEquals', () => {
-
-        // coverage tricks
-
-        var oldMain
-
-        before(() => {
-            oldMain = Menu.main
-        })
-
-        afterEach(() => {
-            Menu.main = oldMain
-        })
-
-        it('should call mock main', () => {
-            var isCalled
-            Menu.main = () => isCalled = true
-            Menu.doMainIfEquals(null, null)
-            expect(isCalled).to.equal(true)
-        })
-    })
-
     describe('#getDefaultOpts', () => {
 
         it('should merge optsFile if specified', () => {
@@ -161,18 +139,6 @@ describe('Menu', () => {
             menu.newClient = () => { return {connect : noop, joinMatch: noop, close: noop}}
             menu.newCoordinator = () => { return {runMatch: () => isCalled = true}}
             await menu.joinOnlineMatch(menu.opts)
-            expect(isCalled).to.equal(true)
-        })
-    })
-
-    describe('#main', () => {
-
-        // coverage tricks
-
-        it('should call mainMenu', () => {
-            var isCalled = false
-            menu.mainMenu = () => isCalled = true
-            Menu.main(menu)
             expect(isCalled).to.equal(true)
         })
     })
@@ -446,8 +412,8 @@ describe('Coordinator', () => {
         t2 = new TermPlayer(Red)
         t1.logger.loglevel = 1
         t2.logger.loglevel = 1
-        t1.stdout = {write: () => {}}
-        t2.stdout = t1.stdout
+        t1.logger.stdout = {write: noop}
+        t2.logger.stdout = t1.logger.stdout
     })
 
     describe('#runMatch', () => {
@@ -591,7 +557,7 @@ describe('TermPlayer', () => {
     beforeEach(() => {
         player = new TermPlayer(White)
         player.logger.loglevel = 1
-        player.stdout = {write: () => {}}
+        player.logger.stdout = {write: () => {}}
     })
 
     describe('#describeMove', () => {
@@ -616,15 +582,6 @@ describe('TermPlayer', () => {
             const move = board.buildMove(Red, 0, 2)
             const result = player.describeMove(move)
             expect(result).to.contain('home')
-        })
-    })
-
-    describe('#getStdout', () => {
-
-        it('should return process.stdout when stdout not set', () => {
-            player.stdout = null
-            const result = player.getStdout()
-            expect(result).to.equal(process.stdout)
         })
     })
 
@@ -889,8 +846,8 @@ describe('Robot', () => {
         const red = new TermPlayer.Robot(new RandomRobot(Red), {delay: 0})
         white.logger.loglevel = 1
         red.logger.loglevel = 1
-        white.stdout = {write: () => {}}
-        red.stdout = {write: () => {}}
+        white.logger.stdout = {write: () => {}}
+        red.logger.stdout = {write: () => {}}
         white.robot.turnOption = (turn, game) => {
             if (game.turns.length > 3) {
                 turn.setDoubleOffered()

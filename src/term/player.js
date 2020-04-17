@@ -142,15 +142,7 @@ class TermPlayer extends Base {
             return
         }
 
-        this.writeStdout(Draw.drawBoard(this.thisGame, this.thisMatch))
-    }
-
-    getStdout() {
-        return this.stdout || process.stdout
-    }
-
-    writeStdout(str) {
-        this.getStdout().write(str)
+        this.logger.writeStdout(Draw.drawBoard(this.thisGame, this.thisMatch))
     }
 
     async promptTurnOption() {

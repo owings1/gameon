@@ -92,6 +92,13 @@ describe('BearoffRobot', () => {
 
     describe('#getRankings', () => {
 
+        it('should return 0 rankings when cannot bear off', async () => {
+            const turn = game.nextTurn().roll()
+            const result = await robot.getRankings(turn, game)
+            const maxWeight = Math.max(...Object.values(result))
+            expect(maxWeight).to.equal(0)
+        })
+
         it('should rank Bearoff1Best best for Bearoff1Start with 5,3', async () => {
             game.board.setStateString(States.Bearoff1Start)
             const turn = game.nextTurn()
@@ -128,6 +135,13 @@ describe('BearoffRobot', () => {
             const maxRank = Math.max(...Object.values(result))
             const bests = turn.allowedEndStates.filter(str => result[str] == maxRank)
             expect(bests).to.have.length(1)
+        })
+
+        it('should not care about points covered when game is still engaged for Bearoff3Start with 4,1', async () => {
+            game.board.setStateString(States.Bearoff3Start)
+            const turn = game.nextTurn().setRoll(4, 1)
+            const result = await robot.getRankings(turn, game)
+            expect(result[States.Bearoff3End1]).to.equal(result[States.Bearoff3End2])
         })
     })
 })

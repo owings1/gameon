@@ -401,12 +401,6 @@ class Server {
     static matchIdFromSecret(str) {
         return crypto.createHash('sha256').update(str).digest('hex').substring(0, 8)
     }
-
-    static doMainIfEquals(lhs, rhs) {
-        if (lhs === rhs) {
-            Server.main(new Server)
-        }
-    }
 }
 
 
@@ -424,13 +418,5 @@ class MatchAlreadyExistsError extends RequestError {}
 class MatchNotFoundError extends RequestError {}
 class MatchAlreadyJoinedError extends RequestError {}
 class NotYourTurnError extends RequestError {}
-
-
-Server.main = server => {
-    server.listen(process.env.HTTP_PORT || 8080)
-    return server
-}
-
-Server.doMainIfEquals(require.main, module)
 
 module.exports = Server

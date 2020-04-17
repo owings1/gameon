@@ -309,6 +309,7 @@ class Turn {
         this.assertNotRolled()
 
         this.isDoubleOffered = true
+        return this
     }
 
     setDoubleDeclined() {
@@ -325,19 +326,21 @@ class Turn {
         this.isDoubleDeclined = true
 
         this.finish()
+        return this
     }
 
-    setRoll(dice) {
+    setRoll(...args) {
 
         this.assertNotFinished()
         this.assertNotRolled()
-
+        const dice = args.length == 1 ? args[0] : args
         Dice.checkTwo(dice)
         this.dice = dice
         this.diceSorted = dice.slice(0).sort(Util.sortNumericDesc)
         this.isRolled = true
 
         this.afterRoll()
+        return this
     }
 
     roll() {
@@ -350,6 +353,7 @@ class Turn {
         this.isRolled = true
 
         this.afterRoll()
+        return this
     }
 
     afterRoll() {
@@ -417,6 +421,7 @@ class Turn {
         move.undo()
         this.remainingFaces.push(move.face)
         this.remainingFaces.sort(Util.sortNumericDesc)
+        return move
     }
 
     finish() {
@@ -435,6 +440,7 @@ class Turn {
         }
         this.endState = this.board.stateString()
         this.isFinished = true
+        return this
     }
 
     assertNotFinished() {
@@ -537,10 +543,6 @@ class Turn {
           , allowedEndStates
           , endStatesToSeries
         }
-    }
-
-    originForPoint(point) {
-        return this.board.pointOrigin(this.color, point)
     }
 
     meta() {
@@ -833,12 +835,24 @@ class BoardAnalyzer {
         }).map(i => +i)
     }
 
+    piecesHome(color) {
+        return this.board.homes[color].length
+    }
+
+    piecesOnPoint(color, point) {
+        return this.board.slots[this.board.pointOrigin(color, point)].filter(piece => piece.color == color).length
+    }
+
     piecesInPointRange(color, px, py) {
         var count = 0
         for (var p = px; p <= py; p++) {
             count += this.piecesOnPoint(color, p)
         }
         return count
+    }
+
+    pointsOccupied(color) {
+        return this.board.originsOccupied(color).map(i => this.board.originPoint(color, i))
     }
 
     blots(color) {
@@ -900,13 +914,7 @@ class BoardAnalyzer {
         return backmostWhite > backmostRed
     }
 
-    piecesOnPoint(color, point) {
-        return this.board.slots[this.board.pointOrigin(color, point)].filter(piece => piece.color == color).length
-    }
 
-    pointsOccupied(color) {
-        return this.board.originsOccupied(color).map(i => this.board.originPoint(color, i))
-    }
 
     primes(color) {
         const slotsHeld = this.slotsHeld(color)

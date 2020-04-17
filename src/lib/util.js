@@ -1,5 +1,6 @@
-const merge = require('merge')
-const uuid  = require('uuid')
+const merge     = require('merge')
+const stripAnsi = require('strip-ansi')
+const uuid      = require('uuid')
 
 class Util {
 
@@ -79,6 +80,10 @@ class Util {
             }
         }
         return spreadObj
+    }
+
+    static stripAnsi(str) {
+        return stripAnsi(str)
     }
 
     static sumArray(arr) {

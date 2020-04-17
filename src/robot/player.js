@@ -182,15 +182,15 @@ class BearoffRobot extends ConfidenceRobot {
             return this.zeroRankings(turn)
         }
 
-        const baseline = turn.board.homes[turn.color].length
+        const baseline = turn.board.newAnalyzer().piecesHome(turn.color)
 
         const scores = {}
         turn.allowedEndStates.forEach(endState => {
             const analyzer = Board.fromStateString(endState).newAnalyzer()
-            const homes = analyzer.board.homes[turn.color].length - baseline
+            const homes = analyzer.piecesHome(turn.color) - baseline
             scores[endState] = homes * 10
             if (analyzer.isDisengaged()) {
-                const pointsCovered = analyzer.board.originsOccupied(turn.color).length
+                const pointsCovered = analyzer.pointsOccupied(turn.color).length
                 scores[endState] += pointsCovered
             }
         })
@@ -208,7 +208,7 @@ class FirstTurnRobot extends ConfidenceRobot {
         const board = turn.board.copy()
         try {
             this.pointMoves(turn.diceSorted).forEach(({point, face}) => {
-                board.move(turn.color, turn.originForPoint(point), face)
+                board.move(turn.color, board.pointOrigin(turn.color, point), face)
             })
             rankings[board.stateString()] = 1 / game.turns.length
         } catch (err) {

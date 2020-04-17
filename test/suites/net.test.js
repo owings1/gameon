@@ -231,7 +231,7 @@ describe('Server', () => {
         })
     })
 
-    describe('#doMainIfEquals', () => {
+    describe.skip('#doMainIfEquals', () => {
         // coverage trick
         var oldMain
         before(() => {
@@ -304,7 +304,7 @@ describe('Server', () => {
         })
     })
 
-    describe('#main', () => {
+    describe.skip('#main', () => {
 
         // coverage trick
         it('should call listen with port for mock method', () => {
