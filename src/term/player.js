@@ -1,7 +1,6 @@
 const Base   = require('../lib/player')
 const Core   = require('../lib/core')
 const Draw   = require('./draw')
-const Logger = require('../lib/logger')
 const Util   = require('../lib/util')
 
 const inquirer = require('inquirer')
@@ -21,7 +20,6 @@ class TermPlayer extends Base {
     constructor(color, opts) {
         super(color)
         this.opts = Util.defaults(TermPlayer.defaults(), opts)
-        this.logger = new Logger
         this.isTerm = true
         this.on('gameStart', (game, match, players) => {
             this.isDualTerm = this.opponent.isTerm

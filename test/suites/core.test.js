@@ -720,7 +720,7 @@ describe('Board', () => {
         })
     })
 
-    describe('#colorPointForOrigin', () => {
+    describe('#originPoint', () => {
 
         const expCases = [
             {input: [Red, 5], exp: 6},
@@ -730,7 +730,7 @@ describe('Board', () => {
 
         expCases.forEach(({input, exp}) => {
             it('should return ' + exp + ' for ' + input.join(), () => {
-                const result = board.colorPointForOrigin(...input)
+                const result = board.originPoint(...input)
                 expect(result).to.equal(exp)
             })
         })
@@ -753,6 +753,18 @@ describe('Board', () => {
 			const result = board.stateString()
 			expect(result).to.equal(States.Initial)
 		})
+
+        it('should accept short style', () => {
+            const board = Board.fromStateString(States.Initial)
+            const result = Board.fromStateString(States.InitialShort)
+            expect(result.stateString()).to.equal(board.stateString())
+        })
+
+        it('should accept shorter style', () => {
+            const board = Board.fromStateString(States.Initial)
+            const result = Board.fromStateString(States.InitialShorter)
+            expect(result.stateString()).to.equal(board.stateString())
+        })
 	})
 
     describe('#fromStateStructure', () => {
@@ -916,11 +928,11 @@ describe('Board', () => {
         })
     })
 
-	describe('#listSlotsWithColor', () => {
+	describe('#originsOccupied', () => {
 
 		it('should return [5,7,12,23] for red on setup', () => {
 			board.setup()
-			const result = board.listSlotsWithColor(Red)
+			const result = board.originsOccupied(Red)
 			const exp = [5, 7, 12, 23]
 			expect(JSON.stringify(result)).to.equal(JSON.stringify(exp))
 		})
@@ -1139,15 +1151,15 @@ describe('Board', () => {
         })
     })
 
-    describe('#originForColorPoint', () => {
+    describe('#pointOrigin', () => {
 
         it('should return 18 for White 6 point', () => {
-            const result = board.originForColorPoint(White, 6)
+            const result = board.pointOrigin(White, 6)
             expect(result).to.equal(18)
         })
 
         it('should return 5 for Red 6 point', () => {
-            const result = board.originForColorPoint(Red, 6)
+            const result = board.pointOrigin(Red, 6)
             expect(result).to.equal(5)
         })
     })

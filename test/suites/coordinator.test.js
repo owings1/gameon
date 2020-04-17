@@ -180,12 +180,12 @@ describe('#runGame', () => {
         board.setStateString(States.Either65Win)
         game._rollFirst = () => [2, 1]
         players.White.moves = [
-            [board.originForColorPoint(White, 6), 2],
-            [board.originForColorPoint(White, 5), 1]
+            [board.pointOrigin(White, 6), 2],
+            [board.pointOrigin(White, 5), 1]
         ]
         players.Red.moves = [
-            [board.originForColorPoint(Red, 6), 6],
-            [board.originForColorPoint(Red, 5), 5]
+            [board.pointOrigin(Red, 6), 6],
+            [board.pointOrigin(Red, 5), 5]
         ]
         players.Red.rollTurn = turn => turn.setRoll([6, 5])
         await coordinator.runGame(players, game)
@@ -198,8 +198,8 @@ describe('#runGame', () => {
         board.setStateString(States.Either65Win)
         game._rollFirst = () => [2, 1]
         players.White.moves = [
-            [board.originForColorPoint(White, 6), 2],
-            [board.originForColorPoint(White, 5), 1]
+            [board.pointOrigin(White, 6), 2],
+            [board.pointOrigin(White, 5), 1]
         ]
         players.Red.turnOption = turn => turn.setDoubleOffered()
         players.White.decideDouble = turn => turn.setDoubleDeclined()
@@ -214,12 +214,12 @@ describe('#runGame', () => {
         board.setStateString(States.Either65Win)
         game._rollFirst = () => [2, 1]
         players.White.moves = [
-            [board.originForColorPoint(White, 6), 2],
-            [board.originForColorPoint(White, 5), 1]
+            [board.pointOrigin(White, 6), 2],
+            [board.pointOrigin(White, 5), 1]
         ]
         players.Red.moves = [
-            [board.originForColorPoint(Red, 6), 6],
-            [board.originForColorPoint(Red, 5), 5]
+            [board.pointOrigin(Red, 6), 6],
+            [board.pointOrigin(Red, 5), 5]
         ]
         players.Red.rollTurn = turn => turn.setRoll([6, 5])
         players.Red.turnOption = () => {throw new Error}
@@ -233,12 +233,12 @@ describe('#runGame', () => {
         board.setStateString(States.Either65Win)
         game._rollFirst = () => [2, 1]
         players.White.moves = [
-            [board.originForColorPoint(White, 6), 2],
-            [board.originForColorPoint(White, 5), 1]
+            [board.pointOrigin(White, 6), 2],
+            [board.pointOrigin(White, 5), 1]
         ]
         players.Red.moves = [
-            [board.originForColorPoint(Red, 6), 6],
-            [board.originForColorPoint(Red, 5), 5]
+            [board.pointOrigin(Red, 6), 6],
+            [board.pointOrigin(Red, 5), 5]
         ]
         players.Red.rollTurn = turn => turn.setRoll([6, 5])
         players.Red.turnOption = turn => turn.setDoubleOffered()

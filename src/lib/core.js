@@ -12,6 +12,13 @@ const ColorAbbr = {
   , Red   : 'R'
 }
 
+const ColorNorm = {
+    White
+  , Red
+  , W : White
+  , R : Red
+}
+
 const InsideSlots = {
     White : intRange(18, 23)
   , Red   : intRange(0, 5).reverse()
@@ -367,12 +374,11 @@ class Turn {
         const moveMap = {}
         this.allowedMoveSeries.filter(allowedMoves => {
             // compare the first parts of allowedMoves to this.moves
-            const subSeriesA = allowedMoves.slice(0, this.moves.length).map(move => [move.origin, move.face])
-            const subSeriesB = this.moves.map(move => [move.origin, move.face])
+            const subSeriesA = allowedMoves.slice(0, this.moves.length).map(move => move.hash())
+            const subSeriesB = this.moves.map(move => move.hash())
             return JSON.stringify(subSeriesA) == JSON.stringify(subSeriesB)
         }).map(moves => moves[this.moves.length]).filter(it => it != undefined).forEach(move => {
-            const moveHash = [move.origin, move.face].join(':')
-            moveMap[moveHash] = move
+            moveMap[move.hash()] = move
         })
         return Object.values(moveMap)
     }
@@ -534,7 +540,7 @@ class Turn {
     }
 
     originForPoint(point) {
-        return this.board.originForColorPoint(this.color, point)
+        return this.board.pointOrigin(this.color, point)
     }
 
     meta() {
@@ -585,7 +591,7 @@ class Board {
         if (this.hasBar(color)) {
             return [this.getMoveIfCanMove(color, -1, face)].filter(move => move != null)
         }
-        return this.listSlotsWithColor(color).map(origin =>
+        return this.originsOccupied(color).map(origin =>
             this.getMoveIfCanMove(color, origin, face)
         ).filter(move => move != null)
     }
@@ -648,7 +654,7 @@ class Board {
         return false
     }
 
-    listSlotsWithColor(color) {
+    originsOccupied(color) {
         return Object.keys(this.slots).filter(i =>
             this.slots[i].length > 0 && this.slots[i][0].color == color
         ).map(i => +i)
@@ -756,12 +762,12 @@ class Board {
         this.homes.Red = Piece.make(Math.abs(structure[27]), Red)
     }
 
-    originForColorPoint(color, point) {
-        return Board.originForColorPoint(color, point)
+    pointOrigin(color, point) {
+        return Board.pointOrigin(color, point)
     }
 
-    colorPointForOrigin(color, origin) {
-        return Board.colorPointForOrigin(color, origin)
+    originPoint(color, origin) {
+        return Board.originPoint(color, origin)
     }
 
     toString() {
@@ -787,14 +793,14 @@ class Board {
         return new BoardAnalyzer(this)
     }
 
-    static originForColorPoint(color, point) {
+    static pointOrigin(color, point) {
         if (color == Red) {
             return point - 1
         }
         return 24 - point
     }
 
-    static colorPointForOrigin(color, origin) {
+    static originPoint(color, origin) {
         if (color == Red) {
             return origin + 1
         }
@@ -848,13 +854,13 @@ class BoardAnalyzer {
             return blots
         }
 
-        const opponentSlots = this.board.listSlotsWithColor(Opponent[color])
-        const opponentPoints = opponentSlots.map(i => this.board.colorPointForOrigin(color, i))
+        const opponentSlots = this.board.originsOccupied(Opponent[color])
+        const opponentPoints = opponentSlots.map(i => this.board.originPoint(color, i))
         const hasBar = this.board.bars[Opponent[color]].length > 0
 
         blotSlots.forEach(origin => {
 
-            const point = this.board.colorPointForOrigin(color, origin)
+            const point = this.board.originPoint(color, origin)
             const attackerPoints = opponentPoints.filter(p => p < point)
             const attackerDistances = attackerPoints.map(p => point - p)
             if (hasBar) {
@@ -864,7 +870,7 @@ class BoardAnalyzer {
             const directCount = attackerDistances.filter(n => n < 7).length
             const indirectCount = attackerDistances.filter(n => n > 6 && n < 12).length
             // TODO: risk factor?
-            const attackerSlots = attackerPoints.map(p => this.board.originForColorPoint(color, p))
+            const attackerSlots = attackerPoints.map(p => this.board.pointOrigin(color, p))
 
             blots.push({
                 point
@@ -889,22 +895,22 @@ class BoardAnalyzer {
         if (this.board.hasBar(White) || this.board.hasBar(Red)) {
             return false
         }
-        const backmostRed = Math.max(...this.board.listSlotsWithColor(Red))
-        const backmostWhite = Math.min(...this.board.listSlotsWithColor(White))
+        const backmostRed = Math.max(...this.board.originsOccupied(Red))
+        const backmostWhite = Math.min(...this.board.originsOccupied(White))
         return backmostWhite > backmostRed
     }
 
     piecesOnPoint(color, point) {
-        return this.board.slots[this.board.originForColorPoint(color, point)].filter(piece => piece.color == color).length
+        return this.board.slots[this.board.pointOrigin(color, point)].filter(piece => piece.color == color).length
     }
 
     pointsOccupied(color) {
-        return this.board.listSlotsWithColor(color).map(i => this.board.colorPointForOrigin(color, i))
+        return this.board.originsOccupied(color).map(i => this.board.originPoint(color, i))
     }
 
     primes(color) {
         const slotsHeld = this.slotsHeld(color)
-        const pointsHeld = slotsHeld.map(i => this.board.colorPointForOrigin(color, i))
+        const pointsHeld = slotsHeld.map(i => this.board.originPoint(color, i))
         pointsHeld.sort(Util.sortNumericAsc)
         const primes = []
         while (pointsHeld.length > 1) {
@@ -917,8 +923,8 @@ class BoardAnalyzer {
                 primes.push({
                     pointStart
                   , pointEnd
-                  , start : this.board.originForColorPoint(color, pointStart)
-                  , end   : this.board.originForColorPoint(color, pointEnd)
+                  , start : this.board.pointOrigin(color, pointStart)
+                  , end   : this.board.pointOrigin(color, pointEnd)
                   , size  : pointEnd - pointStart + 1
                 })
             }
@@ -1023,6 +1029,10 @@ class Move {
     coords() {
         const {origin, face} = this
         return {origin, face}
+    }
+
+    hash() {
+        return [this.origin, this.face].join(':')
     }
 
     copy() {
@@ -1156,8 +1166,8 @@ class BearoffMove extends Move {
 class Piece {
 
     constructor(color) {
-        this.color = color
-        this.c = ColorAbbr[color]
+        this.color = ColorNorm[color]
+        this.c = ColorAbbr[this.color]
     }
 
     toString() {

@@ -1,10 +1,9 @@
-const Core   = require('../lib/core')
-const Base   = require('../lib/player')
-const Logger = require('../lib/logger')
-const Util   = require('../lib/util')
+const Core = require('../lib/core')
+const Base = require('../lib/player')
+const Util = require('../lib/util')
 
-const {Board, BoardAnalyzer, Opponent} = Core
-const {merge} = Util
+const {Board} = Core
+const {merge, spreadRanking, sumArray} = Util
 
 class Robot extends Base {
 
@@ -71,17 +70,15 @@ class RobotDelegator extends Robot {
     constructor(...args) {
         super(...args)
         this.delegates = []
-        this.logger = new Logger
     }
 
-    addDelegate(robot, weight) {
+    addDelegate(robot, weight, doubleWeight) {
         if (!robot.isConfidenceRobot) {
             throw new InvalidRobotError('Delegate is not a Confidence Robot')
         }
-        if (typeof(weight) != 'number' || isNaN(weight) || weight == Infinity) {
-            throw new InvalidWeightError('Invalid weight for delegate')
-        }
-        this.delegates.push({robot, weight})
+        this.validateWeight(weight)
+        this.validateWeight(doubleWeight)
+        this.delegates.push({robot, weight, doubleWeight})
     }
 
     async getMoves(turn, game, match) {
@@ -92,7 +89,7 @@ class RobotDelegator extends Robot {
             return []
         }
         const startState = turn.board.stateString()
-        // [{robot, weight, rankings}]
+        // [{robot, weight, doubleWeight, rankings}]
         const delegates = []
         for (var delegate of this.delegates) {
             delegates.push({
@@ -137,20 +134,25 @@ class RobotDelegator extends Robot {
             delegates : this.delegates.map(({robot, weight}) => merge({weight}, robot.meta()))
         })
     }
+
+    validateWeight(value) {
+        if (typeof(value) != 'number' || isNaN(value) || value == Infinity) {
+            throw new InvalidWeightError('Invalid weight for delegate')
+        }
+    }
 }
 
 class BestRobot extends RobotDelegator {
 
     constructor(...args) {
         super(...args)
-        this.addDelegate(new FirstTurnRobot(...args), 10)
-        this.addDelegate(new BearoffRobot(...args), 6)
-        this.addDelegate(new PrimeRobot(...args), 5.5)
-        this.addDelegate(new SafetyRobot(...args), 5)
-        this.addDelegate(new OccupyRobot(...args), 4.5)
-        this.addDelegate(new RunningRobot(...args), 4.4)
-        this.addDelegate(new HittingRobot(...args), 4)
-        //this.addDelegate(new RandomRobot(...args), 1)
+        this.addDelegate(new FirstTurnRobot(...args), 10, 0)
+        this.addDelegate(new BearoffRobot(...args), 6, 0)
+        this.addDelegate(new PrimeRobot(...args), 5.5, 0)
+        this.addDelegate(new SafetyRobot(...args), 5, 0)
+        this.addDelegate(new OccupyRobot(...args), 4.5, 0)
+        this.addDelegate(new RunningRobot(...args), 4.4, 0)
+        this.addDelegate(new HittingRobot(...args), 4, 0)
     }
 }
 
@@ -177,15 +179,15 @@ class BearoffRobot extends ConfidenceRobot {
 
         const scores = {}
         turn.allowedEndStates.forEach(endState => {
-            const analyzer = BoardAnalyzer.forStateString(endState)
+            const analyzer = Board.fromStateString(endState).newAnalyzer()
             const homes = analyzer.board.homes[turn.color].length - baseline
             scores[endState] = homes * 10
             if (analyzer.isDisengaged()) {
-                const pointsCovered = analyzer.board.listSlotsWithColor(turn.color).length
+                const pointsCovered = analyzer.board.originsOccupied(turn.color).length
                 scores[endState] += pointsCovered
             }
         })
-        return Util.spreadRanking(scores)
+        return spreadRanking(scores)
     }
 }
 
@@ -252,8 +254,7 @@ class HittingRobot extends ConfidenceRobot {
 
     async getRankings(turn, game, match) {
 
-        const them = Opponent[turn.color]
-        const baseline = turn.board.bars[them].length
+        const baseline = turn.board.bars[turn.opponent].length
 
         const counts = {}
         const zeros = []
@@ -261,14 +262,14 @@ class HittingRobot extends ConfidenceRobot {
         // TODO: quadrant/pip offset
         turn.allowedEndStates.forEach(endState => {
             const board = Board.fromStateString(endState)
-            const added = board.bars[them].length - baseline
+            const added = board.bars[turn.opponent].length - baseline
             counts[endState] = added
             if (added < 1) {
                 zeros.push(endState)
             }
         })
 
-        const rankings = Util.spreadRanking(counts)
+        const rankings = spreadRanking(counts)
         //zeros.forEach(endState => rankings[endState] = 0)
 
         return rankings
@@ -284,10 +285,10 @@ class OccupyRobot extends ConfidenceRobot {
         }
         const pointCounts = {}
         turn.allowedEndStates.forEach(endState => {
-            const analyzer = BoardAnalyzer.forStateString(endState)
+            const analyzer = Board.fromStateString(endState).newAnalyzer()
             pointCounts[endState] = analyzer.slotsHeld(turn.color).length
         })
-        return Util.spreadRanking(pointCounts)
+        return spreadRanking(pointCounts)
     }
 }
 
@@ -303,7 +304,7 @@ class PrimeRobot extends ConfidenceRobot {
         const zeros = []
 
         turn.allowedEndStates.forEach(endState => {
-            const analyzer = BoardAnalyzer.forStateString(endState)
+            const analyzer = Board.fromStateString(endState).newAnalyzer()
             const primes = analyzer.primes(turn.color)
             if (primes.length) {
                 const maxSize = Math.max(...primes.map(prime => prime.size))
@@ -314,7 +315,7 @@ class PrimeRobot extends ConfidenceRobot {
             }
         })
 
-        const rankings = Util.spreadRanking(scores)
+        const rankings = spreadRanking(scores)
         zeros.forEach(endState => rankings[endState] = 0)
 
         return rankings
@@ -331,12 +332,12 @@ class RunningRobot extends ConfidenceRobot {
         const scores = {}
         //const bkBefore = turn.board.newAnalyzer().countPiecesInPointRange(turn.color, 19, 24)
         turn.allowedEndStates.forEach(endState => {
-            const analyzer = BoardAnalyzer.forStateString(endState)
-            scores[endState] = Util.sumArray(analyzer.pointsOccupied(turn.color).map(point =>
+            const analyzer = Board.fromStateString(endState).newAnalyzer()
+            scores[endState] = sumArray(analyzer.pointsOccupied(turn.color).map(point =>
                 point * analyzer.piecesOnPoint(turn.color, point) * this.quadrantMultiplier(point)
             ))
         })
-        return Util.spreadRanking(scores, true)
+        return spreadRanking(scores, true)
     }
 
     quadrantMultiplier(point) {
@@ -360,7 +361,7 @@ class SafetyRobot extends ConfidenceRobot {
         const scores = {}
         const zeros = []
         turn.allowedEndStates.forEach(endState => {
-            const analyzer = BoardAnalyzer.forStateString(endState)
+            const analyzer = Board.fromStateString(endState).newAnalyzer()
             const blots = analyzer.blots(turn.color)
             var score = 0
             var directCount = 0
@@ -375,7 +376,7 @@ class SafetyRobot extends ConfidenceRobot {
                 zeros.push(endState)
             }
         })
-        const rankings = Util.spreadRanking(scores, true)
+        const rankings = spreadRanking(scores, true)
         zeros.forEach(endState => rankings[endState] = 1)
         return rankings
     }

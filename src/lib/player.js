@@ -1,4 +1,5 @@
-const Core = require('./core')
+const Core   = require('./core')
+const Logger = require('./logger')
 
 const {EventEmitter} = require('events')
 
@@ -9,6 +10,7 @@ class Player extends EventEmitter {
     constructor(color) {
         super()
         this.name = this.constructor.name
+        this.logger = new Logger
         this.color = color
         this.holds = []
         this.on('matchStart', match => this.thisMatch = match)
