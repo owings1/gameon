@@ -231,24 +231,6 @@ describe('Server', () => {
         })
     })
 
-    describe.skip('#doMainIfEquals', () => {
-        // coverage trick
-        var oldMain
-        before(() => {
-            oldMain = Server.main
-        })
-        afterEach(() => {
-            Server.main = oldMain
-        })
-
-        it('should call main with new server', () => {
-            var server
-            Server.main = s => server = s
-            Server.doMainIfEquals(true, true)
-            expect(server.constructor.name).to.equal('Server')
-        })
-    })
-
     describe('#listen', () => {
 
         it('should have non-null socketServer', () => {
@@ -304,17 +286,6 @@ describe('Server', () => {
         })
     })
 
-    describe.skip('#main', () => {
-
-        // coverage trick
-        it('should call listen with port for mock method', () => {
-            var port
-            const server = {listen: p => port = p}
-            Server.main(server)
-            expect(port).to.equal(8080)
-        })
-        
-    })
     describe('#matchIdFromSecret', () => {
     
     })
