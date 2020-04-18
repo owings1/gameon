@@ -57,6 +57,9 @@ class TermPlayer extends Base {
         })
         this.on('doubleOffered', (turn, game) => {
             this.infoOnce(this.ccolor(turn.color), 'wants to double the stakes to', game.cubeValue * 2, 'points')
+            if (turn.color == this.color && this.opponent.isNet) {
+                this.info('Waiting for', this.ccolor(turn.opponent), 'to respond')
+            }
         })
         this.on('doubleDeclined', turn => {
             this.infoOnce(this.ccolor(turn.opponent), 'has declined the double')
@@ -68,6 +71,7 @@ class TermPlayer extends Base {
             this.infoOnce(this.ccolor(game.getWinner()), 'has won the game with', game.finalValue, 'points')
         })
         this.on('matchEnd', match => {
+            this.drawBoard(true)
             const winner = match.getWinner()
             const loser = match.getLoser()
             this.infoOnce(this.ccolor(winner), 'wins the match', match.scores[winner], 'to', match.scores[loser])
@@ -181,7 +185,7 @@ class TermPlayer extends Base {
             return
         }
 
-        var persp = White
+        var persp = this.isRobot ? White : this.color
         if (isPersp && !this.isRobot && this.color == Red) {
             persp = Red
         }

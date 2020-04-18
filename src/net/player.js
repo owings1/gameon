@@ -10,7 +10,6 @@ class NetPlayer extends Base {
     constructor(client, ...args) {
         super(...args)
         this.client = client
-        this.logger = new Logger
         this.isNet = true
 
         this.on('gameStart', (game, match, players) => {
