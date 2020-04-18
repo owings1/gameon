@@ -796,6 +796,9 @@ class Board {
     }
 
     static pointOrigin(color, point) {
+        if (point == -1) {
+            return -1
+        }
         if (color == Red) {
             return point - 1
         }
@@ -803,6 +806,9 @@ class Board {
     }
 
     static originPoint(color, origin) {
+        if (origin == -1) {
+            return -1
+        }
         if (color == Red) {
             return origin + 1
         }

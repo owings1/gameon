@@ -443,9 +443,9 @@ describe('Coordinator', () => {
             t2.rollTurn = turn => turn.setRoll([6, 6])
             t1.prompt = MockPrompter([
                 // white's first turn
-                {origin: '12'},
+                {origin: '13'},
                 {face: '6'},
-                {origin: '17'},
+                {origin: '8'},
                 {finish: 'f'}
             ])
             t2.prompt = MockPrompter([
@@ -465,8 +465,8 @@ describe('Coordinator', () => {
             game._rollFirst = () => [6, 1]
             t1.prompt = MockPrompter([
                 // white's first turn
-                {origin: '12'},
-                {origin: '17'},
+                {origin: '13'},
+                {origin: '8'},
                 {finish: 'f'},
                 {accept: false}
             ])
@@ -485,9 +485,9 @@ describe('Coordinator', () => {
             t2.rollTurn = turn => turn.setRoll([6, 6])
             t1.prompt = MockPrompter([
                 // white's first turn
-                {origin: '12'},
+                {origin: '13'},
                 {face: '6'},
-                {origin: '17'},
+                {origin: '8'},
                 {finish: 'f'},
                 {accept: true}
             ])
@@ -518,17 +518,17 @@ describe('Coordinator', () => {
             t2.rollTurn = turn => turn.setRoll(rolls.shift())
             t1.prompt = MockPrompter([
                 // white's first turn
-                {origin: '12'},
+                {origin: '13'},
                 {face: '6'},
-                {origin: '17'},
+                {origin: '8'},
                 {finish: 'f'},
                 // accept
                 {accept: true},
                 // white's turn
                 {action: 'r'},
-                {origin: '1'},
+                {origin: '24'},
                 {face: '2'},
-                {origin: '1'},
+                {origin: '24'},
                 {finish: 'f'}
             ])
             t2.prompt = MockPrompter([
@@ -605,8 +605,8 @@ describe('TermPlayer', () => {
         it('should play first roll White 6,1 then break with board as expected for 6 point', async () => {
             game._rollFirst = () => [6, 1]
             player.prompt = MockPrompter([
-                {origin: '12'},
-                {origin: '17'},
+                {origin: '13'},
+                {origin: '8'},
                 {finish: 'f'}
             ])
             const turn = game.firstTurn()
@@ -619,12 +619,12 @@ describe('TermPlayer', () => {
         it('should play first roll White 6,1 undo first then second with board as expected for 6 point', async () => {
             game._rollFirst = () => [6, 1]
             player.prompt = MockPrompter([
-                {origin: '12'},
+                {origin: '13'},
                 {origin: 'u'},
-                {origin: '12'},
-                {origin: '17'},
+                {origin: '13'},
+                {origin: '8'},
                 {finish: 'u'},
-                {origin: '17'},
+                {origin: '8'},
                 {finish: 'f'}
             ])
             const turn = game.firstTurn()
@@ -760,27 +760,33 @@ describe('TermPlayer', () => {
 
     describe('#promptOrigin', () => {
 
+        var turn
+
+        beforeEach(() => {
+            turn = new Turn(new Board, White)
+        })
+
         it('should return -1 for b with [-1]', async () => {
             player.prompt = MockPrompter({origin: 'b'})
-            const result = await player.promptOrigin([-1])
+            const result = await player.promptOrigin(turn, [-1])
             expect(result).to.equal(-1)
         })
 
-        it('should return 0 for 1 with [0, 4]', async () => {
-            player.prompt = MockPrompter({origin: '1'})
-            const result = await player.promptOrigin([0, 4])
+        it('should return 0 for 24 with [0, 4]', async () => {
+            player.prompt = MockPrompter({origin: '24'})
+            const result = await player.promptOrigin(turn, [0, 4])
             expect(result).to.equal(0)
         })
 
         it('should return undo for u with [11, 12] canUndo=true', async () => {
             player.prompt = MockPrompter({origin: 'u'})
-            const result = await player.promptOrigin([11, 12], true)
+            const result = await player.promptOrigin(turn, [11, 12], true)
             expect(result).to.equal('undo')
         })
 
         it('should fail validation for 3 with [3, 4]', async () => {
             player.prompt = MockPrompter({origin: '3'})
-            const err = await getErrorAsync(() => player.promptOrigin([3, 4]))
+            const err = await getErrorAsync(() => player.promptOrigin(turn, [3, 4]))
             expect(err.message).to.contain('Validation failed for origin')
         })
     })

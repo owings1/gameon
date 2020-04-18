@@ -1,4 +1,4 @@
-const {Red, White} = require('../lib/core')
+const {Red, White, Opponent} = require('../lib/core')
 
 const chalk  = require('chalk')
 const Util   = require('../lib/util')
@@ -89,13 +89,16 @@ function cubePart(n, cubeValue, isCrawford) {
 
 class Draw {
 
-    static drawBoard(game, match) {
+    static drawBoard(game, match, persp) {
+
+        persp = persp || White
+        const opersp = Opponent[persp]
 
         const {board, cubeOwner, cubeValue} = game
         const {isCrawford} = game.opts
 
-        const topHalf = board.slots.slice(0, 12)
-        const botHalf = board.slots.slice(12, 24)
+        //const topHalf = board.slots.slice(0, 12)
+        //const botHalf = board.slots.slice(12, 24)
 
         const builder = []
         const wr = (...args) => {
@@ -106,9 +109,9 @@ class Draw {
 
         // Top numbers
         wr(' ')
-        for (var i = 12; i >= 1; i--) {
+        for (var i = 13; i <= 24; i++) {
             wr(i.toString().padStart(PadFixed, ' '))
-            if (i == 7) {
+            if (i == 18) {
                 wr('    ')
             }
         }
@@ -118,21 +121,22 @@ class Draw {
         // Top piece rows
         for (var d = 0; d < 6; d++) {
             wr(Chars.sep)
-            for (var i = topHalf.length - 1; i >= 0; i--) {
-                wr(slotRow(topHalf[i], d))
-                if (i == 6) {
+            for (var p = 13; p <= 24; p++) {
+                var slot = board.slots[board.pointOrigin(persp, p)]
+                wr(slotRow(slot, d))
+                if (p == 18) {
                     wr(chalk.grey('  ' + Chars.dblSep))
                 }
             }
             wr(' ' + Chars.sep)
             // Top home
             if (d == 0) {
-                wr(home(board.homes.Red))
+                wr(home(board.homes[opersp]))
             }
             if (match && d == 1) {
-                wr(' ' + match.scores.Red + '/' + match.total + 'pts')
+                wr(' ' + match.scores[opersp] + '/' + match.total + 'pts')
             }
-            if (cubeValue && cubeOwner == Red) {
+            if (cubeValue && cubeOwner == opersp) {
                 wr(' ')
                 wr(cubePart(d - 2, cubeValue, isCrawford))
             }
@@ -141,18 +145,18 @@ class Draw {
 
         // Top piece overflow numbers row
         wr(Chars.sep)
-        for (var i = topHalf.length - 1; i >= 0; i--) {
-            var slot = topHalf[i]
+        for (var p = 13; p <= 24; p++) {
+            var slot = board.slots[board.pointOrigin(persp, p)]
             var n = slot.length > 6 ? slot.length : ''
             wr(chalk.grey(('' + n).padStart(PadFixed, ' ')))
-            if (i == 6) {
+            if (p == 18) {
                 wr(chalk.grey('  ' + Chars.dblSep))
             }
         }
         wr(' ' + Chars.sep)
         wr('\n')
 
-        wr(barRow(board.bars.White))
+        wr(barRow(board.bars[persp]))
         if (cubeValue && !cubeOwner) {
             wr(' ')
             wr(cubePart(0, cubeValue, isCrawford))
@@ -169,7 +173,7 @@ class Draw {
         }
         wr('\n')
 
-        wr(barRow(board.bars.Red))
+        wr(barRow(board.bars[opersp]))
         if (cubeValue && !cubeOwner) {
             wr(' ')
             wr(cubePart(2, cubeValue, isCrawford))
@@ -178,11 +182,11 @@ class Draw {
 
         // Bottom piece overflow numbers row
         wr(Chars.sep)
-        for (var i = 0; i < botHalf.length; i++) {
-            var slot = botHalf[i]
+        for (var p = 12; p >= 1; p--) {
+            var slot = board.slots[board.pointOrigin(persp, p)]
             var n = slot.length > 6 ? slot.length : ''
             wr(chalk.grey(('' + n).padStart(PadFixed, ' ')))
-            if (i == 5) {
+            if (p == 7) {
                 wr(chalk.grey('  ' + Chars.dblSep))
             }
         }
@@ -191,21 +195,22 @@ class Draw {
         // Bottom piece rows
         for (var d = 5; d >= 0; d--) {
             wr(Chars.sep)
-            for (var i = 0; i < botHalf.length; i++) {
-                wr(slotRow(botHalf[i], d))
-                if (i == 5) {
+            for (var p = 12; p >= 1; p--) {
+                var slot = board.slots[board.pointOrigin(persp, p)]
+                wr(slotRow(slot, d))
+                if (p == 7) {
                     wr(chalk.grey('  ' + Chars.dblSep))
                 }
             }
             wr(' ' + Chars.sep)
             // Bottom home
             if (d == 0) {
-                wr(home(board.homes.White))
+                wr(home(board.homes[persp]))
             }
             if (match && d == 1) {
-                wr(' ' + match.scores.White + '/' + match.total + 'pts')
+                wr(' ' + match.scores[persp] + '/' + match.total + 'pts')
             }
-            if (cubeValue && cubeOwner == White) {
+            if (cubeValue && cubeOwner == persp) {
                 wr(' ')
                 wr(cubePart(5 - d - 1, cubeValue, isCrawford))
             }
@@ -215,9 +220,9 @@ class Draw {
         // Bottom numbers
         wr(Chars.botLeft.padEnd(12 * PadFixed + 2 + 4, Chars.dash) + Chars.botRight + '\n')
         wr(' ')
-        for (var i = 13; i < 25; i++) {
+        for (var i = 12; i >= 1; i--) {
             wr(('' + i).padStart(PadFixed, ' '))
-            if (i == 18) {
+            if (i == 7) {
                 wr('    ')
             }
         }
