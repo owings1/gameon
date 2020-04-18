@@ -178,15 +178,17 @@ class BearoffRobot extends ConfidenceRobot {
 
     async getRankings(turn, game, match) {
 
-        if (!turn.board.mayBearoff(turn.color)) {
-            return this.zeroRankings(turn)
-        }
-
         const baseline = turn.board.newAnalyzer().piecesHome(turn.color)
 
         const scores = {}
+        var hasBearoff = false
         turn.allowedEndStates.forEach(endState => {
             const analyzer = Board.fromStateString(endState).newAnalyzer()
+            if (!analyzer.board.mayBearoff(turn.color)) {
+                scores[endState] = 0
+                return
+            }
+            hasBearoff = true
             const homes = analyzer.piecesHome(turn.color) - baseline
             scores[endState] = homes * 10
             if (analyzer.isDisengaged()) {
@@ -194,7 +196,7 @@ class BearoffRobot extends ConfidenceRobot {
                 scores[endState] += pointsCovered
             }
         })
-        return spreadRanking(scores)
+        return hasBearoff ? spreadRanking(scores) : this.zeroRankings(turn)
     }
 }
 

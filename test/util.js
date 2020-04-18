@@ -1,6 +1,7 @@
 const {expect} = require('@oclif/test')
 
 const Util = require('../src/lib/util')
+const Core = require('../src/lib/core')
 
 const tmp = require('tmp')
 
@@ -8,6 +9,10 @@ const States = require('./states')
 
 const Structures = {
     Initial : [0, 0, 2, 0, 0, 0, 0, -5, 0, -3, 0, 0, 0, 5, -5, 0, 0, 0, 3, 0, 5, 0, 0, 0, 0, -2, 0, 0]
+}
+
+function normState(str) {
+    return Core.Board.fromStateString(str).stateString()
 }
 
 function requireSrc(p) {
@@ -160,6 +165,7 @@ module.exports = {
     tmpDir,
     tmpFile,
     noop,
+    normState,
     MockPrompter,
     States,
     Structures

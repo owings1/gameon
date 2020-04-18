@@ -6,6 +6,7 @@ const {
     makeRandomMoves,
     randomElement,
     requireSrc,
+    normState,
     States
 } = Test
 
@@ -141,7 +142,17 @@ describe('BearoffRobot', () => {
             game.board.setStateString(States.Bearoff3Start)
             const turn = game.nextTurn().setRoll(4, 1)
             const result = await robot.getRankings(turn, game)
-            expect(result[States.Bearoff3End1]).to.equal(result[States.Bearoff3End2])
+            
+            expect(result[normState(States.Bearoff3End1)]).to.equal(result[normState(States.Bearoff3End2)])
+        })
+
+        it('should take one home for Bearoff4Start even though may not yet bear off with 6,4', async () => {
+            game.board.setStateString(States.Bearoff4Start)
+            const turn = game.nextTurn().setRoll(6, 4)
+            const result = await robot.getRankings(turn, game)
+            const maxRank = Math.max(...Object.values(result))
+            expect(result[normState(States.Bearoff4Best)]).to.equal(maxRank)
+            expect(result[normState(States.Bearoff4Best)]).to.be.greaterThan(result[normState(States.Bearoff4Bad)])
         })
     })
 })
