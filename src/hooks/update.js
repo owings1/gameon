@@ -1,3 +1,3 @@
-module.exports = async (options) {
+module.exports = async (options) => {
     
 }

@@ -1,6 +1,6 @@
 {
   "name": "gameon",
-  "version": "1.0.7",
+  "version": "1.0.8",
   "private": true,
   "description": "backgammon",
   "main": "index.js",
@@ -10,6 +10,7 @@
     "prepack": "oclif-dev manifest && oclif-dev readme",
     "test": "nyc --reporter=text-summary mocha test/test.js && nyc report --reporter=lcov",
     "version": "oclif-dev readme && git add README.md",
+    "install": "node scripts/install.js",
     "dist": "oclif-dev pack",
     "mac": "oclif-dev pack:macos",
     "dist_and_publish": "oclif-dev pack && oclif-dev publish"
