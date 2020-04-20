@@ -1,6 +1,7 @@
 {
   "name": "gameon",
-  "version": "1.0.6",
+  "version": "1.0.7",
+  "private": true,
   "description": "backgammon",
   "main": "index.js",
   "scripts": {
@@ -13,7 +14,6 @@
     "mac": "oclif-dev pack:macos",
     "dist_and_publish": "oclif-dev pack && oclif-dev publish"
   },
-  "license": "MIT",
   "dependencies": {
     "@oclif/command": "^1.5.14",
     "@oclif/config": "^1.13.0",
