@@ -1162,6 +1162,11 @@ describe('Board', () => {
             const result = board.pointOrigin(Red, 6)
             expect(result).to.equal(5)
         })
+
+        it('should return -1 for Red -1', () => {
+            const result = board.pointOrigin(Red, -1)
+            expect(result).to.equal(-1)
+        })
     })
 
     describe('#setup', () => {

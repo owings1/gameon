@@ -1,6 +1,6 @@
 {
   "name": "gameon",
-  "version": "1.0.9",
+  "version": "1.0.10",
   "private": true,
   "description": "backgammon",
   "main": "index.js",
@@ -12,8 +12,8 @@
     "version": "oclif-dev readme && git add README.md",
     "install": "node scripts/install.js",
     "mac": "oclif-dev pack:macos",
-    "dist": "oclif-dev pack -t darwin-x64,linux-x64,win32-x64,win32-x86",
-    "dist_and_publish": "oclif-dev pack -t darwin-x64,linux-x64,win32-x64,win32-x86 && oclif-dev publish"
+    "dist": "oclif-dev pack",
+    "dist_and_publish": "oclif-dev pack && oclif-dev publish"
   },
   "dependencies": {
     "@oclif/command": "^1.5.14",
