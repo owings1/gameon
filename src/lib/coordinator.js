@@ -74,6 +74,7 @@ class Coordinator {
             await this.emitAll(players, 'turnStart', turn, game, match)
 
             if (game.canDouble(turn.color)) {
+                await this.emitAll(players, 'beforeOption', turn, game, match)
                 await players[turn.color].turnOption(turn, game, match)
                 await this.emitAll(players, 'afterOption', turn, game, match)
             }

@@ -698,21 +698,29 @@ describe('TermPlayer', () => {
 
     describe('#promptTurnOption', () => {
 
+        var turn
+
+        beforeEach(() => {
+            const game = new Game
+            makeRandomMoves(game.firstTurn(), true)
+            turn = game.nextTurn()
+        })
+
         it('should return false for r', async () => {
             player.prompt = MockPrompter({action: 'r'})
-            const result = await player.promptTurnOption()
+            const result = await player.promptTurnOption(turn)
             expect(result).to.equal(false)
         })
 
         it('should return true for d', async () => {
             player.prompt = MockPrompter({action: 'd'})
-            const result = await player.promptTurnOption()
+            const result = await player.promptTurnOption(turn)
             expect(result).to.equal(true)
         })
 
         it('should invalidate foo', async () => {
             player.prompt = MockPrompter({action: 'foo'})
-            const err = await getErrorAsync(() => player.promptTurnOption())
+            const err = await getErrorAsync(() => player.promptTurnOption(turn))
             expect(err.message).to.contain('Validation failed for action')
         })
     })

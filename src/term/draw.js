@@ -2,6 +2,7 @@ const {Red, White, Opponent} = require('../lib/core')
 
 const chalk  = require('chalk')
 const Util   = require('../lib/util')
+const sa     = Util.stripAnsi
 const sp     = Util.joinSpace
 
 const Shorts = {
@@ -35,6 +36,7 @@ const Chars = {
 
 const PadFixed = 4
 const MidFixed = 1
+const RightFixed = 10
 
 function slotRow(slot, d) {
     var c = slot[d] ? slot[d].c : ''
@@ -69,7 +71,7 @@ function home(h) {
 }
 
 function cubePart(n, cubeValue, isCrawford) {
-    var cubeStr
+    var cubeStr = ''
     switch (n) {
         case 0:
             cubeStr = Chars.topLeft + ''.padEnd(3, Chars.dash) + Chars.topRight
@@ -91,10 +93,23 @@ function pipCount(count) {
     return ' ' + chalk.bold.grey(count) + ' ' + chalk.grey('PIP')
 }
 
+function sideLog(logs, n) {
+    return logs[n] || ''
+}
+
+function borderTop() {
+    return Chars.topLeft.padEnd(12 * PadFixed + 2 + 4, Chars.dash) + Chars.topRight
+}
+
+function borderBottom() {
+    return Chars.botLeft.padEnd(12 * PadFixed + 2 + 4, Chars.dash) + Chars.botRight
+}
+
 class Draw {
 
-    static drawBoard(game, match, persp) {
+    static drawBoard(game, match, persp, logs) {
 
+        const logsRev = (logs || []).slice(0).reverse()
         persp = persp || White
         const opersp = Opponent[persp]
 
@@ -107,6 +122,8 @@ class Draw {
             builder.push(sp(...args))
         }
 
+        var li = 18
+
         wr('\n')
 
         // Top numbers
@@ -118,7 +135,10 @@ class Draw {
             }
         }
         wr('\n')
-        wr(Chars.topLeft.padEnd(12 * PadFixed + 2 + 4, Chars.dash) + Chars.topRight + '\n')
+        wr(borderTop())
+        wr(''.padEnd(RightFixed, ' '))
+        wr(sideLog(logsRev, li--))
+        wr('\n')
 
         // Top piece rows
         for (var d = 0; d < 6; d++) {
@@ -131,20 +151,33 @@ class Draw {
                 }
             }
             wr(' ' + Chars.sep)
+            var pad = RightFixed
             // Top home
             if (d == 0) {
-                wr(home(board.homes[opersp]))
+                var homeStr = home(board.homes[opersp])
+                pad = RightFixed - sa(homeStr).length
+                wr(homeStr)
             }
-            if (d == 1) {
-                wr(pipCount(pipCounts[opersp]))
+            // pip count
+            else if (d == 1) {
+                var pipStr = pipCount(pipCounts[opersp])
+                pad = RightFixed - sa(pipStr).length
+                wr(pipStr)
             }
-            if (match && d == 2) {
-                wr(' ' + match.scores[opersp] + '/' + match.total + 'pts')
+            // score
+            else if (match && d == 2) {
+                var scoreStr = ' ' + match.scores[opersp] + '/' + match.total + 'pts'
+                pad = RightFixed - sa(scoreStr).length
+                wr(scoreStr)
             }
-            if (cubeValue && cubeOwner == opersp) {
-                wr(' ')
-                wr(cubePart(d - 3, cubeValue, isCrawford))
+            // cube part
+            else if (cubeValue && cubeOwner == opersp) {
+                var cubeStr = ' ' + cubePart(d - 3, cubeValue, isCrawford)
+                pad = RightFixed - sa(cubeStr).length
+                wr(cubeStr)
             }
+            wr(''.padEnd(pad, ' '))
+            wr(sideLog(logsRev, li--))
             wr('\n')
         }
 
@@ -159,30 +192,44 @@ class Draw {
             }
         }
         wr(' ' + Chars.sep)
+        wr(''.padEnd(RightFixed, ' '))
+        wr(sideLog(logsRev, li--))
         wr('\n')
 
         wr(barRow(board.bars[persp]))
+        var pad = RightFixed
         if (cubeValue && !cubeOwner) {
-            wr(' ')
-            wr(cubePart(0, cubeValue, isCrawford))
+            var cubeStr = ' ' + cubePart(0, cubeValue, isCrawford)
+            pad = RightFixed - sa(cubeStr).length
+            wr(cubeStr)
         }
+        wr(''.padEnd(pad, ' '))
+        wr(sideLog(logsRev, li--))
         wr('\n')
 
         // between bars blank row
         wr(Chars.sep.padEnd(6 * PadFixed + 1, ' '))
         wr(chalk.grey('  ' + Chars.dblSep))
         wr(''.padEnd(6 * PadFixed + 1, ' ') + Chars.sep)
+        var pad = RightFixed
         if (cubeValue && !cubeOwner) {
-            wr(' ')
-            wr(cubePart(1, cubeValue, isCrawford))
+            var cubeStr = ' ' + cubePart(1, cubeValue, isCrawford)
+            pad = RightFixed - sa(cubeStr).length
+            wr(cubeStr)
         }
+        wr(''.padEnd(pad, ' '))
+        wr(sideLog(logsRev, li--))
         wr('\n')
 
         wr(barRow(board.bars[opersp]))
+        var pad = RightFixed
         if (cubeValue && !cubeOwner) {
-            wr(' ')
-            wr(cubePart(2, cubeValue, isCrawford))
+            var cubeStr = ' ' + cubePart(2, cubeValue, isCrawford)
+            pad = RightFixed - sa(cubeStr).length
+            wr(cubeStr)
         }
+        wr(''.padEnd(pad, ' '))
+        wr(sideLog(logsRev, li--))
         wr('\n')
 
         // Bottom piece overflow numbers row
@@ -195,7 +242,10 @@ class Draw {
                 wr(chalk.grey('  ' + Chars.dblSep))
             }
         }
-        wr(' ' + Chars.sep + '\n')
+        wr(' ' + Chars.sep)
+        wr(''.padEnd(RightFixed, ' '))
+        wr(sideLog(logsRev, li--))
+        wr('\n')
 
         // Bottom piece rows
         for (var d = 5; d >= 0; d--) {
@@ -208,25 +258,42 @@ class Draw {
                 }
             }
             wr(' ' + Chars.sep)
+            var pad = RightFixed
             // Bottom home
             if (d == 0) {
-                wr(home(board.homes[persp]))
+                var homeStr = home(board.homes[persp])
+                pad = RightFixed - sa(homeStr).length
+                wr(homeStr)
             }
-            if (d == 1) {
-                wr(pipCount(pipCounts[persp]))
+            // pip count
+            else if (d == 1) {
+                var pipStr = pipCount(pipCounts[persp])
+                pad = RightFixed - sa(pipStr).length
+                wr(pipStr)
             }
-            if (match && d == 2) {
-                wr(' ' + match.scores[persp] + '/' + match.total + 'pts')
+            // score
+            else if (match && d == 2) {
+                var scoreStr = ' ' + match.scores[persp] + '/' + match.total + 'pts'
+                pad = RightFixed - sa(scoreStr).length
+                wr(scoreStr)
             }
-            if (cubeValue && cubeOwner == persp) {
-                wr(' ')
-                wr(cubePart(5 - d - 2, cubeValue, isCrawford))
+            // cube part
+            else if (cubeValue && cubeOwner == persp) {
+                var cubeStr = ' ' + cubePart(5 - d, cubeValue, isCrawford)
+                pad = RightFixed - sa(cubeStr).length
+                wr(cubeStr)
             }
+            wr(''.padEnd(pad, ' '))
+            wr(sideLog(logsRev, li--))
             wr('\n')
         }
 
+        wr(borderBottom())
+        wr(''.padEnd(RightFixed, ' '))
+        wr(sideLog(logsRev, li--))
+        wr('\n')
+
         // Bottom numbers
-        wr(Chars.botLeft.padEnd(12 * PadFixed + 2 + 4, Chars.dash) + Chars.botRight + '\n')
         wr(' ')
         for (var i = 12; i >= 1; i--) {
             wr(('' + i).padStart(PadFixed, ' '))

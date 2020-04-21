@@ -12,7 +12,7 @@ const {merge}      = Util
 const sp           = Util.joinSpace
 
 const Chars = {
-    rarrow : '\u2b62 '
+    rarrow : '->'
 }
 class TermPlayer extends Base {
 
@@ -24,57 +24,82 @@ class TermPlayer extends Base {
 
     constructor(color, opts) {
         super(color)
+        this.logs = []
         this.opts = Util.defaults(TermPlayer.defaults(), opts)
         this.isTerm = true
         this.on('gameStart', (game, match, players) => {
             this.isDualTerm = this.opponent.isTerm
             this.isDualRobot = this.isRobot && this.opponent.isRobot
-            this.infoOnce('Starting game')
+            this.info(chalk.cyan('Starting game', match ? chalk.bold(match.games.length) : ''))
         })
         this.on('firstRoll', (turn, game, match) => {
             const {dice} = turn
             const diceStr = [this.cchalk(White, dice[0]), this.cchalk(Red, dice[1])].join()
-            this.infoOnce(this.ccolor(turn.color), 'wins the first roll with', diceStr)
+            this.info(this.ccolor(turn.color), 'wins the first roll with', diceStr)
+            this.info(this.cchalk(turn.color, '---', turn.color + "'s"), "turn")
         })
         this.on('afterRoll', turn => {
+            this.info(this.ccolor(turn.color), 'rolls', chalk.magenta(turn.diceSorted.join()))
             if (turn.color != this.color && !this.isDualTerm) {
                 this.drawBoard()
             }
-            this.infoOnce(this.ccolor(turn.color), 'rolls', turn.diceSorted.join())
+            if (turn.color != this.color && this.opponent.isNet) {
+                this.logger.info('Waiting for opponent to play', turn.diceSorted.join())
+            }
         })
         this.on('turnStart', turn => {
-            this.infoOnce(this.ccolor(turn.color) + "'s turn")
+            this.info(this.cchalk(turn.color, '---', turn.color + "'s"), "turn")
+            this.drawBoard(true, true)
+        })
+        this.on('beforeOption', turn => {
+            if (turn.color != this.color && this.opponent.isNet) {
+                this.logger.info('Waiting for opponent option')
+            }
         })
         this.on('turnEnd', turn => {
             if (turn.isCantMove) {
-                this.infoOnce(this.ccolor(turn.color), 'cannot move')
+                this.info(this.ccolor(turn.color), chalk.bold.yellow('cannot move'))
+            }
+            if (turn.isRolled) {
+                if (turn.color != this.color) {
+                    if (turn.allowedEndStates.length == 1) {
+                        this.info(chalk.bold.yellow('Forced move'), 'for', this.ccolor(turn.color), 'with', turn.diceSorted.join())
+                    }
+                    turn.moves.forEach(move => this.info(this.describeMove(move)))
+                }
             }
             this.drawBoard(true)
-            if (turn.isRolled) {
-                this.infoOnce(this.ccolor(turn.color), 'rolled', turn.diceSorted.join())
-                turn.moves.forEach(move => this.infoOnce(this.describeMove(move)))
-            }
         })
         this.on('doubleOffered', (turn, game) => {
-            this.infoOnce(this.ccolor(turn.color), 'wants to double the stakes to', game.cubeValue * 2, 'points')
+            if (turn.color == this.color) {
+                this.logger.info('Offering double to', game.cubeValue * 2, 'points')
+            }
+            this.info(this.ccolor(turn.color), 'doubles')
+            this.drawBoard(true)
+            if (turn.color != this.color) {
+                this.logger.info(this.ccolor(turn.color), 'wants to double to', game.cubeValue * 2, 'points')
+            }
             if (turn.color == this.color && this.opponent.isNet) {
-                this.info('Waiting for', this.ccolor(turn.opponent), 'to respond')
+                this.logger.info('Waiting for opponent to respond')
             }
         })
         this.on('doubleDeclined', turn => {
-            this.infoOnce(this.ccolor(turn.opponent), 'has declined the double')
+            this.info(this.ccolor(turn.opponent), 'has declined the double')
         })
         this.on('doubleAccepted', (turn, game) => {
-            this.infoOnce(this.ccolor(turn.opponent), 'owns the cube at', game.cubeValue, 'points')
+            this.info(this.ccolor(turn.opponent), 'owns the cube at', game.cubeValue, 'points')
         })
         this.on('gameEnd', game => {
-            this.infoOnce(this.ccolor(game.getWinner()), 'has won the game with', game.finalValue, 'points')
+            this.info(chalk.grey('-----------'))
+            this.info(this.ccolor(game.getWinner()), chalk.cyan('has won the game with', chalk.bold(game.finalValue), 'points'))
         })
         this.on('matchEnd', match => {
-            this.drawBoard(true)
             const winner = match.getWinner()
             const loser = match.getLoser()
-            this.infoOnce(this.ccolor(winner), 'wins the match', match.scores[winner], 'to', match.scores[loser])
+            this.info(chalk.grey('-----------'))
+            this.info(this.ccolor(winner), chalk.cyan('wins the match', chalk.bold(match.scores[winner]), 'to', match.scores[loser]))
+            this.info(chalk.grey('-----------'))
+            this.drawBoard(true)
         })
     }
 
@@ -101,22 +126,25 @@ class TermPlayer extends Base {
         }
         while (true) {
             if (this.opts.fastForced && turn.allowedEndStates.length == 1) {
-                this.logger.info('Forced move for', this.ccolor(turn.color), 'with', turn.diceSorted.join())
+                this.info(chalk.bold.yellow('Forced move'), 'for', this.ccolor(turn.color), 'with', turn.diceSorted.join())
                 turn.allowedMoveSeries[0].forEach(move => {
                     turn.move(move)
-                    this.describeMove(move)
+                    this.info(this.describeMove(move))
                 })
                 //this.drawBoard()
                 break
             }
             this.drawBoard(false, true)
-            this.info(this.ccolor(this.color), 'rolled', turn.diceSorted.join(), 'with', turn.remainingFaces.join(), 'remaining')
+            if (!this.isRobot) {
+                this.logger.info(this.ccolor(this.color), 'rolled', turn.diceSorted.join(), 'with', turn.remainingFaces.join(), 'remaining')
+            }
             var moves = turn.getNextAvailableMoves()
             var origins = moves.map(move => move.origin)
             var canUndo = turn.moves.length > 0
             var origin = await this.promptOrigin(turn, origins, canUndo)
             if (origin == 'undo') {
                 turn.unmove()
+                this.logs.pop()
                 continue
             }
             var faces = moves.filter(move => move.origin == origin).map(move => move.face)
@@ -133,19 +161,13 @@ class TermPlayer extends Base {
                     break
                 }
                 turn.unmove()
+                this.logs.pop()
             }
         }
     }
 
     info(...args) {
-        this.logger.info(...args)
-    }
-
-    infoOnce(...args) {
-        if (this.isDualTerm && this.color == Red) {
-            return
-        }
-        this.info(...args)
+        this.logs.push(args.join(' '))
     }
 
     cchalk(color, ...args) {
@@ -170,12 +192,14 @@ class TermPlayer extends Base {
             origin : move.isComeIn ? chalkMe('bar') : chalkThem(board.originPoint(them, move.origin))
           , dest   : move.isBearoff ? chalkMe('home') : chalkThem(board.originPoint(them, move.dest))
         }
-        const origin = move.isComeIn ? 'bar' : move.board.originPoint(move.color, move.origin)
-        const dest = move.isBearoff ? 'home' : move.board.originPoint(move.color, move.dest)
-        const sargs = [chalkMe(me), 'moves', mine.origin, Chars.rarrow, mine.dest, '/', theirs.origin, Chars.rarrow, theirs.dest]
+        const whites = me == White ? mine : theirs
+        const persp = this.isRobot ? whites : (me == this.color ? mine : theirs)
+        //const sargs = [chalkMe(me), 'moves', mine.origin, Chars.rarrow, mine.dest, '/', theirs.origin, Chars.rarrow, theirs.dest]
+        const sargs = [chalkMe(me), 'moves', persp.origin, Chars.rarrow, persp.dest]
         if (move.isHit) {
             sargs.push(chalk.bold.yellow('HIT'))
         }
+        
         return sp(...sargs)
     }
 
@@ -190,14 +214,14 @@ class TermPlayer extends Base {
             persp = Red
         }
 
-        this.logger.writeStdout(Draw.drawBoard(this.thisGame, this.thisMatch, persp))
+        this.logger.writeStdout(Draw.drawBoard(this.thisGame, this.thisMatch, persp, this.logs))
     }
 
-    async promptTurnOption() {
+    async promptTurnOption(turn) {
         const choices = ['r', 'd', 'q']
         const question = {
             name     : 'action'
-          , message  : '(r)oll or (d)ouble'
+          , message  : sp(this.cchalk(turn.color, turn.color + "'s"), 'turn to (r)oll or (d)ouble')
           , default  : () => 'r'
           , type     : 'input'
           , validate : value => choices.indexOf(value.toLowerCase()) > -1 || sp('Please enter one of', choices.join())
