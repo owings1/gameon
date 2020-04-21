@@ -157,7 +157,7 @@ class Menu extends Logger {
             await coordinator.runMatch(match, players.White, players.Red)
         } catch (err) {
             if (err.name == 'MatchCanceledError') {
-                this.error('The match was canceled', '-', err.message)
+                this.warn('The match was canceled', '-', err.message)
             } else {
                 throw err
             }
@@ -183,7 +183,7 @@ class Menu extends Logger {
             }
         } catch (err) {
             if (err.name == 'MatchCanceledError') {
-                this.error('The match was canceled', '-', err.message)
+                this.warn('The match was canceled', '-', err.message)
             } else {
                 throw err
             }
@@ -209,7 +209,7 @@ class Menu extends Logger {
             }
         } catch (err) {
             if (err.name == 'MatchCanceledError') {
-                this.error('The match was canceled', '-', err.message)
+                this.warn('The match was canceled', '-', err.message)
             } else {
                 throw err
             }
@@ -229,7 +229,7 @@ class Menu extends Logger {
             await coordinator.runMatch(match, players.White, players.Red)
         } catch (err) {
             if (err.name == 'MatchCanceledError') {
-                this.error('The match was canceled', '-', err.message)
+                this.warn('The match was canceled', '-', err.message)
             } else {
                 throw err
             }
