@@ -43,7 +43,7 @@ class Server {
     }
 
     close() {
-        Object.keys(this.matches).forEach(id => this.cancelMatchId(id))
+        Object.keys(this.matches).forEach(id => this.cancelMatchId(id, 'Server shutdown'))
         if (this.socketServer) {
             Object.values(this.socketServer.conns).forEach(conn => conn.close())
         }
@@ -69,7 +69,7 @@ class Server {
 
             conn.on('close', () => {
                 this.logger.info('Peer disconnected', connId)
-                this.cancelMatchId(conn.matchId)
+                this.cancelMatchId(conn.matchId, 'Peer disconnected')
                 delete server.conns[connId]
             })
 
@@ -329,11 +329,11 @@ class Server {
         this.logger.info('There are now', numMatches, 'active matches, and', numConns, 'active connections')
     }
 
-    cancelMatchId(id) {
+    cancelMatchId(id, reason) {
         if (id && this.matches[id]) {
             this.logger.info('Canceling match', id)
             const match = this.matches[id]
-            this.sendMessage(Object.values(match.conns), {action: 'matchCanceled'})
+            this.sendMessage(Object.values(match.conns), {action: 'matchCanceled', reason})
             delete this.matches[id]
             this.logActive()
         }

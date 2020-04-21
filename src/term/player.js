@@ -194,15 +194,23 @@ class TermPlayer extends Base {
     }
 
     async promptTurnOption() {
-        const choices = ['r', 'd']
-        const answers = await this.prompt({
+        const choices = ['r', 'd', 'q']
+        const question = {
             name     : 'action'
           , message  : '(r)oll or (d)ouble'
           , default  : () => 'r'
           , type     : 'input'
           , validate : value => choices.indexOf(value.toLowerCase()) > -1 || sp('Please enter one of', choices.join())
-        })
-        return answers.action.toLowerCase() == 'd'
+        }
+        while (true) {
+            var {action} = await this.prompt(question)
+            if (action.toLowerCase() == 'q') {
+                await this.checkQuit()
+                continue
+            }
+            break
+        }
+        return action.toLowerCase() == 'd'
     }
 
     async promptDecideDouble() {
@@ -230,6 +238,7 @@ class TermPlayer extends Base {
             choices.push('u')
             message += ' or (u)ndo'
         }
+        choices.push('q')
         const question = {
             name     : 'origin'
           , type     : 'input'
@@ -239,13 +248,20 @@ class TermPlayer extends Base {
         if (points.length == 1) {
             question.default = choices[0]
         }
-        const answers = await this.prompt(question)
-        if (answers.origin == 'u') {
+        while (true) {
+            var {origin} = await this.prompt(question)
+            if (origin == 'q') {
+                await this.checkQuit()
+                continue
+            }
+            break
+        }
+        if (origin == 'u') {
             return 'undo'
-        } else if (answers.origin == 'b') {
+        } else if (origin == 'b') {
             return -1
         }
-        return turn.board.pointOrigin(turn.color, +answers.origin)
+        return turn.board.pointOrigin(turn.color, +origin)
     }
 
     async promptFace(faces) {
@@ -273,6 +289,18 @@ class TermPlayer extends Base {
           , validate : value => choices.indexOf(value.toLowerCase()) > -1 || sp('Please enter one of', choices.join())
         })
         return answers.finish.toLowerCase() == 'f'
+    }
+
+    async checkQuit() {
+        const answers = await this.prompt({
+            name     : 'confirm'
+          , message  : 'Are you sure you want to quit?'
+          , type     : 'confirm'
+          , default  : () => false
+        })
+        if (answers.confirm) {
+            throw new MatchCanceledError(this.color + ' quit')
+        }
     }
 
     prompt(questions) {
@@ -335,6 +363,12 @@ class TermRobot extends TermPlayer {
     }
 }
 
+class MatchCanceledError extends Error {
+    constructor(...args) {
+        super(...args)
+        this.name = this.constructor.name
+    }
+}
 TermPlayer.Robot = TermRobot
 
 module.exports = TermPlayer

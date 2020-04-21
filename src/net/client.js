@@ -99,6 +99,9 @@ class Client {
             throw Client.buildError(msg)
         }
         if (action && msg.action != action) {
+            if (msg.action == 'matchCanceled') {
+                throw new MatchCanceledError(msg.reason)
+            }
             throw new ClientError('Expecting response ' + action + ', but got ' + msg.action + ' instead')
         }
         return msg
@@ -144,5 +147,7 @@ class ClientError extends Error {
         this.name = this.constructor.name
     }
 }
+
+class MatchCanceledError extends ClientError {}
 
 module.exports = Client

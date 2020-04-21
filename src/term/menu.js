@@ -155,6 +155,12 @@ class Menu extends Logger {
         }
         try {
             await coordinator.runMatch(match, players.White, players.Red)
+        } catch (err) {
+            if (err.name == 'MatchCanceledError') {
+                this.error('The match was canceled', '-', err.message)
+            } else {
+                throw err
+            }
         } finally {
             await this.destroyAll(players)
         }
@@ -174,6 +180,12 @@ class Menu extends Logger {
                 await coordinator.runMatch(match, players.White, players.Red)
             } finally {
                 await this.destroyAll(players)
+            }
+        } catch (err) {
+            if (err.name == 'MatchCanceledError') {
+                this.error('The match was canceled', '-', err.message)
+            } else {
+                throw err
             }
         } finally {
             await client.close()
@@ -195,6 +207,12 @@ class Menu extends Logger {
             } finally {
                 await this.destroyAll(players)
             }
+        } catch (err) {
+            if (err.name == 'MatchCanceledError') {
+                this.error('The match was canceled', '-', err.message)
+            } else {
+                throw err
+            }
         } finally {
             await client.close()
         }
@@ -209,6 +227,12 @@ class Menu extends Logger {
         }
         try {
             await coordinator.runMatch(match, players.White, players.Red)
+        } catch (err) {
+            if (err.name == 'MatchCanceledError') {
+                this.error('The match was canceled', '-', err.message)
+            } else {
+                throw err
+            }
         } finally {
             await this.destroyAll(players)
         }
