@@ -39,18 +39,34 @@ test_dist:
 #  after_script:
 #    - docker logout
 
+##publish_s3:
+##  stage: publish
+##  only:
+##    - tags
+##    - /^v[0-9]+[0-9.]+$/
+##  tags:
+##    - docker
+##  before_script:
+##    - apk add git p7zip xz curl perl-utils
+##  script:
+##    - npm install --unsafe-perm
+##    - npm run-script dist_and_publish
+
 publish_s3:
   stage: publish
   only:
     - tags
     - /^v[0-9]+[0-9.]+$/
   tags:
-    - docker
+    - shell
+  variables:
+    DIST_IMAGE: "${CI_REGISTRY_IMAGE}/dist:${CI_JOB_ID}"
   before_script:
-    - apk add git p7zip xz curl perl-utils
+    - docker build -t "$DIST_IMAGE" -f res/docker/dist.dockerfile .
   script:
-    - npm install --unsafe-perm
-    - npm run-script dist_and_publish
+    - docker run --rm -e "AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID" -e "AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY" "$DIST_IMAGE" npm run-script dist_and_publish
+  after_script:
+    - docker rmi "$DIST_IMAGE"
 
 #publish_docker:
 #  stage: publish

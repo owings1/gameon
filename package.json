@@ -1,6 +1,6 @@
 {
   "name": "gameon",
-  "version": "1.0.8",
+  "version": "1.0.9",
   "private": true,
   "description": "backgammon",
   "main": "index.js",
@@ -11,9 +11,9 @@
     "test": "nyc --reporter=text-summary mocha test/test.js && nyc report --reporter=lcov",
     "version": "oclif-dev readme && git add README.md",
     "install": "node scripts/install.js",
-    "dist": "oclif-dev pack",
     "mac": "oclif-dev pack:macos",
-    "dist_and_publish": "oclif-dev pack && oclif-dev publish"
+    "dist": "oclif-dev pack -t darwin-x64,linux-x64,win32-x64,win32-x86",
+    "dist_and_publish": "oclif-dev pack -t darwin-x64,linux-x64,win32-x64,win32-x86 && oclif-dev publish"
   },
   "dependencies": {
     "@oclif/command": "^1.5.14",
@@ -46,7 +46,8 @@
     "/bin",
     "/npm-shrinkwrap.json",
     "/oclif.manifest.json",
-    "/src"
+    "/src",
+    "/scripts"
   ],
   "repository": "https://git.int.dougowings.net/owings/gameon.git",
   "bin": {
