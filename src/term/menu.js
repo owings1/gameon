@@ -17,7 +17,10 @@ const os       = require('os')
 const path     = require('path')
 const sp       = Util.joinSpace
 
-const DefaultServerUrl = 'ws://bg.dougowings.net:8080'
+const DefaultServerUrl = 'wss://bg.dougowings.net'
+const ObsoleteServerUrls = [
+    'ws://bg.dougowings.net:8080'
+]
 
 class Menu extends Logger {
 
@@ -409,12 +412,16 @@ class Menu extends Logger {
     }
 
     getDefaultOpts() {
+        const opts = {}
         if (this.optsFile) {
             fse.ensureDirSync(path.dirname(this.optsFile))
             if (!fs.existsSync(this.optsFile)) {
                 fse.writeJsonSync(this.optsFile, {})
             }
-            var opts = JSON.parse(fs.readFileSync(this.optsFile))
+            Util.merge(opts, JSON.parse(fs.readFileSync(this.optsFile)))
+            if (ObsoleteServerUrls.indexOf(opts.serverUrl) > -1) {
+                opts.serverUrl = this.getDefaultServerUrl()
+            }
         }
         return Util.merge({
             total      : 1
