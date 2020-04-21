@@ -11,7 +11,7 @@ test:
   tags:
     - docker
   script:
-    - npm install
+    - npm install --unsafe-perm
     - npm test
 
 test_dist:
