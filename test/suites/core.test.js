@@ -13,7 +13,7 @@ const {
 
 const Core = requireSrc('lib/core')
 
-const {White, Red, Match, Game, Board, BoardAnalyzer, Turn, Piece, Dice, SequenceTree} = Core
+const {White, Red, Match, Game, Board, Turn, Piece, Dice, SequenceTree} = Core
 
 describe('Match', () => {
 
@@ -1210,28 +1210,28 @@ describe('Board', () => {
 
 describe('BoardAnalyzer', () => {
 
-    describe('isDisengaged', () => {
+    describe('#isDisengaged', () => {
 
         it('should return false for Initial', () => {
-            const analyzer = BoardAnalyzer.forStateString(States.Initial)
+            const {analyzer} = Board.setup()
             const result = analyzer.isDisengaged()
             expect(result).to.equal(false)
         })
 
         it('should return true for Either65Win', () => {
-            const analyzer = BoardAnalyzer.forStateString(States.Either65Win)
+            const {analyzer} = Board.fromStateString(States.Either65Win)
             const result = analyzer.isDisengaged()
             expect(result).to.equal(true)
         })
 
         it('should return true for WhiteGammon1', () => {
-            const analyzer = BoardAnalyzer.forStateString(States.WhiteGammon1)
+            const {analyzer} = Board.fromStateString(States.WhiteGammon1)
             const result = analyzer.isDisengaged()
             expect(result).to.equal(true)
         })
 
         it('should return false for EngagedWithBar', () => {
-            const analyzer = BoardAnalyzer.forStateString(States.EngagedWithBar)
+            const {analyzer} = Board.fromStateString(States.EngagedWithBar)
             const result = analyzer.isDisengaged()
             expect(result).to.equal(false)
         })
@@ -1240,13 +1240,13 @@ describe('BoardAnalyzer', () => {
     describe('#piecesInPointRange', () => {
 
         it('should return 5 for white 1-6 for initial state', () => {
-            const analyzer = new BoardAnalyzer(Board.setup())
+            const {analyzer} = Board.setup()
             const result = analyzer.piecesInPointRange(White, 1, 6)
             expect(result).to.equal(5)
         })
 
         it('should return 0 for white 1-5 for initial state', () => {
-            const analyzer = new BoardAnalyzer(Board.setup())
+            const {analyzer} = Board.setup()
             const result = analyzer.piecesInPointRange(White, 1, 5)
             expect(result).to.equal(0)
         })
@@ -1255,13 +1255,13 @@ describe('BoardAnalyzer', () => {
     describe('#piecesOnPoint', () => {
 
         it('should return 5 for white 6 for initial state', () => {
-            const analyzer = BoardAnalyzer.forStateString(States.Initial)
+            const {analyzer} = Board.setup()
             const result = analyzer.piecesOnPoint(White, 6)
             expect(result).to.equal(5)
         })
 
         it('should return 5 for red 6 for initial state', () => {
-            const analyzer = BoardAnalyzer.forStateString(States.Initial)
+            const {analyzer} = Board.setup()
             const result = analyzer.piecesOnPoint(Red, 6)
             expect(result).to.equal(5)
         })
@@ -1270,14 +1270,14 @@ describe('BoardAnalyzer', () => {
     describe('#primes', () => {
 
         it('should return 1 prime of size 5 for white for White5PointPrime1', () => {
-            const analyzer = Board.fromStateString(States.White5PointPrime1).newAnalyzer()
+            const {analyzer} = Board.fromStateString(States.White5PointPrime1)
             const result = analyzer.primes(White)
             expect(result).to.have.length(1)
             expect(result[0].size).to.equal(5)
         })
 
         it('should retun 2 primes of size 3 for red for RedTwo3Primes1', () => {
-            const analyzer = Board.fromStateString(States.RedTwo3Primes1).newAnalyzer()
+            const {analyzer} = Board.fromStateString(States.RedTwo3Primes1)
             const result = analyzer.primes(Red)
             expect(result).to.have.length(2)
             expect(result[0].size).to.equal(3)

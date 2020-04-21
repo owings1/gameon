@@ -178,12 +178,12 @@ class BearoffRobot extends ConfidenceRobot {
 
     async getRankings(turn, game, match) {
 
-        const baseline = turn.board.newAnalyzer().piecesHome(turn.color)
+        const baseline = turn.board.analyzer.piecesHome(turn.color)
 
         const scores = {}
         var hasBearoff = false
         turn.allowedEndStates.forEach(endState => {
-            const analyzer = Board.fromStateString(endState).newAnalyzer()
+            const {analyzer} = Board.fromStateString(endState)
             if (!analyzer.board.mayBearoff(turn.color)) {
                 scores[endState] = 0
                 return
@@ -289,12 +289,12 @@ class OccupyRobot extends ConfidenceRobot {
 
     // maximum number of points held
     async getRankings(turn, game, match) {
-        if (turn.board.newAnalyzer().isDisengaged()) {
+        if (turn.board.analyzer.isDisengaged()) {
             return this.zeroRankings(turn)
         }
         const pointCounts = {}
         turn.allowedEndStates.forEach(endState => {
-            const analyzer = Board.fromStateString(endState).newAnalyzer()
+            const {analyzer} = Board.fromStateString(endState)
             pointCounts[endState] = analyzer.slotsHeld(turn.color).length
         })
         return spreadRanking(pointCounts)
@@ -305,7 +305,7 @@ class PrimeRobot extends ConfidenceRobot {
 
     async getRankings(turn, game, match) {
 
-        if (turn.board.newAnalyzer().isDisengaged()) {
+        if (turn.board.analyzer.isDisengaged()) {
             return this.zeroRankings(turn)
         }
 
@@ -313,7 +313,7 @@ class PrimeRobot extends ConfidenceRobot {
         const zeros = []
 
         turn.allowedEndStates.forEach(endState => {
-            const analyzer = Board.fromStateString(endState).newAnalyzer()
+            const {analyzer} = Board.fromStateString(endState)
             const primes = analyzer.primes(turn.color)
             if (primes.length) {
                 const maxSize = Math.max(...primes.map(prime => prime.size))
@@ -339,9 +339,9 @@ class RunningRobot extends ConfidenceRobot {
 
     async getRankings(turn, game, match) {
         const scores = {}
-        //const bkBefore = turn.board.newAnalyzer().countPiecesInPointRange(turn.color, 19, 24)
+        //const bkBefore = turn.board.analyzer.countPiecesInPointRange(turn.color, 19, 24)
         turn.allowedEndStates.forEach(endState => {
-            const analyzer = Board.fromStateString(endState).newAnalyzer()
+            const {analyzer} = Board.fromStateString(endState)
             scores[endState] = sumArray(analyzer.pointsOccupied(turn.color).map(point =>
                 point * analyzer.piecesOnPoint(turn.color, point) * this.quadrantMultiplier(point)
             ))
@@ -363,14 +363,14 @@ class SafetyRobot extends ConfidenceRobot {
     // minimum number of blots left
     async getRankings(turn, game, match) {
 
-        if (turn.board.newAnalyzer().isDisengaged()) {
+        if (turn.board.analyzer.isDisengaged()) {
             return this.zeroRankings(turn)
         }
 
         const scores = {}
         const zeros = []
         turn.allowedEndStates.forEach(endState => {
-            const analyzer = Board.fromStateString(endState).newAnalyzer()
+            const {analyzer} = Board.fromStateString(endState)
             const blots = analyzer.blots(turn.color)
             var score = 0
             var directCount = 0

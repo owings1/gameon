@@ -575,6 +575,7 @@ class Board {
 
     constructor() {
         this.clear()
+        this.analyzer = new BoardAnalyzer(this)
     }
 
     static setup() {
@@ -791,10 +792,6 @@ class Board {
         return board
     }
 
-    newAnalyzer() {
-        return new BoardAnalyzer(this)
-    }
-
     static pointOrigin(color, point) {
         if (point == -1) {
             return -1
@@ -855,6 +852,21 @@ class BoardAnalyzer {
             count += this.piecesOnPoint(color, p)
         }
         return count
+    }
+
+    pipCount(color) {
+        var count = this.board.bars[color].length * 25
+        this.pointsOccupied(color).forEach(point => {
+            count += this.piecesOnPoint(color, point) * point
+        })
+        return count
+    }
+
+    pipCounts() {
+        return {
+            White : this.pipCount(White)
+          , Red   : this.pipCount(Red)
+        }
     }
 
     pointsOccupied(color) {
@@ -920,8 +932,6 @@ class BoardAnalyzer {
         return backmostWhite > backmostRed
     }
 
-
-
     primes(color) {
         const slotsHeld = this.slotsHeld(color)
         const pointsHeld = slotsHeld.map(i => this.board.originPoint(color, i))
@@ -944,10 +954,6 @@ class BoardAnalyzer {
             }
         }
         return primes
-    }
-
-    static forStateString(str) {
-        return new BoardAnalyzer(Board.fromStateString(str))
     }
 }
 
@@ -1312,7 +1318,6 @@ module.exports = {
   , Match
   , Game
   , Board
-  , BoardAnalyzer
   , SequenceTree
   , BoardNode
   , Piece
