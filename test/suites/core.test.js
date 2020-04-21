@@ -1267,6 +1267,25 @@ describe('BoardAnalyzer', () => {
         })
     })
 
+    describe('#pipCount', () => {
+
+        it('should return 0 for White on blank board', () => {
+            const {analyzer} = new Board
+            const result = analyzer.pipCount(White)
+            expect(result).to.equal(0)
+        })
+    })
+
+    describe('#pipCounts', () => {
+
+        it('should return 167 for each at initial state', () => {
+            const {analyzer} = Board.setup()
+            const result = analyzer.pipCounts()
+            expect(result.Red).to.equal(167)
+            expect(result.White).to.equal(167)
+        })
+    })
+
     describe('#primes', () => {
 
         it('should return 1 prime of size 5 for white for White5PointPrime1', () => {

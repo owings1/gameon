@@ -87,6 +87,10 @@ function cubePart(n, cubeValue, isCrawford) {
     return cubeStr
 }
 
+function pipCount(count) {
+    return ' ' + chalk.bold.grey(count) + ' ' + chalk.grey('PIP')
+}
+
 class Draw {
 
     static drawBoard(game, match, persp) {
@@ -95,10 +99,8 @@ class Draw {
         const opersp = Opponent[persp]
 
         const {board, cubeOwner, cubeValue} = game
+        const pipCounts = board.analyzer.pipCounts()
         const {isCrawford} = game.opts
-
-        //const topHalf = board.slots.slice(0, 12)
-        //const botHalf = board.slots.slice(12, 24)
 
         const builder = []
         const wr = (...args) => {
@@ -133,12 +135,15 @@ class Draw {
             if (d == 0) {
                 wr(home(board.homes[opersp]))
             }
-            if (match && d == 1) {
+            if (d == 1) {
+                wr(pipCount(pipCounts[opersp]))
+            }
+            if (match && d == 2) {
                 wr(' ' + match.scores[opersp] + '/' + match.total + 'pts')
             }
             if (cubeValue && cubeOwner == opersp) {
                 wr(' ')
-                wr(cubePart(d - 2, cubeValue, isCrawford))
+                wr(cubePart(d - 3, cubeValue, isCrawford))
             }
             wr('\n')
         }
@@ -207,12 +212,15 @@ class Draw {
             if (d == 0) {
                 wr(home(board.homes[persp]))
             }
-            if (match && d == 1) {
+            if (d == 1) {
+                wr(pipCount(pipCounts[persp]))
+            }
+            if (match && d == 2) {
                 wr(' ' + match.scores[persp] + '/' + match.total + 'pts')
             }
             if (cubeValue && cubeOwner == persp) {
                 wr(' ')
-                wr(cubePart(5 - d - 1, cubeValue, isCrawford))
+                wr(cubePart(5 - d - 2, cubeValue, isCrawford))
             }
             wr('\n')
         }
