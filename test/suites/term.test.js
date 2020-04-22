@@ -111,6 +111,15 @@ describe('Menu', () => {
             JSON.parse(fs.readFileSync(menu.optsFile))
             fse.removeSync(menu.optsFile)
         })
+
+        it('should replace obsolete server url', () => {
+            menu.optsFile = tmpFile()
+            fse.writeJsonSync(menu.optsFile, {serverUrl: 'ws://bg.dougowings.net:8080'})
+            const exp = menu.getDefaultServerUrl()
+            const result = menu.getDefaultOpts()
+            fse.removeSync(menu.optsFile)
+            expect(result.serverUrl).to.equal(exp)
+        })
     })
 
     describe('#joinMenu', () => {
@@ -299,6 +308,35 @@ describe('Menu', () => {
             menu.newCoordinator = () => {return {runMatch: () => isCalled = true}}
             await menu.playLocalMatch(menu.opts)
             expect(isCalled).to.equal(true)
+        })
+
+        it('should warn match canceled but not throw for mock coodinator', async () => {
+            menu.newCoordinator = () => {
+                return {
+                    runMatch: () => {
+                        const err = new Error('testMessage')
+                        err.name = 'MatchCanceledError'
+                        throw err
+                    }
+                }
+            }
+            var warnStr = ''
+            menu.warn = (...args) => warnStr += args.join(' ')
+            await menu.playLocalMatch(menu.opts)
+            expect(warnStr).to.contain('testMessage')
+        })
+
+        it('should throw on non-match-canceled for mock coodinator', async () => {
+            menu.newCoordinator = () => {
+                return {
+                    runMatch: () => {
+                        throw new Error('testMessage')
+                    }
+                }
+            }
+
+            const err = await getErrorAsync(() => menu.playLocalMatch(menu.opts))
+            expect(err.message).to.equal('testMessage')
         })
     })
 
@@ -727,6 +765,25 @@ describe('TermPlayer', () => {
             const err = await getErrorAsync(() => player.promptTurnOption(turn))
             expect(err.message).to.contain('Validation failed for action')
         })
+
+        it('should throw MatchCanceledError for action=q, confirm=true', async () => {
+            player.prompt = MockPrompter([
+                {action: 'q'},
+                {confirm : true}
+            ])
+            const err = await getErrorAsync(() => player.promptTurnOption(turn))
+            expect(err.name).to.equal('MatchCanceledError')
+        })
+
+        it('should return false for q, confirm=false, r', async () => {
+            player.prompt = MockPrompter([
+                {action: 'q'},
+                {confirm: false},
+                {action: 'r'}
+            ])
+            const result = await player.promptTurnOption(turn)
+            expect(result).to.equal(false)
+        })
     })
 
     describe('#promptFace', () => {
@@ -809,6 +866,25 @@ describe('TermPlayer', () => {
             const err = await getErrorAsync(() => player.promptOrigin(turn, [3, 4]))
             expect(err.message).to.contain('Validation failed for origin')
         })
+
+        it('should throw MatchCanceledError for origin=q, confirm=true', async () => {
+            player.prompt = MockPrompter([
+                {origin: 'q'},
+                {confirm : true}
+            ])
+            const err = await getErrorAsync(() => player.promptOrigin(turn, [1, 2]))
+            expect(err.name).to.equal('MatchCanceledError')
+        })
+
+        it('should return -1 for q, confirm=false, b with [-1]', async () => {
+            player.prompt = MockPrompter([
+                {origin: 'q'},
+                {confirm: false},
+                {origin: 'b'}
+            ])
+            const result = await player.promptOrigin(turn, [-1])
+            expect(result).to.equal(-1)
+        })
     })
 
     describe('#rollTurn', () => {
@@ -846,6 +922,48 @@ describe('TermPlayer', () => {
                 const turn = game.nextTurn()
                 turn.roll()
                 player.emit('afterRoll', turn)
+            })
+
+            it('should log waiting for opponent turn if opponent isNet', () => {
+                var logStr = ''
+                player.emit('gameStart', game, null, players)
+                const turn = game.nextTurn()
+                turn.roll()
+                player.logger.info = (...args) => logStr += args.join(' ')
+                // hack opponent property
+                player.opponent.isNet = true
+                player.emit('afterRoll', turn)
+                expect(logStr.toLowerCase()).to.contain('waiting')
+            })
+        })
+
+        describe('beforeOption', () => {
+
+            it('should log waiting for opponent turn if opponent isNet', () => {
+                var logStr = ''
+                player.emit('gameStart', game, null, players)
+                const turn = game.nextTurn()
+                player.logger.info = (...args) => logStr += args.join(' ')
+                // hack opponent property
+                player.opponent.isNet = true
+                player.emit('beforeOption', turn)
+                expect(logStr.toLowerCase()).to.contain('waiting')
+            })
+        })
+
+        describe('doubleOffered', () => {
+
+            it('should log waiting for self turn if opponent isNet', () => {
+                var logStr = ''
+                player.emit('gameStart', game, null, players)
+                makeRandomMoves(game.nextTurn().roll(), true)
+                const turn = game.nextTurn()
+                turn.setDoubleOffered()
+                player.logger.info = (...args) => logStr += args.join(' ')
+                // hack opponent property
+                player.opponent.isNet = true
+                player.emit('doubleOffered', turn, game)
+                expect(logStr.toLowerCase()).to.contain('waiting')
             })
         })
 

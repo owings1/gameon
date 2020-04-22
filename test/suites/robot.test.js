@@ -72,6 +72,60 @@ describe('Robot', () => {
     })
 })
 
+describe('ConfidenceRobot', () => {
+
+
+    beforeEach(() => robot = new ConfidenceRobot(White))
+
+    describe('#getClassMeta', () => {
+
+        it('should throw InvalidRobotError for MyUnknown', () => {
+            const err = getError(() => ConfidenceRobot.getClassMeta('MyUnknown'))
+            expect(err.name).to.equal('InvalidRobotError')
+        })
+    })
+
+    describe('#getMoves', () => {
+
+        it('should return empty array for isCantMove', async () => {
+            // hack a turn
+            const turn = {isCantMove: true}
+            const result = await robot.getMoves(turn)
+            expect(result).to.have.length(0)
+        })
+
+        it('should throw UndecidedMoveError when moves are empty', async () => {
+            robot.getRankings = () => []
+            // hack a turn
+            const turn = {isRolled: true}
+            const err = await getErrorAsync(() => robot.getMoves(turn))
+            expect(err.name).to.equal('UndecidedMoveError')
+        })
+
+        it('should throw HasNotRolledError when isRolled=false', async () => {
+            doFirstTurn()
+            const err = await getErrorAsync(() => robot.getMoves(game.nextTurn(), game))
+            expect(err.name).to.equal('HasNotRolledError')
+        })
+    })
+
+    describe('#getRankings', () => {
+
+        it('should throw NotImplemented for base class', async () => {
+            const err = await getErrorAsync(() => robot.getRankings())
+            expect(err.message).to.equal('NotImplemented')
+        })
+    })
+
+    describe('#getVersionInstance', () => {
+
+        it('should throw InvalidRobotVersionError for RandomRobot vUnknown', () => {
+            const err = getError(() => ConfidenceRobot.getVersionInstance('RandomRobot', 'vUnknown', White))
+            expect(err.name).to.equal('InvalidRobotVersionError')
+        })
+    })
+})
+
 describe('RandomRobot', () => {
 
     beforeEach(() => {
@@ -159,44 +213,6 @@ describe('BearoffRobot', () => {
             const maxRank = Math.max(...Object.values(result))
             expect(result[normState(States.Bearoff4Best)]).to.equal(maxRank)
             expect(result[normState(States.Bearoff4Best)]).to.be.greaterThan(result[normState(States.Bearoff4Bad)])
-        })
-    })
-})
-
-describe('ConfidenceRobot', () => {
-
-
-    beforeEach(() => robot = new Robot.ConfidenceRobot(White))
-
-    describe('#getMoves', () => {
-
-        it('should return empty array for isCantMove', async () => {
-            // hack a turn
-            const turn = {isCantMove: true}
-            const result = await robot.getMoves(turn)
-            expect(result).to.have.length(0)
-        })
-
-        it('should throw UndecidedMoveError when moves are empty', async () => {
-            robot.getRankings = () => []
-            // hack a turn
-            const turn = {isRolled: true}
-            const err = await getErrorAsync(() => robot.getMoves(turn))
-            expect(err.name).to.equal('UndecidedMoveError')
-        })
-
-        it('should throw HasNotRolledError when isRolled=false', async () => {
-            doFirstTurn()
-            const err = await getErrorAsync(() => robot.getMoves(game.nextTurn(), game))
-            expect(err.name).to.equal('HasNotRolledError')
-        })
-    })
-
-    describe('#getRankings', () => {
-
-        it('should throw NotImplemented for base class', async () => {
-            const err = await getErrorAsync(() => robot.getRankings())
-            expect(err.message).to.equal('NotImplemented')
         })
     })
 })

@@ -152,6 +152,16 @@ describe('Client', () => {
             const err = await p
             expect(err.name).to.equal('ClientError')
         })
+
+        it('should throw MatchCanceledError for response action=matchCanceled with reason as message', async () => {
+            await client.connect()
+            const p = getErrorAsync(() => client.waitForResponse('test'))
+            const conns = Object.values(server.socketServer.conns)
+            server.sendMessage(conns, {action: 'matchCanceled', reason: 'testReason'})
+            const err = await p
+            expect(err.name).to.equal('MatchCanceledError')
+            expect(err.message).to.equal('testReason')
+        })
     })
 })
 
