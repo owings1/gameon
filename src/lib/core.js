@@ -1315,6 +1315,7 @@ const Errors = {
 
 module.exports = {
     Colors
+  , ColorAbbr
   , Match
   , Game
   , Board

@@ -1,9 +1,9 @@
-const {Red, White, Opponent} = require('../lib/core')
+const {Red, White, Opponent, ColorAbbr} = require('../lib/core')
 
-const chalk  = require('chalk')
-const Util   = require('../lib/util')
-const sa     = Util.stripAnsi
-const sp     = Util.joinSpace
+const chalk      = require('chalk')
+const Util       = require('../lib/util')
+const sp         = Util.joinSpace
+const {intRange} = Util
 
 const Shorts = {
     Red   : chalk.bold.red('R')
@@ -24,6 +24,14 @@ const Chars = {
   , botMiddle    : '\u253b'
   , botRight     : '\u251b'
   , dash         : '\u2501'
+  , pip          : 'PIP'
+  , crawford     : 'CR'
+  , pts          : 'pts'
+  , empty        : ''
+  , slash        : '/'
+  , sp           : ' '
+  , dblSp        : '  '
+  , br           : '\n'
   , die          :  {
         1  : '\u2680'
       , 2  : '\u2681'
@@ -38,12 +46,22 @@ const PadFixed = 4
 const MidFixed = 1
 const RightFixed = 10
 
+const TopBorder = Chars.topLeft.padEnd(12 * PadFixed + 2 + 4, Chars.dash) + Chars.topRight
+const BottomBorder = Chars.botLeft.padEnd(12 * PadFixed + 2 + 4, Chars.dash) + Chars.botRight
+
+const TopPoints = intRange(13, 24)
+const BottomPoints = intRange(1, 12).reverse()
+
+function grey(...args) {
+    return chalk.grey(...args)
+}
+
 function slotRow(slot, d) {
-    var c = slot[d] ? slot[d].c : ''
-    var str = c.padStart(PadFixed, ' ')
-    if (c == 'R') {
+    const short = slot[d] ? slot[d].c : ''
+    var str = short.padStart(PadFixed, Chars.sp)
+    if (short == ColorAbbr.Red) {
         str = chalk.bold.red(str)
-    } else if (c == 'W') {
+    } else if (short == ColorAbbr.White) {
         str = chalk.bold.white(str)
     }
     return str
@@ -51,58 +69,69 @@ function slotRow(slot, d) {
 
 function barRow(bar) {
     var color = bar[0] && bar[0].color
-    var str = Chars.sep.padEnd(6 * PadFixed + 1, ' ')
+    var str = Chars.sep.padEnd(6 * PadFixed + 1, Chars.sp)
     if (color) {
-        str += sp(' ', Shorts[color], chalk.grey(bar.length))
+        str += sp(Chars.sp, Shorts[color], grey(bar.length))
     } else {
-        str += chalk.grey('  ' + Chars.dblSep + ' ')
+        str += grey(Chars.sp, Chars.dblSep + Chars.sp)
     }
-    str += ''.padEnd(6 * PadFixed, ' ') + Chars.sep
+    str += nchars(6 * PadFixed, Chars.sp) + Chars.sep
     return str
 }
 
-function home(h) {
+function homie(home) {
     var str = '  '
-    if (h.length) {
-        var color = h[0].color
-        str += sp(Shorts[color], chalk.grey(h.length))
+    if (home.length) {
+        const color = home[0].color
+        str += sp(Shorts[color], grey(home.length))
     }
     return str
 }
 
-function cubePart(n, cubeValue, isCrawford) {
+function nchars(n, char) {
+    return Chars.empty.padEnd(n, char)
+}
+
+function cubePart(partIndex, cubeValue, isCrawford) {
     var cubeStr = ''
-    switch (n) {
+    switch (partIndex) {
         case 0:
-            cubeStr = Chars.topLeft + ''.padEnd(3, Chars.dash) + Chars.topRight
+            cubeStr = cat(Chars.topLeft, nchars(3, Chars.dash), Chars.topRight)
             break
         case 1:
-            cubeStr = (Chars.sep + ' ' + (isCrawford ? 'CR' : cubeValue)).padEnd(4, ' ') + Chars.sep
+            cubeStr = (Chars.sep + Chars.sp + (isCrawford ? Chars.crawford : cubeValue)).padEnd(4, Chars.sp) + Chars.sep
             break
         case 2:
-            cubeStr = Chars.botLeft + ''.padEnd(3, Chars.dash) + Chars.botRight
+            cubeStr = cat(Chars.botLeft, nchars(3, Chars.dash), Chars.botRight)
             break
     }
     if (cubeStr && isCrawford) {
-        cubeStr = chalk.grey(cubeStr)
+        cubeStr = grey(cubeStr)
     }
     return cubeStr
 }
 
 function pipCount(count) {
-    return ' ' + chalk.bold.grey(count) + ' ' + chalk.grey('PIP')
+    return cat(Chars.sp, chalk.bold.grey(count), Chars.sp, grey(Chars.pip))
 }
 
-function sideLog(logs, n) {
-    return logs[n] || ''
+function numbers(points) {
+    var str = Chars.sp
+    points.forEach((point, i) => {
+        str += point.toString().padStart(PadFixed, Chars.sp)
+        if (i == 5) {
+            str += nchars(4, Chars.sp)
+        }
+    })
+    return str
 }
 
-function borderTop() {
-    return Chars.topLeft.padEnd(12 * PadFixed + 2 + 4, Chars.dash) + Chars.topRight
+function cat(...args) {
+    return args.join(Chars.empty)
 }
 
-function borderBottom() {
-    return Chars.botLeft.padEnd(12 * PadFixed + 2 + 4, Chars.dash) + Chars.botRight
+function len(str) {
+    return Util.stripAnsi(str).length
 }
 
 class Draw {
@@ -118,192 +147,158 @@ class Draw {
         const {isCrawford} = game.opts
 
         const builder = []
-        const wr = (...args) => {
-            builder.push(sp(...args))
-        }
 
         var li = 18
 
-        wr('\n')
-
-        // Top numbers
-        wr(' ')
-        for (var i = 13; i <= 24; i++) {
-            wr(i.toString().padStart(PadFixed, ' '))
-            if (i == 18) {
-                wr('    ')
-            }
+        function wr(...args) {
+            builder.push(sp(...args))
         }
-        wr('\n')
-        wr(borderTop())
-        wr(''.padEnd(RightFixed, ' '))
-        wr(sideLog(logsRev, li--))
-        wr('\n')
+
+        function sideLog(pad) {
+            const n = li--
+            if (!logsRev[n]) {
+                return Chars.empty
+            }
+            return cat(nchars(pad, Chars.sp), logsRev[n])
+        }
+
+        function writePieceRow(depth, points, cubePartIndex, sectionOwner) {
+            wr(Chars.sep)
+            points.forEach((point, i) => {
+                const slot = board.slots[board.pointOrigin(persp, point)]
+                wr(slotRow(slot, depth))
+                if (i == 5) {
+                    wr(grey(Chars.sp, Chars.dblSep))
+                }
+            })
+            wr(cat(Chars.sp, Chars.sep))
+            var pad = RightFixed
+            switch (depth) {
+                case 0:
+                    // Home
+                    const homeStr = homie(board.homes[sectionOwner])
+                    pad -= len(homeStr)
+                    wr(homeStr)
+                    break
+                case 1:
+                    // PIP
+                    const pipStr = pipCount(pipCounts[sectionOwner])
+                    pad -= len(pipStr)
+                    wr(pipStr)
+                    break
+                case 2:
+                    // Match score
+                    if (match) {
+                        const scoreStr = cat(Chars.sp, match.scores[sectionOwner], Chars.slash, match.total, Chars.pts)
+                        pad -= len(scoreStr)
+                        wr(scoreStr)
+                    }
+                    break
+                default:
+                    // Cube part
+                    if (cubeValue && cubeOwner == sectionOwner) {
+                        const cubeStr = cat(Chars.sp, cubePart(cubePartIndex, cubeValue, isCrawford))
+                        pad -= len(cubeStr)
+                        wr(cubeStr)
+                    }
+                    break
+            }
+            wr(sideLog(pad))
+            wr(Chars.br)
+        }
+
+        function writeOverflowRow(points) {
+            wr(Chars.sep)
+            points.forEach((point, i) => {
+                const slot = board.slots[board.pointOrigin(persp, point)]
+                const n = slot.length > 6 ? slot.length : Chars.empty
+                wr(grey(n.toString().padStart(PadFixed, Chars.sp)))
+                if (i == 5) {
+                    wr(grey(Chars.sp, Chars.dblSep))
+                }
+            })
+            wr(cat(Chars.sp, Chars.sep))
+            wr(sideLog(RightFixed))
+            wr(Chars.br)
+        }
+
+        function writeMiddleRow() {
+            wr(Chars.sep.padEnd(6 * PadFixed + 1, Chars.sp))
+            wr(chalk.grey(Chars.sp, Chars.dblSep))
+            wr(nchars(6 * PadFixed + 1, Chars.sp) + Chars.sep)
+            var pad = RightFixed
+            if (cubeValue && !cubeOwner) {
+                const cubeStr = cat(Chars.sp, cubePart(1, cubeValue, isCrawford))
+                pad -= len(cubeStr)
+                wr(cubeStr)
+            }
+            wr(sideLog(pad))
+            wr(Chars.br)
+        }
+
+        function writeBorderRow(border) {
+            wr(border)
+            wr(sideLog(RightFixed))
+            wr(Chars.br)
+        }
+
+        function writeBarRow(color, cubePartIndex) {
+            wr(barRow(board.bars[color]))
+            var pad = RightFixed
+            if (cubeValue && !cubeOwner) {
+                const cubeStr = cat(Chars.sp, cubePart(cubePartIndex, cubeValue, isCrawford))
+                pad -= len(cubeStr)
+                wr(cubeStr)
+            }
+            wr(sideLog(pad))
+            wr(Chars.br)
+        }
+
+        function writeNumbersRow(points) {
+            wr(numbers(points))
+            wr(Chars.br)
+        }
+
+        wr(Chars.br)
+
+        // Top point numbers
+        writeNumbersRow(TopPoints)
+
+        // Top border
+        writeBorderRow(TopBorder)
 
         // Top piece rows
         for (var d = 0; d < 6; d++) {
-            wr(Chars.sep)
-            for (var p = 13; p <= 24; p++) {
-                var slot = board.slots[board.pointOrigin(persp, p)]
-                wr(slotRow(slot, d))
-                if (p == 18) {
-                    wr(chalk.grey('  ' + Chars.dblSep))
-                }
-            }
-            wr(' ' + Chars.sep)
-            var pad = RightFixed
-            // Top home
-            if (d == 0) {
-                var homeStr = home(board.homes[opersp])
-                pad = RightFixed - sa(homeStr).length
-                wr(homeStr)
-            }
-            // pip count
-            else if (d == 1) {
-                var pipStr = pipCount(pipCounts[opersp])
-                pad = RightFixed - sa(pipStr).length
-                wr(pipStr)
-            }
-            // score
-            else if (match && d == 2) {
-                var scoreStr = ' ' + match.scores[opersp] + '/' + match.total + 'pts'
-                pad = RightFixed - sa(scoreStr).length
-                wr(scoreStr)
-            }
-            // cube part
-            else if (cubeValue && cubeOwner == opersp) {
-                var cubeStr = ' ' + cubePart(d - 3, cubeValue, isCrawford)
-                pad = RightFixed - sa(cubeStr).length
-                wr(cubeStr)
-            }
-            wr(''.padEnd(pad, ' '))
-            wr(sideLog(logsRev, li--))
-            wr('\n')
+            writePieceRow(d, TopPoints, d - 3, opersp)
         }
 
-        // Top piece overflow numbers row
-        wr(Chars.sep)
-        for (var p = 13; p <= 24; p++) {
-            var slot = board.slots[board.pointOrigin(persp, p)]
-            var n = slot.length > 6 ? slot.length : ''
-            wr(chalk.grey(('' + n).padStart(PadFixed, ' ')))
-            if (p == 18) {
-                wr(chalk.grey('  ' + Chars.dblSep))
-            }
-        }
-        wr(' ' + Chars.sep)
-        wr(''.padEnd(RightFixed, ' '))
-        wr(sideLog(logsRev, li--))
-        wr('\n')
+        // Top overflow row
+        writeOverflowRow(TopPoints)
 
-        wr(barRow(board.bars[persp]))
-        var pad = RightFixed
-        if (cubeValue && !cubeOwner) {
-            var cubeStr = ' ' + cubePart(0, cubeValue, isCrawford)
-            pad = RightFixed - sa(cubeStr).length
-            wr(cubeStr)
-        }
-        wr(''.padEnd(pad, ' '))
-        wr(sideLog(logsRev, li--))
-        wr('\n')
+        // Bar row
+        writeBarRow(persp, 0)
 
-        // between bars blank row
-        wr(Chars.sep.padEnd(6 * PadFixed + 1, ' '))
-        wr(chalk.grey('  ' + Chars.dblSep))
-        wr(''.padEnd(6 * PadFixed + 1, ' ') + Chars.sep)
-        var pad = RightFixed
-        if (cubeValue && !cubeOwner) {
-            var cubeStr = ' ' + cubePart(1, cubeValue, isCrawford)
-            pad = RightFixed - sa(cubeStr).length
-            wr(cubeStr)
-        }
-        wr(''.padEnd(pad, ' '))
-        wr(sideLog(logsRev, li--))
-        wr('\n')
+        // Between bars blank row
+        writeMiddleRow()
 
-        wr(barRow(board.bars[opersp]))
-        var pad = RightFixed
-        if (cubeValue && !cubeOwner) {
-            var cubeStr = ' ' + cubePart(2, cubeValue, isCrawford)
-            pad = RightFixed - sa(cubeStr).length
-            wr(cubeStr)
-        }
-        wr(''.padEnd(pad, ' '))
-        wr(sideLog(logsRev, li--))
-        wr('\n')
+        // Bar row
+        writeBarRow(opersp, 2)
 
-        // Bottom piece overflow numbers row
-        wr(Chars.sep)
-        for (var p = 12; p >= 1; p--) {
-            var slot = board.slots[board.pointOrigin(persp, p)]
-            var n = slot.length > 6 ? slot.length : ''
-            wr(chalk.grey(('' + n).padStart(PadFixed, ' ')))
-            if (p == 7) {
-                wr(chalk.grey('  ' + Chars.dblSep))
-            }
-        }
-        wr(' ' + Chars.sep)
-        wr(''.padEnd(RightFixed, ' '))
-        wr(sideLog(logsRev, li--))
-        wr('\n')
+        // Bottom overflow row
+        writeOverflowRow(BottomPoints)
 
         // Bottom piece rows
         for (var d = 5; d >= 0; d--) {
-            wr(Chars.sep)
-            for (var p = 12; p >= 1; p--) {
-                var slot = board.slots[board.pointOrigin(persp, p)]
-                wr(slotRow(slot, d))
-                if (p == 7) {
-                    wr(chalk.grey('  ' + Chars.dblSep))
-                }
-            }
-            wr(' ' + Chars.sep)
-            var pad = RightFixed
-            // Bottom home
-            if (d == 0) {
-                var homeStr = home(board.homes[persp])
-                pad = RightFixed - sa(homeStr).length
-                wr(homeStr)
-            }
-            // pip count
-            else if (d == 1) {
-                var pipStr = pipCount(pipCounts[persp])
-                pad = RightFixed - sa(pipStr).length
-                wr(pipStr)
-            }
-            // score
-            else if (match && d == 2) {
-                var scoreStr = ' ' + match.scores[persp] + '/' + match.total + 'pts'
-                pad = RightFixed - sa(scoreStr).length
-                wr(scoreStr)
-            }
-            // cube part
-            else if (cubeValue && cubeOwner == persp) {
-                var cubeStr = ' ' + cubePart(5 - d, cubeValue, isCrawford)
-                pad = RightFixed - sa(cubeStr).length
-                wr(cubeStr)
-            }
-            wr(''.padEnd(pad, ' '))
-            wr(sideLog(logsRev, li--))
-            wr('\n')
+            writePieceRow(d, BottomPoints, 5 - d, persp)
         }
 
-        wr(borderBottom())
-        wr(''.padEnd(RightFixed, ' '))
-        wr(sideLog(logsRev, li--))
-        wr('\n')
+        // Bottom border
+        writeBorderRow(BottomBorder)
 
-        // Bottom numbers
-        wr(' ')
-        for (var i = 12; i >= 1; i--) {
-            wr(('' + i).padStart(PadFixed, ' '))
-            if (i == 7) {
-                wr('    ')
-            }
-        }
-        wr('\n')
+        // Bottom point numbers
+        writeNumbersRow(BottomPoints)
 
-        wr('\n')
+        wr(Chars.br)
 
         return builder.join('')
     }
