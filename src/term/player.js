@@ -148,7 +148,7 @@ class TermPlayer extends Base {
                 continue
             }
             var faces = moves.filter(move => move.origin == origin).map(move => move.face)
-            var face = await this.promptFace(faces)
+            var face = await this.promptFace(turn, faces)
             var move = turn.move(origin, face)
             this.info(this.describeMove(move))
             if (turn.getNextAvailableMoves().length == 0) {
@@ -288,7 +288,7 @@ class TermPlayer extends Base {
         return turn.board.pointOrigin(turn.color, +origin)
     }
 
-    async promptFace(faces) {
+    async promptFace(turn, faces) {
         faces = Util.uniqueInts(faces).sort(Util.sortNumericDesc)
         if (faces.length == 1) {
             return faces[0]
@@ -363,7 +363,7 @@ class TermRobot extends TermPlayer {
         return this.thisMove.origin
     }
 
-    async promptFace(faces) {
+    async promptFace(turn, faces) {
         await this.delay()
         return this.thisMove.face
     }

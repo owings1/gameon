@@ -727,20 +727,28 @@ describe('TermPlayer', () => {
 
     describe('#promptFace', () => {
 
+        var turn
+
+        beforeEach(() => {
+            const game = new Game
+            makeRandomMoves(game.firstTurn(), true)
+            turn = game.nextTurn()
+        })
+
         it('should return 3 for [3, 3, 3, 3] and not prompt', async () => {
-            const result = await player.promptFace([3, 3, 3, 3])
+            const result = await player.promptFace(turn, [3, 3, 3, 3])
             expect(result).to.equal(3)
         })
 
         it('should return 5 for 5 with [5, 6]', async () => {
             player.prompt = MockPrompter({face: '5'})
-            const result = await player.promptFace([5, 6])
+            const result = await player.promptFace(turn, [5, 6])
             expect(result).to.equal(5)
         })
 
         it('should fail validation for 3 with [1, 2]', async () => {
             player.prompt = MockPrompter({face: '3'})
-            const err = await getErrorAsync(() => player.promptFace([1, 2]))
+            const err = await getErrorAsync(() => player.promptFace(turn, [1, 2]))
             expect(err.message).to.contain('Validation failed for face')
         })
     })
