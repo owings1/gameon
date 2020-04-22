@@ -2,11 +2,11 @@ const Core   = require('../lib/core')
 const Logger = require('../lib/logger')
 const Util   = require('../lib/util')
 
-const Coordinator   = require('../lib/coordinator')
-const Client        = require('../net/client')
-const NetPlayer     = require('../net/player')
-const TermPlayer    = require('./player')
-const Robot         = require('../robot/player')
+const Coordinator = require('../lib/coordinator')
+const Client      = require('../net/client')
+const NetPlayer   = require('../net/player')
+const TermPlayer  = require('./player')
+const Robot       = require('../robot/player')
 
 const {White, Red, Match} = Core
 
@@ -150,27 +150,15 @@ class Menu extends Logger {
     }
 
     async playLocalMatch(opts) {
-        const coordinator = this.newCoordinator(opts)
         const match = new Match(opts.total, opts)
         const players = {
             White : new TermPlayer(White, opts)
           , Red   : new TermPlayer(Red, opts)
         }
-        try {
-            await coordinator.runMatch(match, players.White, players.Red)
-        } catch (err) {
-            if (err.name == 'MatchCanceledError') {
-                this.warn('The match was canceled', '-', err.message)
-            } else {
-                throw err
-            }
-        } finally {
-            await this.destroyAll(players)
-        }
+        await this.runMatch(match, players, opts)
     }
 
     async startOnlineMatch(opts) {
-        const coordinator = this.newCoordinator(opts)
         const client = this.newClient(opts.serverUrl)
         await client.connect()
         try {
@@ -179,24 +167,13 @@ class Menu extends Logger {
                 White : new TermPlayer(White, opts)
               , Red   : new NetPlayer(client, Red)
             }
-            try {
-                await coordinator.runMatch(match, players.White, players.Red)
-            } finally {
-                await this.destroyAll(players)
-            }
-        } catch (err) {
-            if (err.name == 'MatchCanceledError') {
-                this.warn('The match was canceled', '-', err.message)
-            } else {
-                throw err
-            }
+            await this.runMatch(match, players, opts)
         } finally {
             await client.close()
         }
     }
 
     async joinOnlineMatch(opts) {
-        const coordinator = this.newCoordinator(opts)
         const client = this.newClient(opts.serverUrl)
         await client.connect()
         try {
@@ -205,30 +182,33 @@ class Menu extends Logger {
                 White : new NetPlayer(client, White)
               , Red   : new TermPlayer(Red, opts)
             }
-            try {
-                await coordinator.runMatch(match, players.White, players.Red)
-            } finally {
-                await this.destroyAll(players)
-            }
-        } catch (err) {
-            if (err.name == 'MatchCanceledError') {
-                this.warn('The match was canceled', '-', err.message)
-            } else {
-                throw err
-            }
+            await this.runMatch(match, players, opts)
         } finally {
             await client.close()
         }
     }
 
     async playRobot(opts) {
-        const coordinator = this.newCoordinator(opts)
         const match = new Match(opts.total, opts)
         const players = {
             White : new TermPlayer(White, opts)
           , Red   : new TermPlayer.Robot(this.newBestRobot(Red), opts)
         }
+        await this.runMatch(match, players, opts)
+    }
+
+    async playRobots(opts) {
+        const match = new Match(opts.total, opts)
+        const players = {
+            White : new TermPlayer.Robot(this.newBestRobot(White), opts)
+          , Red   : new TermPlayer.Robot(this.newBestRobot(Red), opts)
+        }
+        await this.runMatch(match, players, opts)
+    }
+
+    async runMatch(match, players, opts) {
         try {
+            const coordinator = this.newCoordinator(opts)
             await coordinator.runMatch(match, players.White, players.Red)
         } catch (err) {
             if (err.name == 'MatchCanceledError') {
@@ -236,20 +216,6 @@ class Menu extends Logger {
             } else {
                 throw err
             }
-        } finally {
-            await this.destroyAll(players)
-        }
-    }
-
-    async playRobots(opts) {
-        const coordinator = this.newCoordinator(opts)
-        const match = new Match(opts.total, opts)
-        const players = {
-            White : new TermPlayer.Robot(this.newBestRobot(White), opts)
-          , Red   : new TermPlayer.Robot(this.newBestRobot(Red), opts)
-        }
-        try {
-            await coordinator.runMatch(match, players.White, players.Red)
         } finally {
             await this.destroyAll(players)
         }
