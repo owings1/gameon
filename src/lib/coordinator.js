@@ -137,7 +137,7 @@ class Coordinator {
 class InvalidDirError extends Error {
     constructor(...args) {
         super(...args)
-        this.name = 'InvalidDirError'
+        this.name = this.constructor.name
     }
 }
 module.exports = Coordinator
