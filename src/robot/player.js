@@ -126,7 +126,7 @@ class ConfidenceRobot extends Robot {
         const classMeta = ConfidenceRobot.getClassMeta(name)
         const theClass = classMeta.versions[version]
         if (!theClass) {
-            throw new InvalidRobotError("Unknown version for " + name + ": " + version)
+            throw new InvalidRobotVersionError("Unknown version for " + name + ": " + version)
         }
         return new theClass(...args)
     }
@@ -276,20 +276,6 @@ class RobotDelegator extends Robot {
     }
 }
 
-class BestRobot extends RobotDelegator {
-
-    constructor(...args) {
-        super(...args)
-        this.addDelegate(new FirstTurnRobot(...args), 10, 0)
-        this.addDelegate(new BearoffRobot(...args), 6, 0)
-        this.addDelegate(new PrimeRobot(...args), 5.5, 0)
-        this.addDelegate(new SafetyRobot(...args), 5, 0)
-        this.addDelegate(new OccupyRobot(...args), 4.5, 0)
-        this.addDelegate(new RunningRobot(...args), 4.4, 0)
-        this.addDelegate(new HittingRobot(...args), 4, 0)
-    }
-}
-
 class RobotError extends Error {
 
     constructor(...args){
@@ -303,6 +289,8 @@ class InvalidRobotError extends RobotError {}
 class InvalidWeightError extends RobotError {}
 class NoDelegatesError extends RobotError {}
 class UndecidedMoveError extends RobotError {}
+
+class InvalidRobotVersionError extends InvalidRobotError {}
 
 module.exports = {
     Robot
