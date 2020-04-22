@@ -27,6 +27,10 @@ const {White, Red, Match, Game, Board, Turn} = Core
 
 const {RandomRobot} = Robot
 
+function newRando(...args) {
+    return Robot.ConfidenceRobot.getDefaultInstance('RandomRobot', ...args)
+}
+
 describe('Draw', () => {
 
     describe('#drawBoard', () => {
@@ -406,8 +410,8 @@ describe('Coordinator', () => {
 
     beforeEach(() => {
         coord = new Coordinator
-        r1 = new RandomRobot(White)
-        r2 = new RandomRobot(Red)
+        r1 = newRando(White)
+        r2 = newRando(Red)
         t1 = new TermPlayer(White)
         t2 = new TermPlayer(Red)
         t1.logger.loglevel = 1
@@ -829,7 +833,7 @@ describe('TermPlayer', () => {
             game = new Game
             players = {
                 White : player,
-                Red   : new RandomRobot(Red)
+                Red   : newRando(Red)
             }
             game._rollFirst = () => [6, 1]
             makeRandomMoves(game.firstTurn(), true)
@@ -864,8 +868,8 @@ describe('Robot', () => {
 
     it('should play robot v robot double after 3 turns', async function () {
         this.timeout(1000)
-        const white = new TermPlayer.Robot(new RandomRobot(White), {delay: 0})
-        const red = new TermPlayer.Robot(new RandomRobot(Red), {delay: 0})
+        const white = new TermPlayer.Robot(newRando(White), {delay: 0})
+        const red = new TermPlayer.Robot(newRando(Red), {delay: 0})
         white.logger.loglevel = 1
         red.logger.loglevel = 1
         white.logger.stdout = {write: () => {}}
@@ -891,7 +895,7 @@ describe('Robot', () => {
     describe('#delay', () => {
 
         it('should delay for delay=0.01', async () => {
-            const player = new TermPlayer.Robot(new RandomRobot(White), {delay: 0.01})
+            const player = new TermPlayer.Robot(newRando(White), {delay: 0.01})
             await player.delay()
         })
     })
@@ -899,7 +903,7 @@ describe('Robot', () => {
     describe('#meta', () => {
 
         it('should have isRobot=true', async () => {
-            const player = new TermPlayer.Robot(new RandomRobot(White), {delay: 0.01})
+            const player = new TermPlayer.Robot(newRando(White), {delay: 0.01})
             const result = player.meta()
             expect(result.isRobot).to.equal(true)
         })

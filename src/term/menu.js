@@ -226,7 +226,7 @@ class Menu extends Logger {
         const match = new Match(opts.total, opts)
         const players = {
             White : new TermPlayer(White, opts)
-          , Red   : new TermPlayer.Robot(new Robot.BestRobot(Red), opts)
+          , Red   : new TermPlayer.Robot(this.newBestRobot(Red), opts)
         }
         try {
             await coordinator.runMatch(match, players.White, players.Red)
@@ -245,8 +245,8 @@ class Menu extends Logger {
         const coordinator = this.newCoordinator(opts)
         const match = new Match(opts.total, opts)
         const players = {
-            White : new TermPlayer.Robot(new Robot.BestRobot(White), opts)
-          , Red   : new TermPlayer.Robot(new Robot.BestRobot(Red), opts)
+            White : new TermPlayer.Robot(this.newBestRobot(White), opts)
+          , Red   : new TermPlayer.Robot(this.newBestRobot(Red), opts)
         }
         try {
             await coordinator.runMatch(match, players.White, players.Red)
@@ -257,6 +257,10 @@ class Menu extends Logger {
 
     async destroyAll(players) {
         await Promise.all(Object.values(players).map(player => player.destroy()))
+    }
+
+    newBestRobot(...args) {
+        return Robot.RobotDelegator.forDefaults(...args)
     }
 
     getMatchChoices(opts, isOnline, isRobot, isRobots) {

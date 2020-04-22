@@ -4,7 +4,7 @@ const Util = require('../lib/util')
 
 const {Board} = Core
 const {HasNotRolledError} = Core.Errors
-const {merge, spreadRanking, sumArray} = Util
+const {merge} = Util
 
 class Robot extends Base {
 
@@ -32,7 +32,109 @@ class Robot extends Base {
     }
 }
 
+const KnownRobots = {
+    BearoffRobot   : {
+        filename : 'bearoff'
+      , defaults : {
+            moveWeight   : 6
+          , doubleWeight : 0
+          , version      : 'v1'
+        }   
+    }
+  , FirstTurnRobot : {
+        filename : 'first-turn'
+      , defaults : {
+            moveWeight   : 10
+          , doubleWeight : 0
+          , version      : 'v1'
+        }   
+    }
+  , HittingRobot   : {
+        filename : 'hitting'
+      , defaults : {
+            moveWeight   : 4
+          , doubleWeight : 0
+          , version      : 'v1'
+        }   
+    }
+  , OccupyRobot    : {
+        filename : 'occupy'
+      , defaults : {
+            moveWeight   : 4.5
+          , doubleWeight : 0
+          , version      : 'v1'
+        }   
+    }
+  , PrimeRobot     : {
+        filename : 'prime'
+      , defaults : {
+            moveWeight   : 5.5
+          , doubleWeight : 0
+          , version      : 'v1'
+        }   
+    }
+  , RandomRobot    : {
+        filename : 'random'
+      , defaults : {
+            moveWeight   : 0
+          , doubleWeight : 0
+          , version      : 'v1'
+        }
+    }
+  , RunningRobot   : {
+        filename : 'running'
+      , defaults : {
+            moveWeight   : 4.4
+          , doubleWeight : 0
+          , version      : 'v1'
+        }   
+    }
+  , SafetyRobot    : {
+        filename : 'safety'
+      , defaults : {
+            moveWeight   : 5
+          , doubleWeight : 0
+          , version      : 'v1'
+        }   
+    }
+}
+
 class ConfidenceRobot extends Robot {
+
+    // default
+    static getClassVersions() {
+        return {v1 : this}
+    }
+
+    static listClassNames() {
+        return Object.keys(KnownRobots)
+    }
+
+    static getClassMeta(name) {
+        const classMeta = KnownRobots[name]
+        if (!classMeta) {
+            throw new InvalidRobotError("Unknown robot: " + name)
+        }
+        if (!classMeta.class) {
+            classMeta.class = require('./robots/' + classMeta.filename)
+            classMeta.versions = classMeta.class.getClassVersions()
+        }
+        return classMeta
+    }
+
+    static getVersionInstance(name, version, ...args) {
+        const classMeta = ConfidenceRobot.getClassMeta(name)
+        const theClass = classMeta.versions[version]
+        if (!theClass) {
+            throw new InvalidRobotError("Unknown version for " + name + ": " + version)
+        }
+        return new theClass(...args)
+    }
+
+    static getDefaultInstance(name, ...args) {
+        const {defaults} = ConfidenceRobot.getClassMeta(name)
+        return ConfidenceRobot.getVersionInstance(name, defaults.version, ...args)
+    }
 
     constructor(...args) {
         super(...args)
@@ -67,22 +169,47 @@ class ConfidenceRobot extends Robot {
         turn.allowedEndStates.forEach(endState => rankings[endState] = 0)
         return rankings
     }
+
+    spreadRanking(...args) {
+        return Util.spreadRanking(...args)
+    }
+
+    createBoard(stateString) {
+        return Board.fromStateString(stateString)
+    }
 }
 
 class RobotDelegator extends Robot {
+
+    static forConfigs(configs, ...args) {
+        const robot = new RobotDelegator(...args)
+        configs.forEach(({name, version, moveWeight, doubleWeight}) => {
+            const delegate = ConfidenceRobot.getVersionInstance(name, version, ...args)
+            robot.addDelegate(delegate, moveWeight, doubleWeight)
+        })
+        return robot
+    }
+
+    static forDefaults(...args) {
+        const configs = ConfidenceRobot.listClassNames().map(name => {
+            const {defaults} = ConfidenceRobot.getClassMeta(name)
+            return {name, ...defaults}
+        })
+        return RobotDelegator.forConfigs(configs, ...args)
+    }
 
     constructor(...args) {
         super(...args)
         this.delegates = []
     }
 
-    addDelegate(robot, weight, doubleWeight) {
+    addDelegate(robot, moveWeight, doubleWeight) {
         if (!robot.isConfidenceRobot) {
             throw new InvalidRobotError('Delegate is not a Confidence Robot')
         }
-        this.validateWeight(weight)
+        this.validateWeight(moveWeight)
         this.validateWeight(doubleWeight)
-        this.delegates.push({robot, weight, doubleWeight})
+        this.delegates.push({robot, moveWeight, doubleWeight})
     }
 
     async getMoves(turn, game, match) {
@@ -96,7 +223,7 @@ class RobotDelegator extends Robot {
             throw new HasNotRolledError('Turn is not rolled')
         }
         const startState = turn.board.stateString()
-        // [{robot, weight, doubleWeight, rankings}]
+        // [{robot, moveWeight, doubleWeight, rankings}]
         const delegates = []
         for (var delegate of this.delegates) {
             delegates.push({
@@ -114,7 +241,7 @@ class RobotDelegator extends Robot {
                     this.logger.warn(delegate.robot.name, 'gave weight', localWeight)
                 }
                 this.logger.debug({localWeight, robot: delegate.robot.name})
-                rankings[endState] += localWeight * delegate.weight
+                rankings[endState] += localWeight * delegate.moveWeight
             })
         })
         const maxWeight = Math.max(...Object.values(rankings))
@@ -163,239 +290,6 @@ class BestRobot extends RobotDelegator {
     }
 }
 
-class RandomRobot extends ConfidenceRobot {
-
-    async getRankings(turn, game, match) {
-        // fixed weight
-        const weight = 1 / turn.allowedEndStates.length
-        const rankings = {}
-        turn.allowedEndStates.forEach(stateString => rankings[stateString] = weight)
-        return rankings
-    }
-}
-
-class BearoffRobot extends ConfidenceRobot {
-
-    async getRankings(turn, game, match) {
-
-        const baseline = turn.board.analyzer.piecesHome(turn.color)
-
-        const scores = {}
-        var hasBearoff = false
-        turn.allowedEndStates.forEach(endState => {
-            const {analyzer} = Board.fromStateString(endState)
-            if (!analyzer.board.mayBearoff(turn.color)) {
-                scores[endState] = 0
-                return
-            }
-            hasBearoff = true
-            const homes = analyzer.piecesHome(turn.color) - baseline
-            scores[endState] = homes * 10
-            if (analyzer.isDisengaged()) {
-                const pointsCovered = analyzer.pointsOccupied(turn.color).length
-                scores[endState] += pointsCovered
-            }
-        })
-        return hasBearoff ? spreadRanking(scores) : this.zeroRankings(turn)
-    }
-}
-
-class FirstTurnRobot extends ConfidenceRobot {
-
-    async getRankings(turn, game, match) {
-        const rankings = this.zeroRankings(turn)
-        if (!game || game.turns.length > 2 || turn.dice[0] == turn.dice[1]) {
-            return rankings
-        }
-        const board = turn.board.copy()
-        try {
-            this.pointMoves(turn.diceSorted).forEach(({point, face}) => {
-                board.move(turn.color, board.pointOrigin(turn.color, point), face)
-            })
-            rankings[board.stateString()] = 1 / game.turns.length
-        } catch (err) {
-            if (turn.isFirstTurn || !err.isIllegalMoveError) {
-                throw err
-            }
-        }
-        return rankings
-    }
-
-    pointMoves(diceSorted) {
-        switch (diceSorted.join()) {
-            case '6,1':
-                return [{point: 13, face: 6}, {point: 8, face: 1}]
-            case '5,1':
-                return [{point: 13, face: 5}, {point: 24, face: 1}]
-            case '4,1':
-                return [{point: 24, face: 4}, {point: 24, face: 1}]
-            case '3,1':
-                return [{point: 8, face: 3}, {point: 6, face: 1}]
-            case '2,1':
-                return [{point: 13, face: 2}, {point: 24, face: 1}]
-            case '6,2':
-                return [{point: 24, face: 6}, {point: 13, face: 2}]
-            case '5,2':
-                return [{point: 13, face: 5}, {point: 24, face: 2}]
-            case '4,2':
-                return [{point: 8, face: 4}, {point: 6, face: 2}]
-            case '3,2':
-                return [{point: 24, face: 3}, {point: 13, face: 2}]
-            case '6,3':
-                return [{point: 24, face: 6}, {point: 18, face: 3}]
-            case '5,3':
-                return [{point: 8, face: 5}, {point: 6, face: 3}]
-            case '4,3':
-                return [{point: 24, face: 4}, {point: 24, face: 3}]
-            case '6,4':
-                return [{point: 24, face: 6}, {point: 18, face: 4}]
-            case '5,4':
-                return [{point: 24, face: 4}, {point: 20, face: 5}]
-            case '6,5':
-                return [{point: 24, face: 6}, {point: 18, face: 5}]
-            default:
-                throw new UndecidedMoveError('No first move for ' + diceSorted.join())
-        }
-    }
-}
-
-class HittingRobot extends ConfidenceRobot {
-
-    async getRankings(turn, game, match) {
-
-        const baseline = turn.board.bars[turn.opponent].length
-
-        const counts = {}
-        const zeros = []
-
-        // TODO: quadrant/pip offset
-        turn.allowedEndStates.forEach(endState => {
-            const board = Board.fromStateString(endState)
-            const added = board.bars[turn.opponent].length - baseline
-            counts[endState] = added
-            if (added < 1) {
-                zeros.push(endState)
-            }
-        })
-
-        const rankings = spreadRanking(counts)
-        //zeros.forEach(endState => rankings[endState] = 0)
-
-        return rankings
-    }
-}
-
-class OccupyRobot extends ConfidenceRobot {
-
-    // maximum number of points held
-    async getRankings(turn, game, match) {
-        if (turn.board.analyzer.isDisengaged()) {
-            return this.zeroRankings(turn)
-        }
-        const pointCounts = {}
-        turn.allowedEndStates.forEach(endState => {
-            const {analyzer} = Board.fromStateString(endState)
-            pointCounts[endState] = analyzer.slotsHeld(turn.color).length
-        })
-        return spreadRanking(pointCounts)
-    }
-}
-
-class PrimeRobot extends ConfidenceRobot {
-
-    async getRankings(turn, game, match) {
-
-        if (turn.board.analyzer.isDisengaged()) {
-            return this.zeroRankings(turn)
-        }
-
-        const scores = {}
-        const zeros = []
-
-        turn.allowedEndStates.forEach(endState => {
-            const {analyzer} = Board.fromStateString(endState)
-            const primes = analyzer.primes(turn.color)
-            if (primes.length) {
-                const maxSize = Math.max(...primes.map(prime => prime.size))
-                scores[endState] = maxSize + this.sizeBonus(maxSize)
-            } else {
-                scores[endState] = 0
-                zeros.push(endState)
-            }
-        })
-
-        const rankings = spreadRanking(scores)
-        zeros.forEach(endState => rankings[endState] = 0)
-
-        return rankings
-    }
-
-    sizeBonus(size) {
-        return (size - 2) * 2
-    }
-}
-
-class RunningRobot extends ConfidenceRobot {
-
-    async getRankings(turn, game, match) {
-        const scores = {}
-        //const bkBefore = turn.board.analyzer.countPiecesInPointRange(turn.color, 19, 24)
-        turn.allowedEndStates.forEach(endState => {
-            const {analyzer} = Board.fromStateString(endState)
-            scores[endState] = sumArray(analyzer.pointsOccupied(turn.color).map(point =>
-                point * analyzer.piecesOnPoint(turn.color, point) * this.quadrantMultiplier(point)
-            ))
-        })
-        return spreadRanking(scores, true)
-    }
-
-    quadrantMultiplier(point) {
-        const quadrant = Math.ceil(point / 6)
-        if (quadrant == 4) {
-            return 8
-        }
-        return (quadrant - 1) / 2
-    }
-}
-
-class SafetyRobot extends ConfidenceRobot {
-
-    // minimum number of blots left
-    async getRankings(turn, game, match) {
-
-        if (turn.board.analyzer.isDisengaged()) {
-            return this.zeroRankings(turn)
-        }
-
-        const scores = {}
-        const zeros = []
-        turn.allowedEndStates.forEach(endState => {
-            const {analyzer} = Board.fromStateString(endState)
-            const blots = analyzer.blots(turn.color)
-            var score = 0
-            var directCount = 0
-            blots.forEach(blot => {
-                directCount += blot.directCount
-                score += blot.directCount * 4
-                score += blot.indirectCount
-                score *= this.quadrantMultiplier(blot.point)
-            })
-            scores[endState] = score
-            if (directCount == 0) {
-                zeros.push(endState)
-            }
-        })
-        const rankings = spreadRanking(scores, true)
-        zeros.forEach(endState => rankings[endState] = 1)
-        return rankings
-    }
-
-    quadrantMultiplier(point) {
-        const quadrant = Math.ceil(point / 6)
-        return (4 - quadrant) * 2
-    }
-}
-
 class RobotError extends Error {
 
     constructor(...args){
@@ -413,13 +307,7 @@ class UndecidedMoveError extends RobotError {}
 module.exports = {
     Robot
   , ConfidenceRobot
-  , RandomRobot
-  , BestRobot
-  , BearoffRobot
-  , FirstTurnRobot
-  , HittingRobot
-  , OccupyRobot
-  , PrimeRobot
-  , SafetyRobot
   , RobotDelegator
+  , UndecidedMoveError
+  , InvalidRobotError
 }

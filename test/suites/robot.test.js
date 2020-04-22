@@ -15,6 +15,8 @@ const Core  = requireSrc('lib/core')
 const Robot = requireSrc('robot/player')
 const Util  = requireSrc('lib/util')
 
+const {ConfidenceRobot} = Robot
+
 const {White, Red, Game, Match} = Core
 
 var game
@@ -23,6 +25,10 @@ var robot
 function doFirstTurn() {
     game._rollFirst = () => [1, 2]
     makeRandomMoves(game.firstTurn(), true)
+}
+
+function getRobot(...args) {
+    return ConfidenceRobot.getDefaultInstance(...args)
 }
 
 beforeEach(() => {
@@ -69,7 +75,7 @@ describe('Robot', () => {
 describe('RandomRobot', () => {
 
     beforeEach(() => {
-        robot = new Robot.RandomRobot(White)
+        robot = getRobot('RandomRobot', White)
     })
 
     describe('#playRoll', () => {
@@ -87,7 +93,7 @@ describe('BearoffRobot', () => {
 
 
     beforeEach(() => {
-        robot = new Robot.BearoffRobot(White)
+        robot = getRobot('BearoffRobot', White)
         doFirstTurn()
     })
 
@@ -216,7 +222,7 @@ describe('FirstTurnRobot', () => {
     ]
 
     beforeEach(() => {
-        robot = new Robot.FirstTurnRobot(White)
+        robot = getRobot('FirstTurnRobot', White)
     })
 
     describe('#getRankings', () => {
@@ -284,7 +290,7 @@ describe('FirstTurnRobot', () => {
 describe('HittingRobot', () => {
 
     beforeEach(() => {
-        robot = new Robot.HittingRobot(White)
+        robot = getRobot('HittingRobot', White)
         doFirstTurn()
     })
 
@@ -331,7 +337,7 @@ describe('HittingRobot', () => {
 describe('OccupyRobot', () => {
 
     beforeEach(() => {
-        robot = new Robot.OccupyRobot(White)
+        robot = getRobot('OccupyRobot', White)
         doFirstTurn()
     })
 
@@ -367,7 +373,7 @@ describe('OccupyRobot', () => {
 describe('PrimeRobot', () => {
 
     beforeEach(() => {
-        robot = new Robot.PrimeRobot(White)
+        robot = getRobot('PrimeRobot', White)
         doFirstTurn()
     })
 
@@ -414,7 +420,7 @@ describe('PrimeRobot', () => {
 describe('SafetyRobot', () => {
 
     beforeEach(() => {
-        robot = new Robot.SafetyRobot(White)
+        robot = getRobot('SafetyRobot', White)
         doFirstTurn()
     })
 
@@ -464,7 +470,7 @@ describe('RobotDelegator', () => {
 
     beforeEach(() => {
         robot = new Robot.RobotDelegator(White)
-        rando = new Robot.RandomRobot(White)
+        rando = getRobot('RandomRobot', White)
     })
 
     afterEach(async () => {
@@ -570,10 +576,14 @@ describe('RobotDelegator', () => {
 
 describe('BestRobot', () => {
 
+    function newBestRobot(...args) {
+        return Robot.RobotDelegator.forDefaults(...args)
+    }
+
     it('should run a match', async function() {
         this.timeout(20000)
         const coordinator = new Coordinator
-        const players = [new Robot.BestRobot(White), new Robot.BestRobot(Red)]
+        const players = [newBestRobot(White), newBestRobot(Red)]
         const match = new Match(1)
         await coordinator.runMatch(match, ...players)
         await players[0].destroy()

@@ -29,14 +29,18 @@ class Helper {
         this.logger = new Logger
     }
 
+    newBestRobot(...args) {
+        return Robot.RobotDelegator.forDefaults(...args)
+    }
+
     async run() {
 
         const {opts, outDir} = this
 
         await fse.ensureDir(outDir)
         const players = {
-            White : new Robot.BestRobot(White)
-          , Red   : new Robot.BestRobot(Red)
+            White : this.newBestRobot(White)
+          , Red   : this.newBestRobot(Red)
         }
 
         const turnDatas = []

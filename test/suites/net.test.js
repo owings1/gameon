@@ -21,6 +21,10 @@ const {White, Red, Match} = Core
 
 const merge = require('merge')
 
+function newRando(...args) {
+    return Robot.ConfidenceRobot.getDefaultInstance('RandomRobot', ...args)
+}
+
 describe('Client', () => {
 
     var serverUrl
@@ -597,12 +601,12 @@ describe('NetPlayer', () => {
         await client.connect()
         await client2.connect()
         const playersWest = {
-            White : new Robot.RandomRobot(White)
+            White : newRando(White)
           , Red   : new NetPlayer(client, Red)
         }
         const playersEast = {
             White : new NetPlayer(client2, White)
-          , Red   : new Robot.RandomRobot(Red)
+          , Red   : newRando(Red)
         }
         const coordWest = new Coordinator
         const coordEast = new Coordinator
