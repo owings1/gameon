@@ -8,6 +8,53 @@ const {
 
 const Util = requireSrc('lib/util')
 
+describe('#arrayIncrement', () => {
+
+    var inc
+    var min
+    var max
+
+    beforeEach(() => {
+        // defaults
+        inc = 0.1
+        min = 0.1
+        max = 1.0
+    })
+    it('should increment [0.1, 0.1, 0.1] to [0.1, 0.1, 0.2] and return true', () => {
+        const arr = [0.1, 0.1, 0.1]
+        const exp = [0.1, 0.1, 0.2]
+        const result = Util.arrayIncrement(arr, inc, min, max)
+        expect(JSON.stringify(arr)).to.equal(JSON.stringify(exp))
+        expect(result).to.equal(true)
+    })
+
+    it('should increment [0.1, 0.1, 1.0] to [0.1, 0.2, 0.1] and return true', () => {
+        const arr = [0.1, 0.1, 1.0]
+        const exp = [0.1, 0.2, 0.1]
+        const result = Util.arrayIncrement(arr, inc, min, max)
+        expect(JSON.stringify(arr)).to.equal(JSON.stringify(exp))
+        expect(result).to.equal(true)
+    })
+
+    it('should not increment [1.0, 1.0, 1.0] and return false', () => {
+        const arr = [1.0, 1.0, 1.0]
+        const exp = arr.slice(0)
+        const result = Util.arrayIncrement(arr, inc, min, max)
+        expect(JSON.stringify(arr)).to.equal(JSON.stringify(exp))
+        expect(result).to.equal(false)
+    })
+
+    it('should increment [0.1, 0.1, 0.1] to [1.0, 1.0, 1.0] in loop', () => {
+        const arr = [0.1, 0.1, 0.1]
+        const exp = [1.0, 1.0, 1.0]
+        do {
+            var result = Util.arrayIncrement(arr, inc, min, max)
+        } while (result)
+        expect(JSON.stringify(arr)).to.equal(JSON.stringify(exp))
+        expect(result).to.equal(false)
+    })
+})
+
 describe('#castToArray', () => {
 
     it('should return singleton [1] for input 1', () => {
