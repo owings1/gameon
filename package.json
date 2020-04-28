@@ -69,8 +69,8 @@
       "update": "./src/hooks/update"
     },
     "topics": {
-      "dataset": {
-        "description": "Manage AI datasets"
+      "robot": {
+        "description": "Mess around with Robots"
       }
     },
     "update": {

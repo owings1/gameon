@@ -76,7 +76,6 @@ class Helper {
         }
     }
 
-
     prepTurnsData(turnDatas) {
         const trains = []
         turnDatas.forEach(({startState, rankings}) => {

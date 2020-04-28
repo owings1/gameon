@@ -36,7 +36,7 @@ const KnownRobots = {
     BearoffRobot   : {
         filename : 'bearoff'
       , defaults : {
-            moveWeight   : 6
+            moveWeight   : 0.6
           , doubleWeight : 0
           , version      : 'v1'
         }   
@@ -44,31 +44,34 @@ const KnownRobots = {
   , FirstTurnRobot : {
         filename : 'first-turn'
       , defaults : {
-            moveWeight   : 10
+            moveWeight   : 1.0
           , doubleWeight : 0
           , version      : 'v1'
         }   
     }
   , HittingRobot   : {
-        filename : 'hitting'
+        filename    : 'hitting'
+      , isCalibrate : true
       , defaults : {
-            moveWeight   : 4
+            moveWeight   : 0.4
           , doubleWeight : 0
           , version      : 'v1'
         }   
     }
   , OccupyRobot    : {
-        filename : 'occupy'
+        filename    : 'occupy'
+      , isCalibrate : true
       , defaults : {
-            moveWeight   : 4.5
+            moveWeight   : 0.45
           , doubleWeight : 0
           , version      : 'v1'
         }   
     }
   , PrimeRobot     : {
-        filename : 'prime'
+        filename    : 'prime'
+      , isCalibrate : true
       , defaults : {
-            moveWeight   : 5.5
+            moveWeight   : 0.55
           , doubleWeight : 0
           , version      : 'v1'
         }   
@@ -82,17 +85,19 @@ const KnownRobots = {
         }
     }
   , RunningRobot   : {
-        filename : 'running'
+        filename    : 'running'
+      , isCalibrate : true
       , defaults : {
-            moveWeight   : 4.4
+            moveWeight   : 0.44
           , doubleWeight : 0
           , version      : 'v1'
         }   
     }
   , SafetyRobot    : {
-        filename : 'safety'
+        filename    : 'safety'
+      , isCalibrate : true
       , defaults : {
-            moveWeight   : 5
+            moveWeight   : 0.5
           , doubleWeight : 0
           , version      : 'v1'
         }   
@@ -191,11 +196,15 @@ class RobotDelegator extends Robot {
     }
 
     static forDefaults(...args) {
-        const configs = ConfidenceRobot.listClassNames().map(name => {
-            const {defaults} = ConfidenceRobot.getClassMeta(name)
-            return {name, ...defaults}
-        })
+        const configs = RobotDelegator.getDefaultConfigs()
         return RobotDelegator.forConfigs(configs, ...args)
+    }
+
+    static getDefaultConfigs() {
+        return ConfidenceRobot.listClassNames().map(name => {
+            const {defaults, isCalibrate} = ConfidenceRobot.getClassMeta(name)
+            return {name, isCalibrate, ...defaults}
+        })
     }
 
     constructor(...args) {
@@ -269,7 +278,11 @@ class RobotDelegator extends Robot {
         })
     }
 
-    validateWeight(value) {
+    validateWeight(...args) {
+        RobotDelegator.validateWeight(...args)
+    }
+
+    static validateWeight(value) {
         if (typeof(value) != 'number' || isNaN(value) || Math.abs(value) == Infinity) {
             throw new InvalidWeightError('Invalid weight for delegate')
         }
