@@ -8,6 +8,9 @@ const NetPlayer   = require('../net/player')
 const TermPlayer  = require('./player')
 const Robot       = require('../robot/player')
 
+const {ConfidenceRobot} = Robot
+const {RobotDelegator}  = Robot
+
 const {White, Red, Match} = Core
 
 const fs       = require('fs')
@@ -38,7 +41,7 @@ class Menu extends Logger {
 
             var answers = await this.prompt({
                 name    : 'mainChoice'
-              , message : 'Select option'
+              , message : 'Main Menu'
               , type    : 'rawlist'
               , choices : mainChoices
               , pageSize : 10
@@ -66,15 +69,27 @@ class Menu extends Logger {
 
         const {opts} = this
 
+        var message
+        if (isRobots) {
+            message = 'Watch Robots'
+        } else if (isRobot) {
+            message = 'Human vs Robot'
+        } else if (isOnline) {
+            message = 'Start Online Match'
+        } else {
+            message = 'Local Match'
+        }
+
         while (true) {
 
             var matchChoices = this.getMatchChoices(opts, isOnline, isRobot, isRobots)
 
             var answers = await this.prompt({
-                name    : 'matchChoice'
-              , message : 'Select option'
-              , type    : 'rawlist'
-              , choices : matchChoices
+                name     : 'matchChoice'
+              , message  : message
+              , type     : 'rawlist'
+              , choices  : matchChoices
+              , pageSize : matchChoices.length + 1
             })
 
             var {matchChoice} = answers
@@ -115,10 +130,11 @@ class Menu extends Logger {
 
             var settingsChoices = this.getSettingsChoices(opts)
             var answers = await this.prompt([{
-                name    : 'settingChoice'
-              , message : 'Select Option'
-              , type    : 'rawlist'
-              , choices : settingsChoices
+                name     : 'settingChoice'
+              , message  : 'Settings Menu'
+              , type     : 'rawlist'
+              , choices  : settingsChoices
+              , pageSize : settingsChoices.length + 1
             }])
 
             var {settingChoice} = answers
@@ -127,12 +143,89 @@ class Menu extends Logger {
                 break
             }
 
+            if (settingChoice == 'robotConfigs') {
+                await this.robotConfigsMenu()
+                continue
+            }
+
             var question = settingsChoices.find(choice => choice.value == settingChoice).question
 
             answers = await this.prompt(question)
 
             opts[question.name] = answers[question.name]
             opts.delay = +opts.delay
+        }
+
+        await this.saveOpts()
+    }
+
+    async robotConfigsMenu() {
+
+        var configs = this.opts.robots
+
+        while (true) {
+
+            var robotChoices = this.getRobotConfigsChoices(configs)
+            var answers = await this.prompt({
+                name     : 'robotChoice'
+              , message  : 'Configure Robots'
+              , type     : 'rawlist'
+              , choices  : robotChoices
+              , pageSize : robotChoices.length + 1
+            })
+
+            var {robotChoice} = answers
+
+            if (robotChoice == 'done') {
+                break
+            }
+
+            if (robotChoice == 'reset') {
+                this.opts.robots = {}
+                configs = this.opts.robots
+                continue
+            }
+
+            await this.configureRobotMenu(robotChoice)
+        }
+
+        await this.saveOpts()
+    }
+
+    async configureRobotMenu(name) {
+
+        var config = this.opts.robots[name]
+
+        while (true) {
+
+            var robotChoices = this.getConfigureRobotChoices(name, config)
+            var answers = await this.prompt({
+                name     : 'robotChoice'
+              , message  : 'Configure ' + name
+              , type     : 'rawlist'
+              , choices  : robotChoices
+              , pageSize : robotChoices.length + 1
+            })
+
+            var {robotChoice} = answers
+
+            if (robotChoice == 'done') {
+                break
+            }
+
+            if (robotChoice == 'reset') {
+                this.opts.robots[name] = Util.merge({}, ConfidenceRobot.getClassMeta(name).defaults)
+                config = this.opts.robots[name]
+                continue
+            }
+
+            var question = robotChoices.find(choice => choice.value == robotChoice).question
+
+            answers = await this.prompt(question)
+
+            config[question.name] = answers[question.name]
+            config.moveWeight = +config.moveWeight
+            config.doubleWeight = +config.doubleWeight
         }
 
         await this.saveOpts()
@@ -159,40 +252,18 @@ class Menu extends Logger {
     }
 
     async startOnlineMatch(opts) {
-        const client = this.newClient(opts.serverUrl)
-        await client.connect()
-        try {
-            const match = await client.startMatch(opts)
-            const players = {
-                White : new TermPlayer(White, opts)
-              , Red   : new NetPlayer(client, Red)
-            }
-            await this.runMatch(match, players, opts)
-        } finally {
-            await client.close()
-        }
+        await this.runOnlineMatch(opts, true)
     }
 
     async joinOnlineMatch(opts) {
-        const client = this.newClient(opts.serverUrl)
-        await client.connect()
-        try {
-            const match = await client.joinMatch(opts.matchId)
-            const players = {
-                White : new NetPlayer(client, White)
-              , Red   : new TermPlayer(Red, opts)
-            }
-            await this.runMatch(match, players, opts)
-        } finally {
-            await client.close()
-        }
+        await this.runOnlineMatch(opts, false)
     }
 
     async playRobot(opts) {
         const match = new Match(opts.total, opts)
         const players = {
             White : new TermPlayer(White, opts)
-          , Red   : new TermPlayer.Robot(this.newBestRobot(Red), opts)
+          , Red   : new TermPlayer.Robot(this.newRobot(Red), opts)
         }
         await this.runMatch(match, players, opts)
     }
@@ -200,10 +271,28 @@ class Menu extends Logger {
     async playRobots(opts) {
         const match = new Match(opts.total, opts)
         const players = {
-            White : new TermPlayer.Robot(this.newBestRobot(White), opts)
-          , Red   : new TermPlayer.Robot(this.newBestRobot(Red), opts)
+            White : new TermPlayer.Robot(this.newDefaultRobot(White), opts)
+          , Red   : new TermPlayer.Robot(this.newRobot(Red), opts)
         }
         await this.runMatch(match, players, opts)
+    }
+
+    async runOnlineMatch(opts, isStart) {
+        const client = this.newClient(opts.serverUrl)
+        await client.connect()
+        try {
+            const promise = isStart ? client.startMatch(opts) : client.joinMatch(opts.matchId)
+            const match = await promise
+            const termPlayer = new TermPlayer(isStart ? White : Red, opts)
+            const netPlayer  = new NetPlayer(client, isStart ? Red : White)
+            const players = {
+                White : isStart ? termPlayer : netPlayer
+              , Red   : isStart ? netPlayer  : termPlayer
+            }
+            await this.runMatch(match, players, opts)
+        } finally {
+            await client.close()
+        }
     }
 
     async runMatch(match, players, opts) {
@@ -225,8 +314,19 @@ class Menu extends Logger {
         await Promise.all(Object.values(players).map(player => player.destroy()))
     }
 
-    newBestRobot(...args) {
-        return Robot.RobotDelegator.forDefaults(...args)
+    newRobot(...args) {
+        const {opts} = this
+        if (!opts.isCustomRobot) {
+            return this.newDefaultRobot(...args)
+        }
+        const configs = Object.entries(opts.robots).map(([name, config]) => {
+            return {name, ...config}
+        })
+        return RobotDelegator.forConfigs(configs, ...args)
+    }
+
+    newDefaultRobot(...args) {
+        return RobotDelegator.forDefaults(...args)
     }
 
     getMatchChoices(opts, isOnline, isRobot, isRobots) {
@@ -284,7 +384,7 @@ class Menu extends Logger {
             }
           , {
                 value : 'newOnline'
-              , name  : 'New Online Match'
+              , name  : 'Start Online Match'
             }
           , {
                 value : 'joinOnline'
@@ -292,11 +392,11 @@ class Menu extends Logger {
             }
           , {
                 value : 'playRobot'
-              , name  : 'Play a Robot'
+              , name  : 'Human vs Robot'
             }
           , {
                 value : 'watchRobots'
-              , name  : 'Watch Robots Play'
+              , name  : 'Robot vs Robot'
             }
           , {
                 value : 'settings'
@@ -367,6 +467,21 @@ class Menu extends Logger {
                   , validate : value => !isNaN(+value) && +value >= 0 || 'Please enter a number >= 0'
                 }
             }
+          , {
+                value    : 'isCustomRobot'
+              , name     : 'Use Custom Robot'
+              , question : {
+                    name    : 'isCustomRobot'
+                  , message : 'Use Custom Robot'
+                  , type    : 'confirm'
+                  , default : () => opts.isCustomRobot
+                }
+            }
+          , {
+                value : 'robotConfigs'
+              , name  : 'Robot Configuration'
+              , when  : () => opts.isCustomRobot
+            }
         ])
     }
 
@@ -381,8 +496,82 @@ class Menu extends Logger {
         ]
     }
 
+    getRobotConfigsChoices(configs) {
+        const choices = [
+            {
+                value : 'done'
+              , name  : 'Done'
+            }
+          , {
+                value : 'reset'
+              , name  : 'Reset defaults'
+            }
+        ]
+        ConfidenceRobot.listClassNames().forEach(name => {
+            const classMeta = ConfidenceRobot.getClassMeta(name)
+            const choice = {
+                value : name
+              , name  : name
+              , question : {
+                    display : () => {
+                      const config = configs[name] || classMeta.defaults
+                      return 'version: ' + config.version + ', moveWeight: ' + config.moveWeight.toString().padStart(4, ' ') + ', doubleWeight: ' + config.doubleWeight
+                    }
+                }
+            }
+            choices.push(choice)
+        })
+        return Menu.formatChoices(choices)
+    }
+
+    getConfigureRobotChoices(name, config) {
+        return Menu.formatChoices([
+            {
+                value : 'done'
+              , name  : 'Done'
+            }
+          , {
+                value : 'reset'
+              , name  : 'Reset defaults'
+            }
+          , {
+                value : 'version'
+              , name  : 'Version'
+              , question : {
+                  name     : 'version'
+                , message  : 'Version'
+                , type     : 'list'
+                , default  : () => config.version
+                , choices  : () => Object.keys(ConfidenceRobot.getClassMeta(name).versions)
+              }
+            }
+          , {
+                value : 'moveWeight'
+              , name  : 'Move Weight'
+              , question : {
+                    name     : 'moveWeight'
+                  , message  : 'Move Weight'
+                  , type     : 'input'
+                  , default  : () => config.moveWeight
+                  , validate : value => Util.errMessage(() => RobotDelegator.validateWeight(+value))
+                }
+            }
+          , {
+                value : 'doubleWeight'
+              , name  : 'Double Weight'
+              , question : {
+                    name     : 'doubleWeight'
+                  , message  : 'Double Weight'
+                  , type     : 'input'
+                  , default  : () => config.doubleWeight
+                  , validate : value => Util.errMessage(() => RobotDelegator.validateWeight(+value))
+                }
+            }
+        ])
+    }
+
     getDefaultOpts() {
-        const opts = {}
+        var opts = {}
         if (this.optsFile) {
             fse.ensureDirSync(path.dirname(this.optsFile))
             if (!fs.existsSync(this.optsFile)) {
@@ -393,16 +582,23 @@ class Menu extends Logger {
                 opts.serverUrl = this.getDefaultServerUrl()
             }
         }
-        return Util.merge({
-            total      : 1
-          , isJacoby   : false
-          , isCrawford : true
-          , delay      : 0.5
-          , serverUrl  : this.getDefaultServerUrl()
-          , isRecord   : false
-          , recordDir  : this.getDefaultRecordDir()
-          , fastForced : false
+        opts = Util.merge({
+            total         : 1
+          , isJacoby      : false
+          , isCrawford    : true
+          , delay         : 0.5
+          , serverUrl     : this.getDefaultServerUrl()
+          , isRecord      : false
+          , recordDir     : this.getDefaultRecordDir()
+          , fastForced    : false
+          , isCustomRobot : false
+          , robots        : {}
         }, opts)
+        ConfidenceRobot.listClassNames().forEach(name => {
+            const {defaults} = ConfidenceRobot.getClassMeta(name)
+            opts.robots[name] = Util.merge({}, defaults, opts.robots[name])
+        })
+        return opts
     }
 
     async saveOpts() {
@@ -435,9 +631,15 @@ class Menu extends Logger {
 
     static formatChoices(choices) {
         const maxLength = Math.max(...choices.map(choice => choice.name.length))
-        choices.forEach(choice => {
-            if (choice.question) {
-                choice.name = sp(choice.name.padEnd(maxLength + 1, ' '), ':', choice.question.default())
+        var p = 1
+        choices.forEach((choice, i) => {
+            if (i == 9) {
+                p = 0
+            }
+            const {question} = choice
+            if (question) {
+                const display = question.display ? question.display() : question.default()
+                choice.name = sp(choice.name.padEnd(maxLength + p, ' '), ':', display)
             }
         })
         return choices.filter(choice => !('when' in choice) || choice.when())
