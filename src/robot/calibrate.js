@@ -83,6 +83,8 @@ class Helper {
                 chunkFile
               , {
                     chunkNumber
+                  , numChunks
+                  , chunkPad
                   , numCases
                   , casePad
                   , matchTotal   : this.opts.matchTotal
@@ -99,12 +101,12 @@ class Helper {
         await fse.ensureDir(this.casesDir)
         this.logger.info('Reading data file')
         const chunkFile = resolve(this.chunksDir, this.opts.chunkFile)
-        const {configsCases, chunkNumber, numCases, casePad, matchTotal} = await fse.readJson(chunkFile)
+        const {configsCases, chunkNumber, chunkPad, numCases, casePad, matchTotal} = await fse.readJson(chunkFile)
         this.logger.info('Running', configsCases.length, 'cases of', numCases, 'total as chunk', chunkNumber)
-        await this.runConfigsCases({configsCases, casePad, matchTotal})
+        await this.runConfigsCases({configsCases, casePad, matchTotal, chunkNumber, chunkPad})
     }
 
-    async runConfigsCases({configsCases, casePad, matchTotal}) {
+    async runConfigsCases({configsCases, casePad, matchTotal, chunkNumber, chunkPad}) {
         this.bestMargin = 0
         this.bestCases = []
         while (configsCases.length > 0) {
@@ -116,7 +118,7 @@ class Helper {
             this.logger.info('Case', caseNumber, 'took', durationMillis, 'milliseconds')
             await this.handleCaseResult({configs, players, caseNumber, match, casePad})
         }
-        const bestCasesFile = resolve(this.outDir, 'bestCases.json')
+        const bestCasesFile = this.getBestCasesFile(chunkNumber, chunkPad)
         this.logger.info('Writing', this.bestCases.length, 'best cases')
         await fse.writeJson(bestCasesFile, this.bestCases, {spaces: 2})
     }
@@ -201,6 +203,10 @@ class Helper {
 
     getChunkFile(chunkNumber, chunkPad) {
         return resolve(this.chunksDir, ['chunk_', chunkNumber.toString().padStart(chunkPad, '0'), '.json'].join(''))
+    }
+
+    getBestCasesFile(chunkNumber, chunkPad) {
+        return resolve(this.outDir, ['bestCases_', chunkNumber.toString().padStart(chunkPad, '0'), '.json'].join(''))
     }
 
     newMatch(matchTotal) {
