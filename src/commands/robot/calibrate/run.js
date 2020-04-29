@@ -6,11 +6,12 @@ class CalibrateRunCommand extends Command {
 
     async init() {
         const {flags} = this.parse(CalibrateRunCommand)
+        const {env} = process
         this.flags = flags
         this.opts = {
             action    : Helper.E_Action.Run
-          , outDir    : this.flags.outdir
-          , chunkFile : this.flags.file
+          , outDir    : this.flags.outdir || env.CAL_OUTDIR
+          , chunkFile : this.flags.file   || env.CAL_FILE
         }
         this.helper = this.helper || new Helper(this.opts)
     }
@@ -26,13 +27,11 @@ CalibrateRunCommand.description = `Run config case chunk for calibrating robot`
 CalibrateRunCommand.flags = {
     outdir: flags.string({
         char        : 'd'
-      , description : 'output directory'
-      , required    : true
+      , description : '(required) output directory, will try env CAL_OUTDIR'
     })
   , file: flags.string({
         char        : 'f'
-      , description : 'input chunk file'
-      , required    : true
+      , description : '(required) input chunk file, will try env CAL_FILE'
     })
 }
 
