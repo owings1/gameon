@@ -97,6 +97,35 @@ describe('Match', () => {
             const err = getError(() => match.nextGame())
             expect(err.name).to.equal('MatchFinishedError')
         })
+
+        it('should set isCrawford only once', () => {
+
+            const match = new Match(2, {isCrawford: true, isJacoby: true})
+
+            const game1 = match.nextGame()
+            // red moves first
+            game1._rollFirst = () => [1, 6]
+            makeRandomMoves(game1.firstTurn(), true)
+            // white doubles
+            game1.nextTurn().setDoubleOffered()
+            // red declines, white wins
+            game1.thisTurn.setDoubleDeclined()
+            match.checkFinished()
+            
+
+            const game2 = match.nextGame()
+            expect(game2.opts.isCrawford).to.equal(true)
+            // white moves first
+            game2._rollFirst = () => [6, 1]
+            makeRandomMoves(game2.firstTurn(), true)
+            // force state red will win
+            game2.board.setStateString(States.EitherOneMoveWin)
+            makeRandomMoves(game2.nextTurn().roll(), true)
+            match.checkFinished()
+
+            const game3 = match.nextGame()
+            expect(game3.opts.isCrawford).to.equal(false)
+        })
     })
 
     describe('#updateScore', () => {

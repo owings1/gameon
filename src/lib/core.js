@@ -60,6 +60,7 @@ class Match {
             Red   : 0
           , White : 0
         }
+        this.hasCrawforded = false
         this.thisGame = null
         this.winner = null
         this.isFinished = false
@@ -73,7 +74,11 @@ class Match {
             throw new MatchFinishedError('Match is already finished')
         }
         const isCrawford = this.opts.isCrawford &&
+              !this.hasCrawforded &&
               undefined != Object.values(this.scores).find(score => score + 1 == this.total)
+        if (isCrawford) {
+            this.hasCrawforded = true
+        }
         const opts = Util.merge({}, this.opts, {isCrawford})
         this.thisGame = new Game(opts)
         this.games.push(this.thisGame)
