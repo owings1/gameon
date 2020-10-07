@@ -1,3 +1,4 @@
+const Auth            = require('./auth')
 const Core            = require('../lib/core')
 const Logger          = require('../lib/logger')
 const Util            = require('../lib/util')
@@ -12,8 +13,17 @@ const {merge} = Util
 
 class Server {
 
+    defaults() {
+        return {
+            authType: process.env.AUTH_TYPE || 'anonymous'
+          , auth : {}
+        }
+    }
+
     constructor() {
         this.logger = new Logger
+        this.opts = merge({}, this.defaults())
+        this.auth = new Auth(this.opts.authType, this.opts.auth)
         this.app = express()
         this.matches = {}
         this.connTicker = 0
@@ -81,7 +91,7 @@ class Server {
         return server
     }
 
-    response(conn, req) {
+    async response(conn, req) {
 
         try {
 
@@ -104,6 +114,8 @@ class Server {
                         throw new HandshakeError('bad secret')
                     }
                     if (!conn.secret || conn.secret == req.secret) {
+                        await this.auth.authenticate(req.username, req.password)
+                        conn.username = req.username
                         conn.secret = req.secret
                         this.sendMessage(conn, {action: 'acknowledgeSecret'})
                         this.logger.log('Client connected', conn.secret)
