@@ -14,12 +14,16 @@ const Server = requireSrc('net/server')
 const Client = requireSrc('net/client')
 const NetPlayer = requireSrc('net/player')
 const Robot = requireSrc('robot/player')
+const Auth  = requireSrc('net/auth')
 
 const Coordinator = requireSrc('lib/coordinator')
 
 const {White, Red, Match} = Core
 
+const fs = require('fs')
+const fse = require('fs-extra')
 const merge = require('merge')
+const tmp = require('tmp')
 
 function newRando(...args) {
     return Robot.ConfidenceRobot.getDefaultInstance('RandomRobot', ...args)
@@ -681,5 +685,311 @@ describe('NetPlayer', () => {
             east.coord.runMatch(east.match, east.players.White, east.players.Red),
             west.coord.runMatch(west.match, west.players.White, west.players.Red)
         ])
+    })
+})
+
+describe('Auth', () => {
+
+
+    /*
+    // method removed
+    describe('#isValidUsername', () => {
+        it('should return true for nobody@nowhere.example', () => {
+            const auth = new Auth('anonymous')
+            const input = 'nobody@nowhere.example'
+            const result = auth.isValidUsername(input)
+            expect(result).to.equal(true)
+        })
+        it('should return false for x', () => {
+            const auth = new Auth('anonymous')
+            const input = ''
+            const result = auth.isValidUsername(input)
+            expect(result).to.equal(false)
+        })
+    })
+    */
+
+    describe('#defaults', () => {
+
+        it('should set passwordHelp to non default when regex defined', () => {
+            const auth = new Auth('anonymous')
+            const d1 = auth.defaults({})
+            const d2 = auth.defaults({AUTH_PASSWORD_REGEX: '.*'})
+            expect(d2.passwordHelp).to.not.equal(d1.passwordHelp)
+        })
+    })
+
+    describe('#validateUsername', () => {
+
+        it('should throw ValidationError for empty', () => {
+            const auth = new Auth('anonymous')
+            const input = ''
+            const err = getError(() => auth.validateUsername(input))
+            expect(err.name).to.equal('ValidationError')
+        })
+
+        it('should throw ValidationError for bar char ?', () => {
+            const auth = new Auth('anonymous')
+            const input = 'foo?@example.example'
+            const err = getError(() => auth.validateUsername(input))
+            expect(err.name).to.equal('ValidationError')
+        })
+
+        it('should throw ValidationError for bad email chunky', () => {
+            const auth = new Auth('anonymous')
+            const input = 'chunky'
+            const err = getError(() => auth.validateUsername(input))
+            expect(err.name).to.equal('ValidationError')
+        })
+
+        it('should pass for nobody@nowhere.example', () => {
+            const auth = new Auth('anonymous')
+            const input = 'nobody@nowhere.example'
+            auth.validateUsername(input)
+        })
+    })
+
+    describe('#validatePassword', () => {
+
+        it('should throw ValidationError for empty', () => {
+            const auth = new Auth('anonymous')
+            const input = ''
+            const err = getError(() => auth.validatePassword(input))
+            expect(err.name).to.equal('ValidationError')
+        })
+
+        it('should throw ValidationError for length 7', () => {
+            const auth = new Auth('anonymous')
+            const input = '5ZycJj3'
+            const err = getError(() => auth.validatePassword(input))
+            expect(err.name).to.equal('ValidationError')
+        })
+
+        it('should throw ValidationError for missing number', () => {
+            const auth = new Auth('anonymous')
+            const input = 'aDlvkdoslK'
+            const err = getError(() => auth.validatePassword(input))
+            expect(err.name).to.equal('ValidationError')
+        })
+
+        const passCases = [
+            'dbHg5eva'
+          , 'dY@a45-S'
+          , '=Bwx4r%aWB_T'
+          , 'a1d//////G'
+        ]
+
+        passCases.forEach(input => {
+            it('should pass for ' + input, () => {
+                const auth = new Auth('anonymous')
+                auth.validatePassword(input)
+            })
+        })
+    })
+
+    describe('Anonymous', () => {
+
+        it('should accept blank username/password', async () => {
+            const auth = new Auth('anonymous')
+            await auth.authenticate()
+        })
+
+        const nimps = [
+            'createUser'
+          , 'readUser'
+          , 'updateUser'
+          , 'deleteUser'
+          , 'userExists'
+          , 'listAllUsers'
+        ]
+
+        nimps.forEach(method => {
+            it('should throw NotImplementedError for ' + method, async () => {
+                const auth = new Auth('anonymous')
+                const err = await getErrorAsync(() => auth.impl[method]())
+                expect(err.name).to.equal('NotImplementedError')
+            })
+        })
+        
+    })
+
+    describe('Directory', () => {
+
+        var authDir
+
+        beforeEach(() => {
+            authDir = tmp.dirSync().name
+        })
+
+        afterEach(async () => {
+            await fse.remove(authDir)
+        })
+
+        it('should fail with no directory specified', () => {
+            const err = getError(() => { new Auth('directory')})
+            expect(err instanceof Error).to.equal(true)
+        })
+
+        it('should file with non-existent directory', () => {
+            const opts = {dir: '/non-existent'}
+            const err = getError(() => { new Auth('directory', opts)})
+            expect(err instanceof Error).to.equal(true)
+        })
+
+        it('should pass with diretory specified', () => {
+            const opts = {dir: authDir}
+            const auth = new Auth('directory', opts)
+        })
+
+        function newAuth() {
+            const opts = {dir: authDir}
+            return new Auth('directory', opts)
+        }
+
+        describe('#createUser', () => {
+
+            it('should return user data with username', async () => {
+                const auth = newAuth()
+                const username = 'nobody@nowhere.example'
+                const password = 'Daz5zGAZa'
+                const user = await auth.createUser(username, password)
+                expect(user.username).to.equal(username)
+            })
+
+            it('should throw UserExistsError for duplicate user case insensitive', async () => {
+                const auth = newAuth()
+                const username = 'nobody@nowhere.example'
+                const password = 'Daz5zGAZa'
+                await auth.createUser(username, password)
+                const err = await getErrorAsync(() => auth.createUser(username.toUpperCase(), password))
+                expect(err.name).to.equal('UserExistsError')
+            })
+        })
+
+        describe('#readUser', () => {
+
+            it('should return user data with username', async () => {
+                const auth = newAuth()
+                const username = 'nobody@nowhere.example'
+                const password = 'vALkke5N'
+                await auth.createUser(username, password)
+                const user = await auth.readUser(username)
+                expect(user.username).to.equal(username)
+            })
+
+            it('should throw UserNotFoundError', async () => {
+                const auth = newAuth()
+                const username = 'nobody@nowhere.example'
+                const err = await getErrorAsync(() => auth.readUser(username))
+                expect(err.name).to.equal('UserNotFoundError')
+            })
+
+            it('should throw SyntaxError when malformed json', async () => {
+                const auth = newAuth()
+                const username = 'nobody@nowhere.example'
+                const password = 'mUad3h8b'
+                await auth.createUser(username, password)
+                // hack file
+                fs.writeFileSync(auth.impl._userFile(username), '{]')
+                const err = await getErrorAsync(() => auth.readUser(username))
+                expect(err.name).to.equal('SyntaxError')
+            })
+        })
+
+        describe('#deleteUser', () => {
+
+            it('should throw UserNotFoundError', async () => {
+                const auth = newAuth()
+                const username = 'nobody@nowhere.example'
+                const err = await getErrorAsync(() => auth.deleteUser(username))
+                expect(err.name).to.equal('UserNotFoundError')
+            })
+
+            it('should delete user, and then user should not exist', async () => {
+                const auth = newAuth()
+                const username = 'nobody@nowhere.example'
+                const password = 'PPt7HKvP'
+                await auth.createUser(username, password)
+                await auth.deleteUser(username)
+                const result = await auth.userExists(username)
+                expect(result).to.equal(false)
+            })
+        })
+
+        describe('#listAllUsers', () => {
+
+            it('should return empty list', async () => {
+                const auth = newAuth()
+                const result = await auth.listAllUsers()
+                expect(result).to.have.length(0)
+            })
+
+            it('should return singleton of created user', async () => {
+                const auth = newAuth()
+                const username = 'nobody@nowhere.example'
+                const password = 'Sa32q9QT'
+                await auth.createUser(username, password)
+                const result = await auth.listAllUsers()
+                expect(result).to.have.length(1)
+                expect(result).to.contain(username)
+            })
+
+            it('should throw ENOENT when directory gets nuked', async () => {
+                const auth = newAuth()
+                await fse.remove(auth.opts.dir)
+                const err = await getErrorAsync(() => auth.listAllUsers())
+                expect(err.code).to.equal('ENOENT')
+            })
+
+            it('should return empty after user deleted', async () => {
+                const auth = newAuth()
+                const username = 'nobody@nowhere.example'
+                const password = 'rGnPNs54'
+                await auth.createUser(username, password)
+                await auth.deleteUser(username)
+                const result = await auth.listAllUsers()
+                expect(result).to.have.length(0)
+            })
+        })
+
+        describe('#authenticate', () => {
+
+            it('should pass for created user', async () => {
+                const auth = newAuth()
+                const username = 'nobody@nowhere.example'
+                const password = 'AgJ7jfr9'
+                await auth.createUser(username, password)
+                await auth.authenticate(username, password)
+            })
+
+            it('should throw BadCredentialsError for bad password', async () => {
+                const auth = newAuth()
+                const username = 'nobody@nowhere.example'
+                const password = 'Sfekx6Yx'
+                await auth.createUser(username, password)
+                const err = await getErrorAsync(() => auth.authenticate(username, password + 'x'))
+                expect(err.name).to.equal('BadCredentialsError')
+            })
+
+            it('should throw UserLockedError for user locked', async () => {
+                const auth = newAuth()
+                const username = 'nobody@nowhere.example'
+                const password = 'vu3a8EZm'
+                await auth.createUser(username, password)
+                await auth.lockUser(username)
+                const err = await getErrorAsync(() => auth.authenticate(username, password))
+                expect(err.name).to.equal('UserLockedError')
+            })
+
+            it('should pass for user locked then unlocked', async () => {
+                const auth = newAuth()
+                const username = 'nobody@nowhere.example'
+                const password = 'vu3a8EZm'
+                await auth.createUser(username, password)
+                await auth.lockUser(username)
+                await auth.unlockUser(username)
+                await auth.authenticate(username, password)
+            })
+        })
     })
 })
