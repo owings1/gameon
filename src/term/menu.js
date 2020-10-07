@@ -13,6 +13,7 @@ const {RobotDelegator}  = Robot
 
 const {White, Red, Match} = Core
 
+const chalk    = require('chalk')
 const fs       = require('fs')
 const fse      = require('fs-extra')
 const inquirer = require('inquirer')
@@ -53,7 +54,9 @@ class Menu extends Logger {
                 break
             }
 
-            if (mainChoice == 'settings') {
+            if (mainChoice == 'account') {
+                await this.accountMenu()
+            } else if (mainChoice == 'settings') {
                 await this.settingsMenu()
             } else if (mainChoice == 'joinOnline') {
                 await this.joinMenu()
@@ -117,6 +120,87 @@ class Menu extends Logger {
 
             opts[question.name] = answers[question.name]
             opts.total = +opts.total
+        }
+
+        await this.saveOpts()
+    }
+
+    async accountMenu() {
+        const {opts} = this
+        while (true) {
+            var accountChoices = Menu.formatChoices([
+                {
+                    value : 'done'
+                  , name  : 'Done'
+                }
+              , {
+                    value : 'serverUrl'
+                  , name  : 'Server URL'
+                  , question : {
+                        name    : 'serverUrl'
+                      , message : 'Server URL'
+                      , type    : 'input'
+                      , default : () => opts.serverUrl
+                    }
+                }
+              , {
+                    value : 'username'
+                  , name  : 'Username'
+                  , question : {
+                        name    : 'username'
+                      , message : 'Username'
+                      , type    : 'input'
+                      , default : () => opts.username
+                  }
+                }
+              , {
+                    value : 'password'
+                  , name  : 'Password'
+                  , question : {
+                        name    : 'password'
+                      , message : 'Password'
+                      , type    : 'password'
+                      , default : () => opts.password
+                      , display : () => opts.password ? '******' : ''
+                  }
+                }
+            ])
+
+            var answers = await this.prompt([{
+                name     : 'accountChoice'
+              , message  : 'Account Menu'
+              , type     : 'rawlist'
+              , choices  : accountChoices
+              , pageSize : accountChoices.length + 1
+            }])
+
+            var {accountChoice} = answers
+
+            if (accountChoice == 'done') {
+                break
+            }
+
+            var question = accountChoices.find(choice => choice.value == accountChoice).question
+
+            answers = await this.prompt(question)
+
+            var isChange = answers[question.name] != opts[question.name]
+
+            if (isChange && question.name == 'password') {
+                answers.password = Util.encrypt1(answers.password, 'id-aes256-GCM-X aes-128-ecb 256p')
+            }
+
+            opts[question.name] = answers[question.name]
+
+            if (isChange) {
+                try {
+                    await this.testCredentials(opts.serverUrl, opts.username, opts.password)
+                    this.info(chalk.bold.green('Login succeeded.'))
+                } catch (err) {
+                    this.error(err)
+                    this.warn('Login failed', err)
+                }
+            }
         }
 
         await this.saveOpts()
@@ -278,7 +362,7 @@ class Menu extends Logger {
     }
 
     async runOnlineMatch(opts, isStart) {
-        const client = this.newClient(opts.serverUrl)
+        const client = this.newClient(opts.serverUrl, opts.username, opts.password)
         await client.connect()
         try {
             const promise = isStart ? client.startMatch(opts) : client.joinMatch(opts.matchId)
@@ -397,6 +481,10 @@ class Menu extends Logger {
           , {
                 value : 'watchRobots'
               , name  : 'Robot vs Robot'
+            }
+          , {
+                value : 'account'
+              , name  : 'Account'
             }
           , {
                 value : 'settings'
@@ -588,6 +676,8 @@ class Menu extends Logger {
           , isCrawford    : true
           , delay         : 0.5
           , serverUrl     : this.getDefaultServerUrl()
+          , username      : ''
+          , password      : ''
           , isRecord      : false
           , recordDir     : this.getDefaultRecordDir()
           , fastForced    : false
@@ -608,6 +698,11 @@ class Menu extends Logger {
         }
     }
 
+    async testCredentials(serverUrl, username, password) {
+        const client = this.newClient(serverUrl, username, password)
+        await client.connect()
+    }
+
     getDefaultServerUrl() {
         return DefaultServerUrl
     }
@@ -620,8 +715,8 @@ class Menu extends Logger {
         return new Coordinator(opts)
     }
 
-    newClient(serverUrl) {
-        return new Client(serverUrl)
+    newClient(serverUrl, username, password) {
+        return new Client(serverUrl, username, password ? Util.decrypt1(password, 'id-aes256-GCM-X aes-128-ecb 256p') : '')
     }
 
     prompt(questions) {
