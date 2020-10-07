@@ -1,3 +1,4 @@
+const crypto    = require('crypto')
 const emailval  = require('email-validator')
 const merge     = require('merge')
 const stripAnsi = require('strip-ansi')
@@ -183,6 +184,23 @@ class Util {
 
     static timestamp() {
         return Math.floor(+new Date / 1000)
+    }
+
+    // from:  https://stackoverflow.com/questions/60369148/how-do-i-replace-deprecated-crypto-createcipher-in-nodejs
+    static encrypt1(text, key) {
+        const iv = crypto.randomBytes(16)
+        const cipher = crypto.createCipheriv('aes-256-ctr', Buffer.from(key), iv)
+        const encrypted = Buffer.concat([cipher.update(text), cipher.final()])
+        return [iv.toString('hex'), encrypted.toString('hex')].join(':')
+    }
+
+    static decrypt1(text, key) {
+        const textParts = text.split(':')
+        const iv = Buffer.from(textParts.shift(), 'hex')
+        const encryptedText = Buffer.from(textParts.join(':'), 'hex')
+        const decipher = crypto.createDecipheriv('aes-256-ctr', Buffer.from(key), iv)
+        const decrypted = Buffer.concat([decipher.update(encryptedText), decipher.final()])
+        return decrypted.toString()
     }
 }
 
