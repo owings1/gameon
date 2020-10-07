@@ -20,6 +20,7 @@ const Coordinator = requireSrc('lib/coordinator')
 
 const {White, Red, Match} = Core
 
+const AWS = require('aws-sdk')
 const fs = require('fs')
 const fse = require('fs-extra')
 const merge = require('merge')
@@ -884,7 +885,7 @@ describe('Auth', () => {
                 expect(err.name).to.equal('UserNotFoundError')
             })
 
-            it('should throw SyntaxError when malformed json', async () => {
+            it('should throw InternalError cause by SyntaxError when malformed json', async () => {
                 const auth = newAuth()
                 const username = 'nobody@nowhere.example'
                 const password = 'mUad3h8b'
@@ -892,7 +893,8 @@ describe('Auth', () => {
                 // hack file
                 fs.writeFileSync(auth.impl._userFile(username), '{]')
                 const err = await getErrorAsync(() => auth.readUser(username))
-                expect(err.name).to.equal('SyntaxError')
+                expect(err.name).to.equal('InternalError')
+                expect(err.cause.name).to.equal('SyntaxError')
             })
         })
 
@@ -934,11 +936,12 @@ describe('Auth', () => {
                 expect(result).to.contain(username)
             })
 
-            it('should throw ENOENT when directory gets nuked', async () => {
+            it('should throw InternalError caused by ENOENT when directory gets nuked', async () => {
                 const auth = newAuth()
                 await fse.remove(auth.opts.dir)
                 const err = await getErrorAsync(() => auth.listAllUsers())
-                expect(err.code).to.equal('ENOENT')
+                expect(err.name).to.equal('InternalError')
+                expect(err.cause.code).to.equal('ENOENT')
             })
 
             it('should return empty after user deleted', async () => {
@@ -992,4 +995,166 @@ describe('Auth', () => {
             })
         })
     })
+
+    function s3Suite(s3_bucket) {
+
+        return function() {
+
+            this.timeout(10000)
+
+            const s3_prefix = 'test/' + +new Date + '/'
+
+            function newAuth() {
+                const opts = {s3_bucket, s3_prefix}
+                return new Auth('s3', opts)
+            }
+
+            var s3
+
+            before(() => {
+                s3 = new AWS.S3()
+            })
+
+            describe('#createUser', () => {
+
+                it('should create user', async () => {
+                    const auth = newAuth()
+                    const username = 'nobody1@nowhere.example'
+                    const password = 'a7CGQSdV'
+                    await auth.createUser(username, password)
+                    // cleanup
+                    await auth.deleteUser(username)
+                })
+            })
+
+            describe('#readUser', () => {
+
+                it('should read user case insensitive', async () => {
+                    const auth = newAuth()
+                    const username = 'nobody2@nowhere.example'
+                    const password = '2SnMTw6M'
+                    await auth.createUser(username, password)
+                    try {
+                        const user = await auth.readUser(username.toUpperCase())
+                        expect(user.username).to.equal(username)
+                    } finally {
+                        // cleanup
+                        await auth.deleteUser(username)
+                    }
+                })
+
+                it('should throw UserNotFoundError', async () => {
+                    const auth = newAuth()
+                    const username = 'nobody3@nowhere.example'
+                    const err = await getErrorAsync(() => auth.readUser(username))
+                    expect(err.name).to.equal('UserNotFoundError')
+                })
+
+                it('should throw InternalError caused by SyntaxError when malformed json', async () => {
+                    const auth = newAuth()
+                    const username = 'nobody-syntax-err@nowhere.example'
+                    const password = 'VBvUa7TX'
+                    await auth.createUser(username, password)
+                    try {
+                        // hack object
+                        await auth.impl.s3.putObject({
+                            Bucket : s3_bucket,
+                            Key : auth.impl._userKey(username),
+                            Body: Buffer.from('{]')
+                        }).promise()
+                        const err = await getErrorAsync(() => auth.readUser(username))
+                        expect(err.name).to.equal('InternalError')
+                        expect(err.cause.name).to.equal('SyntaxError')
+                    } finally {
+                        // cleanup
+                        await auth.deleteUser(username)
+                    }
+                })
+            })
+
+            describe('#userExists', () => {
+
+                it('should return true for created user', async () => {
+                    const auth = newAuth()
+                    const username = 'nobody4@nowhere.example'
+                    const password = 'gB3tbM96'
+                    await auth.createUser(username, password)
+                    try {
+                        const result = await auth.userExists(username)
+                        expect(result).to.equal(true)
+                    } finally {
+                        // cleanup
+                        await auth.deleteUser(username)
+                    }
+                })
+
+                it('should return false for non existent', async () => {
+                    const auth = newAuth()
+                    const username = 'nobody5@nowhere.example'
+                    const result = await auth.userExists(username)
+                    expect(result).to.equal(false)
+                })
+
+                it('should throw InternalError with cause BadRequest when bucket is bad', async () => {
+                    const auth = newAuth()
+                    const username = 'bad-bucket@nowhere.example'
+                    // hack opts to produce error
+                    auth.impl.opts.s3_bucket = '!badbucket'
+                    const err = await getErrorAsync(() => auth.userExists(username))
+                    expect(err.name).to.equal('InternalError')
+                    expect(err.cause.name).to.equal('BadRequest')
+                })
+            })
+
+            describe('#deleteUser', () => {
+
+                it('should throw UserNotFoundError for bad user', async () => {
+                    const auth = newAuth()
+                    const username = 'bad-delete-user@nowhere.example'
+                    const err = await getErrorAsync(() => auth.deleteUser(username))
+                    expect(err.name).to.equal('UserNotFoundError')
+                })
+
+                it('should throw InternalError with cause InvalidBucketName when bucket is bad', async () => {
+                    const auth = newAuth()
+                    const username = 'bad-bucket@nowhere.example'
+                    // hack opts to produce error
+                    auth.impl.opts.s3_bucket = '!badbucket'
+                    // call on impl for coverage
+                    const err = await getErrorAsync(() => auth.impl.deleteUser(username))
+                    expect(err.name).to.equal('InternalError')
+                    expect(err.cause.name).to.equal('InvalidBucketName')
+                })
+            })
+
+            describe('#updateUser', () => {
+                it('should throw InternalError with cause InvalidBucketName when bucket is bad', async () => {
+                    const auth = newAuth()
+                    const username = 'bad-bucke-update-user@nowhere.example'
+                    // hack opts to produce error
+                    auth.impl.opts.s3_bucket = '!badbucket'
+                    // call on impl for coverage
+                    const err = await getErrorAsync(() => auth.impl.updateUser(username, {}))
+                    expect(err.name).to.equal('InternalError')
+                    expect(err.cause.name).to.equal('InvalidBucketName')
+                })
+            })
+
+            describe('#listAllUsers', () => {
+                it('should throw InternalError with cause NotImplementedError', async () => {
+                    const auth = newAuth()
+                    const err = await getErrorAsync(() => auth.listAllUsers())
+                    expect(err.name).to.equal('InternalError')
+                    expect(err.cause.name).to.equal('NotImplementedError')
+                })
+            })
+        }
+        
+    }
+
+    if (process.env.TEST_AUTH_S3_BUCKET) {
+        describe('S3', s3Suite(process.env.TEST_AUTH_S3_BUCKET))
+    } else {
+        describe.skip('S3', s3Suite())
+    }
 })
