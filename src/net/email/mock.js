@@ -1,3 +1,8 @@
+const Logger = require('../../lib/logger')
+const Util   = require('../../lib/util')
+
+const {merge} = Util
+
 class MockEmail {
 
     defaults(env) {

@@ -4,7 +4,7 @@ const Util   = require('../lib/util')
 const {merge} = Util
 const path    = require('path')
 
-const DefaultType = 'ses'
+const DefaultType = 'mock'
 
 class Email {
 
