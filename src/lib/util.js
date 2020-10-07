@@ -1,3 +1,4 @@
+const emailval  = require('email-validator')
 const merge     = require('merge')
 const stripAnsi = require('strip-ansi')
 const uuid      = require('uuid')
@@ -174,6 +175,14 @@ class Util {
             return err.message || false
         }
         return true
+    }
+
+    static isValidEmail(str) {
+        return emailval.validate(str)
+    }
+
+    static timestamp() {
+        return Math.floor(+new Date / 1000)
     }
 }
 
