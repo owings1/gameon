@@ -172,6 +172,12 @@ class AuthError extends Error {
     }
 }
 class BadCredentialsError extends AuthError {}
+class InternalError extends AuthError {
+    constructor(...args) {
+        super(...args)
+        this.cause = args.find(arg => arg instanceof Error)
+    }
+}
 class NotImplementedError extends AuthError {}
 class UserExistsError extends AuthError {}
 class UserLockedError extends AuthError {}
@@ -181,6 +187,7 @@ class ValidationError extends AuthError {}
 Auth.Errors = {
     AuthError
   , BadCredentialsError
+  , InternalError
   , NotImplementedError
   , UserExistsError
   , UserLockedError

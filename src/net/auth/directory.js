@@ -8,6 +8,7 @@ const {merge} = Util
 const path = require('path')
 const {resolve} = path
 
+const {InternalError}      = Auth.Errors
 const {UserNotFoundError}  = Auth.Errors
 
 class DirectoryAuth {
@@ -21,10 +22,10 @@ class DirectoryAuth {
     constructor(opts){
         this.opts = merge({}, this.defaults(), opts)
         if (!this.opts.dir) {
-            throw new Error('Auth directory not set.')
+            throw new InternalError('Auth directory not set.')
         }
         if (!fs.existsSync(this.opts.dir)) {
-            throw new Error('Auth directory not found: ' + this.opts.dir)
+            throw new InternalError('Auth directory not found: ' + this.opts.dir)
         }
     }
 
@@ -40,29 +41,41 @@ class DirectoryAuth {
             if ('ENOENT' == err.code) {
                 throw new UserNotFoundError
             } else {
-                throw err
+                throw new InternalError(err)
             }
         }
         return user
     }
 
     async updateUser(username, user) {
-        return fse.writeJson(this._userFile(username), user)
+        try {
+            await fse.writeJson(this._userFile(username), user)
+        } catch (err) {
+            throw new InternalError(err)
+        }
     }
 
     async deleteUser(username) {
-        return fse.remove(this._userFile(username))
+        try {
+            await fse.remove(this._userFile(username))
+        } catch (err) {
+            throw new InternalError(err)
+        }
     }
 
     async userExists(username) {
-        return fse.pathExists(this._userFile(username))
+        try {
+            return fse.pathExists(this._userFile(username))
+        } catch (err) {
+            throw new InternalError(err)
+        }
     }
 
     async listAllUsers() {
         return new Promise((resolve, reject) => {
             fs.readdir(this.opts.dir, (err, files) => {
                 if (err) {
-                    reject(err)
+                    reject(new InternalError(err))
                     return
                 }
                 resolve(files)
