@@ -11,9 +11,11 @@ const {White, Red, Match} = Core
 
 class Client {
 
-    constructor(serverUrl) {
+    constructor(serverUrl, username, password) {
         this.logger = new Logger
         this.serverUrl = serverUrl
+        this.username = username
+        this.password = password
         this.socketClient = new WebSocketClient
         this.conn = null
         this.isHandshake = null
@@ -51,7 +53,8 @@ class Client {
     }
 
     async handshake() {
-        await this.sendAndWaitForResponse({action: 'establishSecret'}, 'acknowledgeSecret')
+        const {username, password} = this
+        await this.sendAndWaitForResponse({action: 'establishSecret', username, password}, 'acknowledgeSecret')
         this.logger.info('Server handshake success')
         this.isHandshake = true
     }

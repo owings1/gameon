@@ -1,3 +1,4 @@
+const Email  = require('./email')
 const Logger = require('../lib/logger')
 const Util   = require('../lib/util')
 
@@ -25,6 +26,7 @@ class Auth {
           , passwordMin   : +env.AUTH_PASSWORD_MIN || 8
           , passwordRegex : env.AUTH_PASSWORD_REGEX || DefaultPasswordRegex
           , passwordHelp  : env.AUTH_PASSWORD_HELP || DefaultPasswordHelp
+          , emailType     : env.EMAIL_TYPE || Email.DefaultType
         }
         if (opts.passwordRegex != DefaultPasswordRegex && !env.AUTH_PASSWORD_HELP) {
             // If a custom regex is defined, but not a help message, make a generic message.
@@ -38,6 +40,7 @@ class Auth {
         this.passwordRegex = new RegExp(this.opts.passwordRegex)
         const AuthType = require('./auth/' + path.basename(authType))
         this.impl = new AuthType(this.opts)
+        this.email = new Email(this.opts.emailType, this.opts)
         this.isAnonymous = 'anonymous' == authType
         const saltHash = crypto.createHash(this.opts.saltHash)
         saltHash.update(this.opts.salt)
@@ -59,9 +62,12 @@ class Auth {
         if (user.locked) {
             throw new UserLockedError
         }
+        if (!user.confirmed) {
+            throw new UserNotConfirmedError
+        }
     }
 
-    async createUser(username, password) {
+    async createUser(username, password, confirmed) {
         this.validateUsername(username)
         username = username.toLowerCase()
         if (await this.impl.userExists(username)) {
@@ -71,11 +77,12 @@ class Auth {
         const timestamp = Util.timestamp()
         const user = {
             username
-          , password : this.hashPassword(password)
-          , saltHash : this.saltHash
-          , locked   : false
-          , created  : timestamp
-          , updated  : timestamp
+          , password   : this.hashPassword(password)
+          , saltHash   : this.saltHash
+          , confirmed  : !!confirmed
+          , locked     : false
+          , created    : timestamp
+          , updated    : timestamp
         }
         await this.impl.createUser(username, user)
         return user
@@ -108,6 +115,41 @@ class Auth {
     }
 
     // Update Operations
+
+    async sendConfirmEmail(username) {
+        const user = await this.readUser(username)
+        const timestamp = Util.timestamp()
+        const confirmKey = this.generateConfirmKey()
+        merge(user, {
+            confirmed  : false
+          , confirmKey : this.hashPassword(confirmKey)
+          , confirmKeyCreated : timestamp
+          , updated : timestamp
+        })
+        await this.impl.updateUser(username, user)
+        const params = {
+            Destination: {
+                ToAddresses: [username]
+            }
+          , Message : {
+                Subject : {
+                    Charset: 'UTF-8'
+                  , Data: 'confirm your gameon account'
+                }
+              , Body : {
+                    Text: {
+                        Charset: 'UTF-8'
+                      , Data: 'Key: ' + confirmKey
+                    }
+                  , Html: {
+                        Charset: 'UTF-8'
+                      , Data: 'Key: ' + confirmKey
+                    }
+                }
+            }
+        }
+        await this.email.send(params)
+    }
 
     async lockUser(username) {
         this.validateUsername(username)
@@ -161,6 +203,12 @@ class Auth {
         hash.update(password + this.opts.salt)
         return hash.digest('base64')
     }
+
+    generateConfirmKey() {
+        const hash = crypto.createHash(this.opts.hash)
+        hash.update(Util.uuid() + this.opts.salt)
+        return hash.digest('hex')
+    }
 }
 
 
@@ -181,6 +229,7 @@ class InternalError extends AuthError {
 class NotImplementedError extends AuthError {}
 class UserExistsError extends AuthError {}
 class UserLockedError extends AuthError {}
+class UserNotConfirmedError extends AuthError {}
 class UserNotFoundError extends AuthError {}
 class ValidationError extends AuthError {}
 
@@ -191,6 +240,7 @@ Auth.Errors = {
   , NotImplementedError
   , UserExistsError
   , UserLockedError
+  , UserNotConfirmedError
   , UserNotFoundError
   , ValidationError
 }

@@ -288,7 +288,7 @@ describe('Menu', () => {
     describe('#newClient', () => {
 
         it('should return new client', () => {
-            const client = menu.newClient('mockUrl')
+            const client = menu.newClient('mockUrl', '', '')
             expect(client.constructor.name).to.equal('Client')
         })
     })

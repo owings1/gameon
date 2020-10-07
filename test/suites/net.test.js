@@ -853,7 +853,7 @@ describe('Auth', () => {
                 const auth = newAuth()
                 const username = 'nobody@nowhere.example'
                 const password = 'Daz5zGAZa'
-                const user = await auth.createUser(username, password)
+                const user = await auth.createUser(username, password, true)
                 expect(user.username).to.equal(username)
             })
 
@@ -861,8 +861,8 @@ describe('Auth', () => {
                 const auth = newAuth()
                 const username = 'nobody@nowhere.example'
                 const password = 'Daz5zGAZa'
-                await auth.createUser(username, password)
-                const err = await getErrorAsync(() => auth.createUser(username.toUpperCase(), password))
+                await auth.createUser(username, password, true)
+                const err = await getErrorAsync(() => auth.createUser(username.toUpperCase(), password, true))
                 expect(err.name).to.equal('UserExistsError')
             })
         })
@@ -873,7 +873,7 @@ describe('Auth', () => {
                 const auth = newAuth()
                 const username = 'nobody@nowhere.example'
                 const password = 'vALkke5N'
-                await auth.createUser(username, password)
+                await auth.createUser(username, password, true)
                 const user = await auth.readUser(username)
                 expect(user.username).to.equal(username)
             })
@@ -889,7 +889,7 @@ describe('Auth', () => {
                 const auth = newAuth()
                 const username = 'nobody@nowhere.example'
                 const password = 'mUad3h8b'
-                await auth.createUser(username, password)
+                await auth.createUser(username, password, true)
                 // hack file
                 fs.writeFileSync(auth.impl._userFile(username), '{]')
                 const err = await getErrorAsync(() => auth.readUser(username))
@@ -911,7 +911,7 @@ describe('Auth', () => {
                 const auth = newAuth()
                 const username = 'nobody@nowhere.example'
                 const password = 'PPt7HKvP'
-                await auth.createUser(username, password)
+                await auth.createUser(username, password, true)
                 await auth.deleteUser(username)
                 const result = await auth.userExists(username)
                 expect(result).to.equal(false)
@@ -930,7 +930,7 @@ describe('Auth', () => {
                 const auth = newAuth()
                 const username = 'nobody@nowhere.example'
                 const password = 'Sa32q9QT'
-                await auth.createUser(username, password)
+                await auth.createUser(username, password, true)
                 const result = await auth.listAllUsers()
                 expect(result).to.have.length(1)
                 expect(result).to.contain(username)
@@ -948,7 +948,7 @@ describe('Auth', () => {
                 const auth = newAuth()
                 const username = 'nobody@nowhere.example'
                 const password = 'rGnPNs54'
-                await auth.createUser(username, password)
+                await auth.createUser(username, password, true)
                 await auth.deleteUser(username)
                 const result = await auth.listAllUsers()
                 expect(result).to.have.length(0)
@@ -961,7 +961,7 @@ describe('Auth', () => {
                 const auth = newAuth()
                 const username = 'nobody@nowhere.example'
                 const password = 'AgJ7jfr9'
-                await auth.createUser(username, password)
+                await auth.createUser(username, password, true)
                 await auth.authenticate(username, password)
             })
 
@@ -969,7 +969,7 @@ describe('Auth', () => {
                 const auth = newAuth()
                 const username = 'nobody@nowhere.example'
                 const password = 'Sfekx6Yx'
-                await auth.createUser(username, password)
+                await auth.createUser(username, password, true)
                 const err = await getErrorAsync(() => auth.authenticate(username, password + 'x'))
                 expect(err.name).to.equal('BadCredentialsError')
             })
@@ -978,7 +978,7 @@ describe('Auth', () => {
                 const auth = newAuth()
                 const username = 'nobody@nowhere.example'
                 const password = 'vu3a8EZm'
-                await auth.createUser(username, password)
+                await auth.createUser(username, password, true)
                 await auth.lockUser(username)
                 const err = await getErrorAsync(() => auth.authenticate(username, password))
                 expect(err.name).to.equal('UserLockedError')
@@ -988,7 +988,7 @@ describe('Auth', () => {
                 const auth = newAuth()
                 const username = 'nobody@nowhere.example'
                 const password = 'vu3a8EZm'
-                await auth.createUser(username, password)
+                await auth.createUser(username, password, true)
                 await auth.lockUser(username)
                 await auth.unlockUser(username)
                 await auth.authenticate(username, password)
@@ -1021,7 +1021,7 @@ describe('Auth', () => {
                     const auth = newAuth()
                     const username = 'nobody1@nowhere.example'
                     const password = 'a7CGQSdV'
-                    await auth.createUser(username, password)
+                    await auth.createUser(username, password, true)
                     // cleanup
                     await auth.deleteUser(username)
                 })
@@ -1033,7 +1033,7 @@ describe('Auth', () => {
                     const auth = newAuth()
                     const username = 'nobody2@nowhere.example'
                     const password = '2SnMTw6M'
-                    await auth.createUser(username, password)
+                    await auth.createUser(username, password, true)
                     try {
                         const user = await auth.readUser(username.toUpperCase())
                         expect(user.username).to.equal(username)
@@ -1054,7 +1054,7 @@ describe('Auth', () => {
                     const auth = newAuth()
                     const username = 'nobody-syntax-err@nowhere.example'
                     const password = 'VBvUa7TX'
-                    await auth.createUser(username, password)
+                    await auth.createUser(username, password, true)
                     try {
                         // hack object
                         await auth.impl.s3.putObject({
@@ -1078,7 +1078,7 @@ describe('Auth', () => {
                     const auth = newAuth()
                     const username = 'nobody4@nowhere.example'
                     const password = 'gB3tbM96'
-                    await auth.createUser(username, password)
+                    await auth.createUser(username, password, true)
                     try {
                         const result = await auth.userExists(username)
                         expect(result).to.equal(true)
