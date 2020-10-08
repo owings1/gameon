@@ -118,6 +118,22 @@ class Client {
         })
     }
 
+    async postJson(uri, data) {
+        const url = [this.serverHttpUrl, Util.stripLeadingSlash(uri)].join('/')
+        const params = {
+            method  : 'post'
+          , headers : {
+                'content-type': 'application/json'
+            }
+          , body    : JSON.stringify(data)
+        }
+        return this.fetch(url, params)
+    }
+
+    fetch(...args) {
+        return fetch(...args)
+    }
+
     matchParams(params) {
         if (typeof(params) == 'string') {
             params = {action: params}
