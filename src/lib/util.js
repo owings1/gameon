@@ -202,6 +202,28 @@ class Util {
         const decrypted = Buffer.concat([decipher.update(encryptedText), decipher.final()])
         return decrypted.toString()
     }
+
+    static wsToHttp(str) {
+        return str.replace(/^(ws)/, 'http')
+    }
+
+    static httpToWs(str) {
+        return str.replace(/^(http)/, 'ws')
+    }
+
+    static stripLeadingSlash(str) {
+        if (str && str[0] == '/') {
+            return str.substring(1)
+        }
+        return str
+    }
+
+    static stripTrailingSlash(str) {
+        if (str && str[str.length - 1] == '/') {
+            return str.substring(0, str.length - 1)
+        }
+        return str
+    }
 }
 
 module.exports = Util
