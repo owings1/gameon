@@ -22,11 +22,7 @@ class SesEmail {
     }
 
     async send(params) {
-        try {
-            await this.ses.sendEmail(params).promise()
-        } catch (err) {
-            throw new InternalError(err)
-        }
+        await this.ses.sendEmail(params).promise()
     }
 }
 

@@ -20,14 +20,17 @@ class Email {
         this.source = this.opts.fromName + ' <' + this.opts.fromAddress + '>'
         const Impl = require('./email/' + path.basename(impl))
         this.impl = new Impl(this.opts)
-        
     }
 
     // standard is SES sendEmail structure
     // see https://docs.aws.amazon.com/AWSJavaScriptSDK/latest/AWS/SES.html#sendEmail-property
     async send(params) {
         params = merge({}, params, {Source: this.source})
-        await this.impl.send(params)
+        try {
+            await this.impl.send(params)
+        } catch (err) {
+            throw new InternalError(err)
+        }
     }
 }
 
@@ -44,6 +47,7 @@ class EmailError extends Error {
 class InternalError extends EmailError {
     constructor(...args) {
         super(...args)
+        this.isInternalError = true
         this.cause = args.find(arg => arg instanceof Error)
     }
 }
