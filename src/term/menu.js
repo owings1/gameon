@@ -14,9 +14,11 @@ const {RobotDelegator}  = Robot
 const {White, Red, Match} = Core
 
 const chalk    = require('chalk')
+const crypto   = require('crypto')
 const fs       = require('fs')
 const fse      = require('fs-extra')
 const inquirer = require('inquirer')
+const {merge}  = Util
 const os       = require('os')
 const path     = require('path')
 const sp       = Util.joinSpace
@@ -32,6 +34,9 @@ class Menu extends Logger {
         super()
         this.optsFile = optsFile
         this.opts = this.getDefaultOpts()
+        const hash = crypto.createHash('md5')
+        hash.update('main-menu')
+        this.chash = hash.digest('hex')
     }
 
     async mainMenu() {
@@ -126,45 +131,12 @@ class Menu extends Logger {
     }
 
     async accountMenu() {
+
         const {opts} = this
+
         while (true) {
-            var accountChoices = Menu.formatChoices([
-                {
-                    value : 'done'
-                  , name  : 'Done'
-                }
-              , {
-                    value : 'serverUrl'
-                  , name  : 'Server URL'
-                  , question : {
-                        name    : 'serverUrl'
-                      , message : 'Server URL'
-                      , type    : 'input'
-                      , default : () => opts.serverUrl
-                    }
-                }
-              , {
-                    value : 'username'
-                  , name  : 'Username'
-                  , question : {
-                        name    : 'username'
-                      , message : 'Username'
-                      , type    : 'input'
-                      , default : () => opts.username
-                  }
-                }
-              , {
-                    value : 'password'
-                  , name  : 'Password'
-                  , question : {
-                        name    : 'password'
-                      , message : 'Password'
-                      , type    : 'password'
-                      , default : () => opts.password
-                      , display : () => opts.password ? '******' : ''
-                  }
-                }
-            ])
+
+            var accountChoices = this.getAccountChoices(opts)
 
             var answers = await this.prompt([{
                 name     : 'accountChoice'
@@ -180,25 +152,121 @@ class Menu extends Logger {
                 break
             }
 
-            var question = accountChoices.find(choice => choice.value == accountChoice).question
+            var shouldLogin = false
 
-            answers = await this.prompt(question)
-
-            var isChange = answers[question.name] != opts[question.name]
-
-            if (isChange && question.name == 'password') {
-                answers.password = Util.encrypt1(answers.password, 'id-aes256-GCM-X aes-128-ecb 256p')
+            var usernameQuestion = accountChoices.find(choice => choice.value == 'username').question
+            var passwordQuestion = accountChoices.find(choice => choice.value == 'password').question
+            var passwordConfirmQuestion = {
+                name    : 'passwordConfirm'
+              , message : 'Confirm password'
+              , type    : 'password'
+              , validate : (value, answers) => value == answers.password || 'Passwords do not match'
             }
-
-            opts[question.name] = answers[question.name]
-
-            if (isChange) {
+            
+            if (accountChoice == 'createAccount') {
+                shouldLogin = true
+                var createAnswers = await this.prompt([
+                    usernameQuestion
+                  , passwordQuestion
+                  , passwordConfirmQuestion
+                ])
                 try {
-                    await this.testCredentials(opts.serverUrl, opts.username, opts.password)
-                    this.info(chalk.bold.green('Login succeeded.'))
+                    await this.sendSignup(opts.serverUrl, createAnswers.username, createAnswers.password)
                 } catch (err) {
                     this.error(err)
-                    this.warn('Login failed', err)
+                    continue
+                }
+                opts.username = createAnswers.username
+                opts.password = this.encryptPassword(createAnswers.password)
+                
+            } else if (accountChoice == 'forgotPassword') {
+                shouldLogin = true
+                var forgotAnswers = await this.prompt(usernameQuestion)
+                try {
+                    await this.sendForgotPassword(opts.serverUrl, forgotAnswers.username)
+                } catch (err) {
+                    this.error(err)
+                    continue
+                }
+                opts.username = forgotAnswers.username
+                this.info('Reset key sent, check email')
+                var resetAnswers = await this.prompt([
+                    {
+                        name    : 'resetKey'
+                      , message : 'Reset Key'
+                      , type    : 'input'
+                    }
+                  , merge({}, passwordQuestion, {when: answers => answers.resetKey})
+                  , merge({}, passwordConfirmQuestion, {when: answers => answers.resetKey})
+                ])
+                if (!resetAnswers.resetKey) {
+                    continue
+                }
+                try {
+                    var body = await this.sendResetPassword(opts.serverUrl, opts.username, resetAnswers.password, resetAnswers.resetKey)
+                    opts.password = this.encryptPassword(body.passwordEncrypted)
+                } catch (err) {
+                    this.error(err)
+                    continue
+                }
+                this.info('Password reset')
+            } else if (accountChoice == 'changePassword') {
+                shouldLogin = true
+                opts.password = ''
+                var changeAnswers = await this.prompt([
+                    merge({}, passwordQuestion, {name: 'oldPassword', message: 'Current password'})
+                  , merge({}, passwordQuestion, {message: 'New password'})
+                  , passwordConfirmQuestion
+                ])
+                try {
+                    var body = await this.sendChangePassword(opts.serverUrl, opts.username, changeAnswers.oldPassword, changeAnswers.password)
+                    opts.password = this.encryptPassword(body.passwordEncrypted)
+                } catch (err) {
+                    this.error(err)
+                    continue
+                }
+                this.info('Password changed')
+            } else if (accountChoice == 'clearCredentials') {
+                opts.username = ''
+                opts.password = ''
+                continue
+            } else {
+                var question = accountChoices.find(choice => choice.value == accountChoice).question
+
+                answers = await this.prompt(question)
+                shouldLogin = answers[question.name] != opts[question.name]
+                opts[question.name] = answers[question.name]
+            }
+
+            shouldLogin = shouldLogin && opts.username && opts.password && opts.serverUrl
+
+            if (shouldLogin) {
+                var password = (question && question.name == 'password') ? opts.password : this.decryptPassword(opts.password)
+                try {
+                    this.info('Logging into', opts.serverUrl)
+                    var res = await this.testCredentials(opts.serverUrl, opts.username, password)
+                    this.info(chalk.bold.green('Login succeeded.'))
+                    opts.password = this.encryptPassword(res.passwordEncrypted)
+                } catch (err) {
+                    if (err.name == 'UserNotConfirmedError') {
+                        this.info('You must confirm your account. Check your email.')
+                        var confirmAnswers = await this.prompt({
+                            name    : 'key'
+                          , type    : 'input'
+                          , message : 'Enter confirm key'
+                        })
+                        try {
+                            await this.sendConfirmKey(opts.serverUrl, opts.username, confirmAnswers.key)
+                            this.info(chalk.bold.green('Login succeeded.'))
+                        } catch (err) {
+                            opts.password = ''
+                            this.error(err)
+                        }
+                    } else {
+                        opts.password = ''
+                        this.error(err)
+                        this.warn('Login failed', err)
+                    }
                 }
             }
         }
@@ -298,7 +366,7 @@ class Menu extends Logger {
             }
 
             if (robotChoice == 'reset') {
-                this.opts.robots[name] = Util.merge({}, ConfidenceRobot.getClassMeta(name).defaults)
+                this.opts.robots[name] = merge({}, ConfidenceRobot.getClassMeta(name).defaults)
                 config = this.opts.robots[name]
                 continue
             }
@@ -362,7 +430,7 @@ class Menu extends Logger {
     }
 
     async runOnlineMatch(opts, isStart) {
-        const client = this.newClient(opts.serverUrl, opts.username, opts.password)
+        const client = this.newClient(opts.serverUrl, opts.username, this.decryptPassword(opts.password))
         await client.connect()
         try {
             const promise = isStart ? client.startMatch(opts) : client.joinMatch(opts.matchId)
@@ -495,6 +563,68 @@ class Menu extends Logger {
               , name  : 'Quit'
             }
         ])
+    }
+
+    getAccountChoices(opts) {
+        const choices = [
+            {
+                value : 'done'
+              , name  : 'Done'
+            }
+          , {
+                value : 'serverUrl'
+              , name  : 'Server URL'
+              , question : {
+                    name    : 'serverUrl'
+                  , message : 'Server URL'
+                  , type    : 'input'
+                  , default : () => opts.serverUrl
+                }
+            }
+          , {
+                value : 'username'
+              , name  : 'Username'
+              , question : {
+                    name    : 'username'
+                  , message : 'Username'
+                  , type    : 'input'
+                  , default : () => opts.username
+                }
+            }
+          , {
+                value : 'password'
+              , name  : 'Password'
+              , question : {
+                    name    : 'password'
+                  , message : 'Password'
+                  , type    : 'password'
+                  , default : () => opts.password
+                  , display : () => opts.password ? '******' : ''
+                }
+            }
+        ]
+        if (!opts.username || !opts.password) {
+            choices.push({
+                value : 'createAccount'
+              , name  : 'Create Account'
+            })
+            choices.push({
+                value : 'forgotPassword'
+              , name  : 'Forgot Password'
+            })
+        } else {
+            choices.push({
+                value : 'changePassword'
+              , name  : 'Change Password'
+            })
+        }
+        if (opts.username || opts.password) {
+            choices.push({
+                value : 'clearCredentials'
+              , name  : 'Clear Credentials'
+            })
+        }
+        return Menu.formatChoices(choices)
     }
 
     getSettingsChoices(opts) {
@@ -665,12 +795,12 @@ class Menu extends Logger {
             if (!fs.existsSync(this.optsFile)) {
                 fse.writeJsonSync(this.optsFile, {})
             }
-            Util.merge(opts, JSON.parse(fs.readFileSync(this.optsFile)))
+            merge(opts, JSON.parse(fs.readFileSync(this.optsFile)))
             if (ObsoleteServerUrls.indexOf(opts.serverUrl) > -1) {
                 opts.serverUrl = this.getDefaultServerUrl()
             }
         }
-        opts = Util.merge({
+        opts = merge({
             total         : 1
           , isJacoby      : false
           , isCrawford    : true
@@ -686,7 +816,7 @@ class Menu extends Logger {
         }, opts)
         ConfidenceRobot.listClassNames().forEach(name => {
             const {defaults} = ConfidenceRobot.getClassMeta(name)
-            opts.robots[name] = Util.merge({}, defaults, opts.robots[name])
+            opts.robots[name] = merge({}, defaults, opts.robots[name])
         })
         return opts
     }
@@ -700,7 +830,65 @@ class Menu extends Logger {
 
     async testCredentials(serverUrl, username, password) {
         const client = this.newClient(serverUrl, username, password)
-        await client.connect()
+        var res
+        try {
+            res = await client.connect()
+        } finally {
+            client.close()
+        }
+        return res
+    }
+
+    async sendSignup(serverUrl, username, password) {
+        const client = this.newClient(serverUrl)
+        const data = {username, password}
+        const res = await client.postJson('/api/v1/signup', data)
+        if (!res.ok) {
+            const body = await res.json()
+            throw new Error('Signup failed', {status: res.status, ...body})
+        }
+    }
+
+    async sendConfirmKey(serverUrl, username, confirmKey) {
+        const client = this.newClient(serverUrl)
+        const data = {username, confirmKey}
+        const res = await client.postJson('/api/v1/confirm-account', data)
+        if (!res.ok) {
+            const body = await res.json()
+            throw new Error('Confirm failed', {status: res.status, ...body})
+        }
+    }
+
+    async sendForgotPassword(serverUrl, username) {
+        const client = this.newClient(serverUrl)
+        const data = {username}
+        const res = await client.postJson('/api/v1/forgot-password', data)
+        if (!res.ok) {
+            const body = await res.json()
+            throw new Error('Request failed', {status: res.status, ...body})
+        }
+    }
+
+    async sendResetPassword(serverUrl, username, password, resetKey) {
+        const client = this.newClient(serverUrl)
+        const data = {username, password, resetKey}
+        const res = await client.postJson('/api/v1/reset-password', data)
+        const body = await res.json()
+        if (!res.ok) {
+            throw new Error('Request failed', {status: res.status, ...body})
+        }
+        return body
+    }
+
+    async sendChangePassword(serverUrl, username, oldPassword, newPassword) {
+        const client = this.newClient(serverUrl)
+        const data = {username, oldPassword, newPassword}
+        const res = await client.postJson('/api/v1/change-password', data)
+        const body = await res.json()
+        if (!res.ok) {
+            throw new Error('Change password failed', {status: res.status, ...body})
+        }
+        return body
     }
 
     getDefaultServerUrl() {
@@ -716,12 +904,20 @@ class Menu extends Logger {
     }
 
     newClient(serverUrl, username, password) {
-        return new Client(serverUrl, username, password ? Util.decrypt1(password, 'id-aes256-GCM-X aes-128-ecb 256p') : '')
+        return new Client(serverUrl, username, password)
     }
 
     prompt(questions) {
         this._prompt = inquirer.prompt(Util.castToArray(questions))
         return this._prompt
+    }
+
+    encryptPassword(password) {
+        return password ? Util.encrypt1(password, this.chash) : ''
+    }
+
+    decryptPassword(password) {
+        return password ? Util.decrypt1(password, this.chash) : ''
     }
 
     static formatChoices(choices) {
