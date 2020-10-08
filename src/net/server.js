@@ -4,8 +4,10 @@ const Logger          = require('../lib/logger')
 const Util            = require('../lib/util')
 const WebSocketServer = require('websocket').server
 
-const crypto  = require('crypto')
-const express = require('express') // maybe we don't need express
+const audit      = require('express-requests-logger')
+const bodyParser = require('body-parser')
+const crypto     = require('crypto')
+const express    = require('express')
 
 const {White, Red, Match, Opponent, Dice} = Core
 
@@ -20,11 +22,11 @@ class Server {
         }
     }
 
-    constructor() {
-        this.logger = new Logger
-        this.opts = merge({}, this.defaults())
+    constructor(opts) {
+        this.logger = new Logger(this.constructor.name, {server: true})
+        this.opts = merge({}, this.defaults(), opts)
         this.auth = new Auth(this.opts.authType, this.opts.auth)
-        this.app = express()
+        this.app = this.createExpressApp()
         this.matches = {}
         this.connTicker = 0
         this.httpServer = null
@@ -62,6 +64,97 @@ class Server {
         }
     }
 
+    createExpressApp() {
+
+        const app = express()
+        const jsonParser = bodyParser.json()
+
+        app.use(audit({
+            logger : this.logger
+          , request : {
+                excludeBody: ['*']
+            }
+          , response : {
+                excludeBody: ['*']
+            }
+        }))
+
+        const handleInternalError = (err, res) => {
+            res.status(500).send({status: 500, message: 'Internal Error'})
+            this.logger.error(err, err.cause)
+        }
+
+        const handleError = (err, res) => {
+            if (err.isInternalError || !err.isAuthError) {
+                handleInternalError(err, res)
+            } else {
+                res.status(400).send({status: 400, message: 'Bad Request', error: {name: err.name, message: err.message}})
+            }
+        }
+
+        app.post('/api/v1/signup', jsonParser, (req, res) => {
+            const {username, password} = req.body
+            this.auth.createUser(username, password).then(user => {
+                this.auth.sendConfirmEmail(username).then(() => {
+                    res.status(201).send({status: 201, message: 'Account created, check your email to confirm.'})
+                }).catch(err => handleInternalError(err, res))
+            }).catch(err => handleError(err, res))
+        })
+
+        app.post('/api/v1/send-confirm-email', jsonParser, (req, res) => {
+            const {username} = req.body
+            const message = 'A confirm key has been sent if the account exists and is unconfirmed, check your email.'
+            this.auth.sendConfirmEmail(username).then(() => {
+                res.status(200).send({status: 200, message})
+            }).catch(err => {
+                if (err.name == 'UserNotFoundError' || err.name == 'UserConfirmedError') {
+                    this.logger.warn('Invalid send-confirm-email', {username}, err)
+                    res.status(200).send({status: 200, message})
+                } else {
+                    handleError(err, res)
+                }
+            })            
+        })
+
+        app.post('/api/v1/forgot-password', jsonParser, (req, res) => {
+            const {username} = req.body
+            const message = 'A reset key has been sent if the account exists, check your email.'
+            this.auth.sendResetEmail(username).then(() => {
+                res.status(200).send({status: 200, message})
+            }).catch(err => {
+                if (err.isAuthError && !err.isInternalError) {
+                    this.logger.warn('Invalid forgot-password request', {username})
+                    res.stats(200).send({status: 200, message})
+                } else {
+                    handleInternalError(err, res)
+                }
+            })
+        })
+
+        app.post('/api/v1/confirm-account', jsonParser, (req, res) => {
+            const {username, confirmKey} = req.body
+            this.auth.confirmUser(username, confirmKey).then(() => {
+                res.status(200).send({status: 200, message: 'Account confirmed'})
+            }).catch(err => handleError(err, res))
+        })
+
+        app.post('/api/v1/change-password', jsonParser, (req, res) => {
+            const {username, oldPassword, newPassword} = req.body
+            this.auth.changePassword(username, oldPassword, newPassword).then(user => {
+                res.status(200).send({status: 200, message: 'Password changed', passwordEncrypted: user.passwordEncrypted})
+            }).catch(err => handleError(err, res))
+        })
+
+        app.post('/api/v1/reset-password', jsonParser, (req, res) => {
+            const {username, password, resetKey} = req.body
+            this.auth.resetPassword(username, password, resetKey).then(user => {
+                res.status(200).send({status: 200, message: 'Password reset', passwordEncrypted: user.passwordEncrypted})
+            }).catch(err => handleError(err, res))
+        })
+
+        return app
+    }
+
     createSocketServer(httpServer) {
 
         const server = new WebSocketServer({httpServer})
@@ -72,13 +165,13 @@ class Server {
             const conn = req.accept(null, req.origin)
             const connId = this.newConnectionId()
 
-            this.logger.info('Peer connected', connId, conn.remoteAddress)
+            this.logger.info('Peer', connId, 'connected', conn.remoteAddress)
 
             conn.connId = connId
             server.conns[connId] = conn
 
             conn.on('close', () => {
-                this.logger.info('Peer disconnected', connId)
+                this.logger.info('Peer', connId, 'disconnected')
                 this.cancelMatchId(conn.matchId, 'Peer disconnected')
                 delete server.conns[connId]
             })
@@ -114,10 +207,10 @@ class Server {
                         throw new HandshakeError('bad secret')
                     }
                     if (!conn.secret || conn.secret == req.secret) {
-                        await this.auth.authenticate(req.username, req.password)
+                        const user = await this.auth.authenticate(req.username, req.password)
                         conn.username = req.username
                         conn.secret = req.secret
-                        this.sendMessage(conn, {action: 'acknowledgeSecret'})
+                        this.sendMessage(conn, {action: 'acknowledgeSecret', passwordEncrypted: user.passwordEncrypted})
                         this.logger.log('Client connected', conn.secret)
                     } else {
                         throw new HandshakeError('handshake disagreement')
@@ -180,7 +273,7 @@ class Server {
 
             }
         } catch (err) {
-            this.logger.error(err)
+            this.logger.warn('Peer', conn.connId, err)
             this.sendMessage(conn, Server.makeErrorObject(err))
         }
         
@@ -390,7 +483,7 @@ class Server {
         }
         return {
             isError: true
-            , error: err.message
+            , error: err.message || err.name
             , name: err.name || err.constructor.name
             , isRequestError: err.isRequestError
         }
