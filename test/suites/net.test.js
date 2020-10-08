@@ -316,9 +316,10 @@ describe('Server', () => {
                 client.conn = conn
                 resolve()
             }))
-            client.socketClient.connect(client.serverUrl)
+            client.socketClient.connect(client.serverSocketUrl)
             await p
         }
+
         it('should return HandshakeError for missing secret in message', async () => {
             server.logger.loglevel = -1
             await client.connect()
