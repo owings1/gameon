@@ -6,6 +6,7 @@ const WebSocketClient = require('websocket').client
 const {merge} = Util
 
 const crypto = require('crypto')
+const fetch  = require('node-fetch')
 
 const {White, Red, Match} = Core
 
@@ -13,7 +14,8 @@ class Client {
 
     constructor(serverUrl, username, password) {
         this.logger = new Logger
-        this.serverUrl = serverUrl
+        this.serverSocketUrl = Util.httpToWs(serverUrl)
+        this.serverHttpUrl = Util.stripTrailingSlash(Util.wsToHttp(serverUrl))
         this.username = username
         this.password = password
         this.socketClient = new WebSocketClient
@@ -40,10 +42,10 @@ class Client {
                 })
                 resolve()
             })
-            this.socketClient.connect(this.serverUrl)
+            this.socketClient.connect(this.serverSocketUrl)
         })
 
-        await this.handshake()
+        return this.handshake()
     }
 
     async close() {
@@ -54,9 +56,10 @@ class Client {
 
     async handshake() {
         const {username, password} = this
-        await this.sendAndWaitForResponse({action: 'establishSecret', username, password}, 'acknowledgeSecret')
+        const res = await this.sendAndWaitForResponse({action: 'establishSecret', username, password}, 'acknowledgeSecret')
         this.logger.info('Server handshake success')
         this.isHandshake = true
+        return res
     }
 
     async startMatch(opts) {
