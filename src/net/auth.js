@@ -196,6 +196,9 @@ class Auth {
     async sendResetEmail(username) {
         // TODO: should this block locked accounts?
         const user = await this.readUser(username)
+        if (!user.confirmed) {
+            throw new UserNotConfirmedError
+        }
         const timestamp = Util.timestamp()
         const resetKey = this.generateConfirmKey()
         merge(user, {
