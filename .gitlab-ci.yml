@@ -10,6 +10,8 @@ test:
   stage: test
   tags:
     - docker
+  before_script:
+    - apk add python3
   script:
     - npm install --unsafe-perm
     - npm test
