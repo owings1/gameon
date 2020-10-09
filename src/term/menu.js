@@ -23,9 +23,10 @@ const os       = require('os')
 const path     = require('path')
 const sp       = Util.joinSpace
 
-const DefaultServerUrl = 'wss://bg.dougowings.net'
+const DefaultServerUrl = 'https://bg.dougowings.net'
 const ObsoleteServerUrls = [
     'ws://bg.dougowings.net:8080'
+  , 'wss://bg.dougowings.net'
 ]
 
 class Menu extends Logger {
