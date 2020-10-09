@@ -693,6 +693,11 @@ describe('NetPlayer', () => {
 describe('Auth', () => {
 
 
+    // parse key from email
+    function parseKey(params) {
+        return params.Message.Body.Text.Data.match(/^Key: (.*)$/)[1]
+    }
+
     /*
     // method removed
     describe('#isValidUsername', () => {
@@ -774,6 +779,13 @@ describe('Auth', () => {
             expect(err.name).to.equal('ValidationError')
         })
 
+        it('should throw ValidationError for start with encrypted_', () => {
+            const auth = new Auth('anonymous')
+            const input = 'encrypted_aDlvkdoslK'
+            const err = getError(() => auth.validatePassword(input))
+            expect(err.name).to.equal('ValidationError')
+        })
+
         const passCases = [
             'dbHg5eva'
           , 'dY@a45-S'
@@ -812,7 +824,14 @@ describe('Auth', () => {
                 expect(err.name).to.equal('NotImplementedError')
             })
         })
-        
+
+        describe('#authenticate', () => {
+            it('should return passwordEncrypted when password non-empty', async () => {
+                const auth = new Auth('anonymous')
+                const user = await auth.authenticate(null, 'a')
+                expect(user.passwordEncrypted).to.have.length.greaterThan(0)
+            })
+        })
     })
 
     describe('Directory', () => {
@@ -845,7 +864,9 @@ describe('Auth', () => {
 
         function newAuth() {
             const opts = {dir: authDir}
-            return new Auth('directory', opts)
+            const auth = new Auth('directory', opts)
+            auth.logger.loglevel = 0
+            return auth
         }
 
         describe('#createUser', () => {
@@ -975,6 +996,25 @@ describe('Auth', () => {
                 expect(err.name).to.equal('BadCredentialsError')
             })
 
+            it('should throw BadCredentialsError for non-existent user', async () => {
+                const auth = newAuth()
+                const username = 'nobody@nowhere.example'
+                const password = 'Nm4PcTHe'
+                const err = await getErrorAsync(() => auth.authenticate(username, password))
+                expect(err.name).to.equal('BadCredentialsError')
+            })
+
+            it('should throw InternalError when impl throws', async () => {
+                const auth = newAuth()
+                const username = 'nobody@nowhere.example'
+                const password = 'g3AkYhC6'
+                const e = new Error
+                auth.impl.readUser = () => { throw e }
+                const err = await getErrorAsync(() => auth.authenticate(username, password))
+                expect(err.isInternalError).to.equal(true)
+                expect(err.cause).to.equal(e)
+            })
+
             it('should throw UserLockedError for user locked', async () => {
                 const auth = newAuth()
                 const username = 'nobody@nowhere.example'
@@ -993,6 +1033,169 @@ describe('Auth', () => {
                 await auth.lockUser(username)
                 await auth.unlockUser(username)
                 await auth.authenticate(username, password)
+            })
+
+            it('should accept encrypted password', async () => {
+                const auth = newAuth()
+                const username = 'nobody@nowhere.example'
+                const password = 't6jn5Xwa'
+                const user = await auth.createUser(username, password, true)
+                await auth.authenticate(username, user.passwordEncrypted)
+            })
+
+            it('should throw UserNotConfirmedError for unconfirmed user', async () => {
+                const auth = newAuth()
+                const username = 'nobody@nowhere.example'
+                const password = 'c9dxCZRL'
+                await auth.createUser(username, password)
+                const err = await getErrorAsync(() => auth.authenticate(username, password))
+                expect(err.name).to.equal('UserNotConfirmedError')
+            })
+        })
+
+        describe('#sendConfirmEmail', () => {
+
+            it('should set lastEmail in mock email', async () => {
+                const auth = newAuth()
+                const username = 'nobody@nowhere.example'
+                const password = 'mAGP6hsZ'
+                await auth.createUser(username, password)
+                await auth.sendConfirmEmail(username)
+                expect(auth.email.impl.lastEmail.Destination.ToAddresses).to.have.length(1).and.to.contain(username)
+            })
+
+            it('should throw UserConfirmedError if user confirmed', async () => {
+                const auth = newAuth()
+                const username = 'nobody@nowhere.example'
+                const password = 'QEAY8baN'
+                await auth.createUser(username, password, true)
+                const err = await getErrorAsync(() => auth.sendConfirmEmail(username))
+                expect(err.name).to.equal('UserConfirmedError')
+            })
+        })
+
+        describe('#sendResetEmail', () => {
+
+            it('should set lastEmail in mock email', async () => {
+                const auth = newAuth()
+                const username = 'nobody@nowhere.example'
+                const password = 'Q6rzSPnk'
+                await auth.createUser(username, password, true)
+                await auth.sendResetEmail(username)
+                expect(auth.email.impl.lastEmail.Destination.ToAddresses).to.have.length(1).and.to.contain(username)
+            })
+
+            it('should throw UserNotConfirmedError if user not confirmed', async () => {
+                const auth = newAuth()
+                const username = 'nobody@nowhere.example'
+                const password = 'rwF84M82'
+                await auth.createUser(username, password)
+                const err = await getErrorAsync(() => auth.sendResetEmail(username))
+                expect(err.name).to.equal('UserNotConfirmedError')
+            })
+        })
+
+        describe('#confirmUser', () => {
+
+            it('should confirm user with key sent in email', async () => {
+                const auth = newAuth()
+                const username = 'nobody@nowhere.example'
+                const password = 'j7VHVRUd'
+                await auth.createUser(username, password)
+                await auth.sendConfirmEmail(username)
+                // parse key from email
+                const confirmKey = parseKey(auth.email.impl.lastEmail)
+                await auth.confirmUser(username, confirmKey)
+                const user = await auth.readUser(username)
+                expect(user.confirmed).to.equal(true)
+            })
+
+            it('should throw BadCredentialsError for bad key', async () => {
+                const auth = newAuth()
+                const username = 'nobody@nowhere.example'
+                const password = 'JkrsX89y'
+                await auth.createUser(username, password)
+                await auth.sendConfirmEmail(username)
+                const err = await getErrorAsync(() => auth.confirmUser(username, 'badkey'))
+                expect(err.name).to.equal('BadCredentialsError')
+            })
+
+            it('should throw BadCredentialsError for expired key', async () => {
+                const auth = newAuth()
+                const username = 'nobody@nowhere.example'
+                const password = 'HGLV5gHT'
+                await auth.createUser(username, password)
+                await auth.sendConfirmEmail(username)
+                const confirmKey = parseKey(auth.email.impl.lastEmail)
+                // hack expiry setting
+                auth.opts.confirmExpiry = -1
+                const err = await getErrorAsync(() => auth.confirmUser(username, confirmKey))
+                expect(err.name).to.equal('BadCredentialsError')
+                expect(err.message.toLowerCase()).to.contain('expire')
+            })
+        })
+
+        describe('#resetPassword', () => {
+
+            it('should reset password and authenticate', async () => {
+                const auth = newAuth()
+                const username = 'nobody@nowhere.example'
+                const password = 'TGVN4pxL'
+                await auth.createUser(username, password, true)
+                await auth.sendResetEmail(username)
+                const resetKey = parseKey(auth.email.impl.lastEmail)
+                const newPassword = 'k8hWfxC8'
+                await auth.resetPassword(username, newPassword, resetKey)
+                await auth.authenticate(username, newPassword)
+            })
+
+            it('should throw BadCredentialsError for bad key', async () => {
+                const auth = newAuth()
+                const username = 'nobody@nowhere.example'
+                const password = 'JkrsX89y'
+                await auth.createUser(username, password, true)
+                await auth.sendResetEmail(username)
+                const newPassword = 'H69Xwqwu'
+                const err = await getErrorAsync(() => auth.resetPassword(username, newPassword, 'badkey'))
+                expect(err.name).to.equal('BadCredentialsError')
+            })
+
+            it('should throw BadCredentialsError for expired key', async () => {
+                const auth = newAuth()
+                const username = 'nobody@nowhere.example'
+                const password = 'HGLV5gHT'
+                await auth.createUser(username, password, true)
+                await auth.sendResetEmail(username)
+                const newPassword = '2vy2WM5c'
+                const confirmKey = parseKey(auth.email.impl.lastEmail)
+                // hack expiry setting
+                auth.opts.resetExpiry = -1
+                const err = await getErrorAsync(() => auth.resetPassword(username, newPassword, confirmKey))
+                expect(err.name).to.equal('BadCredentialsError')
+                expect(err.message.toLowerCase()).to.contain('expire')
+            })
+        })
+
+        describe('#changePassword', () => {
+
+            it('should change password and authenticate', async () => {
+                const auth = newAuth()
+                const username = 'nobody@nowhere.example'
+                const password = 'AjD4eEFn'
+                const newPassword = 'mFUHv2we'
+                await auth.createUser(username, password, true)
+                await auth.changePassword(username, password, newPassword)
+                await auth.authenticate(username, newPassword)
+            })
+
+            it('should throw BadCredentialsError for bad old password', async () => {
+                const auth = newAuth()
+                const username = 'nobody@nowhere.example'
+                const password = 'AjD4eEFn'
+                const newPassword = 'mFUHv2we'
+                await auth.createUser(username, password, true)
+                const err = await getErrorAsync(() => auth.changePassword(username, newPassword, newPassword))
+                expect(err.name).to.equal('BadCredentialsError')
             })
         })
     })
