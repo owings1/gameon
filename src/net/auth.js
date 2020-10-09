@@ -74,7 +74,7 @@ class Auth {
                 // Do not reveal non-existence of user
                 throw new BadCredentialsError
             }
-            throw err
+            throw new InternalError(err)
         }
         try {
             if (this.isEncryptedPassword(password)) {
