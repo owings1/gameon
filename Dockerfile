@@ -7,6 +7,8 @@ WORKDIR /usr/local/share/gameon
 RUN chown node:node /usr/local/share/gameon
 RUN cd /usr/local/bin && ln -s $CLICMD gameon
 
+RUN apk --no-cache add python3 build-base
+
 USER node
 
 COPY package.json .

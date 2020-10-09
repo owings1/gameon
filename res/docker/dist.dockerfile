@@ -6,6 +6,8 @@ WORKDIR /app
 
 RUN chown node:node /app
 
+RUN apk --no-cache add python3 build-base
+
 USER node
 
 COPY --chown=node:node . .
