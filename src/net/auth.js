@@ -108,16 +108,15 @@ class Auth {
         const timestamp = Util.timestamp()
         const user = {
             username
-          , password   : this.hashPassword(password)
-          , saltHash   : this.saltHash
-          , confirmed  : !!confirmed
-          , confirmKey : null
+          , password          : this.hashPassword(password)
+          , confirmed         : !!confirmed
+          , confirmKey        : null
           , confirmKeyCreated : null
-          , resetKey   : null
-          , resetKeyCreated : null
-          , locked     : false
-          , created    : timestamp
-          , updated    : timestamp
+          , resetKey          : null
+          , resetKeyCreated   : null
+          , locked            : false
+          , created           : timestamp
+          , updated           : timestamp
         }
         await this.impl.createUser(username, user)
         user.passwordEncrypted = this.encryptPassword(password)
@@ -244,10 +243,10 @@ class Auth {
             throw new BadCredentialsError('Confirm key expired')
         }
         merge(user, {
-            confirmed: true
-          , confirmKey : null
+            confirmed         : true
+          , confirmKey        : null
           , confirmKeyCreated : null
-          , updated : timestamp
+          , updated           : timestamp
         })
         await this.impl.updateUser(username, user)
         this.logger.info('ConfirmUser', {username})
