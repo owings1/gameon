@@ -1,4 +1,4 @@
-const Email   = require('../Email')
+const Email   = require('../email')
 const Logger = require('../../lib/logger')
 const Util   = require('../../lib/util')
 
