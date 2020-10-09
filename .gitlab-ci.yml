@@ -22,6 +22,7 @@ test_dist:
   tags:
     - docker
   before_script:
+    - apk add python3 build-base
     - apk add git p7zip xz curl perl-utils
   script:
     - npm install --unsafe-perm
