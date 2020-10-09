@@ -40,7 +40,7 @@ class Server {
             try {
                 this.httpServer = this.app.listen(port, () => {
                     this.port = this.httpServer.address().port
-                    this.logger.info('Listening on port', this.port)
+                    this.logger.info('Listening on port', this.port, 'with', this.opts.authType, 'auth')
                     try {
                         this.socketServer = this.createSocketServer(this.httpServer)
                         resolve()
@@ -482,10 +482,12 @@ class Server {
             err = new RequestError(err)
         }
         return {
-            isError: true
-            , error: err.message || err.name
-            , name: err.name || err.constructor.name
-            , isRequestError: err.isRequestError
+            isError         : true
+          , error           : err.message || err.name
+          , name            : err.name || err.constructor.name
+          , isRequestError  : err.isRequestError
+          , isAuthError     : err.isAuthError
+          , isInternalError : err.isInternalError
         }
     }
 

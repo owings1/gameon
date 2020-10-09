@@ -33,6 +33,7 @@ class Client {
 
         await new Promise((resolve, reject) => {
             this.socketClient.on('error', reject)
+            this.socketClient.on('connectFailed', reject)
             this.socketClient.on('connect', conn => {
                 this.conn = conn
                 conn.on('error', err => this.logger.error(err))
@@ -42,7 +43,11 @@ class Client {
                 })
                 resolve()
             })
-            this.socketClient.connect(this.serverSocketUrl)
+            try {
+                this.socketClient.connect(this.serverSocketUrl)
+            } catch (err) {
+                reject(err)
+            }
         })
 
         return this.handshake()
@@ -156,8 +161,8 @@ class Client {
 
     static buildError(msg, fallbackMessage) {
         const err = new ClientError(msg.error || fallbackMessage || 'Unknown server error')
-        if (msg.name) {
-            err.name = msg.name
+        for (var k in msg) {
+            err[k] = msg[k]
         }
         return err
     }

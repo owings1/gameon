@@ -431,7 +431,20 @@ class Menu extends Logger {
 
     async runOnlineMatch(opts, isStart) {
         const client = this.newClient(opts.serverUrl, opts.username, this.decryptPassword(opts.password))
-        await client.connect()
+        try {
+            await client.connect()
+        } catch (err) {
+            await client.close()
+            console.error(err.isAuthError)
+            if (err.isAuthError) {
+                this.error('Authentication error, go to Account to sign up or log in.')
+                this.debug(err)
+            } else {
+                this.error(err)
+            }
+            return
+        }
+
         try {
             const promise = isStart ? client.startMatch(opts) : client.joinMatch(opts.matchId)
             const match = await promise
