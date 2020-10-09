@@ -30,6 +30,12 @@ function newRando(...args) {
     return Robot.ConfidenceRobot.getDefaultInstance('RandomRobot', ...args)
 }
 
+// parse key from email
+function parseKey(params) {
+    return params.Message.Body.Text.Data.match(/^Key: (.*)$/)[1]
+}
+
+
 describe('Client', () => {
 
     var serverUrl
@@ -173,10 +179,13 @@ describe('Client', () => {
 describe('Server', () => {
 
     var server
-    var port
     var client
     var client2
 
+    var authDir
+    var authServer
+    var authClient
+    
     async function startMatch() {
         await Promise.all([client.connect(), client2.connect()])
         const res = await client.sendAndWait({action: 'startMatch', total: 1})
@@ -204,12 +213,26 @@ describe('Server', () => {
         client2.logger.loglevel = 1
         client.sendAndWait = sendAndWait
         client2.sendAndWait = sendAndWait
+
+        authDir = tmp.dirSync().name
+        authServer = new Server({
+            authType: 'directory',
+            auth: {dir: authDir}
+        })
+        authServer.logger.loglevel = 1
+        authServer.auth.logger.loglevel = 1
+        await authServer.listen()
+        const authUrl = 'http://localhost:' + authServer.port
+        authClient = new Client(authUrl)
     })
 
     afterEach(async () => {
         await client.close()
         await client2.close()
         server.close()
+
+        await fse.remove(authDir)
+        authServer.close()
     })
 
     describe('#checkMatchFinished', () => {
@@ -585,6 +608,202 @@ describe('Server', () => {
             expect(err.isRequestError).to.equal(true)
         })
     })
+
+    describe('api', () => {
+
+        describe('signup', () => {
+
+            it('should return 201', async () => {
+                const username = 'nobody@nowhere.example'
+                const password = '6pN3pHeZ'
+                const res = await authClient.postJson('/api/v1/signup', {username, password})
+                expect(res.status).to.equal(201)
+            })
+
+            it('should create a user and userExists() = true', async () => {
+                const username = 'nobody@nowhere.example'
+                const password = 'udb2SZbK'
+                await authClient.postJson('/api/v1/signup', {username, password})
+                const res = await authServer.auth.userExists(username)
+                expect(res).to.equal(true)
+            })
+
+            it('should send confirm email', async () => {
+                const username = 'nobody@nowhere.example'
+                const password = 'C98FCQxU'
+                await authClient.postJson('/api/v1/signup', {username, password})
+                expect(authServer.auth.email.impl.lastEmail.Destination.ToAddresses).to.have.length(1).and.to.contain(username)
+            })
+
+            it('should return 400 for bad email', async () => {
+                const username = 'nobody-bad-email'
+                const password = 'EbaD99wa'
+                const res = await authClient.postJson('/api/v1/signup', {username, password})
+                expect(res.status).to.equal(400)
+            })
+
+            it('should have error.name=ValidationError for bad email', async () => {
+                const username = 'nobody-bad-email'
+                const password = 'EbaD99wa'
+                const res = await authClient.postJson('/api/v1/signup', {username, password})
+                const body = await res.json()
+                expect(body.error.name).to.equal('ValidationError')
+            })
+
+            it('should return 400 for bad password', async () => {
+                const username = 'nobody@nowhere.example'
+                const password = 'password'
+                const res = await authClient.postJson('/api/v1/signup', {username, password})
+                expect(res.status).to.equal(400)
+            })
+
+            it('should have error.name=ValidationError for bad email', async () => {
+                const username = 'nobody@nowhere.example'
+                const password = 'password'
+                const res = await authClient.postJson('/api/v1/signup', {username, password})
+                const body = await res.json()
+                expect(body.error.name).to.equal('ValidationError')
+            })
+
+            it('should return 500 when sendConfirmEmail throws', async () => {
+                const username = 'nobody@nowhere.example'
+                const password = 'H6WJmuyZ'
+                authServer.auth.sendConfirmEmail = () => {throw new Error}
+                authServer.logger.loglevel = -1
+                const res = await authClient.postJson('/api/v1/signup', {username, password})
+                expect(res.status).to.equal(500)
+            })
+
+            it('should have error.name=InternalError when sendConfirmEmail rejects', async () => {
+                const username = 'nobody@nowhere.example'
+                const password = 'zQ2EzTRx'
+                authServer.auth.sendConfirmEmail = () => new Promise((resolve, reject) => reject(new Error))
+                authServer.logger.loglevel = -1
+                const res = await authClient.postJson('/api/v1/signup', {username, password})
+                const body = await res.json()
+                expect(body.error.name).to.equal('InternalError')
+            })
+        })
+
+        describe('send-confirm-email', () => {
+
+            it('should return 200 for non existent user', async () => {
+                const username = 'nobody@nowhere.example'
+                authServer.logger.loglevel = 0
+                const res = await authClient.postJson('/api/v1/send-confirm-email', {username})
+                expect(res.status).to.equal(200)
+            })
+
+            it('should return 400 for bad username', async () => {
+                const username = 'bad-username'
+                authServer.logger.loglevel = 0
+                const res = await authClient.postJson('/api/v1/send-confirm-email', {username})
+                expect(res.status).to.equal(400)
+            })
+
+            it('should send email for unconfirmed user', async () => {
+                const username = 'nobody@nowhere.example'
+                const password = 'cbSx6gnx'
+                await authServer.auth.createUser(username, password)
+                const res = await authClient.postJson('/api/v1/send-confirm-email', {username})
+                expect(authServer.auth.email.impl.lastEmail.Destination.ToAddresses).to.have.length(1).and.to.contain(username)
+            })
+        })
+
+        describe('forgot-password', () => {
+
+            it('should return 200 for non existent user', async () => {
+                const username = 'nobody@nowhere.example'
+                authServer.logger.loglevel = 0
+                const res = await authClient.postJson('/api/v1/forgot-password', {username})
+                expect(res.status).to.equal(200)
+            })
+
+            it('should return 400 for bad username', async () => {
+                const username = 'bad-username'
+                authServer.logger.loglevel = 0
+                const res = await authClient.postJson('/api/v1/forgot-password', {username})
+                expect(res.status).to.equal(400)
+            })
+
+            it('should send email for confirmed user', async () => {
+                const username = 'nobody@nowhere.example'
+                const password = 'n2sLvf4b'
+                await authServer.auth.createUser(username, password, true)
+                const res = await authClient.postJson('/api/v1/forgot-password', {username})
+                expect(authServer.auth.email.impl.lastEmail.Destination.ToAddresses).to.have.length(1).and.to.contain(username)
+            })
+        })
+
+        describe('confirm-acount', () => {
+
+            it('should return 200 and confirm user for valid key', async () => {
+                const username = 'nobody@nowhere.example'
+                const password = '5btmHKfG'
+                await authServer.auth.createUser(username, password)
+                await authServer.auth.sendConfirmEmail(username)
+                const confirmKey = parseKey(authServer.auth.email.impl.lastEmail)
+                const res = await authClient.postJson('/api/v1/confirm-account', {username, confirmKey})
+                expect(res.status).to.equal(200)
+                const user = await authServer.auth.readUser(username)
+                expect(user.confirmed).to.equal(true)
+            })
+
+            it('should return 400 for bad username', async () => {
+                const username = 'bad-username'
+                authServer.logger.loglevel = 0
+                const confirmKey = 'whatever'
+                const res = await authClient.postJson('/api/v1/confirm-account', {username, confirmKey})
+                expect(res.status).to.equal(400)
+            })
+        })
+
+        describe('change-password', () => {
+
+            it('should return 200 and authenticate for confirmed user', async () => {
+                const username = 'nobody@nowhere.example'
+                const oldPassword = '2qgN4Cxd'
+                await authServer.auth.createUser(username, oldPassword, true)
+                const newPassword = '8LtMu24j'
+                const res = await authClient.postJson('/api/v1/change-password', {username, oldPassword, newPassword})
+                expect(res.status).to.equal(200)
+                await authServer.auth.authenticate(username, newPassword)
+            })
+
+            it('should return 400 for bad username', async () => {
+                const username = 'bad-username'
+                const oldPassword = '2qgN4Cxd'
+                const newPassword = '8LtMu24j'
+                const res = await authClient.postJson('/api/v1/change-password', {username, oldPassword, newPassword})
+                expect(res.status).to.equal(400)
+            })
+        })
+
+        describe('reset-password', () => {
+
+            it('should return 200 and authenticate for good key', async () => {
+                const username = 'nobody@nowhere.example'
+                const oldPassword = 'nRGJb9rA'
+                await authServer.auth.createUser(username, oldPassword, true)
+                await authServer.auth.sendResetEmail(username)
+                const resetKey = parseKey(authServer.auth.email.impl.lastEmail)
+                const password = 'F86ezYsU'
+                const res = await authClient.postJson('/api/v1/reset-password', {username, password, resetKey})
+                expect(res.status).to.equal(200)
+                await authServer.auth.authenticate(username, password)
+            })
+
+            it('should return 400 for bad key', async () => {
+                const username = 'nobody@nowhere.example'
+                const oldPassword = 'swaU93BL'
+                await authServer.auth.createUser(username, oldPassword, true)
+                const resetKey = 'bad-key'
+                const password = 'Spng4EAC'
+                const res = await authClient.postJson('/api/v1/reset-password', {username, password, resetKey})
+                expect(res.status).to.equal(400)
+            })
+        })
+    })
 })
 
 describe('NetPlayer', () => {
@@ -691,12 +910,6 @@ describe('NetPlayer', () => {
 })
 
 describe('Auth', () => {
-
-
-    // parse key from email
-    function parseKey(params) {
-        return params.Message.Body.Text.Data.match(/^Key: (.*)$/)[1]
-    }
 
     /*
     // method removed

@@ -69,7 +69,7 @@ class Logger {
         obj.error = (...args) => {
             args = args.map(arg => {
                 if (arg instanceof Error) {
-                    if (opts.server) {
+                    if (opts.server && obj.loglevel >= 0) {
                         console.error(arg)
                     }
                     return [arg.name || arg.constructor.name, arg.message].join(': ')

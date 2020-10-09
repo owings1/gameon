@@ -80,7 +80,7 @@ class Server {
         }))
 
         const handleInternalError = (err, res) => {
-            res.status(500).send({status: 500, message: 'Internal Error'})
+            res.status(500).send({status: 500, message: 'Internal Error', error: {name: 'InternalError', message: 'Internal Error'}})
             this.logger.error(err, err.cause)
         }
 
@@ -108,7 +108,7 @@ class Server {
                 res.status(200).send({status: 200, message})
             }).catch(err => {
                 if (err.name == 'UserNotFoundError' || err.name == 'UserConfirmedError') {
-                    this.logger.warn('Invalid send-confirm-email', {username}, err)
+                    this.logger.warn('Invalid send-confirm-email request', {username}, err)
                     res.status(200).send({status: 200, message})
                 } else {
                     handleError(err, res)
@@ -122,11 +122,11 @@ class Server {
             this.auth.sendResetEmail(username).then(() => {
                 res.status(200).send({status: 200, message})
             }).catch(err => {
-                if (err.isAuthError && !err.isInternalError) {
-                    this.logger.warn('Invalid forgot-password request', {username})
-                    res.stats(200).send({status: 200, message})
+                if (err.name == 'UserNotFoundError' || err.name == 'UserNotConfirmedError') {
+                    this.logger.warn('Invalid forgot-password request', {username}, err)
+                    res.status(200).send({status: 200, message})
                 } else {
-                    handleInternalError(err, res)
+                    handleError(err, res)
                 }
             })
         })
