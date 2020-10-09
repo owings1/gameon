@@ -51,7 +51,7 @@ class Menu extends Logger {
               , message : 'Main Menu'
               , type    : 'rawlist'
               , choices : mainChoices
-              , pageSize : 10
+              , pageSize : mainChoices.length + 1
             })
 
             var {mainChoice} = answers
@@ -60,18 +60,42 @@ class Menu extends Logger {
                 break
             }
 
-            if (mainChoice == 'account') {
+            if (mainChoice == 'play') {
+                await this.playMenu()
+            } else if (mainChoice == 'account') {
                 await this.accountMenu()
             } else if (mainChoice == 'settings') {
                 await this.settingsMenu()
-            } else if (mainChoice == 'joinOnline') {
+            } 
+        }
+    }
+
+    async playMenu() {
+
+        while (true) {
+
+            var playChoices = this.getPlayChoices()
+
+            var answers = await this.prompt({
+                name     : 'playChoice'
+              , message  : 'Play'
+              , type     : 'rawlist'
+              , choices  : playChoices
+              , pageSize : playChoices.length + 1
+            })
+
+            var {playChoice} = answers
+
+            if (playChoice == 'quit') {
+                break
+            }
+
+            if (playChoice == 'joinOnline') {
                 await this.joinMenu()
             } else {
-                await this.matchMenu(mainChoice == 'newOnline', mainChoice == 'playRobot', mainChoice == 'watchRobots')
+                await this.matchMenu(playChoice == 'newOnline', playChoice == 'playRobot', playChoice == 'watchRobots')
             }
         }
-
-        await this.saveOpts()
     }
 
     async matchMenu(isOnline, isRobot, isRobots) {
@@ -126,9 +150,9 @@ class Menu extends Logger {
 
             opts[question.name] = answers[question.name]
             opts.total = +opts.total
-        }
 
-        await this.saveOpts()
+            await this.saveOpts()
+        }
     }
 
     async accountMenu() {
@@ -224,12 +248,14 @@ class Menu extends Logger {
                     opts.password = this.encryptPassword(body.passwordEncrypted)
                 } catch (err) {
                     this.error(err)
+                    await this.saveOpts()
                     continue
                 }
                 this.info('Password changed')
             } else if (accountChoice == 'clearCredentials') {
                 opts.username = ''
                 opts.password = ''
+                await this.saveOpts()
                 continue
             } else {
                 var question = accountChoices.find(choice => choice.value == accountChoice).question
@@ -270,9 +296,8 @@ class Menu extends Logger {
                     }
                 }
             }
+            await this.saveOpts()
         }
-
-        await this.saveOpts()
     }
 
     async settingsMenu() {
@@ -307,9 +332,10 @@ class Menu extends Logger {
 
             opts[question.name] = answers[question.name]
             opts.delay = +opts.delay
+
+            await this.saveOpts()
         }
 
-        await this.saveOpts()
     }
 
     async robotConfigsMenu() {
@@ -336,13 +362,12 @@ class Menu extends Logger {
             if (robotChoice == 'reset') {
                 this.opts.robots = {}
                 configs = this.opts.robots
+                await this.saveOpts()
                 continue
             }
 
             await this.configureRobotMenu(robotChoice)
         }
-
-        await this.saveOpts()
     }
 
     async configureRobotMenu(name) {
@@ -369,6 +394,7 @@ class Menu extends Logger {
             if (robotChoice == 'reset') {
                 this.opts.robots[name] = merge({}, ConfidenceRobot.getClassMeta(name).defaults)
                 config = this.opts.robots[name]
+                await this.saveOpts()
                 continue
             }
 
@@ -379,9 +405,9 @@ class Menu extends Logger {
             config[question.name] = answers[question.name]
             config.moveWeight = +config.moveWeight
             config.doubleWeight = +config.doubleWeight
-        }
 
-        await this.saveOpts()
+            await this.saveOpts()
+        }
     }
 
     async joinMenu() {
@@ -436,7 +462,6 @@ class Menu extends Logger {
             await client.connect()
         } catch (err) {
             await client.close()
-            console.error(err.isAuthError)
             if (err.isAuthError) {
                 this.error('Authentication error, go to Account to sign up or log in.')
                 this.debug(err)
@@ -495,6 +520,55 @@ class Menu extends Logger {
         return RobotDelegator.forDefaults(...args)
     }
 
+    getMainChoices() {
+        return Menu.formatChoices([
+            {
+                value : 'play'
+              , name  : 'Play'
+            }
+          , {
+                value : 'account'
+              , name  : 'Account'
+            }
+          , {
+                value : 'settings'
+              , name  : 'Settings'
+            }
+          , {
+                value : 'quit'
+              , name  : 'Quit'
+            }
+        ])
+    }
+
+    getPlayChoices() {
+        return Menu.formatChoices([
+            {
+                value : 'newOnline'
+              , name  : 'Create Online Match'
+            }
+          , {
+                value : 'joinOnline'
+              , name  : 'Join Online Match'
+            }
+          , {
+                value : 'newLocal'
+              , name  : 'Human vs Human'
+            }
+          , {
+                value : 'playRobot'
+              , name  : 'Human vs Robot'
+            }
+          , {
+                value : 'watchRobots'
+              , name  : 'Robot vs Robot'
+            }
+          , {
+                value : 'quit'
+              , name  : 'Back'
+            }
+        ])
+    }
     getMatchChoices(opts, isOnline, isRobot, isRobots) {
         return Menu.formatChoices([
             {
@@ -538,43 +612,6 @@ class Menu extends Logger {
           , {
                 value : 'quit'
               , name  : 'Back'
-            }
-        ])
-    }
-
-    getMainChoices() {
-        return Menu.formatChoices([
-            {
-                value : 'newLocal'
-              , name  : 'New Local Match'
-            }
-          , {
-                value : 'newOnline'
-              , name  : 'Start Online Match'
-            }
-          , {
-                value : 'joinOnline'
-              , name  : 'Join Online Match'
-            }
-          , {
-                value : 'playRobot'
-              , name  : 'Human vs Robot'
-            }
-          , {
-                value : 'watchRobots'
-              , name  : 'Robot vs Robot'
-            }
-          , {
-                value : 'account'
-              , name  : 'Account'
-            }
-          , {
-                value : 'settings'
-              , name  : 'Settings'
-            }
-          , {
-                value : 'quit'
-              , name  : 'Quit'
             }
         ])
     }

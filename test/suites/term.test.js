@@ -163,18 +163,21 @@ describe('Menu', () => {
             await menu.mainMenu()
         })
 
-        it('should go to new local match menu, then come back, then quit', async () => {
+        it('should go to play menu, new local match menu, then come back, then quit', async () => {
             menu.prompt = MockPrompter([
-                {mainChoice: 'newLocal'},
+                {mainChoice: 'play'},
+                {playChoice: 'newLocal'},
                 {matchChoice: 'quit'},
+                {playChoice: 'quit'},
                 {mainChoice: 'quit'}
             ])
             await menu.mainMenu()
         })
 
-        it('should invalidate match id abcd with joinOnline', async () => {
+        it('should invalidate match id abcd with play, joinOnline', async () => {
             menu.prompt = MockPrompter([
-                {mainChoice: 'joinOnline'},
+                {mainChoice: 'play'},
+                {playChoice: 'joinOnline'},
                 {matchId: 'abcd'}
             ])
             const err = await getErrorAsync(() => menu.mainMenu())
