@@ -8,6 +8,19 @@ const {
 
 const Logger = requireSrc('lib/logger')
 
+describe('#getFormatServer', () => {
+
+    it('should include name in message', () => {
+        const res = Logger.getFormatServer('TestLogger')({type: '[info]', msg: 'hello'})
+        expect(res).to.contain('TestLogger')
+    })
+
+    it('should accept blank name', () => {
+        const res = Logger.getFormatServer()({type: '[info]', msg: 'hello'})
+        expect(res).to.contain('hello')
+    })
+})
+
 describe('#error', () => {
 
     // coverage only

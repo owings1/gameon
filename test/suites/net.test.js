@@ -1527,28 +1527,26 @@ describe('Auth', () => {
                     expect(err.name).to.equal('UserNotFoundError')
                 })
 
-                it('should throw InternalError with cause InvalidBucketName when bucket is bad', async () => {
+                it('should throw InvalidBucketName when bucket is bad', async () => {
                     const auth = newAuth()
                     const username = 'bad-bucket@nowhere.example'
                     // hack opts to produce error
                     auth.impl.opts.s3_bucket = '!badbucket'
                     // call on impl for coverage
                     const err = await getErrorAsync(() => auth.impl.deleteUser(username))
-                    expect(err.name).to.equal('InternalError')
-                    expect(err.cause.name).to.equal('InvalidBucketName')
+                    expect(err.name).to.equal('InvalidBucketName')
                 })
             })
 
             describe('#updateUser', () => {
-                it('should throw InternalError with cause InvalidBucketName when bucket is bad', async () => {
+                it('should throw InvalidBucketName when bucket is bad', async () => {
                     const auth = newAuth()
                     const username = 'bad-bucke-update-user@nowhere.example'
                     // hack opts to produce error
                     auth.impl.opts.s3_bucket = '!badbucket'
                     // call on impl for coverage
                     const err = await getErrorAsync(() => auth.impl.updateUser(username, {}))
-                    expect(err.name).to.equal('InternalError')
-                    expect(err.cause.name).to.equal('InvalidBucketName')
+                    expect(err.name).to.equal('InvalidBucketName')
                 })
             })
 

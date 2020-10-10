@@ -101,7 +101,7 @@ class Auth {
     async createUser(username, password, confirmed) {
         this.validateUsername(username)
         username = username.toLowerCase()
-        if (await this.impl.userExists(username)) {
+        if (await this.userExists(username)) {
             throw new UserExistsError('User already exists.')
         }
         this.validatePassword(password)
@@ -118,7 +118,7 @@ class Auth {
           , created           : timestamp
           , updated           : timestamp
         }
-        await this.impl.createUser(username, user)
+        await this.wrapInternalError(() => this.impl.createUser(username, user))
         user.passwordEncrypted = this.encryptPassword(password)
         this.logger.info('CreateUser', {username})
         return user
@@ -127,13 +127,13 @@ class Auth {
     async readUser(username) {
         this.validateUsername(username)
         username = username.toLowerCase()
-        return this.impl.readUser(username)
+        return this.wrapInternalError(() => this.impl.readUser(username))
     }
 
     async userExists(username) {
         this.validateUsername(username)
         username = username.toLowerCase()
-        return this.impl.userExists(username)
+        return this.wrapInternalError(() => this.impl.userExists(username))
     }
 
     // TODO: this is scaffolding -- make scalable
@@ -144,16 +144,18 @@ class Auth {
     async deleteUser(username) {
         this.validateUsername(username)
         username = username.toLowerCase()
-        if (!(await this.impl.userExists(username))) {
+        if (!(await this.userExists(username))) {
             throw new UserNotFoundError('User not found.')
         }
-        await this.impl.deleteUser(username)
+        await this.wrapInternalError(() => this.impl.deleteUser(username))
         this.logger.info('DeleteUser', {username})
     }
 
     // Update Operations
 
     async sendConfirmEmail(username) {
+        this.validateUsername(username)
+        username = username.toLowerCase()
         const user = await this.readUser(username)
         if (user.confirmed) {
             throw new UserConfirmedError
@@ -166,7 +168,7 @@ class Auth {
           , confirmKeyCreated : timestamp
           , updated           : timestamp
         })
-        await this.impl.updateUser(username, user)
+        await this._updateUser(username, user)
         const params = {
             Destination: {
                 ToAddresses: [username]
@@ -194,6 +196,8 @@ class Auth {
 
     async sendResetEmail(username) {
         // TODO: should this block locked accounts?
+        this.validateUsername(username)
+        username = username.toLowerCase()
         const user = await this.readUser(username)
         if (!user.confirmed) {
             throw new UserNotConfirmedError
@@ -205,7 +209,7 @@ class Auth {
           , resetKeyCreated : timestamp
           , updated         : timestamp
         })
-        await this.impl.updateUser(username, user)
+        await this._updateUser(username, user)
         const params = {
             Destination: {
                 ToAddresses: [username]
@@ -248,7 +252,7 @@ class Auth {
           , confirmKeyCreated : null
           , updated           : timestamp
         })
-        await this.impl.updateUser(username, user)
+        await this._updateUser(username, user)
         this.logger.info('ConfirmUser', {username})
     }
 
@@ -270,7 +274,7 @@ class Auth {
           , resetKeyCreated : null
           , updated         : timestamp
         })
-        await this.impl.updateUser(username, user)
+        await this._updateUser(username, user)
         user.passwordEncrypted = this.encryptPassword(password)
         this.logger.info('ResetPassword', {username})
         return user
@@ -288,7 +292,7 @@ class Auth {
             password : this.hashPassword(newPassword)
           , updated  : Util.timestamp()
         })
-        await this.impl.updateUser(username, user)
+        await this._updateUser(username, user)
         user.passwordEncrypted = this.encryptPassword(newPassword)
         this.logger.info('ChangePassword', {username})
         return user
@@ -302,7 +306,7 @@ class Auth {
             locked  : true
           , updated : Util.timestamp()
         })
-        await this.impl.updateUser(username, user)
+        await this._updateUser(username, user)
         this.logger.info('LockUser', {username})
     }
 
@@ -314,7 +318,7 @@ class Auth {
             locked  : false
           , updated : Util.timestamp()
         })
-        await this.impl.updateUser(username, user)
+        await this._updateUser(username, user)
         this.logger.info('UnlockUser', {username})
     }
 
@@ -372,6 +376,21 @@ class Auth {
 
     isEncryptedPassword(password) {
         return password && password.indexOf(EncryptedFlagPrefix) == 0
+    }
+
+    async _updateUser(username, user) {
+        return this.wrapInternalError(() => this.impl.updateUser(username, user))
+    }
+
+    async wrapInternalError(cb) {
+        try {
+            return await cb()
+        } catch (err) {
+            if (!err.isAuthError) {
+                throw new InternalError(err)
+            }
+            throw err
+        }
     }
 }
 

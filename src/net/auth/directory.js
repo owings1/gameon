@@ -2,10 +2,10 @@ const Auth   = require('../auth')
 const Logger = require('../../lib/logger')
 const Util   = require('../../lib/util')
 
-const fs = require('fs')
-const fse = require('fs-extra')
-const {merge} = Util
-const path = require('path')
+const fs        = require('fs')
+const fse       = require('fs-extra')
+const {merge}   = Util
+const path      = require('path')
 const {resolve} = path
 
 const {InternalError}      = Auth.Errors
@@ -41,34 +41,22 @@ class DirectoryAuth {
             if ('ENOENT' == err.code) {
                 throw new UserNotFoundError
             } else {
-                throw new InternalError(err)
+                throw err
             }
         }
         return user
     }
 
     async updateUser(username, user) {
-        try {
-            await fse.writeJson(this._userFile(username), user)
-        } catch (err) {
-            throw new InternalError(err)
-        }
+        await fse.writeJson(this._userFile(username), user)
     }
 
     async deleteUser(username) {
-        try {
-            await fse.remove(this._userFile(username))
-        } catch (err) {
-            throw new InternalError(err)
-        }
+        await fse.remove(this._userFile(username))
     }
 
     async userExists(username) {
-        try {
-            return fse.pathExists(this._userFile(username))
-        } catch (err) {
-            throw new InternalError(err)
-        }
+        return fse.pathExists(this._userFile(username))
     }
 
     async listAllUsers() {

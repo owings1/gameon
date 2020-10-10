@@ -89,6 +89,32 @@ describe('#castToArray', () => {
     })
 })
 
+describe('#chunkArray', () => {
+
+    it('should chunk [1, 2] to [1], [2]', () => {
+        const res = Util.chunkArray([1, 2], 2)
+        expect(JSON.stringify(res)).to.equal(JSON.stringify([[1], [2]]))
+    })
+})
+
+describe('#countDecimalPlaces', () => {
+
+    it('should return 0 for 1', () => {
+        const res = Util.countDecimalPlaces(1)
+        expect(res).to.equal(0)
+    })
+
+    it('should return 1 for 1.1', () => {
+        const res = Util.countDecimalPlaces(1.1)
+        expect(res).to.equal(1)
+    })
+
+    it('should return 2 for 1.11', () => {
+        const res = Util.countDecimalPlaces(1.11)
+        expect(res).to.equal(2)
+    })
+})
+
 describe('#defaults', () => {
 
     it('should return only keys from first param', () => {
@@ -103,6 +129,20 @@ describe('#defaults', () => {
         const opts = {a: 1, b: 3}
         const result = Util.defaults(defaults, opts)
         expect(JSON.stringify(result)).to.equal(JSON.stringify(opts))
+    })
+})
+
+describe('#errMessage', () => {
+
+    it('should return Error message', () => {
+        const msg = 'test message'
+        const res = Util.errMessage(() => {throw new Error(msg)})
+        expect(res).to.equal(msg)
+    })
+
+    it('should return false for no message', () => {
+        const res = Util.errMessage(() => {throw new Error})
+        expect(res).to.equal(false)
     })
 })
 
@@ -147,6 +187,25 @@ describe('#randomElement', () => {
         expect(result).to.equal(undefined)
     })
 })
+
+describe('#roundTo', () => {
+
+    it('should return 1 for 1,undefined', () => {
+        const res = Util.roundTo(1)
+        expect(res).to.equal(1)
+    })
+
+    it('should return 1.11 for 1.111,2', () => {
+        const res = Util.roundTo(1.111, 2)
+        expect(res).to.equal(1.11)
+    })
+
+    it('should return -1.1 for -1.11,1', () => {
+        const res = Util.roundTo(-1.11, 1)
+        expect(res).to.equal(-1.1)
+    })
+})
+
 describe('#sortNumericAsc', () => {
 
     it('should sort [32, 4, 1, 7] to [1, 4, 7, 32]', () => {
@@ -232,6 +291,32 @@ describe('#spreadRanking', () => {
             const result2 = Util.spreadRanking(Util.spreadRanking(result1, true), true)
             expect(JSON.stringify(result1)).to.equal(JSON.stringify(result2))
         })
+    })
+})
+
+describe('#stripLeadingSlash', () => {
+
+    it('should return asdf for asdf', () => {
+        const res = Util.stripLeadingSlash('asdf')
+        expect(res).to.equal('asdf')
+    })
+
+    it('should return asdf for /asdf', () => {
+        const res = Util.stripLeadingSlash('/asdf')
+        expect(res).to.equal('asdf')
+    })
+})
+
+describe('#stripTrailingSlash', () => {
+
+    it('should return asdf for asdf', () => {
+        const res = Util.stripTrailingSlash('asdf')
+        expect(res).to.equal('asdf')
+    })
+
+    it('should return asdf for asdf/', () => {
+        const res = Util.stripTrailingSlash('asdf/')
+        expect(res).to.equal('asdf')
     })
 })
 

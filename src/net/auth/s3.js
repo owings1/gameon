@@ -25,7 +25,7 @@ class S3Auth {
     }
 
     async createUser(username, user) {
-        return this.updateUser(username, user)
+        await this.updateUser(username, user)
     }
 
     async readUser(username) {
@@ -40,7 +40,7 @@ class S3Auth {
             if (err.statusCode == 404) {
                 throw new UserNotFoundError
             } else {
-                throw new InternalError(err)
+                throw err
             }
         }
     }
@@ -52,11 +52,7 @@ class S3Auth {
           , Body        : Buffer.from(JSON.stringify(user, null, 2))
           , ContentType : 'application/json'
         }
-        try {
-            await this.s3.putObject(params).promise()
-        } catch (err) {
-            throw new InternalError(err)
-        }
+        await this.s3.putObject(params).promise()
     }
 
     async deleteUser(username) {
@@ -64,11 +60,7 @@ class S3Auth {
             Bucket : this.opts.s3_bucket
           , Key    : this._userKey(username)   
         }
-        try {
-            await this.s3.deleteObject(params).promise()
-        } catch (err) {
-            throw new InternalError(err)
-        }
+        await this.s3.deleteObject(params).promise()
     }
 
     async userExists(username) {
@@ -82,7 +74,7 @@ class S3Auth {
             if (err.statusCode == 404) {
                 return false
             } else {
-                throw new InternalError(err)
+                throw err
             }
         }
         return true
