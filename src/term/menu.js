@@ -196,14 +196,13 @@ class Menu extends Logger {
                   , passwordConfirmQuestion
                 ])
                 try {
-                    await this.sendSignup(opts.serverUrl, createAnswers.username, createAnswers.password)
+                    var body = await this.sendSignup(opts.serverUrl, createAnswers.username, createAnswers.password)
+                    opts.username = createAnswers.username
+                    opts.password = this.encryptPassword(body.passwordEncrypted)
                 } catch (err) {
                     this.error(err)
                     continue
                 }
-                opts.username = createAnswers.username
-                opts.password = this.encryptPassword(createAnswers.password)
-                
             } else if (accountChoice == 'forgotPassword') {
                 shouldLogin = true
                 var forgotAnswers = await this.prompt(usernameQuestion)
@@ -262,16 +261,21 @@ class Menu extends Logger {
 
                 answers = await this.prompt(question)
                 shouldLogin = answers[question.name] != opts[question.name]
-                opts[question.name] = answers[question.name]
+                if (question.name == 'password') {
+                    opts[question.name] = this.encryptPassword(answers[question.name])
+                } else {
+                    opts[question.name] = answers[question.name]
+                }
+                
             }
 
             shouldLogin = shouldLogin && opts.username && opts.password && opts.serverUrl
 
             if (shouldLogin) {
-                var password = (question && question.name == 'password') ? opts.password : this.decryptPassword(opts.password)
+                //var password = (question && question.name == 'password') ? opts.password : this.decryptPassword(opts.password)
                 try {
                     this.info('Logging into', opts.serverUrl)
-                    var res = await this.testCredentials(opts.serverUrl, opts.username, password)
+                    var res = await this.testCredentials(opts.serverUrl, opts.username, this.decryptPassword(opts.password))
                     this.info(chalk.bold.green('Login succeeded.'))
                     opts.password = this.encryptPassword(res.passwordEncrypted)
                 } catch (err) {
@@ -296,6 +300,7 @@ class Menu extends Logger {
                     }
                 }
             }
+
             await this.saveOpts()
         }
     }
@@ -894,20 +899,24 @@ class Menu extends Logger {
         const client = this.newClient(serverUrl)
         const data = {username, password}
         const res = await client.postJson('/api/v1/signup', data)
+        const body = await res.json()
         if (!res.ok) {
-            const body = await res.json()
+            this.warn(body)
             throw new Error('Signup failed', {status: res.status, ...body})
         }
+        return body
     }
 
     async sendConfirmKey(serverUrl, username, confirmKey) {
         const client = this.newClient(serverUrl)
         const data = {username, confirmKey}
         const res = await client.postJson('/api/v1/confirm-account', data)
+        const body = await res.json()
         if (!res.ok) {
-            const body = await res.json()
+            this.warn(body)
             throw new Error('Confirm failed', {status: res.status, ...body})
         }
+        return body
     }
 
     async sendForgotPassword(serverUrl, username) {
@@ -916,6 +925,7 @@ class Menu extends Logger {
         const res = await client.postJson('/api/v1/forgot-password', data)
         if (!res.ok) {
             const body = await res.json()
+            this.warn(body)
             throw new Error('Request failed', {status: res.status, ...body})
         }
     }
@@ -926,6 +936,7 @@ class Menu extends Logger {
         const res = await client.postJson('/api/v1/reset-password', data)
         const body = await res.json()
         if (!res.ok) {
+            this.warn(body)
             throw new Error('Request failed', {status: res.status, ...body})
         }
         return body
@@ -937,6 +948,7 @@ class Menu extends Logger {
         const res = await client.postJson('/api/v1/change-password', data)
         const body = await res.json()
         if (!res.ok) {
+            this.warn(body)
             throw new Error('Change password failed', {status: res.status, ...body})
         }
         return body

@@ -4,6 +4,7 @@ const {
     getError,
     getErrorAsync,
     makeRandomMoves,
+    parseKey,
     randomElement,
     requireSrc,
     States
@@ -29,12 +30,6 @@ const tmp = require('tmp')
 function newRando(...args) {
     return Robot.ConfidenceRobot.getDefaultInstance('RandomRobot', ...args)
 }
-
-// parse key from email
-function parseKey(params) {
-    return params.Message.Body.Text.Data.match(/^Key: (.*)$/)[1]
-}
-
 
 describe('Client', () => {
 

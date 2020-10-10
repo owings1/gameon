@@ -72,10 +72,12 @@ class Server {
         app.use(audit({
             logger : this.logger
           , request : {
-                excludeBody: ['*']
+                excludeBody    : ['*']
+              , excludeHeaders : ['*']
             }
           , response : {
-                excludeBody: ['*']
+                excludeBody    : ['*']
+              , excludeHeaders : ['*']
             }
         }))
 
@@ -96,7 +98,11 @@ class Server {
             const {username, password} = req.body
             this.auth.createUser(username, password).then(user => {
                 this.auth.sendConfirmEmail(username).then(() => {
-                    res.status(201).send({status: 201, message: 'Account created, check your email to confirm.'})
+                    res.status(201).send({
+                        status: 201
+                      , message: 'Account created, check your email to confirm.'
+                      , passwordEncrypted: user.passwordEncrypted
+                    })
                 }).catch(err => handleInternalError(err, res))
             }).catch(err => handleError(err, res))
         })

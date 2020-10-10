@@ -67,6 +67,11 @@ function makeRandomMoves(turn, isFinish) {
     return turn
 }
 
+// parse key from email
+function parseKey(params) {
+    return params.Message.Body.Text.Data.match(/^Key: (.*)$/)[1]
+}
+
 function MockPrompter(responses, isSkipAssertAsked, isSkipAssertAnswered, isSkipAssertValid) {
 
     const isAssertAsked = !isSkipAssertAsked
@@ -100,7 +105,7 @@ function MockPrompter(responses, isSkipAssertAsked, isSkipAssertAnswered, isSkip
                             value = response[opt]
                         }
                         if ('validate' in question) {
-                            const valid = question.validate(value)
+                            const valid = question.validate(value, answers)
                             if (valid !== true) {
                                 alerts.push(
                                     "Validation failed for " + opt + ": " + valid
@@ -160,6 +165,7 @@ module.exports = {
     getError,
     getErrorAsync,
     makeRandomMoves,
+    parseKey,
     randomElement,
     requireSrc,
     tmpDir,

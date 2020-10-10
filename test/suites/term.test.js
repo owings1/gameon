@@ -4,6 +4,7 @@ const {
     getError,
     getErrorAsync,
     makeRandomMoves,
+    parseKey,
     randomElement,
     requireSrc,
     MockPrompter,
@@ -12,8 +13,9 @@ const {
     States
 } = TestUtil
 
+const fs  = require('fs')
 const fse = require('fs-extra')
-const fs = require('fs')
+const tmp = require('tmp')
 
 const Menu        = requireSrc('term/menu')
 const Draw        = requireSrc('term/draw')
@@ -22,6 +24,7 @@ const TermPlayer  = requireSrc('term/player')
 const Core        = requireSrc('lib/core')
 const Coordinator = requireSrc('lib/coordinator')
 const Robot       = requireSrc('robot/player')
+const Server      = requireSrc('net/server')
 
 const {White, Red, Match, Game, Board, Turn} = Core
 
@@ -92,6 +95,7 @@ describe('Menu', () => {
 
     beforeEach(() => {
         menu = new Menu
+        menu.loglevel = 1
     })
 
     describe('#getDefaultOpts', () => {
@@ -192,6 +196,15 @@ describe('Menu', () => {
             ])
             await menu.mainMenu()
         })
+
+        it('should go to account menu then quit', async () => {
+            menu.prompt = MockPrompter([
+                {mainChoice: 'account'},
+                {accountChoice: 'done'},
+                {mainChoice: 'quit'}
+            ])
+            await menu.mainMenu()
+        })
     })
 
     describe('#matchMenu', () => {
@@ -285,6 +298,120 @@ describe('Menu', () => {
             menu.playLocalMatch = () => isCalled = true
             await menu.matchMenu()
             expect(isCalled).to.equal(true)
+        })
+    })
+
+    describe('#accountMenu', () => {
+
+        var authDir
+        var server
+
+        beforeEach(async () => {
+            authDir = tmp.dirSync().name
+            server = new Server({
+                authType: 'directory',
+                auth: {dir: authDir}
+            })
+            server.logger.loglevel = 0
+            server.auth.logger.loglevel = 0
+            menu.loglevel = 0
+            await server.listen()
+            menu.opts.serverUrl = 'http://localhost:' + server.port
+        })
+
+        afterEach(async () => {
+            server.close()
+            await fse.remove(authDir)
+        })
+
+        it('should sign up, log in and confirm user', async () => {
+            const username = 'nobody@nowhere.example'
+            const password = '9Axf5kAR'
+            //server.logger.loglevel = 4
+            menu.prompt = MockPrompter([
+                {accountChoice: 'createAccount'},
+                {username, password, passwordConfirm: password},
+                {key: () => parseKey(server.auth.email.impl.lastEmail)},
+                {accountChoice: 'done'}
+            ])
+            await menu.accountMenu()
+            const user = await server.auth.readUser(username)
+            expect(user.confirmed).to.equal(true)
+        })
+
+        it('should send forget password and reset for confirmed user', async () => {
+            const username = 'nobody@nowhere.example'
+            const oldPassword = '2q2y9K7V'
+            const password = '8QwuU68W'
+            await server.auth.createUser(username, oldPassword, true)
+            menu.prompt = MockPrompter([
+                {accountChoice: 'forgotPassword'},
+                {username},
+                {resetKey: () => parseKey(server.auth.email.impl.lastEmail), password, passwordConfirm: password},
+                {accountChoice: 'done'}
+            ])
+            await menu.accountMenu()
+            await server.auth.authenticate(username, password)
+        })
+
+        it('should change password and authenticate', async () => {
+            const username = 'nobody@nowhere.example'
+            const oldPassword = '9YWS8b8F'
+            const password = '37GbrWAZ'
+            await server.auth.createUser(username, oldPassword, true)
+            menu.opts.username = username
+            menu.prompt = MockPrompter([
+                {accountChoice: 'changePassword'},
+                {oldPassword, password, passwordConfirm: password},
+                {accountChoice: 'done'}
+            ])
+            await menu.accountMenu()
+            await server.auth.authenticate(username, password)
+        })
+
+        it('should clear credentials', async () => {
+            menu.opts.username = 'nobody@nowhere.example'
+            menu.opts.password = menu.encryptPassword('qN3zUpVh')
+            menu.prompt = MockPrompter([
+                {accountChoice: 'clearCredentials'},
+                {accountChoice: 'done'}
+            ])
+            await menu.accountMenu()
+            expect(!!menu.opts.username).to.equal(false)
+            expect(!!menu.opts.password).to.equal(false)
+        })
+
+        it('should change username', async () => {
+            const username = 'nobody@nowhere.example'
+            menu.prompt = MockPrompter([
+                {accountChoice: 'username'},
+                {username},
+                {accountChoice: 'done'}
+            ])
+            await menu.accountMenu()
+            expect(menu.opts.username).to.equal(username)
+        })
+
+        it('should change and encrypt password', async () => {
+            const password = '6yahTQ8H'
+            menu.prompt = MockPrompter([
+                {accountChoice: 'password'},
+                {password},
+                {accountChoice: 'done'}
+            ])
+            await menu.accountMenu()
+            expect(menu.decryptPassword(menu.opts.password)).to.equal(password)
+        })
+
+        it('should change serverUrl', async () => {
+            const serverUrl = 'http://nowhere.example'
+            menu.prompt = MockPrompter([
+                {accountChoice: 'serverUrl'},
+                {serverUrl},
+                {accountChoice: 'done'}
+            ])
+            await menu.accountMenu()
+            expect(menu.opts.serverUrl).to.equal(serverUrl)
         })
     })
 
