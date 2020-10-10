@@ -415,6 +415,85 @@ describe('Menu', () => {
         })
     })
 
+    describe('#settingsMenu', () => {
+
+        it('should set serverUrl then done', async () => {
+            menu.prompt = MockPrompter([
+                {settingChoice: 'serverUrl'},
+                {serverUrl: 'ws://localhost:8811'},
+                {settingChoice: 'done'}
+            ])
+            await menu.settingsMenu()
+            expect(menu.opts.serverUrl).to.equal('ws://localhost:8811')
+        })
+
+        it('should set robot delay to 4 then done', async () => {
+            menu.prompt = MockPrompter([
+                {settingChoice: 'delay'},
+                {delay: '4'},
+                {settingChoice: 'done'}
+            ])
+            await menu.settingsMenu()
+            expect(menu.opts.delay).to.equal(4)
+        })
+
+        it('should invalidate robot delay foo', async () => {
+            menu.prompt = MockPrompter([
+                {settingChoice: 'delay'},
+                {delay: 'foo'},
+                {settingChoice: 'done'}
+            ])
+            const err = await getErrorAsync(() => menu.settingsMenu())
+            expect(err.message).to.contain('Validation failed for delay')
+        })
+    })
+
+    describe('#robotConfigsMenu', () => {
+
+        it('should run and done', async () => {
+            menu.prompt = MockPrompter([
+                {robotChoice: 'done'}
+            ])
+            await menu.robotConfigsMenu()
+        })
+
+        it('should reset config, select RandomRobot and done', async () => {
+            menu.prompt = MockPrompter([
+                {robotChoice: 'reset'},
+                {robotChoice: 'RandomRobot'},
+                {robotChoice: 'done'},
+                {robotChoice: 'done'}
+            ])
+            await menu.robotConfigsMenu()
+        })
+
+        it('should set RandomRobot moveWeight to 1', async () => {
+            menu.prompt = MockPrompter([
+                {robotChoice: 'RandomRobot'},
+                {robotChoice: 'moveWeight'},
+                {moveWeight: 1},
+                {robotChoice: 'done'},
+                {robotChoice: 'done'}
+            ])
+            await menu.robotConfigsMenu()
+            expect(menu.opts.robots.RandomRobot.moveWeight).to.equal(1)
+        })
+
+        it('should set RandomRobot moveWeight to 1 then reset', async () => {
+            const defaults = Robot.ConfidenceRobot.getClassMeta('RandomRobot').defaults
+            menu.prompt = MockPrompter([
+                {robotChoice: 'RandomRobot'},
+                {robotChoice: 'moveWeight'},
+                {moveWeight: 1},
+                {robotChoice: 'reset'},
+                {robotChoice: 'done'},
+                {robotChoice: 'done'}
+            ])
+            await menu.robotConfigsMenu()
+            expect(menu.opts.robots.RandomRobot.moveWeight).to.equal(defaults.moveWeight)
+        })
+    })
+
     describe('#newClient', () => {
 
         it('should return new client', () => {
@@ -511,39 +590,6 @@ describe('Menu', () => {
             inquirer.prompt = questions => q = questions
             menu.prompt()
             expect(Array.isArray(q)).to.equal(true)
-        })
-    })
-
-    describe('#settingsMenu', () => {
-
-        it('should set serverUrl then done', async () => {
-            menu.prompt = MockPrompter([
-                {settingChoice: 'serverUrl'},
-                {serverUrl: 'ws://localhost:8811'},
-                {settingChoice: 'done'}
-            ])
-            await menu.settingsMenu()
-            expect(menu.opts.serverUrl).to.equal('ws://localhost:8811')
-        })
-
-        it('should set robot delay to 4 then done', async () => {
-            menu.prompt = MockPrompter([
-                {settingChoice: 'delay'},
-                {delay: '4'},
-                {settingChoice: 'done'}
-            ])
-            await menu.settingsMenu()
-            expect(menu.opts.delay).to.equal(4)
-        })
-
-        it('should invalidate robot delay foo', async () => {
-            menu.prompt = MockPrompter([
-                {settingChoice: 'delay'},
-                {delay: 'foo'},
-                {settingChoice: 'done'}
-            ])
-            const err = await getErrorAsync(() => menu.settingsMenu())
-            expect(err.message).to.contain('Validation failed for delay')
         })
     })
 

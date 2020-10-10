@@ -377,7 +377,7 @@ class Menu extends Logger {
 
     async configureRobotMenu(name) {
 
-        var config = this.opts.robots[name]
+        var config = this.opts.robots[name] || ConfidenceRobot.getClassMeta(name).defaults
 
         while (true) {
 
@@ -574,6 +574,7 @@ class Menu extends Logger {
             }
         ])
     }
+
     getMatchChoices(opts, isOnline, isRobot, isRobots) {
         return Menu.formatChoices([
             {
@@ -619,6 +620,17 @@ class Menu extends Logger {
               , name  : 'Back'
             }
         ])
+    }
+
+    getJoinQuestions(opts) {
+        return [
+            {
+                name     : 'matchId'
+              , message  : 'Match ID'
+              , type     : 'input'
+              , validate : value => !value || value.length == 8 || 'Invalid match ID format'
+            }
+        ]
     }
 
     getAccountChoices(opts) {
@@ -757,17 +769,6 @@ class Menu extends Logger {
               , when  : () => opts.isCustomRobot
             }
         ])
-    }
-
-    getJoinQuestions(opts) {
-        return [
-            {
-                name     : 'matchId'
-              , message  : 'Match ID'
-              , type     : 'input'
-              , validate : value => !value || value.length == 8 || 'Invalid match ID format'
-            }
-        ]
     }
 
     getRobotConfigsChoices(configs) {
