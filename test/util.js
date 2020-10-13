@@ -95,6 +95,9 @@ function MockPrompter(responses, isSkipAssertAsked, isSkipAssertAnswered, isSkip
                 const alerts = []
 
                 questions.forEach(question => {
+                    if (question.when && !question.when(answers)) {
+                        return
+                    }
                     const opt = question.name
                     delete unasked[opt]
                     if (opt in response) {

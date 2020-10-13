@@ -93,9 +93,23 @@ describe('Menu', () => {
     var player
     var menu
 
-    beforeEach(() => {
+    var authDir
+    var server
+
+    beforeEach(async () => {
+        authDir = tmp.dirSync().name
+        server = new Server({
+            authType: 'directory',
+            auth: {dir: authDir}
+        })
+        server.logger.loglevel = 0
+        server.auth.logger.loglevel = 0
         menu = new Menu
         menu.loglevel = 1
+    })
+
+    afterEach(async () => {
+        await fse.remove(authDir)
     })
 
     describe('#getDefaultOpts', () => {
@@ -178,16 +192,6 @@ describe('Menu', () => {
             await menu.mainMenu()
         })
 
-        it('should invalidate match id abcd with play, joinOnline', async () => {
-            menu.prompt = MockPrompter([
-                {mainChoice: 'play'},
-                {playChoice: 'joinOnline'},
-                {matchId: 'abcd'}
-            ])
-            const err = await getErrorAsync(() => menu.mainMenu())
-            expect(err.message).to.contain('Validation failed for matchId')
-        })
-
         it('should go to settings menu then done then quit', async () => {
             menu.prompt = MockPrompter([
                 {mainChoice: 'settings'},
@@ -205,6 +209,20 @@ describe('Menu', () => {
             ])
             await menu.mainMenu()
         })
+    })
+
+    describe('#playMenu', () => {
+
+        it('should invalidate match id abcd with joinOnline, then quit', async () => {
+            menu.prompt = MockPrompter([
+                {playChoice: 'joinOnline'},
+                {matchId: 'abcd'},
+                {playChoice: 'quit'}
+            ])
+            await menu.playMenu()
+        })
+
+        it('should warn when joinOnline throws BadCredentialsError')
     })
 
     describe('#matchMenu', () => {
@@ -303,25 +321,13 @@ describe('Menu', () => {
 
     describe('#accountMenu', () => {
 
-        var authDir
-        var server
-
         beforeEach(async () => {
-            authDir = tmp.dirSync().name
-            server = new Server({
-                authType: 'directory',
-                auth: {dir: authDir}
-            })
-            server.logger.loglevel = 0
-            server.auth.logger.loglevel = 0
-            menu.loglevel = 0
             await server.listen()
             menu.opts.serverUrl = 'http://localhost:' + server.port
         })
 
         afterEach(async () => {
             server.close()
-            await fse.remove(authDir)
         })
 
         it('should sign up, log in and confirm user', async () => {
@@ -413,6 +419,84 @@ describe('Menu', () => {
             await menu.accountMenu()
             expect(menu.opts.serverUrl).to.equal(serverUrl)
         })
+
+        it('should prompt forgot password then done when key not entered', async () => {
+            const username = 'nobody@nowhere.example'
+            const password = 'd4PUxRs2'
+            await server.auth.createUser(username, password, true)
+            menu.prompt = MockPrompter([
+                {accountChoice: 'forgotPassword'},
+                {username},
+                {resetKey: ''},
+                {accountChoice: 'done'}
+            ])
+            await menu.accountMenu()
+        })
+
+        it('should log error and done when promptForgotPassword throws', async () => {
+            var err
+            menu.error = e => err = e
+            menu.promptForgotPassword = () => { throw new Error }
+            const username = 'nobody@nowhere.example'
+            const password = 'd4PUxRs2'
+            await server.auth.createUser(username, password, true)
+            menu.prompt = MockPrompter([
+                {accountChoice: 'forgotPassword'},
+                {accountChoice: 'done'}
+            ])
+            await menu.accountMenu()
+            expect(!!err).to.equal(true)
+        })
+
+        it('should log error and done when password entered and login fails', async () => {
+            var err
+            menu.error = e => err = e
+            menu.opts.username = 'nobody2@nowhere.example'
+            const password = 'JUzrDc5k'
+            menu.prompt = MockPrompter([
+                {accountChoice: 'password'},
+                {password},
+                {accountChoice: 'done'}
+            ])
+            await menu.accountMenu()
+            expect(!!err).to.equal(true)
+        })
+
+        it('should unset password and log error then done on incorrect password for change-password', async () => {
+            var err
+            menu.error = e => err = e
+            const username = 'nobody@nowhere.example'
+            const oldPassword = 'C7pUaA3c'
+            const badPassword = 'etzF4Y8L'
+            const password = 'fVvqK99g'
+            await server.auth.createUser(username, oldPassword, true)
+            menu.opts.username = username
+            menu.opts.password = menu.encryptPassword(oldPassword)
+            menu.prompt = MockPrompter([
+                {accountChoice: 'changePassword'},
+                {oldPassword: badPassword, password, passwordConfirm: password},
+                {accountChoice: 'done'}
+            ])
+            await menu.accountMenu()
+            expect(!!menu.opts.password).to.equal(false)
+            expect(!!err).to.equal(true)
+        })
+
+        describe('#doLogin', () => {
+            it('should unset password and throw cause BadCredentialsError for bad confirmKey', async () => {
+                menu.loglevel = 0
+                const username = 'nobody@nowhere.example'
+                const password = 'r2tW5aUn'
+                const confirmKey = 'bad-confirm-key'
+                menu.opts.username = username
+                menu.opts.password = menu.encryptPassword(password)
+                await server.auth.createUser(username, password)
+                menu.prompt = MockPrompter([{key: confirmKey}])
+                const err = await getErrorAsync(() => menu.doLogin())
+                expect(!!menu.opts.password).to.equal(false)
+                expect(err.cause.name).to.equal('BadCredentialsError')
+            })
+        })
     })
 
     describe('#settingsMenu', () => {
@@ -445,6 +529,15 @@ describe('Menu', () => {
             ])
             const err = await getErrorAsync(() => menu.settingsMenu())
             expect(err.message).to.contain('Validation failed for delay')
+        })
+
+        it('should go to robotConfgs then done', async () => {
+            menu.prompt = MockPrompter([
+                {settingChoice: 'robotConfigs'},
+                {robotChoice: 'done'},
+                {settingChoice: 'done'}
+            ])
+            await menu.settingsMenu()
         })
     })
 
@@ -491,6 +584,22 @@ describe('Menu', () => {
             ])
             await menu.robotConfigsMenu()
             expect(menu.opts.robots.RandomRobot.moveWeight).to.equal(defaults.moveWeight)
+        })
+
+        it('should set RandomRobot version to v2', async () => {
+            menu.prompt = MockPrompter([
+                {robotChoice: 'RandomRobot'},
+                {robotChoice: 'version'},
+                {version: 'v2'},
+                {robotChoice: 'done'},
+                {robotChoice: 'done'}
+            ])
+            await menu.robotConfigsMenu()
+            expect(menu.opts.robots.RandomRobot.version).to.equal('v2')
+            // call .choices() for coverage
+            const question = menu.getConfigureRobotChoices('RandomRobot', menu.opts.robots.RandomRobot).find(it => it.value == 'version').question
+            const choices = question.choices()
+            expect(choices).to.contain('v2')
         })
     })
 
@@ -593,6 +702,20 @@ describe('Menu', () => {
         })
     })
 
+    describe('#runOnlineMatch', () => {
+
+        beforeEach(async () => {
+            await server.listen()
+            menu.opts.serverUrl = 'http://localhost:' + server.port
+        })
+
+        afterEach(async () => {
+            server.close()
+        })
+
+        it('should ')
+    })
+
     describe('#saveOpts', () => {
 
         it('should write default opts', async () => {
@@ -604,6 +727,7 @@ describe('Menu', () => {
             expect(JSON.stringify(result)).to.equal(JSON.stringify(opts))
         })
     })
+
     describe('#startOnlineMatch', () => {
 
         it('should get call runMatch with mock method and mock client', async () => {
