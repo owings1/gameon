@@ -90,10 +90,22 @@ class Menu extends Logger {
                 break
             }
 
-            if (playChoice == 'joinOnline') {
-                await this.joinMenu()
-            } else {
-                await this.matchMenu(playChoice == 'newOnline', playChoice == 'playRobot', playChoice == 'watchRobots')
+            try {
+                if (playChoice == 'joinOnline') {
+                    await this.joinMenu()
+                } else {
+                    await this.matchMenu(playChoice == 'newOnline', playChoice == 'playRobot', playChoice == 'watchRobots')
+                }
+            } catch (err) {
+                this.debug(err)
+                if (err.name == 'MatchCanceledError') {
+                    this.warn('The match was canceled', '-', err.message)
+                } else if (err.isAuthError) {
+                    this.warn(err)
+                    this.error('Authentication error, go to Account to sign up or log in.')   
+                } else {
+                    this.error(err)
+                }
             }
         }
     }
@@ -177,84 +189,40 @@ class Menu extends Logger {
                 break
             }
 
+            
             var shouldLogin = false
 
-            var usernameQuestion = accountChoices.find(choice => choice.value == 'username').question
-            var passwordQuestion = accountChoices.find(choice => choice.value == 'password').question
-            var passwordConfirmQuestion = {
-                name    : 'passwordConfirm'
-              , message : 'Confirm password'
-              , type    : 'password'
-              , validate : (value, answers) => value == answers.password || 'Passwords do not match'
-            }
-            
-            if (accountChoice == 'createAccount') {
+            var isLoginChoice = ['createAccount', 'forgotPassword', 'changePassword'].indexOf(accountChoice) > -1
+            if (isLoginChoice) {
                 shouldLogin = true
-                var createAnswers = await this.prompt([
-                    usernameQuestion
-                  , passwordQuestion
-                  , passwordConfirmQuestion
-                ])
                 try {
-                    var body = await this.sendSignup(opts.serverUrl, createAnswers.username, createAnswers.password)
-                    opts.username = createAnswers.username
-                    opts.password = this.encryptPassword(body.passwordEncrypted)
-                } catch (err) {
-                    this.error(err)
-                    continue
-                }
-            } else if (accountChoice == 'forgotPassword') {
-                shouldLogin = true
-                var forgotAnswers = await this.prompt(usernameQuestion)
-                try {
-                    await this.sendForgotPassword(opts.serverUrl, forgotAnswers.username)
-                } catch (err) {
-                    this.error(err)
-                    continue
-                }
-                opts.username = forgotAnswers.username
-                this.info('Reset key sent, check email')
-                var resetAnswers = await this.prompt([
-                    {
-                        name    : 'resetKey'
-                      , message : 'Reset Key'
-                      , type    : 'input'
+                    if (accountChoice == 'createAccount') {
+                        await this.promptCreateAccount()
+                        this.info('Account created')
+                    } else if (accountChoice == 'forgotPassword') {
+                        try {
+                            await this.promptForgotPassword()
+                        } catch (err) {
+                            if (err.name == 'ResetKeyNotEnteredError') {
+                                continue
+                            } else {
+                                throw err
+                            }
+                        }
+                        this.info('Password reset')
+                    } else if (accountChoice == 'changePassword') {
+                        await this.promptChangePassword()
+                        this.info('Password changed')
                     }
-                  , merge({}, passwordQuestion, {when: answers => answers.resetKey})
-                  , merge({}, passwordConfirmQuestion, {when: answers => answers.resetKey})
-                ])
-                if (!resetAnswers.resetKey) {
-                    continue
-                }
-                try {
-                    var body = await this.sendResetPassword(opts.serverUrl, opts.username, resetAnswers.password, resetAnswers.resetKey)
-                    opts.password = this.encryptPassword(body.passwordEncrypted)
                 } catch (err) {
                     this.error(err)
                     continue
                 }
-                this.info('Password reset')
-            } else if (accountChoice == 'changePassword') {
-                shouldLogin = true
-                opts.password = ''
-                var changeAnswers = await this.prompt([
-                    merge({}, passwordQuestion, {name: 'oldPassword', message: 'Current password'})
-                  , merge({}, passwordQuestion, {message: 'New password'})
-                  , passwordConfirmQuestion
-                ])
-                try {
-                    var body = await this.sendChangePassword(opts.serverUrl, opts.username, changeAnswers.oldPassword, changeAnswers.password)
-                    opts.password = this.encryptPassword(body.passwordEncrypted)
-                } catch (err) {
-                    this.error(err)
-                    await this.saveOpts()
-                    continue
-                }
-                this.info('Password changed')
             } else if (accountChoice == 'clearCredentials') {
                 opts.username = ''
                 opts.password = ''
                 await this.saveOpts()
+                this.info('Credentials cleared')
                 continue
             } else {
                 var question = accountChoices.find(choice => choice.value == accountChoice).question
@@ -266,41 +234,112 @@ class Menu extends Logger {
                 } else {
                     opts[question.name] = answers[question.name]
                 }
-                
             }
 
-            shouldLogin = shouldLogin && opts.username && opts.password && opts.serverUrl
+            shouldLogin = opts.username && opts.password && opts.serverUrl && shouldLogin
 
             if (shouldLogin) {
-                //var password = (question && question.name == 'password') ? opts.password : this.decryptPassword(opts.password)
                 try {
-                    this.info('Logging into', opts.serverUrl)
-                    var res = await this.testCredentials(opts.serverUrl, opts.username, this.decryptPassword(opts.password))
-                    this.info(chalk.bold.green('Login succeeded.'))
-                    opts.password = this.encryptPassword(res.passwordEncrypted)
+                    await this.doLogin()
                 } catch (err) {
-                    if (err.name == 'UserNotConfirmedError') {
-                        this.info('You must confirm your account. Check your email.')
-                        var confirmAnswers = await this.prompt({
-                            name    : 'key'
-                          , type    : 'input'
-                          , message : 'Enter confirm key'
-                        })
-                        try {
-                            await this.sendConfirmKey(opts.serverUrl, opts.username, confirmAnswers.key)
-                            this.info(chalk.bold.green('Login succeeded.'))
-                        } catch (err) {
-                            opts.password = ''
-                            this.error(err)
-                        }
-                    } else {
-                        opts.password = ''
-                        this.error(err)
-                        this.warn('Login failed', err)
-                    }
+                    this.error(err)
+                    this.warn('Login failed', err)
                 }
             }
 
+            await this.saveOpts()
+        }
+    }
+
+    async promptCreateAccount() {
+
+        const {opts} = this
+
+        const createAnswers = await this.prompt([
+            this.getUsernameQuestion()
+          , this.getPasswordQuestion()
+          , this.getPasswordConfirmQuestion()
+        ])
+        const body = await this.sendSignup(opts.serverUrl, createAnswers.username, createAnswers.password)
+        opts.username = createAnswers.username
+        opts.password = this.encryptPassword(body.passwordEncrypted)
+    }
+
+    async promptForgotPassword() {
+
+        const {opts} = this
+
+        const forgotAnswers = await this.prompt(this.getUsernameQuestion())
+
+        await this.sendForgotPassword(opts.serverUrl, forgotAnswers.username)
+        opts.username = forgotAnswers.username
+
+        this.info('Reset key sent, check email')
+
+        const resetAnswers = await this.prompt([
+            {
+                name    : 'resetKey'
+              , message : 'Reset Key'
+              , type    : 'input'
+            }
+          , merge({}, this.getPasswordQuestion(), {when: answers => answers.resetKey})
+          , merge({}, this.getPasswordConfirmQuestion(), {when: answers => answers.resetKey})
+        ])
+        if (!resetAnswers.resetKey) {
+            throw new ResetKeyNotEnteredError
+        }
+
+        const body = await this.sendResetPassword(opts.serverUrl, opts.username, resetAnswers.password, resetAnswers.resetKey)
+        opts.password = this.encryptPassword(body.passwordEncrypted)
+    }
+
+    async promptChangePassword() {
+
+        const {opts} = this
+
+        opts.password = ''
+        const changeAnswers = await this.prompt([
+            merge({}, this.getPasswordQuestion(), {name: 'oldPassword', message: 'Current password'})
+          , merge({}, this.getPasswordQuestion(), {message: 'New password'})
+          , this.getPasswordConfirmQuestion()
+        ])
+        try {
+            const body = await this.sendChangePassword(opts.serverUrl, opts.username, changeAnswers.oldPassword, changeAnswers.password)
+            opts.password = this.encryptPassword(body.passwordEncrypted)
+        } catch (err) {
+            opts.password = ''
+            await this.saveOpts()
+            throw err
+        }
+    }
+
+    async doLogin() {
+        const {opts} = this
+        try {
+            this.info('Logging into', opts.serverUrl)
+            const body = await this.testCredentials(opts.serverUrl, opts.username, this.decryptPassword(opts.password))
+            this.info(chalk.bold.green('Login succeeded.'))
+            opts.password = this.encryptPassword(body.passwordEncrypted)
+        } catch (err) {
+            if (err.name == 'UserNotConfirmedError') {
+                this.info('You must confirm your account. Check your email.')
+                var confirmAnswers = await this.prompt({
+                    name    : 'key'
+                  , type    : 'input'
+                  , message : 'Enter confirm key'
+                })
+                try {
+                    await this.sendConfirmKey(opts.serverUrl, opts.username, confirmAnswers.key)
+                    this.info(chalk.bold.green('Login succeeded.'))
+                } catch (err) {
+                    opts.password = ''
+                    throw err
+                }
+            } else {
+                opts.password = ''
+                throw err
+            }
+        } finally {
             await this.saveOpts()
         }
     }
@@ -465,18 +504,6 @@ class Menu extends Logger {
         const client = this.newClient(opts.serverUrl, opts.username, this.decryptPassword(opts.password))
         try {
             await client.connect()
-        } catch (err) {
-            await client.close()
-            if (err.isAuthError) {
-                this.error('Authentication error, go to Account to sign up or log in.')
-                this.debug(err)
-            } else {
-                this.error(err)
-            }
-            return
-        }
-
-        try {
             const promise = isStart ? client.startMatch(opts) : client.joinMatch(opts.matchId)
             const match = await promise
             const termPlayer = new TermPlayer(isStart ? White : Red, opts)
@@ -652,23 +679,12 @@ class Menu extends Logger {
           , {
                 value : 'username'
               , name  : 'Username'
-              , question : {
-                    name    : 'username'
-                  , message : 'Username'
-                  , type    : 'input'
-                  , default : () => opts.username
-                }
+              , question : this.getUsernameQuestion()
             }
           , {
                 value : 'password'
               , name  : 'Password'
-              , question : {
-                    name    : 'password'
-                  , message : 'Password'
-                  , type    : 'password'
-                  , default : () => opts.password
-                  , display : () => opts.password ? '******' : ''
-                }
+              , question : this.getPasswordQuestion()
             }
         ]
         if (!opts.username || !opts.password) {
@@ -693,6 +709,34 @@ class Menu extends Logger {
             })
         }
         return Menu.formatChoices(choices)
+    }
+
+    getUsernameQuestion() {
+        return {
+            name    : 'username'
+          , message : 'Username'
+          , type    : 'input'
+          , default : () => this.opts.username
+        }
+    }
+
+    getPasswordQuestion() {
+        return {
+            name    : 'password'
+          , message : 'Password'
+          , type    : 'password'
+          , default : () => this.opts.password
+          , display : () => this.opts.password ? '******' : ''
+        }
+    }
+
+    getPasswordConfirmQuestion() {
+        return {
+            name    : 'passwordConfirm'
+          , message : 'Confirm password'
+          , type    : 'password'
+          , validate : (value, answers) => value == answers.password || 'Passwords do not match'
+        }
     }
 
     getSettingsChoices(opts) {
@@ -899,58 +943,39 @@ class Menu extends Logger {
     async sendSignup(serverUrl, username, password) {
         const client = this.newClient(serverUrl)
         const data = {username, password}
-        const res = await client.postJson('/api/v1/signup', data)
-        const body = await res.json()
-        if (!res.ok) {
-            this.warn(body)
-            throw new Error('Signup failed', {status: res.status, ...body})
-        }
-        return body
+        return await this.handleRequest(client, '/api/v1/signup', data)
     }
 
     async sendConfirmKey(serverUrl, username, confirmKey) {
         const client = this.newClient(serverUrl)
         const data = {username, confirmKey}
-        const res = await client.postJson('/api/v1/confirm-account', data)
-        const body = await res.json()
-        if (!res.ok) {
-            this.warn(body)
-            throw new Error('Confirm failed', {status: res.status, ...body})
-        }
-        return body
+        return await this.handleRequest(client, '/api/v1/confirm-account', data)
     }
 
     async sendForgotPassword(serverUrl, username) {
         const client = this.newClient(serverUrl)
         const data = {username}
-        const res = await client.postJson('/api/v1/forgot-password', data)
-        if (!res.ok) {
-            const body = await res.json()
-            this.warn(body)
-            throw new Error('Request failed', {status: res.status, ...body})
-        }
+        return await this.handleRequest(client, '/api/v1/forgot-password', data)
     }
 
     async sendResetPassword(serverUrl, username, password, resetKey) {
         const client = this.newClient(serverUrl)
         const data = {username, password, resetKey}
-        const res = await client.postJson('/api/v1/reset-password', data)
-        const body = await res.json()
-        if (!res.ok) {
-            this.warn(body)
-            throw new Error('Request failed', {status: res.status, ...body})
-        }
-        return body
+        return await this.handleRequest(client, '/api/v1/reset-password', data)
     }
 
     async sendChangePassword(serverUrl, username, oldPassword, newPassword) {
         const client = this.newClient(serverUrl)
         const data = {username, oldPassword, newPassword}
-        const res = await client.postJson('/api/v1/change-password', data)
+        return await this.handleRequest(client, '/api/v1/change-password', data)
+    }
+
+    async handleRequest(client, uri, data) {
+        const res = await client.postJson(uri, data)
         const body = await res.json()
         if (!res.ok) {
             this.warn(body)
-            throw new Error('Change password failed', {status: res.status, ...body})
+            throw RequestError.forResponse(res, body, uri.split('/').pop() + ' failed')
         }
         return body
     }
@@ -1001,4 +1026,29 @@ class Menu extends Logger {
     }
 }
 
+class MenuError extends Error {
+    constructor(...args) {
+        super(...args)
+        this.name = this.constructor.name
+    }
+}
+
+class RequestError extends MenuError {
+    static forResponse(res, body, ...args) {
+        const err = new RequestError(...args)
+        err.res = res
+        err.status = res.status
+        err.body = body
+        if (body && body.error) {
+            err.cause = body.error
+        }
+        return err
+    }
+}
+class ResetKeyNotEnteredError extends MenuError {}
+
+Menu.Errors = {
+    MenuError
+  , ResetKeyNotEnteredError
+}
 module.exports = Menu
