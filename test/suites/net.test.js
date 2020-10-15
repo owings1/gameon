@@ -1474,7 +1474,9 @@ describe('Auth', () => {
 
             function newAuth() {
                 const opts = {s3_bucket, s3_prefix}
-                return new Auth('s3', opts)
+                const auth = new Auth('s3', opts)
+                auth.logger.loglevel = 1
+                return auth
             }
 
             var s3
