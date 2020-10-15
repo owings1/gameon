@@ -27,6 +27,7 @@ const Auth            = require('./auth')
 const Core            = require('../lib/core')
 const Logger          = require('../lib/logger')
 const Util            = require('../lib/util')
+const Web             = require('./web')
 const WebSocketServer = require('websocket').server
 
 const audit      = require('express-requests-logger')
@@ -52,6 +53,7 @@ class Server {
         this.opts = merge({}, this.defaults(), opts)
         this.auth = new Auth(this.opts.authType, this.opts.auth)
         this.api = new Api(this.auth)
+        this.web = new Web(this.auth)
         this.app = this.createExpressApp()
         this.matches = {}
         this.connTicker = 0
@@ -107,6 +109,7 @@ class Server {
         }))
 
         app.use('/api/v1', this.api.v1)
+        app.use('/', this.web.app)
         
         return app
     }

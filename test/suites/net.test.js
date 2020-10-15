@@ -22,6 +22,7 @@ const Coordinator = requireSrc('lib/coordinator')
 const {White, Red, Match} = Core
 
 const AWS = require('aws-sdk')
+const fetch = require('node-fetch')
 const fs = require('fs')
 const fse = require('fs-extra')
 const merge = require('merge')
@@ -187,11 +188,13 @@ describe('Client', () => {
 describe('Server', () => {
 
     var server
+    var serverUrl
     var client
     var client2
 
     var authDir
     var authServer
+    var authServerUrl
     var authClient
     
     async function startMatch() {
@@ -215,10 +218,10 @@ describe('Server', () => {
         server.api.logger.loglevel = 1
         server.logger.loglevel = 1
         await server.listen()
-        const url = 'ws://localhost:' + server.port
-        client = new Client(url)
+        serverUrl = 'http://localhost:' + server.port
+        client = new Client(serverUrl)
         client.logger.loglevel = 1
-        client2 = new Client(url)
+        client2 = new Client(serverUrl)
         client2.logger.loglevel = 1
         client.sendAndWait = sendAndWait
         client2.sendAndWait = sendAndWait
@@ -231,8 +234,8 @@ describe('Server', () => {
         authServer.logger.loglevel = 1
         authServer.auth.logger.loglevel = 1
         await authServer.listen()
-        const authUrl = 'http://localhost:' + authServer.port
-        authClient = new Client(authUrl)
+        authServerUrl = 'http://localhost:' + authServer.port
+        authClient = new Client(authServerUrl)
     })
 
     afterEach(async () => {
@@ -830,6 +833,25 @@ describe('Server', () => {
         })
 
         
+    })
+
+    describe('web', () => {
+
+        it('should return 200 for /', async () => {
+            const res = await fetch(serverUrl + '/')
+            expect(res.status).to.equal(200)
+        })
+
+        it('should have text Gameon in body for /', async () => {
+            const res = await fetch(serverUrl + '/')
+            const body = await res.text()
+            expect(body).to.contain('Gameon')
+        })
+
+        it('should return 404 for /nowhere', async () => {
+            const res = await fetch(serverUrl + '/nowhere')
+            expect(res.status).to.equal(404)
+        })
     })
 })
 
