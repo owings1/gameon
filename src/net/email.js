@@ -41,7 +41,6 @@ class Email {
 
     constructor(impl, opts) {
         this.opts = merge({}, this.defaults(process.env), opts)
-        this.source = this.opts.fromName + ' <' + this.opts.fromAddress + '>'
         const Impl = require('./email/' + path.basename(impl))
         this.impl = new Impl(this.opts)
     }
@@ -49,7 +48,8 @@ class Email {
     // standard is SES sendEmail structure
     // see https://docs.aws.amazon.com/AWSJavaScriptSDK/latest/AWS/SES.html#sendEmail-property
     async send(params) {
-        params = merge({}, params, {Source: this.source})
+        const source = this.opts.fromName + ' <' + this.opts.fromAddress + '>'
+        params = merge({}, params, {Source: source})
         try {
             await this.impl.send(params)
         } catch (err) {
