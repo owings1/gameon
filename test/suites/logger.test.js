@@ -44,6 +44,14 @@ describe('#error', () => {
         logger.loglevel =  -1
         logger.error('test')
     })
+
+    it('should call console.error with opts.server', () => {
+        const logger = new Logger('Test', {server:true})
+        var isCalled = false
+        logger.console = {error : () => isCalled = true }
+        logger.error(new Error('Test Logger.error'))
+        expect(isCalled).to.equal(true)
+    })
 })
 
 describe('#format', () => {

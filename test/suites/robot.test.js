@@ -141,6 +141,20 @@ describe('RandomRobot', () => {
             turn.finish()
         })
     })
+
+    describe('v2', () => {
+
+        beforeEach(() => {
+            robot = ConfidenceRobot.getVersionInstance('RandomRobot', 'v2', White)
+        })
+
+        it('should get rankings', async () => {
+            game._rollFirst = () => [6, 2]
+            const turn = game.firstTurn()
+            const rankings = await robot.getRankings(turn, game)
+            expect(Object.keys(rankings).length).to.equal(turn.allowedEndStates.length)
+        })
+    })
 })
 
 describe('BearoffRobot', () => {

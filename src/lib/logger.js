@@ -90,12 +90,13 @@ class Logger {
         })
         obj.loglevel = Levels[process.env.LOG_LEVEL || 'info']
         obj.logLevel = obj.loglevel
+        obj.console = console
         const oldError = obj.error
         obj.error = (...args) => {
             args = args.map(arg => {
                 if (arg instanceof Error) {
                     if (opts.server && obj.loglevel >= 0) {
-                        console.error(arg)
+                        obj.console.error(arg)
                     }
                     return [arg.name || arg.constructor.name, arg.message].join(': ')
                 }

@@ -37,6 +37,7 @@ const {RobotDelegator}  = Robot
 
 const {White, Red, Match} = Core
 
+const assert   = require('assert')
 const chalk    = require('chalk')
 const crypto   = require('crypto')
 const fs       = require('fs')
@@ -234,7 +235,8 @@ class Menu extends Logger {
                             }
                         }
                         this.info('Password reset')
-                    } else if (accountChoice == 'changePassword') {
+                    } else {
+                        assert(accountChoice == 'changePassword')
                         await this.promptChangePassword()
                         this.info('Password changed')
                     }
@@ -1073,6 +1075,7 @@ class ResetKeyNotEnteredError extends MenuError {}
 
 Menu.Errors = {
     MenuError
+  , RequestError
   , ResetKeyNotEnteredError
 }
 module.exports = Menu

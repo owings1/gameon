@@ -201,4 +201,7 @@ class ClientError extends Error {
 
 class MatchCanceledError extends ClientError {}
 
+Client.Errors = {
+    MatchCanceledError
+}
 module.exports = Client

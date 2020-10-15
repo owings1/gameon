@@ -24,6 +24,7 @@ const TermPlayer  = requireSrc('term/player')
 const Core        = requireSrc('lib/core')
 const Coordinator = requireSrc('lib/coordinator')
 const Robot       = requireSrc('robot/player')
+const Client      = requireSrc('net/client')
 const Server      = requireSrc('net/server')
 
 const {White, Red, Match, Game, Board, Turn} = Core
@@ -112,31 +113,48 @@ describe('Menu', () => {
         await fse.remove(authDir)
     })
 
-    describe('#getDefaultOpts', () => {
+    describe('#mainMenu', () => {
 
-        it('should merge optsFile if specified', () => {
-            menu.optsFile = tmpFile()
-            fse.writeJsonSync(menu.optsFile, {total: 5})
-            const result = menu.getDefaultOpts()
-            expect(result.total).to.equal(5)
-            fse.removeSync(menu.optsFile)
+        it('should quit', async () => {
+            menu.prompt = MockPrompter({mainChoice: 'quit'})
+            await menu.mainMenu()
         })
 
-        it('should normalize opts file if not exists', () => {
-            menu.optsFile = tmpFile()
-            fse.removeSync(menu.optsFile)
-            menu.getDefaultOpts()
-            JSON.parse(fs.readFileSync(menu.optsFile))
-            fse.removeSync(menu.optsFile)
+        it('should go to play menu, new local match menu, then come back, then quit', async () => {
+            menu.prompt = MockPrompter([
+                {mainChoice: 'play'},
+                {playChoice: 'newLocal'},
+                {matchChoice: 'quit'},
+                {playChoice: 'quit'},
+                {mainChoice: 'quit'}
+            ])
+            await menu.mainMenu()
         })
 
-        it('should replace obsolete server url', () => {
-            menu.optsFile = tmpFile()
-            fse.writeJsonSync(menu.optsFile, {serverUrl: 'ws://bg.dougowings.net:8080'})
-            const exp = menu.getDefaultServerUrl()
-            const result = menu.getDefaultOpts()
-            fse.removeSync(menu.optsFile)
-            expect(result.serverUrl).to.equal(exp)
+        it('should go to settings menu then done then quit', async () => {
+            menu.prompt = MockPrompter([
+                {mainChoice: 'settings'},
+                {settingChoice: 'done'},
+                {mainChoice: 'quit'}
+            ])
+            await menu.mainMenu()
+        })
+
+        it('should go to account menu then quit', async () => {
+            menu.prompt = MockPrompter([
+                {mainChoice: 'account'},
+                {accountChoice: 'done'},
+                {mainChoice: 'quit'}
+            ])
+            await menu.mainMenu()
+        })
+
+        it('should do nothing for unknown choice then quit', async () => {
+            menu.prompt = MockPrompter([
+                {mainChoice: 'foo'},
+                {mainChoice: 'quit'}
+            ])
+            await menu.mainMenu()
         })
     })
 
@@ -174,44 +192,16 @@ describe('Menu', () => {
         })
     })
 
-    describe('#mainMenu', () => {
-
-        it('should quit', async () => {
-            menu.prompt = MockPrompter({mainChoice: 'quit'})
-            await menu.mainMenu()
-        })
-
-        it('should go to play menu, new local match menu, then come back, then quit', async () => {
-            menu.prompt = MockPrompter([
-                {mainChoice: 'play'},
-                {playChoice: 'newLocal'},
-                {matchChoice: 'quit'},
-                {playChoice: 'quit'},
-                {mainChoice: 'quit'}
-            ])
-            await menu.mainMenu()
-        })
-
-        it('should go to settings menu then done then quit', async () => {
-            menu.prompt = MockPrompter([
-                {mainChoice: 'settings'},
-                {settingChoice: 'done'},
-                {mainChoice: 'quit'}
-            ])
-            await menu.mainMenu()
-        })
-
-        it('should go to account menu then quit', async () => {
-            menu.prompt = MockPrompter([
-                {mainChoice: 'account'},
-                {accountChoice: 'done'},
-                {mainChoice: 'quit'}
-            ])
-            await menu.mainMenu()
-        })
-    })
-
     describe('#playMenu', () => {
+
+        beforeEach(async () => {
+            await server.listen()
+            menu.opts.serverUrl = 'http://localhost:' + server.port
+        })
+
+        afterEach(async () => {
+            server.close()
+        })
 
         it('should invalidate match id abcd with joinOnline, then quit', async () => {
             menu.prompt = MockPrompter([
@@ -222,7 +212,29 @@ describe('Menu', () => {
             await menu.playMenu()
         })
 
-        it('should warn when joinOnline throws BadCredentialsError')
+        it('should warn then done when joinOnline throws BadCredentialsError', async () => {
+            menu.opts.username = 'nobody@nowhere.example'
+            menu.opts.password = menu.encryptPassword('s9GLdoe9')
+            menu.prompt = MockPrompter([
+                {playChoice: 'joinOnline'},
+                {matchId: '12345678'},
+                {playChoice: 'quit'}
+            ])
+            menu.loglevel = -1
+            await menu.playMenu()
+        })
+
+        it('should warn then done when joinMenu throws MatchCanceledError', async () => {
+            menu.joinMenu = () => {
+                throw new Client.Errors.MatchCanceledError
+            }
+            menu.prompt = MockPrompter([
+                {playChoice: 'joinOnline'},
+                {playChoice: 'quit'}
+            ])
+            menu.loglevel = -1
+            await menu.playMenu()
+        })
     })
 
     describe('#matchMenu', () => {
@@ -481,22 +493,6 @@ describe('Menu', () => {
             expect(!!menu.opts.password).to.equal(false)
             expect(!!err).to.equal(true)
         })
-
-        describe('#doLogin', () => {
-            it('should unset password and throw cause BadCredentialsError for bad confirmKey', async () => {
-                menu.loglevel = 0
-                const username = 'nobody@nowhere.example'
-                const password = 'r2tW5aUn'
-                const confirmKey = 'bad-confirm-key'
-                menu.opts.username = username
-                menu.opts.password = menu.encryptPassword(password)
-                await server.auth.createUser(username, password)
-                menu.prompt = MockPrompter([{key: confirmKey}])
-                const err = await getErrorAsync(() => menu.doLogin())
-                expect(!!menu.opts.password).to.equal(false)
-                expect(err.cause.name).to.equal('BadCredentialsError')
-            })
-        })
     })
 
     describe('#settingsMenu', () => {
@@ -601,6 +597,91 @@ describe('Menu', () => {
             const choices = question.choices()
             expect(choices).to.contain('v2')
         })
+
+        it('should set RandomRobot doubleWeight to 1', async () => {
+            menu.prompt = MockPrompter([
+                {robotChoice: 'RandomRobot'},
+                {robotChoice: 'doubleWeight'},
+                {doubleWeight: '1'},
+                {robotChoice: 'done'},
+                {robotChoice: 'done'}
+            ])
+            await menu.robotConfigsMenu()
+            expect(menu.opts.robots.RandomRobot.doubleWeight).to.equal(1)
+        })
+    })
+
+    ///////////////////
+
+    describe('#doLogin', () => {
+
+        beforeEach(async () => {
+            await server.listen()
+            menu.opts.serverUrl = 'http://localhost:' + server.port
+        })
+
+        afterEach(async () => {
+            server.close()
+        })
+
+        it('should unset password and throw cause BadCredentialsError for bad confirmKey', async () => {
+            menu.loglevel = 0
+            const username = 'nobody@nowhere.example'
+            const password = 'r2tW5aUn'
+            const confirmKey = 'bad-confirm-key'
+            menu.opts.username = username
+            menu.opts.password = menu.encryptPassword(password)
+            await server.auth.createUser(username, password)
+            menu.prompt = MockPrompter([{key: confirmKey}])
+            const err = await getErrorAsync(() => menu.doLogin())
+            expect(!!menu.opts.password).to.equal(false)
+            expect(err.cause.name).to.equal('BadCredentialsError')
+        })
+    })
+
+    describe('#encryptPassword', () => {
+
+        it('should return empty string for undefined', () => {
+            const res = menu.encryptPassword(undefined)
+            expect(res).to.equal('')
+        })
+    })
+
+    describe('#getDefaultOpts', () => {
+
+        it('should merge optsFile if specified', () => {
+            menu.optsFile = tmpFile()
+            fse.writeJsonSync(menu.optsFile, {total: 5})
+            const result = menu.getDefaultOpts()
+            expect(result.total).to.equal(5)
+            fse.removeSync(menu.optsFile)
+        })
+
+        it('should normalize opts file if not exists', () => {
+            menu.optsFile = tmpFile()
+            fse.removeSync(menu.optsFile)
+            menu.getDefaultOpts()
+            JSON.parse(fs.readFileSync(menu.optsFile))
+            fse.removeSync(menu.optsFile)
+        })
+
+        it('should replace obsolete server url', () => {
+            menu.optsFile = tmpFile()
+            fse.writeJsonSync(menu.optsFile, {serverUrl: 'ws://bg.dougowings.net:8080'})
+            const exp = menu.getDefaultServerUrl()
+            const result = menu.getDefaultOpts()
+            fse.removeSync(menu.optsFile)
+            expect(result.serverUrl).to.equal(exp)
+        })
+    })
+
+    describe('#getPasswordConfirmQuestion', () => {
+
+        it('question should invalidate non-matching password', () => {
+            const question = menu.getPasswordConfirmQuestion()
+            const res = question.validate('asdf', {password:'fdsa'})
+            expect(res.toLowerCase()).to.contain('password').and.to.contain('match')
+        })
     })
 
     describe('#newClient', () => {
@@ -616,6 +697,13 @@ describe('Menu', () => {
         it('should return new coordinator', () => {
             const coordinator = menu.newCoordinator()
             expect(coordinator.constructor.name).to.equal('Coordinator')
+        })
+    })
+
+    describe('#newRobot', () => {
+        it('should not throw when isCustomRobot', () => {
+            menu.opts.isCustomRobot = true
+            menu.newRobot()
         })
     })
 
@@ -737,6 +825,25 @@ describe('Menu', () => {
             await menu.startOnlineMatch(menu.opts)
             expect(isCalled).to.equal(true)
         })
+    })
+
+    describe('RequestError', () => {
+
+        describe('#forResponse', () => {
+
+            it('should set case to error in body', () => {
+                const res = {status: 500}
+                const body = {error: {name: 'TestError', message: 'test error message'}}
+                const err = Menu.Errors.RequestError.forResponse(res, body)
+                expect(err.cause.name).to.equal('TestError')
+            })
+
+            it('should construct without body', () => {
+                const res = {status: 500}
+                const err = Menu.Errors.RequestError.forResponse(res)
+            })
+        })
+        
     })
 })
 
@@ -924,6 +1031,13 @@ describe('TermPlayer', () => {
             const move = board.buildMove(Red, 0, 2)
             const result = player.describeMove(move)
             expect(result).to.contain('home')
+        })
+
+        it('should include HIT for hit move', () => {
+            const board = Board.fromStateString(States.EitherHitWith11)
+            const move = board.buildMove(White, 22, 1)
+            const result = player.describeMove(move)
+            expect(result).to.contain('HIT')
         })
     })
 

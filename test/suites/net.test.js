@@ -108,6 +108,19 @@ describe('Client', () => {
             await client.connect()
             client.conn.emit('error', 'testError')
         })
+
+        it('should reject when server is down', async () => {
+            server.close()
+            const err = await getErrorAsync(() => client.connect())
+            expect(!!err).to.equal(true)
+        })
+
+        it('should reject when socketClient.connect throws', async () => {
+            server.close()
+            client.socketClient.connect = () => { throw new Error }
+            const err = await getErrorAsync(() => client.connect())
+            expect(!!err).to.equal(true)
+        })
     })
 
     describe('#matchParams', () => {
@@ -703,6 +716,16 @@ describe('Server', () => {
                 const res = await authClient.postJson('/api/v1/send-confirm-email', {username})
                 expect(authServer.auth.email.impl.lastEmail.Destination.ToAddresses).to.have.length(1).and.to.contain(username)
             })
+
+            it('should return 500 when email sending fails', async () => {
+                const username = 'nobody@nowhere.example'
+                const password = 'SqY3ExtF'
+                await authServer.auth.createUser(username, password)
+                authServer.logger.loglevel = -1
+                authServer.auth.email.impl.send = () => {throw new Error}
+                const res = await authClient.postJson('/api/v1/send-confirm-email', {username})
+                expect(res.status).to.equal(500)
+            })
         })
 
         describe('forgot-password', () => {
@@ -798,6 +821,8 @@ describe('Server', () => {
                 expect(res.status).to.equal(400)
             })
         })
+
+        
     })
 })
 

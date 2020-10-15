@@ -78,7 +78,8 @@ class Util {
         if (Math.floor(num.valueOf()) === num.valueOf()) {
             return 0
         }
-        return num.toString().split('.')[1].length || 0
+        // the || 0 was never called in tests, and it so far seems unnecessary
+        return num.toString().split('.')[1].length //|| 0
     }
 
     static defaults(defaults, ...opts) {
