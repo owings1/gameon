@@ -212,6 +212,7 @@ describe('Server', () => {
 
     beforeEach(async () => {
         server = new Server
+        server.api.logger.loglevel = 1
         server.logger.loglevel = 1
         await server.listen()
         const url = 'ws://localhost:' + server.port
@@ -352,6 +353,7 @@ describe('Server', () => {
         }
 
         it('should return HandshakeError for missing secret in message', async () => {
+            server.api.logger.loglevel = -1
             server.logger.loglevel = -1
             await client.connect()
             const res = await client.sendAndWait({secret: null})
@@ -360,6 +362,7 @@ describe('Server', () => {
         })
 
         it('should return HandshakeError for missing secret on server', async () => {
+            server.api.logger.loglevel = -1
             server.logger.loglevel = -1
             await bareConn(client)
             const res = await client.sendAndWait({secret: 'abc'})
@@ -370,6 +373,7 @@ describe('Server', () => {
         describe('establishSecret', () => {
 
             it('should return HandshakeError for secret of length 23', async () => {
+                server.api.logger.loglevel = -1
                 server.logger.loglevel = -1
                 const msg = {secret: 'abcdefghijklmnopqrstuvw', action: 'establishSecret'}
                 await bareConn(client)
@@ -379,6 +383,7 @@ describe('Server', () => {
             })
 
             it('should return HandshakeError for mismatch secret', async () => {
+                server.api.logger.loglevel = -1
                 server.logger.loglevel = -1
                 await client.connect()
                 const msg = {secret: Client.generateSecret(), action: 'establishSecret'}
@@ -399,6 +404,7 @@ describe('Server', () => {
             })
 
             it('should return ArgumentError for match with total -1', async () => {
+                server.api.logger.loglevel = -1
                 server.logger.loglevel = -1
                 await client.connect()
                 const msg = {action: 'startMatch', total: -1}
@@ -423,6 +429,7 @@ describe('Server', () => {
             })
 
             it('should return MatchNotFoundError for unknown match id', async () => {
+                server.api.logger.loglevel = -1
                 server.logger.loglevel = -1
                 await client.connect()
                 const msg = {action: 'joinMatch', id: '12345678'}
@@ -431,6 +438,7 @@ describe('Server', () => {
             })
 
             it('should return MatchAlreadyJoinedError when already joined', async () => {
+                server.api.logger.loglevel = -1
                 server.logger.loglevel = -1
                 await client.connect()
                 const {id} = await client.sendAndWait({action: 'startMatch', total: 1})
@@ -442,16 +450,6 @@ describe('Server', () => {
                 const res = await client2.sendAndWait(msg)
                 expect(res.name).to.equal('MatchAlreadyJoinedError')
             })
-        })
-    })
-
-    describe('#makeErrorObject', () => {
-
-        it('should return constructor name if error has no name', () => {
-            const err = new Error
-            err.name = null
-            const result = Server.makeErrorObject(err)
-            expect(result.name).to.equal('Error')
         })
     })
 
@@ -651,6 +649,7 @@ describe('Server', () => {
             })
 
             it('should have error.name=ValidationError for bad email', async () => {
+                authServer.api.logger.loglevel = -1
                 const username = 'nobody-bad-email'
                 const password = 'EbaD99wa'
                 const res = await authClient.postJson('/api/v1/signup', {username, password})
@@ -665,7 +664,8 @@ describe('Server', () => {
                 expect(res.status).to.equal(400)
             })
 
-            it('should have error.name=ValidationError for bad email', async () => {
+            it('should have error.name=ValidationError for bad password', async () => {
+                authServer.api.logger.loglevel = -1
                 const username = 'nobody@nowhere.example'
                 const password = 'password'
                 const res = await authClient.postJson('/api/v1/signup', {username, password})
@@ -678,6 +678,7 @@ describe('Server', () => {
                 const password = 'H6WJmuyZ'
                 authServer.auth.sendConfirmEmail = () => {throw new Error}
                 authServer.logger.loglevel = -1
+                authServer.api.logger.loglevel = -1
                 const res = await authClient.postJson('/api/v1/signup', {username, password})
                 expect(res.status).to.equal(500)
             })
@@ -687,6 +688,7 @@ describe('Server', () => {
                 const password = 'zQ2EzTRx'
                 authServer.auth.sendConfirmEmail = () => new Promise((resolve, reject) => reject(new Error))
                 authServer.logger.loglevel = -1
+                authServer.api.logger.loglevel = -1
                 const res = await authClient.postJson('/api/v1/signup', {username, password})
                 const body = await res.json()
                 expect(body.error.name).to.equal('InternalError')
@@ -698,6 +700,7 @@ describe('Server', () => {
             it('should return 200 for non existent user', async () => {
                 const username = 'nobody@nowhere.example'
                 authServer.logger.loglevel = 0
+                authServer.api.logger.loglevel = 0
                 const res = await authClient.postJson('/api/v1/send-confirm-email', {username})
                 expect(res.status).to.equal(200)
             })
@@ -705,6 +708,7 @@ describe('Server', () => {
             it('should return 400 for bad username', async () => {
                 const username = 'bad-username'
                 authServer.logger.loglevel = 0
+                authServer.api.logger.loglevel = 0
                 const res = await authClient.postJson('/api/v1/send-confirm-email', {username})
                 expect(res.status).to.equal(400)
             })
@@ -722,6 +726,7 @@ describe('Server', () => {
                 const password = 'SqY3ExtF'
                 await authServer.auth.createUser(username, password)
                 authServer.logger.loglevel = -1
+                authServer.api.logger.loglevel = -1
                 authServer.auth.email.impl.send = () => {throw new Error}
                 const res = await authClient.postJson('/api/v1/send-confirm-email', {username})
                 expect(res.status).to.equal(500)
@@ -732,6 +737,7 @@ describe('Server', () => {
 
             it('should return 200 for non existent user', async () => {
                 const username = 'nobody@nowhere.example'
+                authServer.api.logger.loglevel = 0
                 authServer.logger.loglevel = 0
                 const res = await authClient.postJson('/api/v1/forgot-password', {username})
                 expect(res.status).to.equal(200)
@@ -739,6 +745,7 @@ describe('Server', () => {
 
             it('should return 400 for bad username', async () => {
                 const username = 'bad-username'
+                authServer.api.logger.loglevel = 0
                 authServer.logger.loglevel = 0
                 const res = await authClient.postJson('/api/v1/forgot-password', {username})
                 expect(res.status).to.equal(400)

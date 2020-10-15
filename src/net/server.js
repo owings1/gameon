@@ -22,6 +22,7 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
+const Api             = require('./api')
 const Auth            = require('./auth')
 const Core            = require('../lib/core')
 const Logger          = require('../lib/logger')
@@ -50,6 +51,7 @@ class Server {
         this.logger = new Logger(this.constructor.name, {server: true})
         this.opts = merge({}, this.defaults(), opts)
         this.auth = new Auth(this.opts.authType, this.opts.auth)
+        this.api = new Api(this.auth)
         this.app = this.createExpressApp()
         this.matches = {}
         this.connTicker = 0
@@ -91,7 +93,6 @@ class Server {
     createExpressApp() {
 
         const app = express()
-        const jsonParser = bodyParser.json()
 
         app.use(audit({
             logger : this.logger
@@ -105,83 +106,8 @@ class Server {
             }
         }))
 
-        const handleInternalError = (err, res) => {
-            res.status(500).send({status: 500, message: 'Internal Error', error: {name: 'InternalError', message: 'Internal Error'}})
-            this.logger.error(err, err.cause)
-        }
-
-        const handleError = (err, res) => {
-            if (err.isInternalError || !err.isAuthError) {
-                handleInternalError(err, res)
-            } else {
-                res.status(400).send({status: 400, message: 'Bad Request', error: {name: err.name, message: err.message}})
-            }
-        }
-
-        app.post('/api/v1/signup', jsonParser, (req, res) => {
-            const {username, password} = req.body
-            this.auth.createUser(username, password).then(user => {
-                this.auth.sendConfirmEmail(username).then(() => {
-                    res.status(201).send({
-                        status: 201
-                      , message: 'Account created, check your email to confirm.'
-                      , passwordEncrypted: user.passwordEncrypted
-                    })
-                }).catch(err => handleInternalError(err, res))
-            }).catch(err => handleError(err, res))
-        })
-
-        app.post('/api/v1/send-confirm-email', jsonParser, (req, res) => {
-            const {username} = req.body
-            const message = 'A confirm key has been sent if the account exists and is unconfirmed, check your email.'
-            this.auth.sendConfirmEmail(username).then(() => {
-                res.status(200).send({status: 200, message})
-            }).catch(err => {
-                if (err.name == 'UserNotFoundError' || err.name == 'UserConfirmedError') {
-                    this.logger.warn('Invalid send-confirm-email request', {username}, err)
-                    res.status(200).send({status: 200, message})
-                } else {
-                    handleError(err, res)
-                }
-            })            
-        })
-
-        app.post('/api/v1/forgot-password', jsonParser, (req, res) => {
-            const {username} = req.body
-            const message = 'A reset key has been sent if the account exists, check your email.'
-            this.auth.sendResetEmail(username).then(() => {
-                res.status(200).send({status: 200, message})
-            }).catch(err => {
-                if (err.name == 'UserNotFoundError' || err.name == 'UserNotConfirmedError') {
-                    this.logger.warn('Invalid forgot-password request', {username}, err)
-                    res.status(200).send({status: 200, message})
-                } else {
-                    handleError(err, res)
-                }
-            })
-        })
-
-        app.post('/api/v1/confirm-account', jsonParser, (req, res) => {
-            const {username, confirmKey} = req.body
-            this.auth.confirmUser(username, confirmKey).then(() => {
-                res.status(200).send({status: 200, message: 'Account confirmed'})
-            }).catch(err => handleError(err, res))
-        })
-
-        app.post('/api/v1/change-password', jsonParser, (req, res) => {
-            const {username, oldPassword, newPassword} = req.body
-            this.auth.changePassword(username, oldPassword, newPassword).then(user => {
-                res.status(200).send({status: 200, message: 'Password changed', passwordEncrypted: user.passwordEncrypted})
-            }).catch(err => handleError(err, res))
-        })
-
-        app.post('/api/v1/reset-password', jsonParser, (req, res) => {
-            const {username, password, resetKey} = req.body
-            this.auth.resetPassword(username, password, resetKey).then(user => {
-                res.status(200).send({status: 200, message: 'Password reset', passwordEncrypted: user.passwordEncrypted})
-            }).catch(err => handleError(err, res))
-        })
-
+        app.use('/api/v1', this.api.v1)
+        
         return app
     }
 
@@ -304,7 +230,7 @@ class Server {
             }
         } catch (err) {
             this.logger.warn('Peer', conn.connId, err)
-            this.sendMessage(conn, Server.makeErrorObject(err))
+            this.sendMessage(conn, Util.makeErrorObject(err))
         }
         
         this.logger.debug('message received from', conn.color, conn.connId, req)
@@ -326,8 +252,8 @@ class Server {
             Server.checkSync(match.sync, next)
         }
 
-        const refuse = err => {
-            this.sendMessage(Object.values(match.conns), Server.makeErrorObject(err))
+        const refuse = msg => {
+            this.sendMessage(Object.values(match.conns), Util.makeErrorObject(new RequestError(msg)))
         }
 
         const reply = res => {
@@ -505,20 +431,6 @@ class Server {
 
     roll() {
         return Dice.rollTwo()
-    }
-
-    static makeErrorObject(err) {
-        if (typeof(err) == 'string') {
-            err = new RequestError(err)
-        }
-        return {
-            isError         : true
-          , error           : err.message || err.name
-          , name            : err.name || err.constructor.name
-          , isRequestError  : err.isRequestError
-          , isAuthError     : err.isAuthError
-          , isInternalError : err.isInternalError
-        }
     }
 
     static validateColor(color) {

@@ -98,6 +98,17 @@ class Util {
         return args.join(' ')
     }
 
+    static makeErrorObject(err) {
+        return {
+            isError         : true
+          , error           : err.message || err.name
+          , name            : err.name || err.constructor.name
+          , isRequestError  : err.isRequestError
+          , isAuthError     : err.isAuthError
+          , isInternalError : err.isInternalError
+        }
+    }
+
     static merge(...args) {
         return merge(...args)
     }

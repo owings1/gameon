@@ -156,6 +156,16 @@ describe('#joinSpace', () => {
     })
 })
 
+describe('#makeErrorObject', () => {
+
+    it('should return constructor name if error has no name', () => {
+        const err = new Error
+        err.name = null
+        const result = Util.makeErrorObject(err)
+        expect(result.name).to.equal('Error')
+    })
+})
+
 describe('#propsFrom', () => {
 
     it('should filter keys from array as second param', () => {
