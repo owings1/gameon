@@ -69,7 +69,9 @@ describe('Client', () => {
         server.close()
     })
 
-    describe('#buildError', () => {
+    describe('#buildError', function () {
+
+        this.timeout(5000)
 
         it('should return ClientError', () => {
             const result = Client.buildError({error: 'test'})
