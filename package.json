@@ -27,6 +27,7 @@
     "email-validator": "^2.0.4",
     "express": "^4.17.1",
     "express-requests-logger": "^3.0.2",
+    "express-session": "^1.17.1",
     "fs-extra": "^9.0.1",
     "inquirer": "^7.3.3",
     "merge": "^1.2.1",
