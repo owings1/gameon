@@ -27,9 +27,19 @@ const fs = require('fs')
 const fse = require('fs-extra')
 const merge = require('merge')
 const tmp = require('tmp')
+const {URLSearchParams} = require('url')
 
 function newRando(...args) {
     return Robot.ConfidenceRobot.getDefaultInstance('RandomRobot', ...args)
+}
+
+function getParams(obj) {
+    obj = obj || {}
+    const params = new URLSearchParams
+    for (var k in obj) {
+        params.append(k, obj[k])
+    }
+    return params
 }
 
 describe('Client', () => {
@@ -249,374 +259,377 @@ describe('Server', () => {
         authServer.close()
     })
 
-    describe('#checkMatchFinished', () => {
+    describe('Server', () => {
 
-        it('should delete match from matches when finished', async () => {
-            const match = await startMatch()
-            const game = match.nextGame()
-            game.board.setStateString(States.WhiteWin)
-            makeRandomMoves(game.firstTurn()).finish()
-            server.checkMatchFinished(match)
-            expect(Object.keys(server.matches)).to.not.contain(match.id)
-        })
-    })
+        describe('#checkMatchFinished', () => {
 
-    describe('#checkSync', () => {
-
-        it('should call for white and red equal', () => {
-            var isCalled = false
-            Server.checkSync({White: 'value', Red: 'value'}, () => isCalled = true)
-            expect(isCalled).to.equal(true)
+            it('should delete match from matches when finished', async () => {
+                const match = await startMatch()
+                const game = match.nextGame()
+                game.board.setStateString(States.WhiteWin)
+                makeRandomMoves(game.firstTurn()).finish()
+                server.checkMatchFinished(match)
+                expect(Object.keys(server.matches)).to.not.contain(match.id)
+            })
         })
 
-        it('should not call for white and red unequal', () => {
-            var isCalled = false
-            Server.checkSync({White: 'value', Red: 'other'}, () => isCalled = true)
-            expect(isCalled).to.equal(false)
-        })
-    })
+        describe('#checkSync', () => {
 
-    describe('#close', () => {
+            it('should call for white and red equal', () => {
+                var isCalled = false
+                Server.checkSync({White: 'value', Red: 'value'}, () => isCalled = true)
+                expect(isCalled).to.equal(true)
+            })
 
-        it('should pass when socketServer and httpServer are null', () => {
-            // coverage
-            server.close()
-            server.socketServer = null
-            server.httpServer = null
-            server.close()
-        })
-    })
-
-    describe('#listen', () => {
-
-        it('should have non-null socketServer', () => {
-            expect(!!server.socketServer).to.equal(true)
+            it('should not call for white and red unequal', () => {
+                var isCalled = false
+                Server.checkSync({White: 'value', Red: 'other'}, () => isCalled = true)
+                expect(isCalled).to.equal(false)
+            })
         })
 
-        it('should accept connection', async () => {
-            await client.connect()
-            expect(!!client.conn).to.equal(true)
+        describe('#close', () => {
+
+            it('should pass when socketServer and httpServer are null', () => {
+                // coverage
+                server.close()
+                server.socketServer = null
+                server.httpServer = null
+                server.close()
+            })
         })
 
-        it('should throw when createSocketServer throws for mock method', async () => {
-            server.close()
-            const e = new Error
-            server.createSocketServer = () => {
-                throw e
-            }
-            const err = await getErrorAsync(() => server.listen())
-            expect(err).to.equal(e)
+        describe('#listen', () => {
+
+            it('should have non-null socketServer', () => {
+                expect(!!server.socketServer).to.equal(true)
+            })
+
+            it('should accept connection', async () => {
+                await client.connect()
+                expect(!!client.conn).to.equal(true)
+            })
+
+            it('should throw when createSocketServer throws for mock method', async () => {
+                server.close()
+                const e = new Error
+                server.createSocketServer = () => {
+                    throw e
+                }
+                const err = await getErrorAsync(() => server.listen())
+                expect(err).to.equal(e)
+            })
+
+            it('should throw when app.listen throws for mock method', async () => {
+                server.close()
+                const e = new Error
+                server.app.listen = () => { throw e }
+                const err = await getErrorAsync(() => server.listen())
+                expect(err).to.equal(e)
+            })
         })
 
-        it('should throw when app.listen throws for mock method', async () => {
-            server.close()
-            const e = new Error
-            server.app.listen = () => { throw e }
-            const err = await getErrorAsync(() => server.listen())
-            expect(err).to.equal(e)
-        })
-    })
+        describe('#logActive', () => {
 
-    describe('#logActive', () => {
-
-        it('should pass when socketServer is null', () => {
-            // coverage
-            server.close()
-            server.socketServer = null
-            server.logActive()
-        })
-    })
-
-    describe('#getMatchForRequest', () => {
-
-        it('should throw MatchNotFoundError for non-existent match', () => {
-            const err = getError(() => server.getMatchForRequest({color: White, id: '12345678'}))
-            expect(err.name).to.equal('MatchNotFoundError')
+            it('should pass when socketServer is null', () => {
+                // coverage
+                server.close()
+                server.socketServer = null
+                server.logActive()
+            })
         })
 
-        it('should throw HandshakeError for mismatched secret', async () => {
-            const {id} = await startMatch()
+        describe('#getMatchForRequest', () => {
+
+            it('should throw MatchNotFoundError for non-existent match', () => {
+                const err = getError(() => server.getMatchForRequest({color: White, id: '12345678'}))
+                expect(err.name).to.equal('MatchNotFoundError')
+            })
+
+            it('should throw HandshakeError for mismatched secret', async () => {
+                const {id} = await startMatch()
             
-            const err = getError(() => server.getMatchForRequest({color: White, id, secret: 'badSecret'}))
-            expect(err.name).to.equal('HandshakeError')
+                const err = getError(() => server.getMatchForRequest({color: White, id, secret: 'badSecret'}))
+                expect(err.name).to.equal('HandshakeError')
+            })
         })
-    })
 
-    describe('#matchIdFromSecret', () => {
+        describe('#matchIdFromSecret', () => {
     
-    })
-
-    describe('#response', () => {
-
-        async function bareConn(client) {
-            const p = new Promise(resolve => client.socketClient.on('connect', conn => {
-                client.conn = conn
-                resolve()
-            }))
-            client.socketClient.connect(client.serverSocketUrl)
-            await p
-        }
-
-        it('should return HandshakeError for missing secret in message', async () => {
-            server.api.logger.loglevel = -1
-            server.logger.loglevel = -1
-            await client.connect()
-            const res = await client.sendAndWait({secret: null})
-            expect(res.isError).to.equal(true)
-            expect(res.name).to.equal('HandshakeError')
         })
 
-        it('should return HandshakeError for missing secret on server', async () => {
-            server.api.logger.loglevel = -1
-            server.logger.loglevel = -1
-            await bareConn(client)
-            const res = await client.sendAndWait({secret: 'abc'})
-            expect(res.isError).to.equal(true)
-            expect(res.name).to.equal('HandshakeError')
-        })
+        describe('#response', () => {
 
-        describe('establishSecret', () => {
-
-            it('should return HandshakeError for secret of length 23', async () => {
-                server.api.logger.loglevel = -1
-                server.logger.loglevel = -1
-                const msg = {secret: 'abcdefghijklmnopqrstuvw', action: 'establishSecret'}
-                await bareConn(client)
-                const res = await client.sendAndWait(msg)
-                expect(res.isError).to.equal(true)
-                expect(res.name).to.equal('HandshakeError')
-            })
-
-            it('should return HandshakeError for mismatch secret', async () => {
-                server.api.logger.loglevel = -1
-                server.logger.loglevel = -1
-                await client.connect()
-                const msg = {secret: Client.generateSecret(), action: 'establishSecret'}
-                const res = await client.sendAndWait(msg)
-                expect(res.isError).to.equal(true)
-                expect(res.name).to.equal('HandshakeError')
-            })
-        })
-
-        describe('startMatch', () => {
-
-            it('should return matchCreated with id of new match with total 1', async () => {
-                await client.connect()
-                const msg = {action: 'startMatch', total: 1}
-                const res = await client.sendAndWait(msg)
-                expect(res.action).to.equal('matchCreated')
-                expect(typeof(res.id)).to.equal('string')
-            })
-
-            it('should return ArgumentError for match with total -1', async () => {
-                server.api.logger.loglevel = -1
-                server.logger.loglevel = -1
-                await client.connect()
-                const msg = {action: 'startMatch', total: -1}
-                const res = await client.sendAndWait(msg)
-                expect(res.name).to.equal('ArgumentError')
-            })
-        })
-
-        describe('joinMatch', () => {
-
-            it('should return matchJoined and opponentJoind with id of new match with total 1', async () => {
-                await client.connect()
-                const {id} = await client.sendAndWait({action: 'startMatch', total: 1})
-                var p = client.waitForMessage()
-                await client2.connect()
-                const msg = {action: 'joinMatch', id}
-                const res2 = await client2.sendAndWait(msg)
-                const res = await p
-                expect(res.action).to.equal('opponentJoined')
-                expect(res2.action).to.equal('matchJoined')
-                expect(res2.id).to.equal(res.id)
-            })
-
-            it('should return MatchNotFoundError for unknown match id', async () => {
-                server.api.logger.loglevel = -1
-                server.logger.loglevel = -1
-                await client.connect()
-                const msg = {action: 'joinMatch', id: '12345678'}
-                const res = await client.sendAndWait(msg)
-                expect(res.name).to.equal('MatchNotFoundError')
-            })
-
-            it('should return MatchAlreadyJoinedError when already joined', async () => {
-                server.api.logger.loglevel = -1
-                server.logger.loglevel = -1
-                await client.connect()
-                const {id} = await client.sendAndWait({action: 'startMatch', total: 1})
-                var p = client.waitForMessage()
-                await client2.connect()
-                const msg = {action: 'joinMatch', id}
-                await client2.sendAndWait(msg)
+            async function bareConn(client) {
+                const p = new Promise(resolve => client.socketClient.on('connect', conn => {
+                    client.conn = conn
+                    resolve()
+                }))
+                client.socketClient.connect(client.serverSocketUrl)
                 await p
-                const res = await client2.sendAndWait(msg)
-                expect(res.name).to.equal('MatchAlreadyJoinedError')
-            })
-        })
-    })
+            }
 
-    describe('#matchResponse', () => {
-
-        var id
-
-        beforeEach(async () => {
-            const match = await startMatch()
-            match.total = 3
-            id = match.id
-        })
-
-        it('should pass for bad action', async () => {
-            server.logger.loglevel = 0
-            server.matchResponse({id, color: White, secret: client.secret})
-        })
-
-        describe('nextGame', () => {
-
-            it('should reply with nextGame for correct color and id', async () => {
-                client.sendAndWait({action: 'nextGame', color: White, id})
-                const res = await client2.sendAndWait({action: 'nextGame', color: Red, id})
-                expect(res.action).to.equal('nextGame')
-            })
-
-            it('should return GameNotFinishedError when both make second call', async () => {
-                client.sendAndWait({action: 'nextGame', color: White, id})
-                await client2.sendAndWait({action: 'nextGame', color: Red, id})
-                client.sendAndWait({action: 'nextGame', color: White, id})
+            it('should return HandshakeError for missing secret in message', async () => {
+                server.api.logger.loglevel = -1
                 server.logger.loglevel = -1
-                const res = await client2.sendAndWait({action: 'nextGame', color: Red, id})
-                expect(res.name).to.equal('GameNotFinishedError')
+                await client.connect()
+                const res = await client.sendAndWait({secret: null})
+                expect(res.isError).to.equal(true)
+                expect(res.name).to.equal('HandshakeError')
+            })
+
+            it('should return HandshakeError for missing secret on server', async () => {
+                server.api.logger.loglevel = -1
+                server.logger.loglevel = -1
+                await bareConn(client)
+                const res = await client.sendAndWait({secret: 'abc'})
+                expect(res.isError).to.equal(true)
+                expect(res.name).to.equal('HandshakeError')
+            })
+
+            describe('establishSecret', () => {
+
+                it('should return HandshakeError for secret of length 23', async () => {
+                    server.api.logger.loglevel = -1
+                    server.logger.loglevel = -1
+                    const msg = {secret: 'abcdefghijklmnopqrstuvw', action: 'establishSecret'}
+                    await bareConn(client)
+                    const res = await client.sendAndWait(msg)
+                    expect(res.isError).to.equal(true)
+                    expect(res.name).to.equal('HandshakeError')
+                })
+
+                it('should return HandshakeError for mismatch secret', async () => {
+                    server.api.logger.loglevel = -1
+                    server.logger.loglevel = -1
+                    await client.connect()
+                    const msg = {secret: Client.generateSecret(), action: 'establishSecret'}
+                    const res = await client.sendAndWait(msg)
+                    expect(res.isError).to.equal(true)
+                    expect(res.name).to.equal('HandshakeError')
+                })
+            })
+
+            describe('startMatch', () => {
+
+                it('should return matchCreated with id of new match with total 1', async () => {
+                    await client.connect()
+                    const msg = {action: 'startMatch', total: 1}
+                    const res = await client.sendAndWait(msg)
+                    expect(res.action).to.equal('matchCreated')
+                    expect(typeof(res.id)).to.equal('string')
+                })
+
+                it('should return ArgumentError for match with total -1', async () => {
+                    server.api.logger.loglevel = -1
+                    server.logger.loglevel = -1
+                    await client.connect()
+                    const msg = {action: 'startMatch', total: -1}
+                    const res = await client.sendAndWait(msg)
+                    expect(res.name).to.equal('ArgumentError')
+                })
+            })
+
+            describe('joinMatch', () => {
+
+                it('should return matchJoined and opponentJoind with id of new match with total 1', async () => {
+                    await client.connect()
+                    const {id} = await client.sendAndWait({action: 'startMatch', total: 1})
+                    var p = client.waitForMessage()
+                    await client2.connect()
+                    const msg = {action: 'joinMatch', id}
+                    const res2 = await client2.sendAndWait(msg)
+                    const res = await p
+                    expect(res.action).to.equal('opponentJoined')
+                    expect(res2.action).to.equal('matchJoined')
+                    expect(res2.id).to.equal(res.id)
+                })
+
+                it('should return MatchNotFoundError for unknown match id', async () => {
+                    server.api.logger.loglevel = -1
+                    server.logger.loglevel = -1
+                    await client.connect()
+                    const msg = {action: 'joinMatch', id: '12345678'}
+                    const res = await client.sendAndWait(msg)
+                    expect(res.name).to.equal('MatchNotFoundError')
+                })
+
+                it('should return MatchAlreadyJoinedError when already joined', async () => {
+                    server.api.logger.loglevel = -1
+                    server.logger.loglevel = -1
+                    await client.connect()
+                    const {id} = await client.sendAndWait({action: 'startMatch', total: 1})
+                    var p = client.waitForMessage()
+                    await client2.connect()
+                    const msg = {action: 'joinMatch', id}
+                    await client2.sendAndWait(msg)
+                    await p
+                    const res = await client2.sendAndWait(msg)
+                    expect(res.name).to.equal('MatchAlreadyJoinedError')
+                })
             })
         })
 
-        describe('firstTurn', () => {
+        describe('#matchResponse', () => {
 
-            it('should reply with same dice for started game', async () => {
-                server.matches[id].nextGame()
-                const p = client.sendAndWait({action: 'firstTurn', color: White, id})
-                const res = await client2.sendAndWait({action: 'firstTurn', color: Red, id})
-                const res2 = await p
-                expect(res.dice).to.have.length(2)
-                expect(JSON.stringify(res.dice)).to.equal(JSON.stringify(res2.dice))
+            var id
+
+            beforeEach(async () => {
+                const match = await startMatch()
+                match.total = 3
+                id = match.id
+            })
+
+            it('should pass for bad action', async () => {
+                server.logger.loglevel = 0
+                server.matchResponse({id, color: White, secret: client.secret})
+            })
+
+            describe('nextGame', () => {
+
+                it('should reply with nextGame for correct color and id', async () => {
+                    client.sendAndWait({action: 'nextGame', color: White, id})
+                    const res = await client2.sendAndWait({action: 'nextGame', color: Red, id})
+                    expect(res.action).to.equal('nextGame')
+                })
+
+                it('should return GameNotFinishedError when both make second call', async () => {
+                    client.sendAndWait({action: 'nextGame', color: White, id})
+                    await client2.sendAndWait({action: 'nextGame', color: Red, id})
+                    client.sendAndWait({action: 'nextGame', color: White, id})
+                    server.logger.loglevel = -1
+                    const res = await client2.sendAndWait({action: 'nextGame', color: Red, id})
+                    expect(res.name).to.equal('GameNotFinishedError')
+                })
+            })
+
+            describe('firstTurn', () => {
+
+                it('should reply with same dice for started game', async () => {
+                    server.matches[id].nextGame()
+                    const p = client.sendAndWait({action: 'firstTurn', color: White, id})
+                    const res = await client2.sendAndWait({action: 'firstTurn', color: Red, id})
+                    const res2 = await p
+                    expect(res.dice).to.have.length(2)
+                    expect(JSON.stringify(res.dice)).to.equal(JSON.stringify(res2.dice))
+                })
+            })
+
+            describe('playRoll', () => {
+
+                it('should reply with same moves', async () => {
+                    const game = server.matches[id].nextGame()
+                    game._rollFirst = () => [2, 1]
+                    game.firstTurn()
+                    client2.sendAndWait({action: 'playRoll', color: Red, id})
+                    const moves = [
+                        {origin: 0, face: 1},
+                        {origin: 0, face: 2}
+                    ]
+                    const res = await client.sendAndWait({action: 'playRoll', color: White, id, moves})
+                    expect(JSON.stringify(res.moves)).to.equal(JSON.stringify(moves))
+                })
+
+                it('should return RequestError for missing moves', async () => {
+                    const game = server.matches[id].nextGame()
+                    game.firstTurn()
+                    client2.sendAndWait({action: 'playRoll', color: Red, id})
+                    const res = await client.sendAndWait({action: 'playRoll', color: White, id})
+                    expect(res.isRequestError).to.equal(true)
+                })
+            })
+
+            describe('nextTurn', () => {
+                it('should reply for valid case', async () => {
+                    makeRandomMoves(server.matches[id].nextGame().firstTurn()).finish()
+                    client2.sendAndWait({action: 'nextTurn', color: Red, id})
+                    const res = await client.sendAndWait({action: 'nextTurn', color: White, id})
+                    expect(res.action).to.equal('nextTurn')
+                })
+            })
+
+            describe('turnOption', () => {
+
+                it('should return isDouble for isDouble=false', async () => {
+                    const game = server.matches[id].nextGame()
+                    makeRandomMoves(game.firstTurn(), true)
+                    game.nextTurn()
+                    client2.sendAndWait({action: 'turnOption', isDouble: false, color: Red, id})
+                    const res = await client.sendAndWait({action: 'turnOption', color: White, id})
+                    expect(res.isDouble).to.equal(false)
+                })
+
+                it('should return isDouble=true for isDouble=true', async () => {
+                    const game = server.matches[id].nextGame()
+                    game._rollFirst = () => [2, 1]
+                    makeRandomMoves(game.firstTurn(), true)
+                    game.nextTurn()
+                    client2.sendAndWait({action: 'turnOption', color: Red, id, isDouble: true})
+                    const res = await client.sendAndWait({action: 'turnOption', color: White, id})
+                    expect(res.isDouble).to.equal(true)
+                })
+            })
+
+            describe('doubleResponse', () => {
+
+                it('should set double declined for isAccept=false', async () => {
+                    const game = server.matches[id].nextGame()
+                    game._rollFirst = () => [2, 1]
+                    makeRandomMoves(game.firstTurn(), true)
+                    game.nextTurn().setDoubleOffered()
+                    client2.sendAndWait({action: 'doubleResponse', color: Red, id})
+                    const res = await client.sendAndWait({action: 'doubleResponse', color: White, id, isAccept: false})
+                    expect(game.thisTurn.isDoubleDeclined).to.equal(true)
+                    expect(res.isAccept).to.equal(false)
+                })
+
+                it('should double game for isAccept=true', async () => {
+                    const game = server.matches[id].nextGame()
+                    game._rollFirst = () => [2, 1]
+                    makeRandomMoves(game.firstTurn(), true)
+                    game.nextTurn().setDoubleOffered()
+                    client2.sendAndWait({action: 'doubleResponse', color: Red, id})
+                    const res = await client.sendAndWait({action: 'doubleResponse', color: White, id, isAccept: true})
+                    expect(game.cubeValue).to.equal(2)
+                    expect(res.isAccept).to.equal(true)
+                })
+            })
+
+            describe('rollTurn', () => {
+                it('should return same dice', async () => {
+                    const game = server.matches[id].nextGame()
+                    makeRandomMoves(game.firstTurn(), true)
+                    game.nextTurn()
+                    const p = client2.sendAndWait({action: 'rollTurn', color: Red, id})
+                    const res = await client.sendAndWait({action: 'rollTurn', color: White, id})
+                    const res2 = await p
+                    expect(res.dice.length).to.equal(2)
+                    expect(JSON.stringify(res.dice)).to.equal(JSON.stringify(res2.dice))
+                })
             })
         })
 
-        describe('playRoll', () => {
-
-            it('should reply with same moves', async () => {
-                const game = server.matches[id].nextGame()
-                game._rollFirst = () => [2, 1]
-                game.firstTurn()
-                client2.sendAndWait({action: 'playRoll', color: Red, id})
-                const moves = [
-                    {origin: 0, face: 1},
-                    {origin: 0, face: 2}
-                ]
-                const res = await client.sendAndWait({action: 'playRoll', color: White, id, moves})
-                expect(JSON.stringify(res.moves)).to.equal(JSON.stringify(moves))
-            })
-
-            it('should return RequestError for missing moves', async () => {
-                const game = server.matches[id].nextGame()
-                game.firstTurn()
-                client2.sendAndWait({action: 'playRoll', color: Red, id})
-                const res = await client.sendAndWait({action: 'playRoll', color: White, id})
-                expect(res.isRequestError).to.equal(true)
+        describe('#roll', () => {
+            it('should return 2 length array', () => {
+                const result = server.roll()
+                expect(result).to.have.length(2)
             })
         })
 
-        describe('nextTurn', () => {
-            it('should reply for valid case', async () => {
-                makeRandomMoves(server.matches[id].nextGame().firstTurn()).finish()
-                client2.sendAndWait({action: 'nextTurn', color: Red, id})
-                const res = await client.sendAndWait({action: 'nextTurn', color: White, id})
-                expect(res.action).to.equal('nextTurn')
-            })
-        })
+        describe('#validateColor', () => {
 
-        describe('turnOption', () => {
-
-            it('should return isDouble for isDouble=false', async () => {
-                const game = server.matches[id].nextGame()
-                makeRandomMoves(game.firstTurn(), true)
-                game.nextTurn()
-                client2.sendAndWait({action: 'turnOption', isDouble: false, color: Red, id})
-                const res = await client.sendAndWait({action: 'turnOption', color: White, id})
-                expect(res.isDouble).to.equal(false)
+            it('should pass for White', () => {
+                Server.validateColor(White)
             })
 
-            it('should return isDouble=true for isDouble=true', async () => {
-                const game = server.matches[id].nextGame()
-                game._rollFirst = () => [2, 1]
-                makeRandomMoves(game.firstTurn(), true)
-                game.nextTurn()
-                client2.sendAndWait({action: 'turnOption', color: Red, id, isDouble: true})
-                const res = await client.sendAndWait({action: 'turnOption', color: White, id})
-                expect(res.isDouble).to.equal(true)
-            })
-        })
-
-        describe('doubleResponse', () => {
-
-            it('should set double declined for isAccept=false', async () => {
-                const game = server.matches[id].nextGame()
-                game._rollFirst = () => [2, 1]
-                makeRandomMoves(game.firstTurn(), true)
-                game.nextTurn().setDoubleOffered()
-                client2.sendAndWait({action: 'doubleResponse', color: Red, id})
-                const res = await client.sendAndWait({action: 'doubleResponse', color: White, id, isAccept: false})
-                expect(game.thisTurn.isDoubleDeclined).to.equal(true)
-                expect(res.isAccept).to.equal(false)
+            it('should pass for Red', () => {
+                Server.validateColor(Red)
             })
 
-            it('should double game for isAccept=true', async () => {
-                const game = server.matches[id].nextGame()
-                game._rollFirst = () => [2, 1]
-                makeRandomMoves(game.firstTurn(), true)
-                game.nextTurn().setDoubleOffered()
-                client2.sendAndWait({action: 'doubleResponse', color: Red, id})
-                const res = await client.sendAndWait({action: 'doubleResponse', color: White, id, isAccept: true})
-                expect(game.cubeValue).to.equal(2)
-                expect(res.isAccept).to.equal(true)
+            it('should throw server error for Brown', () => {
+                const err = getError(() => Server.validateColor('Brown'))
+                expect(err.isRequestError).to.equal(true)
             })
-        })
-
-        describe('rollTurn', () => {
-            it('should return same dice', async () => {
-                const game = server.matches[id].nextGame()
-                makeRandomMoves(game.firstTurn(), true)
-                game.nextTurn()
-                const p = client2.sendAndWait({action: 'rollTurn', color: Red, id})
-                const res = await client.sendAndWait({action: 'rollTurn', color: White, id})
-                const res2 = await p
-                expect(res.dice.length).to.equal(2)
-                expect(JSON.stringify(res.dice)).to.equal(JSON.stringify(res2.dice))
-            })
-        })
-    })
-
-    describe('#roll', () => {
-        it('should return 2 length array', () => {
-            const result = server.roll()
-            expect(result).to.have.length(2)
-        })
-    })
-
-    describe('#validateColor', () => {
-
-        it('should pass for White', () => {
-            Server.validateColor(White)
-        })
-
-        it('should pass for Red', () => {
-            Server.validateColor(Red)
-        })
-
-        it('should throw server error for Brown', () => {
-            const err = getError(() => Server.validateColor('Brown'))
-            expect(err.isRequestError).to.equal(true)
         })
     })
 
@@ -839,20 +852,84 @@ describe('Server', () => {
 
     describe('web', () => {
 
-        it('should return 200 for /', async () => {
-            const res = await fetch(serverUrl + '/')
-            expect(res.status).to.equal(200)
+        describe('GET /', () => {
+
+            it('should return 200', async () => {
+                const res = await fetch(serverUrl + '/')
+                expect(res.status).to.equal(200)
+            })
+
+            it('should have text Gameon in body', async () => {
+                const res = await fetch(serverUrl + '/')
+                const body = await res.text()
+                expect(body).to.contain('Gameon')
+            })
+        })
+        
+        describe('GET /nowhere', () => {
+
+            it('should return 404', async () => {
+                const res = await fetch(serverUrl + '/nowhere')
+                expect(res.status).to.equal(404)
+            })
         })
 
-        it('should have text Gameon in body for /', async () => {
-            const res = await fetch(serverUrl + '/')
-            const body = await res.text()
-            expect(body).to.contain('Gameon')
+        describe('GET /login', () => {
+
+            it('should return 200', async () => {
+                const res = await fetch(authServerUrl + '/login')
+                expect(res.status).to.equal(200)
+            })
         })
 
-        it('should return 404 for /nowhere', async () => {
-            const res = await fetch(serverUrl + '/nowhere')
-            expect(res.status).to.equal(404)
+        describe('POST /login', () => {
+
+            it('should return 400 with bad credentials', async () => {
+                const username = 'nobody@nowhere.example'
+                const password = 's8Kfjsdk9'
+                const params = getParams({username, password})
+                authServer.auth.logger.loglevel = -1
+                const res = await fetch(authServerUrl + '/login', {
+                    method: 'POST',
+                    body: params
+                })
+                expect(res.status).to.equal(400)
+            })
+
+            it('should return 400 with no data', async () => {
+                const params = getParams()
+                const res = await fetch(authServerUrl + '/login', {
+                    method: 'POST',
+                    body: params
+                })
+                expect(res.status).to.equal(400)
+            })
+
+            it('should return 500 when authenticate throws Error', async () => {
+                const username = 'nobody@nowhere.example'
+                const password = 'tz7TcUUm'
+                const params = getParams({username, password})
+                authServer.auth.authenticate = async () => { throw new Error }
+                const res = await fetch(authServerUrl + '/login', {
+                    method: 'POST',
+                    body: params
+                })
+                expect(res.status).to.equal(500)
+            })
+
+            it('should return 302 to / with good credentials', async () => {
+                const username = 'nobody@nowhere.example'
+                const password = 'M3nGUmSF'
+                const params = getParams({username, password})
+                authServer.auth.createUser(username, password, true)
+                const res = await fetch(authServerUrl + '/login', {
+                    method: 'POST',
+                    body: params,
+                    redirect: 'manual'
+                })
+                expect(res.status).to.equal(302)
+                expect(res.headers.get('location')).to.equal(authServerUrl + '/')
+            })
         })
     })
 })

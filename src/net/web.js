@@ -29,30 +29,77 @@ const bodyParser = require('body-parser')
 const express    = require('express')
 const {merge}    = Util
 const path       = require('path')
+const session    = require('express-session')
+
+// This should be set in production environments with SESSION_SECRET
+const DefaultSessionSecret = 'D2hjWtg95VkuzhFBVxnhDhSU4J9BYnz8'
 
 class Web {
 
-    defaults() {
-        return {}
+    defaults(env) {
+        return {
+            sessionSecret   : env.SESSION_SECRET || DefaultSessionSecret
+          , sessionInsecure : !!env.SESSION_INSECURE
+          , sessionExpiry   : +env.SESSION_EXPIRY || 600000
+        }
     }
 
     constructor(auth, opts) {
         this.logger = new Logger(this.constructor.name, {server: true})
         this.auth = auth
-        this.opts = merge({}, this.defaults(), opts)
+        this.opts = merge({}, this.defaults(process.env), opts)
         this.app = this.createExpressApp()
     }
 
     createExpressApp() {
+
         const app = express()
+        const formParser = bodyParser.urlencoded({extended: true})
+
+        app.set('trust proxy', 1)
+
         app.set('view engine', 'ejs')
         app.set('views', path.resolve(__dirname, '../www/templates'))
+
+        app.use(session({
+            secret            : this.opts.sessionSecret
+          , name              : 'gasid'
+          , resave            : false
+          , saveUninitialized : false
+          , cookie            : {
+                httpOnly : true
+              , secure   : !this.opts.sessionInsecure
+              , sameSite : true
+              , maxAge   : this.opts.sessionExpiry
+            }
+        }))
+
         app.get('/', (req, res) => {
             res.status(200).render('index')
         })
+
+        app.get('/login', (req, res) => {
+            res.status(200).render('login')
+        })
+
+        app.post('/login', formParser, (req, res) => {
+            const {username, password} = req.body
+            this.auth.authenticate(username, password).then(user => {
+                res.status(302).redirect('/')
+            }).catch(err => {
+                if (err.name == 'BadCredentialsError' || err.name == 'ValidationError') {
+                    res.status(400)
+                } else {
+                    res.status(500)
+                }
+                res.render('login', {errors: [err]})
+            })
+        })
+
         app.use((req, res) => {
             res.status(404).send('Not found')
         })
+
         return app
     }
 }

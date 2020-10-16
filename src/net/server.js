@@ -52,8 +52,8 @@ class Server {
         this.logger = new Logger(this.constructor.name, {server: true})
         this.opts = merge({}, this.defaults(), opts)
         this.auth = new Auth(this.opts.authType, this.opts.auth)
-        this.api = new Api(this.auth)
-        this.web = new Web(this.auth)
+        this.api = new Api(this.auth, this.opts)
+        this.web = new Web(this.auth, this.opts)
         this.app = this.createExpressApp()
         this.matches = {}
         this.connTicker = 0
@@ -96,22 +96,28 @@ class Server {
 
         const app = express()
 
-        app.use(audit({
-            logger : this.logger
-          , request : {
-                excludeBody    : ['*']
-              , excludeHeaders : ['*']
-            }
-          , response : {
-                excludeBody    : ['*']
-              , excludeHeaders : ['*']
-            }
-        }))
+        app.use(this.getLoggingMiddleware())
 
         app.use('/api/v1', this.api.v1)
         app.use('/', this.web.app)
         
         return app
+    }
+
+    getLoggingMiddleware() {
+        return audit({
+            logger : this.logger
+          , request : {
+                excludeBody    : ['*']
+              , excludeHeaders : ['*']
+              , maxBodyLength  : 1
+            }
+          , response : {
+                excludeBody    : ['*']
+              , excludeHeaders : ['*']
+              , maxBodyLength  : 1
+            }
+        })
     }
 
     createSocketServer(httpServer) {

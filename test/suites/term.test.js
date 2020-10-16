@@ -204,6 +204,7 @@ describe('Menu', () => {
         })
 
         it('should invalidate match id abcd with joinOnline, then quit', async () => {
+            menu.loglevel = -1
             menu.prompt = MockPrompter([
                 {playChoice: 'joinOnline'},
                 {matchId: 'abcd'},
