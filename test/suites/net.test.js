@@ -918,7 +918,7 @@ describe('Server', () => {
                 expect(res.status).to.equal(500)
             })
 
-            it('should return 302 to / with good credentials', async () => {
+            it('should return 302 to /dashboard with good credentials', async () => {
                 const username = 'nobody@nowhere.example'
                 const password = 'M3nGUmSF'
                 const params = getParams({username, password})
@@ -929,7 +929,7 @@ describe('Server', () => {
                     redirect: 'manual'
                 })
                 expect(res.status).to.equal(302)
-                expect(res.headers.get('location')).to.equal(authServerUrl + '/')
+                expect(res.headers.get('location')).to.equal(authServerUrl + '/dasboard')
             })
         })
     })
