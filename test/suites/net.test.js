@@ -929,7 +929,7 @@ describe('Server', () => {
                     redirect: 'manual'
                 })
                 expect(res.status).to.equal(302)
-                expect(res.headers.get('location')).to.equal(authServerUrl + '/dasboard')
+                expect(res.headers.get('location')).to.equal(authServerUrl + '/dashboard')
             })
         })
     })
