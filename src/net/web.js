@@ -25,11 +25,12 @@
 const Logger = require('../lib/logger')
 const Util   = require('../lib/util')
 
-const bodyParser = require('body-parser')
-const express    = require('express')
-const {merge}    = Util
-const path       = require('path')
-const session    = require('express-session')
+const bodyParser   = require('body-parser')
+const cookieParser = require('cookie-parser')
+const express      = require('express')
+const {merge}      = Util
+const path         = require('path')
+const session      = require('express-session')
 
 // This should be set in production environments with SESSION_SECRET
 const DefaultSessionSecret = 'D2hjWtg95VkuzhFBVxnhDhSU4J9BYnz8'
@@ -74,6 +75,20 @@ class Web {
             }
         }))
 
+        app.use(cookieParser())
+
+        app.use((req, res, next) => {
+            // clear old session cookies
+            if (req.cookies.gasid && !req.session.user) {
+                res.clearCookie('gasid')
+            }
+            req.loggedIn = !!(req.cookies.gasid && req.session.user)
+            if (req.loggedIn) {
+                res.locals.user = req.session.user
+            }
+            next()
+        })
+
         app.get('/', (req, res) => {
             res.status(200).render('index')
         })
@@ -85,7 +100,8 @@ class Web {
         app.post('/login', formParser, (req, res) => {
             const {username, password} = req.body
             this.auth.authenticate(username, password).then(user => {
-                res.status(302).redirect('/')
+                req.session.user = user
+                res.status(302).redirect('/dashboard')
             }).catch(err => {
                 if (err.name == 'BadCredentialsError' || err.name == 'ValidationError') {
                     res.status(400)
@@ -94,6 +110,14 @@ class Web {
                 }
                 res.render('login', {errors: [err]})
             })
+        })
+
+        app.get('/dashboard', (req, res) => {
+            if (!req.loggedIn) {
+                res.status(302).redirect('/login')
+                return
+            }
+            res.render('dashboard')
         })
 
         app.use((req, res) => {

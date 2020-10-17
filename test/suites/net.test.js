@@ -226,7 +226,7 @@ describe('Server', () => {
     }
 
     beforeEach(async () => {
-        server = new Server
+        server = new Server()
         server.api.logger.loglevel = 1
         server.logger.loglevel = 1
         await server.listen()
@@ -241,7 +241,8 @@ describe('Server', () => {
         authDir = tmp.dirSync().name
         authServer = new Server({
             authType: 'directory',
-            auth: {dir: authDir}
+            auth: {dir: authDir},
+            sessionInsecure : true
         })
         authServer.logger.loglevel = 1
         authServer.auth.logger.loglevel = 1
