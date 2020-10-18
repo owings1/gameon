@@ -34,6 +34,7 @@ const session      = require('express-session')
 
 // This should be set in production environments with SESSION_SECRET
 const DefaultSessionSecret = 'D2hjWtg95VkuzhFBVxnhDhSU4J9BYnz8'
+const DefaultSessionCookie = 'gasid'
 
 class Web {
 
@@ -42,6 +43,7 @@ class Web {
             sessionSecret   : env.SESSION_SECRET || DefaultSessionSecret
           , sessionInsecure : !!env.SESSION_INSECURE
           , sessionExpiry   : +env.SESSION_EXPIRY || 600000
+          , sessionCookie   : env.SESSION_COOKIE || DefaultSessionCookie
         }
     }
 
@@ -64,7 +66,7 @@ class Web {
 
         app.use(session({
             secret            : this.opts.sessionSecret
-          , name              : 'gasid'
+          , name              : this.opts.sessionCookie
           , resave            : false
           , saveUninitialized : false
           , cookie            : {
@@ -79,13 +81,17 @@ class Web {
 
         app.use((req, res, next) => {
             // clear old session cookies
-            if (req.cookies.gasid && !req.session.user) {
-                res.clearCookie('gasid')
+            if (req.cookies[this.opts.sessionCookie] && !req.session.user) {
+                res.clearCookie(this.opts.sessionCookie)
             }
-            req.loggedIn = !!(req.cookies.gasid && req.session.user)
+            // set logged in
+            req.loggedIn = !!(req.cookies[this.opts.sessionCookie] && req.session.user)
+            // set view locals
             if (req.loggedIn) {
+                res.locals.loggedIn = true
                 res.locals.user = req.session.user
             }
+            res.locals.errors = null
             next()
         })
 
@@ -112,12 +118,18 @@ class Web {
             })
         })
 
+        app.get('/logout', (req, res) => {
+            res.clearCookie(this.opts.sessionCookie)
+            delete req.session.user
+            res.status(302).redirect('/')
+        })
+
         app.get('/dashboard', (req, res) => {
             if (!req.loggedIn) {
                 res.status(302).redirect('/login')
-                return
+            } else {
+                res.status(200).render('dashboard')
             }
-            res.render('dashboard')
         })
 
         app.use((req, res) => {

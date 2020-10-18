@@ -4,6 +4,7 @@
     <title>Login - Gameon</title>
 </head>
 <body>
+    <%- include('elements/errors', {errors}) %>
     <form action="/login" method="post">
         <label for="username">Username</label>
         <input type="text" name="username" id="username" required>

@@ -101,7 +101,7 @@ describe('Menu', () => {
         authDir = tmp.dirSync().name
         server = new Server({
             authType: 'directory',
-            auth: {dir: authDir}
+            authDir
         })
         server.logger.loglevel = 0
         server.auth.logger.loglevel = 0

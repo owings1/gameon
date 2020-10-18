@@ -5,6 +5,7 @@ const {
     getErrorAsync,
     makeRandomMoves,
     parseKey,
+    parseCookies,
     randomElement,
     requireSrc,
     States
@@ -241,7 +242,7 @@ describe('Server', () => {
         authDir = tmp.dirSync().name
         authServer = new Server({
             authType: 'directory',
-            auth: {dir: authDir},
+            authDir,
             sessionInsecure : true
         })
         authServer.logger.loglevel = 1
@@ -865,6 +866,16 @@ describe('Server', () => {
                 const body = await res.text()
                 expect(body).to.contain('Gameon')
             })
+
+            it('should clear invalid session cookie', async () => {
+                const res = await fetch(serverUrl + '/', {
+                    headers: {
+                        cookie: ['gasid=abcd']
+                    }
+                })
+                const parsedCookies = parseCookies(res)
+                expect(parsedCookies).to.contain('gasid=').and.to.not.contain('gasid=abcd')
+            })
         })
         
         describe('GET /nowhere', () => {
@@ -930,6 +941,70 @@ describe('Server', () => {
                 })
                 expect(res.status).to.equal(302)
                 expect(res.headers.get('location')).to.equal(authServerUrl + '/dashboard')
+            })
+        })
+
+        
+        describe('GET /logout', () => {
+
+            it('should return 302 to / with no login session', async () => {
+                const res = await fetch(authServerUrl + '/logout', {
+                    redirect: 'manual'
+                })
+                expect(res.status).to.equal(302)
+                expect(res.headers.get('location')).to.equal(authServerUrl + '/')
+            })
+
+            it('should return 302 to / with login session', async () => {
+                const username = 'nobody@nowhere.example'
+                const password = 'VuVahF43'
+                const params = getParams({username, password})
+                authServer.auth.createUser(username, password, true)
+                const loginRes = await fetch(authServerUrl + '/login', {
+                    method: 'POST',
+                    body: params,
+                    redirect: 'manual'
+                })
+                const parsedCookies = parseCookies(loginRes)
+                const res = await fetch(authServerUrl + '/logout', {
+                    redirect: 'manual',
+                    headers: {
+                        cookie: parsedCookies
+                    }
+                })
+                expect(res.status).to.equal(302)
+                expect(res.headers.get('location')).to.equal(authServerUrl + '/')
+            })
+        })
+
+        describe('GET /dashboard', () => {
+
+            it('should return 200 for logged in', async () => {
+                const username = 'nobody@nowhere.example'
+                const password = 'DtgZ77mU'
+                const params = getParams({username, password})
+                authServer.auth.createUser(username, password, true)
+                const loginRes = await fetch(authServerUrl + '/login', {
+                    method: 'POST',
+                    body: params,
+                    redirect: 'manual'
+                })
+                const parsedCookies = parseCookies(loginRes)
+                const res = await fetch(authServerUrl + '/dashboard', {
+                    redirect: 'manual',
+                    headers: {
+                        cookie: parsedCookies
+                    }
+                })
+                expect(res.status).to.equal(200)
+            })
+
+            it('should redirect to /login when not logged in', async () => {
+                const res = await fetch(authServerUrl + '/dashboard', {
+                    redirect: 'manual'
+                })
+                expect(res.status).to.equal(302)
+                expect(res.headers.get('location')).to.equal(authServerUrl + '/login')
             })
         })
     })
@@ -1194,18 +1269,18 @@ describe('Auth', () => {
         })
 
         it('should file with non-existent directory', () => {
-            const opts = {dir: '/non-existent'}
+            const opts = {authDir: '/non-existent'}
             const err = getError(() => { new Auth('directory', opts)})
             expect(err instanceof Error).to.equal(true)
         })
 
         it('should pass with diretory specified', () => {
-            const opts = {dir: authDir}
+            const opts = {authDir}
             const auth = new Auth('directory', opts)
         })
 
         function newAuth() {
-            const opts = {dir: authDir}
+            const opts = {authDir}
             const auth = new Auth('directory', opts)
             auth.logger.loglevel = 0
             return auth
@@ -1302,7 +1377,7 @@ describe('Auth', () => {
 
             it('should throw InternalError caused by ENOENT when directory gets nuked', async () => {
                 const auth = newAuth()
-                await fse.remove(auth.opts.dir)
+                await fse.remove(auth.opts.authDir)
                 const err = await getErrorAsync(() => auth.listAllUsers())
                 expect(err.name).to.equal('InternalError')
                 expect(err.cause.code).to.equal('ENOENT')
