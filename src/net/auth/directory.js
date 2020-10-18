@@ -39,17 +39,17 @@ class DirectoryAuth {
 
     defaults() {
         return {
-            dir : process.env.AUTH_DIR  || ''
+            authDir : process.env.AUTH_DIR  || ''
         }
     }
 
     constructor(opts){
         this.opts = merge({}, this.defaults(), opts)
-        if (!this.opts.dir) {
+        if (!this.opts.authDir) {
             throw new InternalError('Auth directory not set.')
         }
-        if (!fs.existsSync(this.opts.dir)) {
-            throw new InternalError('Auth directory not found: ' + this.opts.dir)
+        if (!fs.existsSync(this.opts.authDir)) {
+            throw new InternalError('Auth directory not found: ' + this.opts.authDir)
         }
     }
 
@@ -80,12 +80,12 @@ class DirectoryAuth {
     }
 
     async userExists(username) {
-        return fse.pathExists(this._userFile(username))
+        return await fse.pathExists(this._userFile(username))
     }
 
     async listAllUsers() {
         return new Promise((resolve, reject) => {
-            fs.readdir(this.opts.dir, (err, files) => {
+            fs.readdir(this.opts.authDir, (err, files) => {
                 if (err) {
                     reject(new InternalError(err))
                     return
@@ -96,7 +96,7 @@ class DirectoryAuth {
     }
 
     _userFile(username) {
-        return resolve(this.opts.dir, this._userFilename(username))
+        return resolve(this.opts.authDir, this._userFilename(username))
     }
 
     _userFilename(username) {

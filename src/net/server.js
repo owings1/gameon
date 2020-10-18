@@ -44,14 +44,13 @@ class Server {
     defaults() {
         return {
             authType: process.env.AUTH_TYPE || 'anonymous'
-          , auth : {}
         }
     }
 
     constructor(opts) {
         this.logger = new Logger(this.constructor.name, {server: true})
         this.opts = merge({}, this.defaults(), opts)
-        this.auth = new Auth(this.opts.authType, this.opts.auth)
+        this.auth = new Auth(this.opts.authType, this.opts)
         this.api = new Api(this.auth, this.opts)
         this.web = new Web(this.auth, this.opts)
         this.app = this.createExpressApp()
