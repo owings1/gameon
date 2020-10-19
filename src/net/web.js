@@ -95,6 +95,14 @@ class Web {
             next()
         })
 
+        function requireLogin(req, res, next) {
+            if (!req.loggedIn) {
+                res.status(302).redirect('/login')
+            } else {
+                next()
+            }
+        }
+
         app.get('/', (req, res) => {
             res.status(200).render('index')
         })
@@ -124,12 +132,12 @@ class Web {
             res.status(302).redirect('/')
         })
 
-        app.get('/dashboard', (req, res) => {
-            if (!req.loggedIn) {
-                res.status(302).redirect('/login')
-            } else {
-                res.status(200).render('dashboard')
-            }
+        app.get('/dashboard', requireLogin, (req, res) => {
+            res.status(200).render('dashboard')
+        })
+
+        app.get('/play', requireLogin, (req, res) => {
+            res.status(200).render('play')
         })
 
         app.use((req, res) => {

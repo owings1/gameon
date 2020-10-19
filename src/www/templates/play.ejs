@@ -1,0 +1,41 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+    <title>Gameon</title>
+    <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js" integrity="sha256-4+XzXVhsDmqanXGHaHvgh1gMQKX40OUvDEBTu8JcmNs=" crossorigin="anonymous"></script>
+</head>
+<body>
+    <h2>Join Match</h2>
+    <div>
+        <form id="joinMatch">
+            <div class="input">
+                <label for="matchId" required>Match ID</label>
+                <input name="matchId" id="matchId" type="text">
+            </div>
+            <div class="input">
+                <button id="joinMatchButton">Join</button>
+            </div>
+        </form>
+    </div>
+    <h2>Create Match</h2>
+    <div>
+        <form id="createMatch">
+            <div class="input">
+                <label for="total">Match Total</label>
+                <input name="total" id="total" type="text" required>
+            </div>
+            <div class="input">
+                <label for="isCrawford">Crawford Rule</label>
+                <input name="isCrawford" id="isCrawford" type="checkbox">
+            </div>
+            <div class="input">
+                <label for="isJacoby">Jacoby Rule</label>
+                <input name="isJacoby" id="isJacoby" type="checkbox">
+            </div>
+            <div class="input">
+                <button id="createMatchButton">Create</button>
+            </div>
+        </form>
+    </div>
+</body>
+</html>

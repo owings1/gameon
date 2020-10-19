@@ -1007,6 +1007,37 @@ describe('Server', () => {
                 expect(res.headers.get('location')).to.equal(authServerUrl + '/login')
             })
         })
+
+        describe('GET /play', () => {
+
+            it('should return 200 for logged in', async () => {
+                const username = 'nobody@nowhere.example'
+                const password = 'sj8GWDuJ'
+                const params = getParams({username, password})
+                authServer.auth.createUser(username, password, true)
+                const loginRes = await fetch(authServerUrl + '/login', {
+                    method: 'POST',
+                    body: params,
+                    redirect: 'manual'
+                })
+                const parsedCookies = parseCookies(loginRes)
+                const res = await fetch(authServerUrl + '/play', {
+                    redirect: 'manual',
+                    headers: {
+                        cookie: parsedCookies
+                    }
+                })
+                expect(res.status).to.equal(200)
+            })
+
+            it('should redirect to /login when not logged in', async () => {
+                const res = await fetch(authServerUrl + '/play', {
+                    redirect: 'manual'
+                })
+                expect(res.status).to.equal(302)
+                expect(res.headers.get('location')).to.equal(authServerUrl + '/login')
+            })
+        })
     })
 })
 
