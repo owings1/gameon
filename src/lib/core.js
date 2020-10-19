@@ -72,22 +72,35 @@ class Match {
         }
     }
 
+    static unserialize(data) {
+        const match = new Match(data.total, data.opts)
+        match.uuid = data.uuid
+        match.scores = data.scores
+        match.hasCrawforded = data.hasCrawforded
+        match.winner = data.winner
+        match.isFinished = data.isFinished
+        match.games = data.games.map(Game.unserialize)
+        match.thisGame = match.games[match.games.length - 1] || null
+        return match
+    }
+
     constructor(total, opts) {
+
         if (!Number.isInteger(total) || total < 1) {
             throw new ArgumentError('total must be integer > 0')
         }
+
         this.uuid = Util.uuid()
         this.total = total
         this.opts = Util.defaults(Match.defaults(), opts)
-        this.games = []
-        this.scores = {
-            Red   : 0
-          , White : 0
-        }
+
         this.hasCrawforded = false
-        this.thisGame = null
         this.winner = null
         this.isFinished = false
+        this.scores = {Red: 0, White: 0}
+
+        this.games = []
+        this.thisGame = null
     }
 
     nextGame() {
@@ -151,13 +164,20 @@ class Match {
 
     meta() {
         return {
-            uuid      : this.uuid
-          , total     : this.total
-          , scores    : this.scores
-          , winner    : this.getWinner()
-          , loser     : this.getLoser()
-          , gameCount : this.games.length
+            uuid          : this.uuid
+          , total         : this.total
+          , scores        : this.scores
+          , winner        : this.getWinner()
+          , loser         : this.getLoser()
+          , hasCrawforded : this.hasCrawforded
+          , gameCount     : this.games.length
         }
+    }
+
+    serialize() {
+        return Util.merge(this.meta(), {
+            games: this.games.map(Game.serialize)
+        })
     }
 }
 
@@ -170,19 +190,48 @@ class Game {
         }
     }
 
+    static serialize(game) {
+        return game.serialize()
+    }
+
+    static unserialize(data) {
+
+        const game = new Game(data.opts)
+
+        game.uuid = data.uuid
+
+        game.cubeOwner  = data.cubeOwner
+        game.cubeValue  = data.cubeValue
+        game.endState   = data.endState
+        game.finalValue = data.finalValue
+        game.isFinished = data.isFinished
+        game.isPass     = data.isPass
+        game.winner     = data.winner
+
+        game.turns = data.turns.map(turn => Turn.unserialize(turn, game.board))
+        game.thisTurn = game.turns[game.turns.length - 1] || null
+
+        game.board.setStateString(data.board)
+
+        return game
+    }
+
     constructor(opts) {
-        this.uuid = Util.uuid()
-        this.opts = Util.defaults(Game.defaults(), opts)
+
+        this.opts  = Util.defaults(Game.defaults(), opts)
+        this.uuid  = Util.uuid()
         this.board = Board.setup()
-        this.cubeOwner = null
-        this.cubeValue = 1
-        this.thisTurn = null
-        this.winner = null
-        this.isFinished = false
-        this.isPass = false
-        this.endState = null
+
+        this.cubeOwner  = null
+        this.cubeValue  = 1
+        this.endState   = null
         this.finalValue = null
+        this.isFinished = false
+        this.isPass     = false
+        this.winner     = null
+
         this.turns = []
+        this.thisTurn = null
     }
 
     canDouble(color) {
@@ -294,16 +343,24 @@ class Game {
     meta() {
         return {
             uuid       : this.uuid
+          , opts       : this.opts
           , winner     : this.getWinner()
           , loser      : this.getLoser()
           , finalValue : this.finalValue
+          , cubeOwner  : this.cubeOwner
           , cubeValue  : this.cubeValue
-          , opts       : this.opts
           , isPass     : this.isPass
           , endState   : this.endState
           , turnCount  : this.turns.length
           , turns      : this.turns.map(turn => turn.meta())
         }
+    }
+
+    serialize() {
+        return Util.merge(this.meta(), {
+            board : this.board.stateString()
+          , turns : this.turns.map(Turn.serialize)
+        })
     }
 
     // allow override for testing
@@ -314,22 +371,51 @@ class Game {
 
 class Turn {
 
+    static serialize(turn) {
+        return turn.serialize()
+    }
+
+    static unserialize(data, board) {
+
+        board = board || Board.fromStateString(data.startState)
+
+        const turn = new Turn(board, data.color)
+
+        if (data.isRolled) {
+            turn.setRoll(...data.dice)
+        }
+
+        data.moves.forEach(move => turn.move(move.origin, move.face))
+    
+        turn.isDoubleDeclined = data.isDoubleDeclined
+        turn.isDoubleOffered  = data.isDoubleOffered
+
+        if (data.isFinished) {
+            turn.finish()
+        }
+
+        return turn
+    }
+
     constructor(board, color) {
-        this.board = board
-        this.color = color
-        this.opponent = Opponent[color]
-        this.moves = []
-        this.dice = null
-        this.diceSorted = null
-        this.faces = null
-        this.isDoubleOffered = false
-        this.isDoubleDeclined = false
-        this.isRolled = false
-        this.isCantMove = false
-        this.isForceMove = false
-        this.isFinished = false
+
+        this.board      = board
+        this.color      = color
+        this.opponent   = Opponent[color]
         this.startState = board.stateString()
-        this.endState = null
+
+        this.dice             = null
+        this.diceSorted       = null
+        this.endState         = null
+        this.faces            = null
+        this.isCantMove       = false
+        this.isDoubleDeclined = false
+        this.isDoubleOffered  = false
+        this.isFinished       = false
+        this.isForceMove      = false
+        this.isRolled         = false
+
+        this.moves = []
     }
 
     setDoubleOffered() {
@@ -392,9 +478,7 @@ class Turn {
 
         this.faces = Dice.faces(this.dice)
 
-        Object.entries(this._computeAllowedMovesResult()).forEach(([k, v]) => {
-            this[k] = v
-        })
+        this._compute()
 
         this.remainingFaces = this.allowedFaces.slice(0)
         if (this.isCantMove) {
@@ -490,6 +574,12 @@ class Turn {
         }
     }
 
+    _compute() {
+        Object.entries(this._computeAllowedMovesResult()).forEach(([k, v]) => {
+            this[k] = v
+        })
+    }
+
     _computeAllowedMovesResult() {
 
         const trees = Dice.sequencesForFaces(this.faces).map(sequence =>
@@ -575,23 +665,25 @@ class Turn {
     }
 
     meta() {
-        const meta = {
-            color       : this.color
-          , dice        : this.dice
-          , diceSorted  : this.diceSorted
-          , startState  : this.startState
-          , endState    : this.endState
-          , isForceMove : this.isForceMove
-          , isCantMove  : this.isCantMove
-          , isFirstTurn : this.isFirstTurn
-          , isFinished  : this.isFinished
-          , moves       : this.moves.map(move => move.coords())
+        return {
+            color            : this.color
+          , dice             : this.dice
+          , diceSorted       : this.diceSorted
+          , startState       : this.startState
+          , endState         : this.endState
+          , isForceMove      : this.isForceMove
+          , isCantMove       : this.isCantMove
+          , isDoubleOffered  : this.isDoubleOffered
+          , isDoubleDeclined : this.isDoubleDeclined
+          , isFirstTurn      : this.isFirstTurn
+          , isFinished       : this.isFinished
+          , isRolled         : this.isRolled
+          , moves            : this.moves.map(move => move.coords())
         }
-        if (this.isDoubleOffered) {
-            meta.isDoubleOffered = this.isDoubleOffered
-            meta.isDoubleDeclined = this.isDoubleDeclined
-        }
-        return meta
+    }
+
+    serialize() {
+        return this.meta()
     }
 
     // allow override for testing

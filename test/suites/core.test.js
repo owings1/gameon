@@ -128,6 +128,40 @@ describe('Match', () => {
         })
     })
 
+    describe('#unserialize', () => {
+
+        it('should unserialize unstarted match', () => {
+            const m1 = new Match(1)
+            const m2 = Match.unserialize(m1.serialize())
+            expect(m2.total).to.equal(1)
+        })
+
+        it('should unserialize match with unstarted game', () => {
+            const m1 = new Match(1)
+            m1.nextGame()
+            const m2 = Match.unserialize(m1.serialize())
+            m2.thisGame.firstTurn()
+        })
+
+        it('should serialize/unserialize and continue play with total:1', () => {
+            const m1 = new Match(1)
+            const g1 = m1.nextGame()
+
+            // white moves first
+            g1._rollFirst = () => [6, 1]
+            makeRandomMoves(g1.firstTurn(), true)
+
+            const m2 = Match.unserialize(m1.serialize())
+            const g2 = m2.thisGame
+
+            expect(g2.board.stateString()).to.equal(g1.board.stateString())
+
+            // should be red's turn
+            const t2 = g2.nextTurn()
+            expect(t2.color).to.equal(Red)
+        })
+    })
+
     describe('#updateScore', () => {
 
         it('should do nothing when match not started', () => {
@@ -658,6 +692,30 @@ describe('Turn', () => {
             const turn = new Turn(Board.setup(), White)
             turn.setDoubleOffered()
             expect(turn.isDoubleOffered).to.equal(true)
+        })
+    })
+
+    describe('#unserialize', () => {
+
+        it('should make new board with state if not passed', () => {
+            const game = new Game
+            const t1 = makeRandomMoves(game.firstTurn(), true)
+            const t2 = Turn.unserialize(Turn.serialize(t1))
+            expect(t2.board.stateString()).to.equal(t1.board.stateString())
+            expect(t2).to.not.equal(t1)
+        })
+
+        it('should leave second turn unrolled, then continue play', () => {
+            const game = new Game
+            game._rollFirst = () => [6, 1]
+            makeRandomMoves(game.firstTurn(), true)
+            game.nextTurn()
+            const t2 = Turn.unserialize(Turn.serialize(game.thisTurn))
+            expect(t2.color).to.equal(Red)
+            expect(t2.isRolled).to.equal(false)
+            t2.roll()
+            makeRandomMoves(t2, true)
+            expect(t2.isFinished).to.equal(true)
         })
     })
 
