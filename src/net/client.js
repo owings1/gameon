@@ -46,6 +46,7 @@ class Client {
         this.conn = null
         this.isHandshake = null
         this.secret = Client.generateSecret()
+        this.match = null
         this.matchId = null
     }
 
@@ -74,7 +75,7 @@ class Client {
             }
         })
 
-        return this.handshake()
+        return await this.handshake()
     }
 
     async close() {
@@ -91,6 +92,7 @@ class Client {
         return res
     }
 
+    // TODO: refactor name to createMatch()
     async startMatch(opts) {
         const {total} = opts
         await this.connect()
