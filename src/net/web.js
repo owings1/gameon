@@ -42,7 +42,7 @@ class Web {
         return {
             sessionSecret   : env.SESSION_SECRET || DefaultSessionSecret
           , sessionInsecure : !!env.SESSION_INSECURE
-          , sessionExpiry   : +env.SESSION_EXPIRY || 600000
+          , sessionExpiry   : +env.SESSION_EXPIRY || 86400 * 1000
           , sessionCookie   : env.SESSION_COOKIE || DefaultSessionCookie
         }
     }
@@ -137,8 +137,14 @@ class Web {
         })
 
         app.get('/play', requireLogin, (req, res) => {
-            res.status(200).render('play')
+            res.status(200).render('play', {
+                Gameon: {
+                    
+                }
+            })
         })
+
+        app.use('/static', express.static(path.resolve(__dirname, '../www/static')))
 
         app.use((req, res) => {
             res.status(404).send('Not found')

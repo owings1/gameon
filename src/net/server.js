@@ -41,15 +41,16 @@ const {merge} = Util
 
 class Server {
 
-    defaults() {
+    defaults(env) {
         return {
-            authType: process.env.AUTH_TYPE || 'anonymous'
+            authType        : env.AUTH_TYPE || 'anonymous'
+          , socketHsTimeout : +env.SOCKET_HSTIMEOUT || 5000
         }
     }
 
     constructor(opts) {
         this.logger = new Logger(this.constructor.name, {server: true})
-        this.opts = merge({}, this.defaults(), opts)
+        this.opts = merge({}, this.defaults(process.env), opts)
         this.auth = new Auth(this.opts.authType, this.opts)
         this.api = new Api(this.auth, this.opts)
         this.web = new Web(this.auth, this.opts)
@@ -143,6 +144,14 @@ class Server {
             conn.on('message', msg => {
                 this.response(conn, JSON.parse(msg.utf8Data))
             })
+
+            setTimeout(() => {
+                if (!conn.secret) {
+                    this.logger.warn('Peer', connId, 'handshake timeout', conn.remoteAddress)
+                    this.sendMessage(conn, Util.makeErrorObject(new HandshakeError('Client handshake timeout')))
+                    conn.close()
+                }
+            }, this.opts.socketHsTimeout)
         })
 
         return server
@@ -182,7 +191,8 @@ class Server {
 
                     break
 
-                case 'startMatch':
+                case 'createMatch':
+                case 'startMatch': // TODO: remove legacy startMatch
 
                     var id = Server.matchIdFromSecret(secret)
                     var {total, opts} = req
@@ -203,7 +213,7 @@ class Server {
                     conn.matchId = id
                     conn.color = White
                     this.matches[id] = match
-                    this.sendMessage(conn, {action: 'matchCreated', id})
+                    this.sendMessage(conn, {action: 'matchCreated', id, match: match.meta()})
                     this.logger.info('Match', id, 'created')
                     this.logActive()
 
@@ -225,7 +235,7 @@ class Server {
                     conn.color = Red
                     var {total, opts} = match
                     this.sendMessage(match.conns.White, {action: 'opponentJoined', id})
-                    this.sendMessage(conn, {action: 'matchJoined', id, total, opts})
+                    this.sendMessage(conn, {action: 'matchJoined', id, total, opts, match: match.meta()})
                     this.logger.info('Match', id, 'started')
                     this.logActive()
 
@@ -237,10 +247,16 @@ class Server {
 
             }
         } catch (err) {
-            this.logger.warn('Peer', conn.connId, err)
+            if (req.password) {
+                req.password = '***'
+            }
+            this.logger.warn('Peer', conn.connId, err.message, err, {req})
             this.sendMessage(conn, Util.makeErrorObject(err))
+            if (err.name == 'HandshakeError') {
+                conn.close()
+            }
         }
-        
+
         this.logger.debug('message received from', conn.color, conn.connId, req)
     }
 
@@ -249,6 +265,7 @@ class Server {
         const match = this.getMatchForRequest(req)
 
         const {action, color} = req
+        const isExtended = !!req.extended
         const opponent = Opponent[color]
         
         const {thisGame} = match
@@ -286,8 +303,12 @@ class Server {
             case 'firstTurn':
 
                 sync(() => {
-                    const {dice} = thisGame.firstTurn()
-                    reply({dice})
+                    const turn = thisGame.firstTurn()
+                    const res = {dice: turn.dice}
+                    if (isExtended) {
+                        res.turn = turn.serialize()
+                    }
+                    reply(res)
                 })
 
                 break
@@ -299,8 +320,11 @@ class Server {
                 }
 
                 sync(() => {
-                    const {dice} = thisTurn
-                    reply({dice})
+                    const res = {dice: thisTurn.dice}
+                    if (isExtended) {
+                        res.turn = turn.serialize()
+                    }
+                    reply(res)
                 })
 
                 break
@@ -313,18 +337,22 @@ class Server {
                         break
                     }
                     req.moves.forEach(move => thisTurn.move(move.origin, move.face))
-                    
                 }
 
                 sync(() => {
 
                     thisTurn.finish()
-
-                    const moves = thisTurn.moves.map(move => move.coords())
-
-                    reply({moves})
-
                     this.checkMatchFinished(match)
+
+                    const res = {
+                        moves: thisTurn.moves.map(move => move.coords())
+                    }
+                    if (isExtended) {
+                        res.turn = thisTurn.meta()
+                        res.game = thisGame.meta()
+                    }
+
+                    reply(res)     
                 })
 
                 break
@@ -347,12 +375,15 @@ class Server {
             case 'nextTurn':
 
                 sync(() => {
-                    thisGame.nextTurn()
-                    reply()
+                    const turn = thisGame.nextTurn()
+                    const res = {}
+                    if (isExtended) {
+                        res.turn = turn
+                    }
+                    reply(res)
                 })
 
                 break
-
 
             case 'doubleResponse':
 
