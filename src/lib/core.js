@@ -574,6 +574,34 @@ class Turn {
         }
     }
 
+    meta() {
+        return {
+            color            : this.color
+          , dice             : this.dice
+          , diceSorted       : this.diceSorted
+          , startState       : this.startState
+          , endState         : this.endState
+          , isForceMove      : this.isForceMove
+          , isCantMove       : this.isCantMove
+          , isDoubleOffered  : this.isDoubleOffered
+          , isDoubleDeclined : this.isDoubleDeclined
+          , isFirstTurn      : this.isFirstTurn
+          , isFinished       : this.isFinished
+          , isRolled         : this.isRolled
+          , moves            : this.moves.map(move => move.coords())
+        }
+    }
+
+    serialize() {
+        return Util.merge(this.meta(), {
+            allowedMoveCount   : this.allowedMoveCount
+          , allowedMoveSeries  : this.allowedMoveSeries
+          , allowedEndStates   : this.allowedEndStates
+          , allowedFaces       : this.allowedFaces
+          , endStatesToSeries  : this.endStatesToSeries
+        })
+    }
+
     _compute() {
         Object.entries(this._computeAllowedMovesResult()).forEach(([k, v]) => {
             this[k] = v
@@ -662,28 +690,6 @@ class Turn {
           , allowedEndStates
           , endStatesToSeries
         }
-    }
-
-    meta() {
-        return {
-            color            : this.color
-          , dice             : this.dice
-          , diceSorted       : this.diceSorted
-          , startState       : this.startState
-          , endState         : this.endState
-          , isForceMove      : this.isForceMove
-          , isCantMove       : this.isCantMove
-          , isDoubleOffered  : this.isDoubleOffered
-          , isDoubleDeclined : this.isDoubleDeclined
-          , isFirstTurn      : this.isFirstTurn
-          , isFinished       : this.isFinished
-          , isRolled         : this.isRolled
-          , moves            : this.moves.map(move => move.coords())
-        }
-    }
-
-    serialize() {
-        return this.meta()
     }
 
     // allow override for testing
