@@ -2,9 +2,21 @@
 <html>
 <head>
     <title>Gameon</title>
+      <link rel="stylesheet" href="/static/css/play.css"/>
     <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js" integrity="sha256-4+XzXVhsDmqanXGHaHvgh1gMQKX40OUvDEBTu8JcmNs=" crossorigin="anonymous"></script>
+    <script src="/static/js/play.js"></script>
 </head>
 <body>
+    <form id="credentials">
+        <div class="input">
+            <label for="username" required>Username</label>
+            <input name="username" id="username" type="text">
+        </div>
+        <div class="input">
+            <label for="password" required>Password</label>
+            <input name="password" id="password" type="password">
+        </div>
+    </form>
     <h2>Join Match</h2>
     <div>
         <form id="joinMatch">
@@ -13,7 +25,7 @@
                 <input name="matchId" id="matchId" type="text">
             </div>
             <div class="input">
-                <button id="joinMatchButton">Join</button>
+                <input id="joinMatchButton" type="submit" value="Join">
             </div>
         </form>
     </div>
@@ -33,9 +45,10 @@
                 <input name="isJacoby" id="isJacoby" type="checkbox">
             </div>
             <div class="input">
-                <button id="createMatchButton">Create</button>
+                <input id="createMatchButton" type="submit" value="Create">
             </div>
         </form>
     </div>
+    <div id="clientLog"></div>
 </body>
 </html>
