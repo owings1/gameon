@@ -344,6 +344,7 @@ class Game {
         return {
             uuid       : this.uuid
           , opts       : this.opts
+          , board      : this.board.stateString()
           , winner     : this.getWinner()
           , loser      : this.getLoser()
           , finalValue : this.finalValue
@@ -358,8 +359,7 @@ class Game {
 
     serialize() {
         return Util.merge(this.meta(), {
-            board : this.board.stateString()
-          , turns : this.turns.map(Turn.serialize)
+            turns : this.turns.map(Turn.serialize)
         })
     }
 
