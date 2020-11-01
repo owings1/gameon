@@ -383,6 +383,7 @@ class Turn {
 
         if (data.isRolled) {
             turn.setRoll(...data.dice)
+            turn._compute()
         }
 
         data.moves.forEach(move => turn.move(move.origin, move.face))
@@ -491,11 +492,11 @@ class Turn {
         const moveMap = {}
         this.allowedMoveSeries.filter(allowedMoves => {
             // compare the first parts of allowedMoves to this.moves
-            const subSeriesA = allowedMoves.slice(0, this.moves.length).map(move => move.hash())
-            const subSeriesB = this.moves.map(move => move.hash())
+            const subSeriesA = allowedMoves.slice(0, this.moves.length).map(Move.hash)
+            const subSeriesB = this.moves.map(Move.hash)
             return JSON.stringify(subSeriesA) == JSON.stringify(subSeriesB)
         }).map(moves => moves[this.moves.length]).filter(it => it != undefined).forEach(move => {
-            moveMap[move.hash()] = move
+            moveMap[Move.hash(move)] = move
         })
         return Object.values(moveMap)
     }
@@ -588,14 +589,14 @@ class Turn {
           , isFirstTurn      : this.isFirstTurn
           , isFinished       : this.isFinished
           , isRolled         : this.isRolled
-          , moves            : this.moves.map(move => move.coords())
+          , moves            : this.moves.map(Move.coords)
         }
     }
 
     serialize() {
         return Util.merge(this.meta(), {
             allowedMoveCount   : this.allowedMoveCount
-          , allowedMoveSeries  : this.allowedMoveSeries
+          , allowedMoveSeries  : this.allowedMoveSeries && this.allowedMoveSeries.map(moves => moves.map(Move.coords))
           , allowedEndStates   : this.allowedEndStates
           , allowedFaces       : this.allowedFaces
           , endStatesToSeries  : this.endStatesToSeries
@@ -649,7 +650,7 @@ class Turn {
         const seriesMap = {}
         allowedMoveSeries.forEach(allowedMoves => {
             // TODO: we could de-dupe further by inspecting end-states
-            const hash = allowedMoves.map(move => [move.origin, move.face].join(':')).join('|')
+            const hash = allowedMoves.map(Move.hash).join('|')
             seriesMap[hash] = allowedMoves
         })
         const dedupSeries = Object.values(seriesMap)
@@ -682,13 +683,13 @@ class Turn {
         })
 
         return {
-            allowedMoveSeries : dedupSeries
+            allowedMoveSeries : dedupSeries // constructed Move objects
           , allowedMoveCount  : maxDepth
           , isForceMove       : dedupSeries.length == 1
           , isCantMove        : maxDepth == 0
           , allowedFaces
           , allowedEndStates
-          , endStatesToSeries
+          , endStatesToSeries // move coords objects
         }
     }
 
@@ -1166,6 +1167,15 @@ class BoardNode {
 
 class Move {
 
+    static coords(move) {
+        const {origin, face} = move
+        return {origin, face}
+    }
+
+    static hash(move) {
+        return [move.origin, move.face].join(':')
+    }
+
     constructor(board, color, origin, face) {
         this.board = board
         this.color = color
@@ -1174,12 +1184,11 @@ class Move {
     }
 
     coords() {
-        const {origin, face} = this
-        return {origin, face}
+        return Move.coords(this)
     }
 
     hash() {
-        return [this.origin, this.face].join(':')
+        return Move.hash(this)
     }
 
     copy() {
