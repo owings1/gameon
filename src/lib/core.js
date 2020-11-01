@@ -1418,30 +1418,30 @@ class IllegalMoveError extends GameError {
     }
 }
 
-class ArgumentError extends GameError {}
-class InvalidRollError extends GameError {}
+class ArgumentError     extends GameError {}
+class InvalidRollError  extends GameError {}
 
-class MatchFinishedError extends IllegalStateError {}
-class GameFinishedError extends IllegalStateError {}
-class GameNotFinishedError extends IllegalStateError {}
-class GameAlreadyStartedError extends IllegalStateError {}
-class GameNotStartedError extends IllegalStateError {}
-class TurnAlreadyFinishedError extends IllegalStateError {}
-class TurnNotFinishedError extends IllegalStateError {}
-class HasNotRolledError extends IllegalStateError {}
-class AlreadyRolledError extends IllegalStateError {}
-class HasNotDoubledError extends IllegalStateError {}
-class DoubleNotAllowedError extends IllegalStateError {}
+class AlreadyRolledError        extends IllegalStateError {}
+class DoubleNotAllowedError     extends IllegalStateError {}
+class HasNotDoubledError        extends IllegalStateError {}
+class HasNotRolledError         extends IllegalStateError {}
+class GameAlreadyStartedError   extends IllegalStateError {}
+class GameFinishedError         extends IllegalStateError {}
+class GameNotFinishedError      extends IllegalStateError {}
+class GameNotStartedError       extends IllegalStateError {}
+class MatchFinishedError        extends IllegalStateError {}
+class TurnAlreadyFinishedError  extends IllegalStateError {}
+class TurnNotFinishedError      extends IllegalStateError {}
 
-class PieceOnBarError extends IllegalMoveError {}
-class NoPieceOnBarError extends IllegalMoveError {}
-class NoPieceOnSlotError extends IllegalMoveError {}
-class MayNotBearoffError extends IllegalMoveError {}
-class IllegalBareoffError extends IllegalMoveError {}
-class OccupiedSlotError extends IllegalMoveError {}
-class NoMovesRemainingError extends IllegalMoveError {}
-class NoMovesMadeError extends IllegalMoveError {}
-class MovesRemainingError extends IllegalMoveError {}
+class IllegalBareoffError    extends IllegalMoveError {}
+class MayNotBearoffError     extends IllegalMoveError {}
+class MovesRemainingError    extends IllegalMoveError {}
+class NoMovesMadeError       extends IllegalMoveError {}
+class NoMovesRemainingError  extends IllegalMoveError {}
+class NoPieceOnBarError      extends IllegalMoveError {}
+class NoPieceOnSlotError     extends IllegalMoveError {}
+class OccupiedSlotError      extends IllegalMoveError {}
+class PieceOnBarError        extends IllegalMoveError {}
 
 // as needed
 const Errors = {
