@@ -313,46 +313,15 @@ class Server {
 
                 break
 
-            case 'rollTurn':
-
-                if (thisTurn.color == color) {
-                    thisTurn.setRoll(this.roll())
-                }
+            case 'nextTurn':
 
                 sync(() => {
-                    const res = {dice: thisTurn.dice}
+                    const turn = thisGame.nextTurn()
+                    const res = {}
                     if (isExtended) {
-                        res.turn = turn.serialize()
+                        res.turn = turn
                     }
                     reply(res)
-                })
-
-                break
-
-            case 'playRoll':
-
-                if (thisTurn.color == color) {
-                    if (!Array.isArray(req.moves)) {
-                        refuse('moves missing or invalid format')
-                        break
-                    }
-                    req.moves.forEach(move => thisTurn.move(move.origin, move.face))
-                }
-
-                sync(() => {
-
-                    thisTurn.finish()
-                    this.checkMatchFinished(match)
-
-                    const res = {
-                        moves: thisTurn.moves.map(move => move.coords())
-                    }
-                    if (isExtended) {
-                        res.turn = thisTurn.meta()
-                        res.game = thisGame.meta()
-                    }
-
-                    reply(res)     
                 })
 
                 break
@@ -372,19 +341,6 @@ class Server {
 
                 break
 
-            case 'nextTurn':
-
-                sync(() => {
-                    const turn = thisGame.nextTurn()
-                    const res = {}
-                    if (isExtended) {
-                        res.turn = turn
-                    }
-                    reply(res)
-                })
-
-                break
-
             case 'doubleResponse':
 
                 if (thisTurn.color == opponent) {
@@ -396,12 +352,56 @@ class Server {
                 }
 
                 sync(() => {
-
-                    const isAccept = !thisTurn.isDoubleDeclined
-
-                    reply({isAccept})
-
                     this.checkMatchFinished(match)
+                    const res = {isAccept: !thisTurn.isDoubleDeclined}
+                    if (isExtended) {
+                        res.turn = thisTurn.meta()
+                        res.match = thisMatch.meta()
+                    }
+                    reply(res)
+                })
+
+                break
+
+            case 'rollTurn':
+
+                if (thisTurn.color == color) {
+                    thisTurn.setRoll(this.roll())
+                }
+
+                sync(() => {
+                    const res = {dice: thisTurn.dice}
+                    if (isExtended) {
+                        res.turn = thisTurn.serialize()
+                    }
+                    reply(res)
+                })
+
+                break
+
+            case 'playRoll':
+
+                if (thisTurn.color == color) {
+                    if (!Array.isArray(req.moves)) {
+                        refuse('moves missing or invalid format')
+                        break
+                    }
+                    req.moves.forEach(move => thisTurn.move(move.origin, move.face))
+                    thisTurn.finish()
+                }
+
+                sync(() => {
+                    this.checkMatchFinished(match)
+                    const res = {
+                        moves: thisTurn.moves.map(move => move.coords())
+                    }
+                    if (isExtended) {
+                        res.turn = thisTurn.meta()
+                        res.game = thisGame.meta()
+                        res.match = thisMatch.meta()
+                    }
+
+                    reply(res)     
                 })
 
                 break
