@@ -80,6 +80,14 @@
             
         }
 
+        async function drawBoard(board) {
+            $('#board').text(board.stateString())
+        }
+
+        async function drawDice(dice) {
+            $('#dice').text(JSON.stringify(dice))
+        }
+
         function intRange(a, b) {
             const range = []
             for (var i = a; i <= b; i++) {
@@ -112,8 +120,10 @@
                         if (turn.color == this.color) {
                             res = await this.playTurn(turn)
                         } else {
-                            res = await this.opponentPlayTurn(turn)
+                            res = await this.opponentPlayTurn()
                         }
+                        game = res.game
+                        match = res.match
                     }
                 }
             }
@@ -127,11 +137,29 @@
             }
 
             async opponentPlayTurn(turn) {
-                
+                var res = await this.playRequest('turnOption')
+                if (res.isDouble) {
+                    var isAccept = await this.promptAcceptDouble()
+                    res = await this.playRequest('doubleResponse', {isAccept})
+                    if (!isAccept) {
+                        return res
+                    }
+                }
+                res = await this.playRequest('rollTurn')
+                await drawDice(res.dice)
+                return await this.opponentPlayRoll()
             }
 
-            async opponentPlayRoll(turn) {
-                
+            async opponentPlayRoll() {
+                const res = await this.playRequest('playRoll', {extended: true})
+                const board = Board.fromStateString(res.game.board)
+                await drawBoard(board)
+                return res
+            }
+
+            async promptAcceptDouble() {
+                // TODO
+                return true
             }
 
             async playRequest(action, params) {

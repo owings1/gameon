@@ -319,7 +319,7 @@ class Server {
                     const turn = thisGame.nextTurn()
                     const res = {}
                     if (isExtended) {
-                        res.turn = turn
+                        res.turn = turn.meta()
                     }
                     reply(res)
                 })
@@ -335,8 +335,16 @@ class Server {
                 }
 
                 sync(() => {
-                    const isDouble = thisTurn.isDoubleOffered && !thisTurn.isRolled
-                    reply({isDouble})
+
+                    const res = {
+                        isDouble: thisTurn.isDoubleOffered && !thisTurn.isRolled
+                    }
+                    if (isExtended) {
+                        res.turn = thisTurn.meta()
+                        res.game = thisGame.meta()
+                    }
+
+                    reply(res)
                 })
 
                 break
@@ -352,12 +360,16 @@ class Server {
                 }
 
                 sync(() => {
+
                     this.checkMatchFinished(match)
+
                     const res = {isAccept: !thisTurn.isDoubleDeclined}
                     if (isExtended) {
                         res.turn = thisTurn.meta()
+                        res.game = thisGame.meta()
                         res.match = thisMatch.meta()
                     }
+
                     reply(res)
                 })
 
@@ -370,10 +382,12 @@ class Server {
                 }
 
                 sync(() => {
+
                     const res = {dice: thisTurn.dice}
                     if (isExtended) {
                         res.turn = thisTurn.serialize()
                     }
+
                     reply(res)
                 })
 
@@ -391,10 +405,13 @@ class Server {
                 }
 
                 sync(() => {
+
                     this.checkMatchFinished(match)
+
                     const res = {
                         moves: thisTurn.moves.map(move => move.coords())
                     }
+
                     if (isExtended) {
                         res.turn = thisTurn.meta()
                         res.game = thisGame.meta()
