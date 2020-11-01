@@ -118,7 +118,7 @@
                         var res = await this.playRequest('nextTurn', {extended: true}))
                         turn = res.turn
                         if (turn.color == this.color) {
-                            res = await this.playTurn(turn)
+                            res = await this.playTurn()
                         } else {
                             res = await this.opponentPlayTurn()
                         }
@@ -129,10 +129,16 @@
             }
 
             async playTurn(turn) {
-                
+                // TODO: prompt roll or double
+                await this.playRequest('turnOption', {isDouble: false})
+                // TODO: double logic
+                var res = await this.playRequest('rollTurn', {extended: true})
+                await drawDice(res.dice)
+                return await this.playRoll(res.turn)
             }
 
             async playRoll(turn) {
+                const moves = await this.promptMoves(turn)
                 
             }
 
@@ -160,6 +166,12 @@
             async promptAcceptDouble() {
                 // TODO
                 return true
+            }
+
+            async promptMoves(turn) {
+                // TODO
+                // return moves
+                // this does random moves
             }
 
             async playRequest(action, params) {
