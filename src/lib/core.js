@@ -383,7 +383,6 @@ class Turn {
 
         if (data.isRolled) {
             turn.setRoll(...data.dice)
-            turn._compute()
         }
 
         data.moves.forEach(move => turn.move(move.origin, move.face))
