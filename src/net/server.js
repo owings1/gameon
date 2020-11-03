@@ -331,7 +331,7 @@ class Server {
                     const turn = thisGame.nextTurn()
                     const res = {
                         turn : turn.meta()
-                      , game : game.meta()
+                      , game : thisGame.meta()
                     }
 
                     reply(res)

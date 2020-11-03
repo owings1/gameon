@@ -84,7 +84,7 @@
             // TODO
             // return moves
             // this does the first series
-            return turn.allowedMoveSeries[0]
+            return turn.allowedMoveSeries[0] || []
         }
 
         const ColorAbbr = {
@@ -138,17 +138,18 @@
                     clientLog('First roll is', turn.dice.join(','))
                     clientLog(turn.color + "'s turn")
                     if (turn.color == this.color) {
-                        await this.playRoll(turn)
+                        await this.playRoll(turn, game)
                     } else {
-                        await this.opponentPlayRoll(turn)
+                        await this.opponentPlayRoll(turn, game)
                     }
                     while (!game.isFinished) {
                         var res = await this.playRequest('nextTurn')
                         turn = res.turn
+                        game = res.game
                         if (turn.color == this.color) {
-                            res = await this.playTurn()
+                            res = await this.playTurn(turn, game)
                         } else {
-                            res = await this.opponentPlayTurn()
+                            res = await this.opponentPlayTurn(turn, game)
                         }
                         game = res.game
                     }
@@ -156,43 +157,50 @@
                 }
             }
 
-            async playTurn() {
-                const isDouble = await promptDoubleOption()
-                await this.playRequest('turnOption', {isDouble})
-                if (isDouble) {
-                    var res = await this.playRequest('doubleResponse')
-                    await drawScore(res.match)
-                    if (!res.isAccept) {
-                        return res
+            async playTurn(turn, game) {
+                if (game.cubeOwner != Opponent[this.color] && !game.isCrawford) {
+                    const isDouble = await promptDoubleOption()
+                    await this.playRequest('turnOption', {isDouble})
+                    if (isDouble) {
+                        var res = await this.playRequest('doubleResponse')
+                        await drawScore(res.match)
+                        if (!res.isAccept) {
+                            return res
+                        }
                     }
                 }
                 var res = await this.playRequest('rollTurn')
                 return await this.playRoll(res.turn)
             }
 
-            async playRoll(turn) {
+            async playRoll(turn, game) {
                 clientLog(turn.color, 'rolls', turn.diceSorted.join(','))
                 await drawDice(turn.dice)
                 const moves = await promptMoves(turn)
                 return await this.playRequest('playRoll', {moves})
             }
 
-            async opponentPlayTurn() {
-                clientLog(Opponent[this.color] + "'s turn")
-                var res = await this.playRequest('turnOption')
-                if (res.isDouble) {
-                    var isAccept = await promptAcceptDouble()
-                    res = await this.playRequest('doubleResponse', {isAccept})
-                    if (!isAccept) {
-                        return res
+            async opponentPlayTurn(turn, game) {
+                clientLog(turn.color + "'s turn")
+                if (game.cubeOwner != this.color && !game.isCrawford) {
+                    var res = await this.playRequest('turnOption')
+                    if (res.isDouble) {
+                        clientLog(turn.color, 'offers double')
+                        var isAccept = await promptAcceptDouble()
+                        res = await this.playRequest('doubleResponse', {isAccept})
+                        if (!isAccept) {
+                            clientLog('Rejected double')
+                            return res
+                        }
+                        clientLog('Accepted double')
                     }
                 }
                 res = await this.playRequest('rollTurn')
                 await drawDice(res.dice)
-                return await this.opponentPlayRoll(res.turn)
+                return await this.opponentPlayRoll(res.turn, res.game)
             }
 
-            async opponentPlayRoll(turn) {
+            async opponentPlayRoll(turn, game) {
                 const res = await this.playRequest('playRoll')
                 const board = Board.fromStateString(res.game.board)
                 await drawBoard(board)
