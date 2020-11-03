@@ -4,9 +4,88 @@
 
         const maxLogSize = 1024
         const socketUrl = window.location.origin.replace(/^http/, 'ws')
+        const Cookie = parseCookie(document.cookie)
 
         const Red   = 'Red'
         const White = 'White'
+
+        $('#joinMatch').on('submit', function(e) {
+            e.preventDefault()
+            const id = $('#matchId').val()
+            joinMatch(id)
+        })
+
+        $('#createMatch').on('submit', function(e) {
+            e.preventDefault()
+            const total = +$('#total').val()
+            const opts = {
+                isJacoby   : !!$('#isJacoby').is(':checked')
+              , isCrawford : !!$('#isCrawford').is(':checked')
+            }
+            createMatch(total, opts)
+        })
+
+        function clientLog(...args) {
+            const msg = args.join(' ')
+            const lines = $('#clientLog').text().split('\n')
+            lines.push(msg)
+            while (lines.length > maxLogSize) {
+                lines.shift()
+            }
+            $('#clientLog').text(lines.join('\n'))
+        }
+
+        async function joinMatch(id) {
+            const token = Cookie.gatoken
+            const client = new Client(socketUrl, token)
+            try {
+                const match = await client.joinMatch(id)
+                const player = new Player(client, Red)
+                await player.runMatch(match, id)
+            } catch (err) {
+                clientLog([err.name, err.message].join(': '))
+                throw err
+            } finally {
+                client.close()
+            }
+        }
+
+        async function createMatch(total, opts) {
+            
+        }
+
+        async function drawBoard(board) {
+            $('#board').text(board.stateString())
+        }
+
+        async function drawDice(dice) {
+            $('#dice').text(JSON.stringify(dice))
+        }
+
+        async function drawScore(match) {
+            $('#score').text(JSON.stringify(match.scores))
+        }
+
+        async function drawCube(game) {
+            $('#cube').text(game.cubeValue)
+        }
+
+        async function promptDoubleOption() {
+            // TODO
+            return false
+        }
+
+        async function promptAcceptDouble() {
+            // TODO
+            return true
+        }
+
+        async function promptMoves(turn) {
+            // TODO
+            // return moves
+            // this does the first series
+            return turn.allowedMoveSeries[0]
+        }
 
         const ColorAbbr = {
             White : 'W'
@@ -30,64 +109,6 @@
           , Red   : White
         }
 
-        $('#joinMatch').on('submit', function(e) {
-            e.preventDefault()
-            const total = +$('#total').val()
-            joinMatch(total)
-        })
-
-        $('#createMatch').on('submit', function(e) {
-            e.preventDefault()
-            const total = +$('#total').val()
-            const opts = {
-                isJacoby   : !!$('#isJacoby').is(':checked')
-              , isCrawford : !!$('#isCrawford').is(':checked')
-            }
-            createMatch(total, opts)
-        })
-
-        function clientLog(msg) {
-            const lines = $('#clientLog').text().split('\n')
-            lines.push(msg)
-            while (lines.length > maxLogSize) {
-                lines.shift()
-            }
-            $('#clientLog').text(lines.join('\n'))
-        }
-
-        function getCredentials() {
-            return {
-                username : $('#username').val()
-              , password : $('#password').val()
-            }
-        }
-
-        async function joinMatch(matchId) {
-            const {username, password} = getCredentials()
-            const client = new Client(socketUrl, username, password)
-            try {
-                const match = await client.joinMatch(id)
-                const player = new Player(client, match, Red)
-                await player.run()
-            } catch (err) {
-                clientLog([err.name, err.message].join(': '))
-            } finally {
-                client.close()
-            }
-        }
-
-        async function createMatch(total, opts) {
-            
-        }
-
-        async function drawBoard(board) {
-            $('#board').text(board.stateString())
-        }
-
-        async function drawDice(dice) {
-            $('#dice').text(JSON.stringify(dice))
-        }
-
         function intRange(a, b) {
             const range = []
             for (var i = a; i <= b; i++) {
@@ -98,24 +119,31 @@
 
         class Player {
 
-            constructor(client, match, color) {
+            constructor(client, color) {
                 this.client = client
-                this.match = match
                 this.color = color
+                this.match = null
+                this.id = null
             }
 
-            async runMatch() {
+            async runMatch(match, id) {
+                this.match = match
+                this.id = id
                 while (!this.match.isFinished) {
                     clientLog('Starting game')
-                    var {game} = await this.playRequest('nextGame')
-                    var {turn} = await this.playRequest('firstTurn', {extended: true})
+                    var res = await this.playRequest('nextGame')
+                    var game = res.game
+                    var res = await this.playRequest('firstTurn')
+                    var turn = res.turn
+                    clientLog('First roll is', turn.dice.join(','))
+                    clientLog(turn.color + "'s turn")
                     if (turn.color == this.color) {
                         await this.playRoll(turn)
                     } else {
                         await this.opponentPlayRoll(turn)
                     }
                     while (!game.isFinished) {
-                        var res = await this.playRequest('nextTurn', {extended: true}))
+                        var res = await this.playRequest('nextTurn')
                         turn = res.turn
                         if (turn.color == this.color) {
                             res = await this.playTurn()
@@ -123,29 +151,37 @@
                             res = await this.opponentPlayTurn()
                         }
                         game = res.game
-                        match = res.match
                     }
+                    this.match = res.match
                 }
             }
 
-            async playTurn(turn) {
-                // TODO: prompt roll or double
-                await this.playRequest('turnOption', {isDouble: false})
-                // TODO: double logic
-                var res = await this.playRequest('rollTurn', {extended: true})
-                await drawDice(res.dice)
+            async playTurn() {
+                const isDouble = await promptDoubleOption()
+                await this.playRequest('turnOption', {isDouble})
+                if (isDouble) {
+                    var res = await this.playRequest('doubleResponse')
+                    await drawScore(res.match)
+                    if (!res.isAccept) {
+                        return res
+                    }
+                }
+                var res = await this.playRequest('rollTurn')
                 return await this.playRoll(res.turn)
             }
 
             async playRoll(turn) {
-                const moves = await this.promptMoves(turn)
-                
+                clientLog(turn.color, 'rolls', turn.diceSorted.join(','))
+                await drawDice(turn.dice)
+                const moves = await promptMoves(turn)
+                return await this.playRequest('playRoll', {moves})
             }
 
-            async opponentPlayTurn(turn) {
+            async opponentPlayTurn() {
+                clientLog(Opponent[this.color] + "'s turn")
                 var res = await this.playRequest('turnOption')
                 if (res.isDouble) {
-                    var isAccept = await this.promptAcceptDouble()
+                    var isAccept = await promptAcceptDouble()
                     res = await this.playRequest('doubleResponse', {isAccept})
                     if (!isAccept) {
                         return res
@@ -153,42 +189,30 @@
                 }
                 res = await this.playRequest('rollTurn')
                 await drawDice(res.dice)
-                return await this.opponentPlayRoll()
+                return await this.opponentPlayRoll(res.turn)
             }
 
-            async opponentPlayRoll() {
-                const res = await this.playRequest('playRoll', {extended: true})
+            async opponentPlayRoll(turn) {
+                const res = await this.playRequest('playRoll')
                 const board = Board.fromStateString(res.game.board)
                 await drawBoard(board)
                 return res
             }
 
-            async promptAcceptDouble() {
-                // TODO
-                return true
-            }
-
-            async promptMoves(turn) {
-                // TODO
-                // return moves
-                // this does random moves
-            }
-
             async playRequest(action, params) {
                 params = params || {}
                 params.action = action
-                params.id = this.match.id
+                params.id = this.id
                 params.color = this.color
-                return await this.client.sendAndWaitForResponse(action, params)
+                return await this.client.sendAndWaitForResponse(params, action)
             }
         }
 
         class Client {
 
-            constructor(socketUrl, username, password) {
+            constructor(socketUrl, token) {
                 this.socketUrl = socketUrl
-                this.username = username
-                this.password = password
+                this.token = token
                 this.secret = Client.generateSecret()
                 this.socketClient = null
                 this.isHandshake = null
@@ -202,7 +226,7 @@
                 await this.connect()
 
                 clientLog('Creating new match')
-                const {match} = await this.sendAndWaitForResponse({action: 'startMatch', total, opts}, 'matchCreated')
+                const {match} = await this.sendAndWaitForResponse({action: 'createMatch', total, opts}, 'matchCreated')
                 clientLog('Created new match', match.id)
 
                 clientLog('Waiting for opponent to join')
@@ -253,15 +277,19 @@
             }
 
             async handshake() {
-                const {username, password} = this
-                const res = await this.sendAndWaitForResponse({action: 'establishSecret', username, password}, 'acknowledgeSecret')
+                const {token} = this
+                const res = await this.sendAndWaitForResponse({action: 'establishSecret', token}, 'acknowledgeSecret')
                 clientLog('Socket handshake success')
                 this.isHandshake = true
                 return res
             }
 
             async sendAndWaitForResponse(msg, action) {
-                const p = this.waitForResponse(action)
+                try {
+                    var p = this.waitForResponse(action)
+                } catch (err) {
+                    throw err
+                }
                 this.sendMessage(msg)
                 return await p
             }
@@ -318,8 +346,7 @@
             }
 
             static generateSecret() {
-                return Client.makeid(64);
-                //return crypto.createHash('sha256').update(Math.random().toString()).digest('hex')
+                return Client.makeid(64)
             }
 
             // from https://stackoverflow.com/a/1349426
@@ -335,6 +362,12 @@
         }
 
         class Board {
+
+            static fromStateString(str) {
+                const board = new Board
+                board.setStateString(str)
+                return board
+            }
 
             constructor() {
                 this.clear()
@@ -512,5 +545,19 @@
 
         class MatchCanceledError extends ClientError {}
 
+        // from https://gist.github.com/rendro/525bbbf85e84fa9042c2
+        function parseCookie(cookie) {
+            return cookie.split(';').map(function(c) {
+                return c.trim().split('=').map(decodeURIComponent)
+            }).reduce(function(a, b) {
+                try {
+                    a[b[0]] = JSON.parse(b[1])
+                } catch (e) {
+                    a[b[0]] = b[1]
+                }
+                return a
+            }, {})
+        }
+        
     })
 })(window.jQuery);

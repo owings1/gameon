@@ -42,6 +42,7 @@ class Client {
         this.serverHttpUrl = Util.stripTrailingSlash(Util.wsToHttp(serverUrl))
         this.username = username
         this.password = password
+        this.token = null
         this.socketClient = new WebSocketClient
         this.conn = null
         this.isHandshake = null
@@ -85,8 +86,8 @@ class Client {
     }
 
     async handshake() {
-        const {username, password} = this
-        const res = await this.sendAndWaitForResponse({action: 'establishSecret', username, password}, 'acknowledgeSecret')
+        const {username, password, token} = this
+        const res = await this.sendAndWaitForResponse({action: 'establishSecret', username, password, token}, 'acknowledgeSecret')
         this.logger.info('Server handshake success')
         this.isHandshake = true
         return res
@@ -125,7 +126,11 @@ class Client {
     }
 
     async sendAndWaitForResponse(msg, action) {
-        const p = this.waitForResponse(action)
+        try {
+            var p = this.waitForResponse(action)
+        } catch (err) {
+            throw err
+        }
         this.sendMessage(msg)
         return await p
     }

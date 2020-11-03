@@ -350,6 +350,7 @@ class Game {
           , finalValue : this.finalValue
           , cubeOwner  : this.cubeOwner
           , cubeValue  : this.cubeValue
+          , isFinished : this.isFinished
           , isPass     : this.isPass
           , endState   : this.endState
           , turnCount  : this.turns.length

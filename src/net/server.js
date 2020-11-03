@@ -180,8 +180,13 @@ class Server {
                         throw new HandshakeError('bad secret')
                     }
                     if (!conn.secret || conn.secret == req.secret) {
-                        const user = await this.auth.authenticate(req.username, req.password)
-                        conn.username = req.username
+                        if (req.token) {
+                            var {username, password} = this.auth.parseToken(req.token)
+                        } else {
+                            var {username, password} = req
+                        }
+                        const user = await this.auth.authenticate(username, password)
+                        conn.username = username
                         conn.secret = req.secret
                         this.sendMessage(conn, {action: 'acknowledgeSecret', passwordEncrypted: user.passwordEncrypted})
                         this.logger.log('Client connected', conn.secret)
@@ -265,7 +270,6 @@ class Server {
         const match = this.getMatchForRequest(req)
 
         const {action, color} = req
-        const isExtended = !!req.extended
         const opponent = Opponent[color]
         
         const {thisGame} = match
@@ -294,8 +298,13 @@ class Server {
                 }
 
                 sync(() => {
-                    match.nextGame()
-                    reply()
+
+                    const game = match.nextGame()
+                    const res = {
+                        game: game.meta()
+                    }
+
+                    reply(res)
                 })
 
                 break
@@ -303,11 +312,13 @@ class Server {
             case 'firstTurn':
 
                 sync(() => {
+
                     const turn = thisGame.firstTurn()
-                    const res = {dice: turn.dice}
-                    if (isExtended) {
-                        res.turn = turn.serialize()
+                    const res = {
+                        dice: turn.dice
+                      , turn: turn.serialize()
                     }
+
                     reply(res)
                 })
 
@@ -316,11 +327,13 @@ class Server {
             case 'nextTurn':
 
                 sync(() => {
+
                     const turn = thisGame.nextTurn()
-                    const res = {}
-                    if (isExtended) {
-                        res.turn = turn.meta()
+                    const res = {
+                        turn : turn.meta()
+                      , game : game.meta()
                     }
+
                     reply(res)
                 })
 
@@ -337,11 +350,9 @@ class Server {
                 sync(() => {
 
                     const res = {
-                        isDouble: thisTurn.isDoubleOffered && !thisTurn.isRolled
-                    }
-                    if (isExtended) {
-                        res.turn = thisTurn.meta()
-                        res.game = thisGame.meta()
+                        isDouble : thisTurn.isDoubleOffered && !thisTurn.isRolled
+                      , turn     : thisTurn.meta()
+                      , game     : thisGame.meta()
                     }
 
                     reply(res)
@@ -363,11 +374,11 @@ class Server {
 
                     this.checkMatchFinished(match)
 
-                    const res = {isAccept: !thisTurn.isDoubleDeclined}
-                    if (isExtended) {
-                        res.turn = thisTurn.meta()
-                        res.game = thisGame.meta()
-                        res.match = thisMatch.meta()
+                    const res = {
+                        isAccept : !thisTurn.isDoubleDeclined
+                      , turn     : thisTurn.meta()
+                      , game     : thisGame.meta()
+                      , match    : match.meta()
                     }
 
                     reply(res)
@@ -383,9 +394,9 @@ class Server {
 
                 sync(() => {
 
-                    const res = {dice: thisTurn.dice}
-                    if (isExtended) {
-                        res.turn = thisTurn.serialize()
+                    const res = {
+                        dice : thisTurn.dice
+                      , turn : thisTurn.serialize()
                     }
 
                     reply(res)
@@ -409,13 +420,10 @@ class Server {
                     this.checkMatchFinished(match)
 
                     const res = {
-                        moves: thisTurn.moves.map(move => move.coords())
-                    }
-
-                    if (isExtended) {
-                        res.turn = thisTurn.meta()
-                        res.game = thisGame.meta()
-                        res.match = thisMatch.meta()
+                        moves : thisTurn.moves.map(move => move.coords())
+                      , turn  : thisTurn.meta()
+                      , game  : thisGame.meta()
+                      , match : match.meta()
                     }
 
                     reply(res)     

@@ -118,8 +118,18 @@ class Auth {
             throw err
         }
         user.passwordEncrypted = this.encryptPassword(password)
+        user.token = this.getToken(username, password)
         this.logger.info('Authenticate', {username})
         return user
+    }
+
+    getToken(username, password) {
+        return this.encryptPassword([username, password].join('\t'))
+    }
+
+    parseToken(token) {
+        const [username, password] = this.decryptPassword(token).split('\t')
+        return {username, password}
     }
 
     async createUser(username, password, confirmed) {

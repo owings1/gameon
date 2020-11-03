@@ -83,6 +83,7 @@ class Web {
             // clear old session cookies
             if (req.cookies[this.opts.sessionCookie] && !req.session.user) {
                 res.clearCookie(this.opts.sessionCookie)
+                res.clearCookie('gatoken')
             }
             // set logged in
             req.loggedIn = !!(req.cookies[this.opts.sessionCookie] && req.session.user)
@@ -115,6 +116,11 @@ class Web {
             const {username, password} = req.body
             this.auth.authenticate(username, password).then(user => {
                 req.session.user = user
+                res.cookie('gatoken', user.token, {
+                    httpOnly : false
+                  , secure   : !this.opts.sessionInsecure
+                  , sameSite : true
+                })
                 res.status(302).redirect('/dashboard')
             }).catch(err => {
                 if (err.name == 'BadCredentialsError' || err.name == 'ValidationError') {

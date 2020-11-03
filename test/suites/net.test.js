@@ -263,6 +263,17 @@ describe('Server', () => {
 
     describe('Server', () => {
 
+        it('should authenticate with token', async () => {
+            const username = 'nobody@nowhere.example'
+            const password = 'fcw4ERXs'
+            await authServer.auth.createUser(username, password, true)
+            const token = authServer.auth.getToken(username, password)
+            authClient.username = null
+            authClient.password = null
+            authClient.token = token
+            await authClient.connect()
+        })
+
         describe('#checkMatchFinished', () => {
 
             it('should delete match from matches when finished', async () => {
@@ -1644,6 +1655,18 @@ describe('Auth', () => {
                 await auth.createUser(username, password, true)
                 const err = await getErrorAsync(() => auth.changePassword(username, newPassword, newPassword))
                 expect(err.name).to.equal('BadCredentialsError')
+            })
+        })
+
+        describe('#parseToken', () => {
+
+            it('should return initial value for getToken', () => {
+                const auth = newAuth()
+                const username = 'nobody@nowhere.example'
+                const password = 'gck3fRYu'
+                const res = auth.parseToken(auth.getToken(username, password))
+                expect(res.username).to.equal(username)
+                expect(res.password).to.equal(password)
             })
         })
     })
