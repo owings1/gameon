@@ -354,7 +354,7 @@ class Game {
           , isPass     : this.isPass
           , endState   : this.endState
           , turnCount  : this.turns.length
-          , turns      : this.turns.map(turn => turn.meta())
+          //, turns      : this.turns.map(turn => turn.meta())
         }
     }
 
