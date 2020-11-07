@@ -404,10 +404,10 @@ describe('Game', () => {
             expect(JSON.stringify(result)).to.equal(JSON.stringify(exp))
         })
 
-        it('should return turns with length 1 after firstTurn is called', () => {
+        it('should turnCount = 1 after firstTurn is called', () => {
             game.firstTurn()
             const result = game.meta()
-            expect(result.turns).to.have.length(1)
+            expect(result.turnCount).to.equal(1)
         })
     })
 

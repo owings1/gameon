@@ -9,6 +9,12 @@
         const Red   = 'Red'
         const White = 'White'
 
+        const Resolve = {
+            doubleOption : null
+          , acceptDouble : null
+          , moves        : null
+        }
+
         $('#joinMatch').on('submit', function(e) {
             e.preventDefault()
             const id = $('#matchId').val()
@@ -23,6 +29,18 @@
               , isCrawford : !!$('#isCrawford').is(':checked')
             }
             createMatch(total, opts)
+        })
+
+        $('#play').on('click', function (e) {
+
+            const $target = $(e.target)
+
+            if ($target.is('button') && $target.hasClass('doubleOption')) {
+                if (Resolve.doubleOption) {
+                    Resolve.doubleOption($target.val() == 'true')
+                    Resolve.doubleOption = null
+                }
+            }
         })
 
         function clientLog(...args) {
@@ -71,8 +89,12 @@
         }
 
         async function promptDoubleOption() {
-            // TODO
-            return false
+            return await new Promise((resolve, reject) => {
+                Resolve.doubleOption = isDouble => {
+                    resolve(isDouble)
+                    return isDouble
+                }
+            })
         }
 
         async function promptAcceptDouble() {
@@ -201,6 +223,7 @@
             }
 
             async opponentPlayRoll(turn, game) {
+                clientLog(turn.color, 'rolls', turn.diceSorted.join(','))
                 const res = await this.playRequest('playRoll')
                 const board = Board.fromStateString(res.game.board)
                 await drawBoard(board)
