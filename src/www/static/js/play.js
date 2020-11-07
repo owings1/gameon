@@ -40,6 +40,11 @@
                     Resolve.doubleOption($target.val() == 'true')
                     Resolve.doubleOption = null
                 }
+            } else if ($target.is('button') && $target.hasClass('acceptDouble')) {
+                if (Resolve.acceptDouble) {
+                    Resolve.acceptDouble($target.val() == 'true')
+                    Resolve.acceptDouble = null
+                }
             }
         })
 
@@ -89,17 +94,11 @@
         }
 
         async function promptDoubleOption() {
-            return await new Promise((resolve, reject) => {
-                Resolve.doubleOption = isDouble => {
-                    resolve(isDouble)
-                    return isDouble
-                }
-            })
+            return new Promise(resolve => Resolve.doubleOption = resolve)
         }
 
         async function promptAcceptDouble() {
-            // TODO
-            return true
+            return new Promise(resolve => Resolve.acceptDouble = resolve)
         }
 
         async function promptMoves(turn) {
@@ -176,6 +175,7 @@
                         game = res.game
                     }
                     this.match = res.match
+                    console.log(this.match)
                 }
             }
 

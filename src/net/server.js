@@ -440,6 +440,7 @@ class Server {
     checkMatchFinished(match) {
         if (match.thisGame && match.thisGame.checkFinished()) {
             match.updateScore()
+            match.checkFinished()
         }
         if (match.hasWinner()) {
             this.logger.info('Match', match.id, 'is finished')

@@ -72,6 +72,10 @@ class Match {
         }
     }
 
+    static serialize(match) {
+        return match.serialize()
+    }
+
     static unserialize(data) {
         const match = new Match(data.total, data.opts)
         match.uuid = data.uuid

@@ -44,6 +44,14 @@ describe('Match', () => {
             const result = match.checkFinished()
             expect(result).to.equal(true)
         })
+
+        it('should return true for 1 point match when double is declined', () => {
+            const match = new Match(1, {isCrawford: false})
+            makeRandomMoves(match.nextGame().firstTurn(), true)
+            match.thisGame.nextTurn().setDoubleOffered().setDoubleDeclined()
+            match.checkFinished()
+            expect(match.isFinished).to.equal(true)
+        })
     })
 
     describe('#getLoser', () => {
