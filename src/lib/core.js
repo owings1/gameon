@@ -170,6 +170,7 @@ class Match {
           , winner        : this.getWinner()
           , loser         : this.getLoser()
           , hasCrawforded : this.hasCrawforded
+          , isFinished    : this.isFinished
           , gameCount     : this.games.length
         }
     }
