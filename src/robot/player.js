@@ -47,8 +47,30 @@ class Robot extends Base {
         }
     }
 
+    async turnOption(turn, game, match) {
+        const isDouble = await this.shouldDouble(turn, game, match)
+        if (isDouble) {
+            turn.setDoubleOffered()
+        }
+    }
+
+    async decideDouble(turn, game, match) {
+        const isAccept = await this.shouldAcceptDouble(turn, game, match)
+        if (!isAccept) {
+            turn.setDoubleDeclined()
+        }
+    }
+
     async getMoves(turn, game, match) {
         throw new Error('NotImplemented')
+    }
+
+    async shouldDouble(turn, game, match) {
+        return false
+    }
+
+    async shouldAcceptDouble(turn, game, match) {
+        return true
     }
 
     meta() {
@@ -187,10 +209,19 @@ class ConfidenceRobot extends Robot {
         return turn.endStatesToSeries[stateString]
     }
 
+    async shouldDouble(turn, game, match) {
+        const p = await this.getDoubleProbability(turn, game, match)
+        return p >= 0.5
+    }
+
     // {stateString -> weight}
     // where 0 <= weight <= 1
     async getRankings(turn, game, match) {
         throw new Error('NotImplemented')
+    }
+
+    async getDoubleProbability(turn, game, match) {
+        return 0
     }
 
     zeroRankings(turn) {
