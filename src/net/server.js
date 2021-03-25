@@ -45,6 +45,7 @@ class Server {
         return {
             authType        : env.AUTH_TYPE || 'anonymous'
           , socketHsTimeout : +env.SOCKET_HSTIMEOUT || 5000
+          , webEnabled      : !env.GAMEON_WEB_DISABLED
         }
     }
 
@@ -99,8 +100,9 @@ class Server {
         app.use(this.getLoggingMiddleware())
 
         app.use('/api/v1', this.api.v1)
-        app.use('/', this.web.app)
-        
+        if (this.opts.webEnabled) {
+            app.use('/', this.web.app)
+        }
         return app
     }
 
