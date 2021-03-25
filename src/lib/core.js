@@ -78,13 +78,17 @@ class Match {
 
     static unserialize(data) {
         const match = new Match(data.total, data.opts)
+
         match.uuid = data.uuid
-        match.scores = data.scores
+
         match.hasCrawforded = data.hasCrawforded
         match.winner = data.winner
         match.isFinished = data.isFinished
+        match.scores = data.scores
+
         match.games = data.games.map(Game.unserialize)
         match.thisGame = match.games[match.games.length - 1] || null
+
         return match
     }
 
