@@ -78,19 +78,23 @@
         }
 
         async function drawBoard(board) {
-            $('#board').text(board.stateString())
+            $('#boardState').text(board.stateString())
         }
 
         async function drawDice(dice) {
             $('#dice').text(JSON.stringify(dice))
         }
 
-        async function drawScore(match) {
-            $('#score').text(JSON.stringify(match.scores))
+        async function drawScores(scores) {
+            $('#score').text(JSON.stringify(scores))
         }
 
         async function drawCube(game) {
             $('#cube').text(game.cubeValue)
+        }
+
+        async function drawTurnColor(color) {
+            $('#turnColor').text(color)
         }
 
         async function promptDoubleOption() {
@@ -150,6 +154,7 @@
             async runMatch(match, id) {
                 this.match = match
                 this.id = id
+                await drawScores(this.match.scores)
                 while (!this.match.isFinished) {
                     clientLog('Starting game')
                     var res = await this.playRequest('nextGame')
@@ -158,6 +163,7 @@
                     var turn = res.turn
                     clientLog('First roll is', turn.dice.join(','))
                     clientLog(turn.color + "'s turn")
+                    await drawBoard(Board.fromStateString(turn.startState))
                     if (turn.color == this.color) {
                         await this.playRoll(turn, game)
                     } else {
@@ -175,7 +181,7 @@
                         game = res.game
                     }
                     this.match = res.match
-                    console.log(this.match)
+                    await drawScores(this.match.scores)
                 }
             }
 
@@ -185,7 +191,7 @@
                     await this.playRequest('turnOption', {isDouble})
                     if (isDouble) {
                         var res = await this.playRequest('doubleResponse')
-                        await drawScore(res.match)
+                        await drawScores(res.match.scores)
                         if (!res.isAccept) {
                             return res
                         }
@@ -210,6 +216,7 @@
                         clientLog(turn.color, 'offers double')
                         var isAccept = await promptAcceptDouble()
                         res = await this.playRequest('doubleResponse', {isAccept})
+                        await drawScores(res.match.scores)
                         if (!isAccept) {
                             clientLog('Rejected double')
                             return res
