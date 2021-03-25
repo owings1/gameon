@@ -13,5 +13,6 @@ pipelines:
             caches:
               - node
             script:
-              - npm install
+              - apk add python3 build-base
+              - npm install --unsafe-perm
               - npm test
