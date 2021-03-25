@@ -9,8 +9,6 @@ RUN cd /usr/local/bin && ln -s $CLICMD gameon
 
 RUN apk --no-cache add python3 build-base
 
-USER node
-
 COPY package.json .
 COPY package-lock.json .
 COPY scripts scripts
@@ -19,5 +17,7 @@ RUN npm install
 
 COPY --chown=node:node . .
 RUN rm -rf .git
+
+USER node
 
 CMD gameon server
