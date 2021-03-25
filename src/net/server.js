@@ -99,6 +99,9 @@ class Server {
 
         app.use(this.getLoggingMiddleware())
 
+        app.get('/health', (req, res) => {
+            res.status(200).send('OK')
+        })
         app.use('/api/v1', this.api.v1)
         if (this.opts.webEnabled) {
             app.use('/', this.web.app)
