@@ -151,11 +151,18 @@ class Coordinator {
 
     async emitAll(emitters, ...args) {
         var holds = []
-        Object.values(emitters).forEach(it => {
-            it.emit(...args)
+        for (var it of Object.values(emitters)) {
+            await it.emit(...args)
             holds = holds.concat(Util.castToArray(it.holds).splice(0))
-        })
-        await Promise.all(holds.splice(0))
+        }
+        for (var promise of holds.splice(0)) {
+            await promise
+        }
+        //Object.values(emitters).forEach(it => {
+        //    it.emit(...args)
+        //    holds = holds.concat(Util.castToArray(it.holds).splice(0))
+        //})
+        //await Promise.all(holds.splice(0))
     }
 }
 

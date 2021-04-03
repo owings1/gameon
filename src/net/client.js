@@ -151,9 +151,17 @@ class Client {
 
     async waitForMessage() {
         return await new Promise((resolve, reject) => {
-            this.conn.once('message', msg => {
-                resolve(JSON.parse(msg.utf8Data))
-            })
+            if (!this.conn) {
+                reject(new MatchCanceledError('Connection lost'))
+                return
+            }
+            //try {
+                this.conn.once('message', msg => {
+                    resolve(JSON.parse(msg.utf8Data))
+                })
+            //} catch (err) {
+            //    reject(err)
+            //}
         })
     }
 
