@@ -40,6 +40,22 @@ const {White, Red, Match, Opponent, Dice} = Core
 
 const {merge} = Util
 
+prom.collectDefaultMetrics()
+const metrics = {
+    connections: new prom.Gauge({
+        name: 'open_connections',
+        help: 'Open connections'
+    }),
+    matchesCompleted: new prom.Counter({
+        name: 'matches_completed',
+        help: 'Total matches completed'
+    }),
+    matchesInProgress: new prom.Gauge({
+        name: 'matches_in_progress',
+        help: 'Matches in progress'
+    })
+}
+
 class Server {
 
     defaults(env) {
@@ -74,14 +90,14 @@ class Server {
                     this.logger.info('Listening on port', this.port, 'with', this.opts.authType, 'auth')
                     try {
                         this.socketServer = this.createSocketServer(this.httpServer)
-                        resolve()
+                        this.metricsHttpServer = this.metricsApp.listen(metricsPort, () => {
+                            this.metricsPort = this.metricsHttpServer.address().port
+                            this.logger.info('Metrics listening on port', this.metricsPort)
+                            resolve()
+                        })
                     } catch (err) {
                         reject(err)
                     }
-                })
-                this.metricsHttpServer = this.metricsApp.listen((metricsPort), () => {
-                    this.metricsPort = this.metricsHttpServer.address().port
-                    this.logger.info('Metrics listening on port', this.metricsPort)
                 })
             } catch (err) {
                 reject(err)
@@ -125,10 +141,10 @@ class Server {
 
         const app = express()
 
-        app.get('/metrics', async (req, res) => {
+        app.get('/metrics', (req, res) => {
             try {
                 res.set('content-type', prom.register.contentType)
-                res.end(await prom.register.metrics())
+                prom.register.metrics().then(metrics => res.status(200).end(metrics))
             } catch (err) {
                 res.status(500).end(err)
             }
@@ -164,6 +180,7 @@ class Server {
             const connId = this.newConnectionId()
 
             this.logger.info('Peer', connId, 'connected', conn.remoteAddress)
+            metrics.connections.labels().inc()
 
             conn.connId = connId
             server.conns[connId] = conn
@@ -172,6 +189,7 @@ class Server {
                 this.logger.info('Peer', connId, 'disconnected')
                 this.cancelMatchId(conn.matchId, 'Peer disconnected')
                 delete server.conns[connId]
+                metrics.connections.labels().dec()
             })
 
             conn.on('message', msg => {
@@ -254,7 +272,7 @@ class Server {
                     this.sendMessage(conn, {action: 'matchCreated', id, match: match.meta()})
                     this.logger.info('Match', id, 'created')
                     this.logActive()
-
+                    metrics.matchesInProgress.labels().set(Object.keys(this.matches).length)
                     break
 
                 case 'joinMatch':
@@ -476,8 +494,10 @@ class Server {
             match.checkFinished()
         }
         if (match.hasWinner()) {
-            this.logger.info('Match', match.id, 'is finished')
+            this.logger.info('Match', match.id, 'is completed')
+            metrics.matchesCompleted.labels().inc()
             delete this.matches[match.id]
+            metrics.matchesInProgress.labels().set(Object.keys(this.matches).length)
             this.logActive()
         }
     }

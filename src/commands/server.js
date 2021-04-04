@@ -37,11 +37,15 @@ class ServerCommand extends Command {
 
     async run() {
         await this.init()
-        this.helper.listen(this.getHttpPort())
+        this.helper.listen(this.getHttpPort(), this.getMetricsPort())
     }
 
     getHttpPort() {
         return this.flags.port || this.env.HTTP_PORT || 8080
+    }
+
+    getMetricsPort() {
+        return this.flags.metricsPort || this.env.METRICS_PORT || 8181
     }
 }
 
@@ -51,6 +55,10 @@ ServerCommand.flags = {
     port : flags.string({
         char        : 'p'
       , description : 'the port to listen on. default is env HTTP_PORT or 8080'
+    }),
+    metricsPort : flags.string({
+        char        : 'm'
+      , description : 'the port for metrics, default is METRICS_PORT or 8181'
     })
 }
 
