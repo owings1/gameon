@@ -34,6 +34,7 @@ const audit      = require('express-requests-logger')
 const bodyParser = require('body-parser')
 const crypto     = require('crypto')
 const express    = require('express')
+const prom       = require('prom-client')
 
 const {White, Red, Match, Opponent, Dice} = Core
 
@@ -55,7 +56,8 @@ class Server {
         this.auth = new Auth(this.opts.authType, this.opts)
         this.api = new Api(this.auth, this.opts)
         this.web = new Web(this.auth, this.opts)
-        this.app = this.createExpressApp()
+        this.app = this.createApp()
+        this.metricsApp = this.createMetricsApp()
         this.matches = {}
         this.connTicker = 0
         this.httpServer = null
@@ -63,7 +65,7 @@ class Server {
         this.socketServer = null
     }
 
-    listen(port) {
+    listen(port, metricsPort) {
 
         return new Promise((resolve, reject) => {
             try {
@@ -76,6 +78,10 @@ class Server {
                     } catch (err) {
                         reject(err)
                     }
+                })
+                this.metricsHttpServer = this.metricsApp.listen((metricsPort), () => {
+                    this.metricsPort = this.metricsHttpServer.address().port
+                    this.logger.info('Metrics listening on port', this.metricsPort)
                 })
             } catch (err) {
                 reject(err)
@@ -91,9 +97,12 @@ class Server {
         if (this.httpServer) {
             this.httpServer.close()
         }
+        if (this.metricsHttpServer) {
+            this.metricsHttpServer.close()
+        }
     }
 
-    createExpressApp() {
+    createApp() {
 
         const app = express()
 
@@ -102,10 +111,29 @@ class Server {
         app.get('/health', (req, res) => {
             res.status(200).send('OK')
         })
+
         app.use('/api/v1', this.api.v1)
+
         if (this.opts.webEnabled) {
             app.use('/', this.web.app)
         }
+
+        return app
+    }
+
+    createMetricsApp() {
+
+        const app = express()
+
+        app.get('/metrics', async (req, res) => {
+            try {
+                res.set('content-type', prom.register.contentType)
+                res.end(await prom.register.metrics())
+            } catch (err) {
+                res.status(500).end(err)
+            }
+        })
+
         return app
     }
 
