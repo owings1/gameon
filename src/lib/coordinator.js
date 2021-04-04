@@ -66,6 +66,7 @@ class Coordinator {
         do {
             await this.emitAll(players, 'beforeNextGame', match, players)
             await this.runGame(players, match.nextGame(), match)
+            this.logger.debug(['afterRunGame'])
             if (this.opts.isRecord) {
                 var gameFile = path.resolve(matchDir, ['game', match.games.length].join('_') + '.json')
                 await this.recordGame(match.thisGame, gameFile, players)

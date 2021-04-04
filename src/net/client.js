@@ -131,7 +131,12 @@ class Client {
         } catch (err) {
             throw err
         }
-        this.sendMessage(msg)
+        try {
+            this.sendMessage(msg)
+        } catch (err) {
+            this.logger.debug(['catch sendMessage', 'throwing'])
+            throw err
+        }
         return await p
     }
 
