@@ -180,7 +180,7 @@ class Server {
             const connId = this.newConnectionId()
 
             this.logger.info('Peer', connId, 'connected', conn.remoteAddress)
-            metrics.connections.labels().inc()
+            metrics.connections.labels().set(Object.keys(server.conns).length)
 
             conn.connId = connId
             server.conns[connId] = conn
@@ -189,7 +189,7 @@ class Server {
                 this.logger.info('Peer', connId, 'disconnected')
                 this.cancelMatchId(conn.matchId, 'Peer disconnected')
                 delete server.conns[connId]
-                metrics.connections.labels().dec()
+                metrics.connections.labels().set(Object.keys(server.conns).length)
             })
 
             conn.on('message', msg => {
@@ -514,6 +514,7 @@ class Server {
             const match = this.matches[id]
             this.sendMessage(Object.values(match.conns), {action: 'matchCanceled', reason})
             delete this.matches[id]
+            metrics.matchesInProgress.labels().set(Object.keys(this.matches).length)
             this.logActive()
         }
     }
