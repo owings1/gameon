@@ -180,10 +180,10 @@ class Server {
             const connId = this.newConnectionId()
 
             this.logger.info('Peer', connId, 'connected', conn.remoteAddress)
-            metrics.connections.labels().set(Object.keys(server.conns).length)
 
             conn.connId = connId
             server.conns[connId] = conn
+            metrics.connections.labels().set(Object.keys(server.conns).length)
 
             conn.on('close', () => {
                 this.logger.info('Peer', connId, 'disconnected')
