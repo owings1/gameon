@@ -53,6 +53,14 @@ const metrics = {
     matchesInProgress: new prom.Gauge({
         name: 'matches_in_progress',
         help: 'Matches in progress'
+    }),
+    messagesReceived: new prom.Counter({
+        name: 'messages_received',
+        help: 'Messages received'
+    }),
+    messagesSent: new prom.Counter({
+        name: 'messages_sent',
+        help: 'Messages sent'
     })
 }
 
@@ -193,6 +201,7 @@ class Server {
             })
 
             conn.on('message', msg => {
+                metrics.messagesReceived.labels().inc()
                 this.response(conn, JSON.parse(msg.utf8Data))
             })
 
@@ -526,6 +535,7 @@ class Server {
             if (conn && conn.connected) {
                 this.logger.log('Sending message to', conn.color, msg)
                 conn.sendUTF(str)
+                metrics.messagesSent.labels().inc()
             }
         }
     }
