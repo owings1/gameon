@@ -1411,6 +1411,30 @@ class Dice {
     }
 }
 
+const Profiler = {
+    timers : {}
+  , start : name => {
+        if (!Profiler.timers[name]) {
+            Profiler.timers[name] = new Timer
+        }
+        Profiler.timers[name].start()
+    }
+  , stop : name => Profiler.timers[name].stop()
+  , reset : name => Profiler.timers[name].reset()
+  , summary : () => {
+        const summary = {}
+        for (var name in Profiler.timers) {
+            summary[name] = Profiler.timers[name].elapsed
+        }
+        return summary
+    }
+  , resetAll : () => {
+        for (var name in Profiler.timers) {
+            Profiler.reset(name)
+        }
+    }
+}
+
 class GameError extends Error {
 
     constructor(message, ...args) {
@@ -1482,5 +1506,6 @@ module.exports = {
   , White
   , Red
   , Opponent
+  , Profiler
   , Errors
 }

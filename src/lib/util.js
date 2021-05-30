@@ -262,4 +262,35 @@ class Util {
     }
 }
 
+class Timer {
+
+    constructor() {
+        this.startTime = null
+        this.isRunning = false
+        this.elapsed = 0
+    }
+
+    start() {
+        if (this.isRunning) {
+            throw new Error('Timer already started')
+        }
+        this.startTime = +new Date
+        this.isRunning = true
+    }
+
+    stop() {
+        if (!this.isRunning) {
+            throw new Error('Timer not started')
+        }
+        this.elapsed += +new Date - this.startTime
+        this.isRunning = false
+    }
+
+    reset() {
+        this.elapsed = 0
+    }
+}
+
+Util.Timer = Timer
+
 module.exports = Util
