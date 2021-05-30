@@ -68,13 +68,23 @@ class Helper {
             const endTime = +new Date
             const msTotal = endTime - startTime
             this.logger.info('Done')
-            this.logger.info(Profiler.summary())
-            this.logger.info('Total', msTotal, 'ms')
+            const summary = Profiler.summary()
+            const names = Object.keys(summary)
+            const maxNameLength = Math.max(...names.map(name => name.length))
+            const maxValueLength = msTotal.toString().length
+            names.sort()
+            const hr = ''.padEnd(maxNameLength + maxValueLength + 4, '-')
+            this.logger.info(hr)
+            for (var name of names) {
+                var elapsed = summary[name]
+                this.logger.info(name.padEnd(maxNameLength, ' '), elapsed.toString().padStart(maxValueLength, ' '), 'ms')
+            }
+            this.logger.info(hr)
+            this.logger.info('Total'.padEnd(maxNameLength, ' '), msTotal.toString().padStart(maxValueLength, ' '), 'ms')
         } finally {
             white.destroy()
             red.destroy()
         }
-        
     }
 }
 

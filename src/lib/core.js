@@ -638,6 +638,10 @@ class Turn {
             SequenceTree.build(this.board, this.color, sequence)
         )
 
+        Profiler.stop('Turn.compute.1')
+
+        Profiler.start('Turn.compute.2')
+
         const maxDepth = Math.max(...trees.map(tree => tree.depth))
 
         // the "most number of faces" rule has an exception when bearing off the last piece.
@@ -666,9 +670,9 @@ class Turn {
             )
         )
 
-        Profiler.stop('Turn.compute.1')
+        Profiler.stop('Turn.compute.2')
 
-        Profiler.start('Turn.compute.2')
+        Profiler.start('Turn.compute.3')
 
         const allowedMoveSeries = allowedBranches.map(branch =>
             branch.slice(1).map(node => node.thisMove)
@@ -711,7 +715,7 @@ class Turn {
             allowedMoves => allowedMoves.length == maximalAllowedFaces
         ).map(move => move.face).sort(Util.sortNumericDesc)
 
-        Profiler.stop('Turn.compute.2')
+        Profiler.stop('Turn.compute.3')
 
         return {
             allowedMoveSeries : dedupSeries // constructed Move objects
@@ -750,12 +754,17 @@ class Board {
     }
 
     getPossibleMovesForFace(color, face) {
-        if (this.hasBar(color)) {
-            return [this.getMoveIfCanMove(color, -1, face)].filter(move => move != null)
+        Profiler.start('Board.getPossibleMovesForFace')
+        try {
+            if (this.hasBar(color)) {
+                return [this.getMoveIfCanMove(color, -1, face)].filter(move => move != null)
+            }
+            return this.originsOccupied(color).map(origin =>
+                this.getMoveIfCanMove(color, origin, face)
+            ).filter(move => move != null)
+        } finally {
+            Profiler.stop('Board.getPossibleMovesForFace')
         }
-        return this.originsOccupied(color).map(origin =>
-            this.getMoveIfCanMove(color, origin, face)
-        ).filter(move => move != null)
     }
 
     getMoveIfCanMove(color, origin, face) {
@@ -1129,12 +1138,16 @@ class SequenceTree {
     }
 
     build() {
+        Profiler.start('SequenceTree.build.1')
         this.nodes = SequenceTree.buildNodes(this.board, this.color, this.sequence)
+        Profiler.stop('SequenceTree.build.1')
+        Profiler.start('SequenceTree.build.2')
         this.depth = Math.max(...this.nodes.map(node => node.depth))
         this.leaves = this.nodes.filter(node => node.depth == this.depth)
         this.branches = SequenceTree.buildBranchesForLeaves(this.leaves)
         this.hasWinner = undefined != this.leaves.find(node => node.isWinner)
         this.winningBranches = this.branches.filter(branch => branch[branch.length - 1].isWinner)
+        Profiler.stop('SequenceTree.build.2')
     }
 
     static build(board, color, sequence) {
