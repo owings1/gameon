@@ -148,6 +148,14 @@ const KnownRobots = {
           , version      : 'v1'
         }   
     }
+  , DoubleRobot    : {
+        filename   : 'double'
+      , defaults   : {
+            moveWeight   : 0
+          , doubleWeight : 1
+          , version      : 'v1'
+        }
+    }
 }
 
 class ConfidenceRobot extends Robot {
@@ -209,8 +217,15 @@ class ConfidenceRobot extends Robot {
         return turn.endStatesToSeries[stateString]
     }
 
+    // for compatibility to be used as a standalone robot player
     async shouldDouble(turn, game, match) {
-        const p = await this.getDoubleProbability(turn, game, match)
+        const p = await this.getDoubleConfidence(turn, game, match)
+        return p >= 0.5
+    }
+
+    // for compatibility to be used as a standalone robot player
+    async shouldAcceptDouble(turn, game, match) {
+        const p = await this.getAcceptDoubleConfidence(turn, game, match)
         return p >= 0.5
     }
 
@@ -220,8 +235,12 @@ class ConfidenceRobot extends Robot {
         throw new Error('NotImplemented')
     }
 
-    async getDoubleProbability(turn, game, match) {
+    async getDoubleConfidence(turn, game, match) {
         return 0
+    }
+
+    async getAcceptDoubleConfidence(turn, game, match) {
+        return 1
     }
 
     zeroRankings(turn) {
@@ -247,6 +266,7 @@ class RobotDelegator extends Robot {
             const delegate = ConfidenceRobot.getVersionInstance(name, version, ...args)
             robot.addDelegate(delegate, moveWeight, doubleWeight)
         })
+        robot.logger.debug({configs})
         return robot
     }
 
@@ -304,7 +324,7 @@ class RobotDelegator extends Robot {
                 if (localWeight > 1 || localWeight < 0) {
                     this.logger.warn(delegate.robot.name, 'gave weight', localWeight)
                 }
-                this.logger.debug({localWeight, robot: delegate.robot.name})
+                //this.logger.debug({localWeight, robot: delegate.robot.name})
                 rankings[endState] += localWeight * delegate.moveWeight
             })
         })
@@ -318,6 +338,54 @@ class RobotDelegator extends Robot {
         }
         this.emit('turnData', turn, {startState, endState, rankings, moves})
         return moves
+    }
+
+    async shouldDouble(turn, game, match) {
+        const p = await this.getDoubleConfidence(turn, game, match)
+        return p >= 0.5
+    }
+
+    async shouldAcceptDouble(turn, game, match) {
+        const p = await this.getAcceptDoubleConfidence(turn, game, match)
+        return p >= 0.5
+    }
+
+    async getDoubleConfidence(turn, game, match) {
+        if (this.delegates.length == 0) {
+            throw new NoDelegatesError('No delegates to consult')
+        }
+        // sum(response_n * weight_n for each n) / sum(weight_n for each n)
+        var weightedSum = 0
+        var weightsSum = 0
+        for (var delegate of this.delegates) {
+            var response = await delegate.robot.getDoubleConfidence(turn, game, match)
+            weightedSum += response * delegate.doubleWeight
+            weightsSum += delegate.doubleWeight
+        }
+        if (weightsSum == 0) {
+            // don't divide by zero
+            return 0
+        }
+        return weightedSum / weightsSum
+    }
+
+    async getAcceptDoubleConfidence(turn, game, match) {
+        if (this.delegates.length == 0) {
+            throw new NoDelegatesError('No delegates to consult')
+        }
+        // sum(response_n * weight_n for each n) / sum(weight_n for each n)
+        var weightedSum = 0
+        var weightsSum = 0
+        for (var delegate of this.delegates) {
+            var response = await delegate.robot.getAcceptDoubleConfidence(turn, game, match)
+            weightedSum += response * delegate.doubleWeight
+            weightsSum += delegate.doubleWeight
+        }
+        if (weightsSum == 0) {
+            // don't divide by zero
+            return 1
+        }
+        return weightedSum / weightsSum
     }
 
     async destroy() {

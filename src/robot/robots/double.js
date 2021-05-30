@@ -22,7 +22,10 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
+const Core = require('../../lib/core')
 const Base = require('../player').ConfidenceRobot
+
+const {Opponent} = Core
 
 class DoubleRobot extends Base {
 
@@ -30,7 +33,21 @@ class DoubleRobot extends Base {
         return this.zeroRankings(turn)
     }
 
-    async getDoubleProbability(turn, game, match) {
-        
+    async getDoubleConfidence(turn, game, match) {
+        const {analyzer} = turn.board
+        // naive implementation: pip count <= 75% of opponent's
+        const myPipCount = analyzer.pipCount(this.color)
+        const opponentPipCount = analyzer.pipCount(Opponent[this.color])
+        return myPipCount < opponentPipCount * 0.75
+    }
+
+    async getAcceptDoubleConfidence(turn, game, match) {
+        const {analyzer} = turn.board
+        // naive implementation: pip count <= 120% of opponent's
+        const myPipCount = analyzer.pipCount(this.color)
+        const opponentPipCount = analyzer.pipCount(Opponent[this.color])
+        return myPipCount < opponentPipCount * 1.2
     }
 }
+
+module.exports = DoubleRobot
