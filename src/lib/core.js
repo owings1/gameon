@@ -24,7 +24,7 @@
  */
 const Util   = require('./util')
 
-const {intRange, Timer} = Util
+const {intRange} = Util
 
 const White = 'White'
 const Red   = 'Red'
@@ -62,6 +62,8 @@ const Opponent = {
     White : Red
   , Red   : White
 }
+
+const Profiler = new Util.Profiler
 
 class Match {
 
@@ -768,6 +770,7 @@ class Board {
     }
 
     getMoveIfCanMove(color, origin, face) {
+        Profiler.start('Board.getMoveIfCanMove')
         try {
             return this.buildMove(color, origin, face)
         } catch (err) {
@@ -775,6 +778,8 @@ class Board {
                 throw err
             }
             return null
+        } finally {
+            Profiler.stop('Board.getMoveIfCanMove')
         }
     }
 
@@ -1433,30 +1438,6 @@ class Dice {
         return [
             [faces[0], faces[1], faces[2], faces[3]]
         ]
-    }
-}
-
-const Profiler = {
-    timers : {}
-  , start : name => {
-        if (!Profiler.timers[name]) {
-            Profiler.timers[name] = new Timer
-        }
-        Profiler.timers[name].start()
-    }
-  , stop : name => Profiler.timers[name].stop()
-  , reset : name => Profiler.timers[name].reset()
-  , summary : () => {
-        const summary = {}
-        for (var name in Profiler.timers) {
-            summary[name] = Profiler.timers[name].elapsed
-        }
-        return summary
-    }
-  , resetAll : () => {
-        for (var name in Profiler.timers) {
-            Profiler.reset(name)
-        }
     }
 }
 

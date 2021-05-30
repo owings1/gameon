@@ -66,25 +66,27 @@ class Helper {
                 await this.coordinator.runMatch(match, white, red)
             }
             const endTime = +new Date
-            const msTotal = endTime - startTime
             this.logger.info('Done')
-            const summary = Profiler.summary()
-            const names = Object.keys(summary)
-            const maxNameLength = Math.max(...names.map(name => name.length))
-            const maxValueLength = msTotal.toString().length
-            names.sort()
-            const hr = ''.padEnd(maxNameLength + maxValueLength + 4, '-')
-            this.logger.info(hr)
-            for (var name of names) {
-                var elapsed = summary[name]
-                this.logger.info(name.padEnd(maxNameLength, ' '), elapsed.toString().padStart(maxValueLength, ' '), 'ms')
-            }
-            this.logger.info(hr)
-            this.logger.info('Total'.padEnd(maxNameLength, ' '), msTotal.toString().padStart(maxValueLength, ' '), 'ms')
+            this.logSummary(Profiler.summary(), endTime - startTime)
         } finally {
             white.destroy()
             red.destroy()
         }
+    }
+
+    logSummary(summary, msTotal) {
+        const names = Object.keys(summary)
+        const maxNameLength = Math.max(...names.map(name => name.length))
+        const maxValueLength = msTotal.toString().length
+        names.sort()
+        const hr = ''.padEnd(maxNameLength + maxValueLength + 4, '-')
+        this.logger.info(hr)
+        for (var name of names) {
+            var elapsed = summary[name]
+            this.logger.info(name.padEnd(maxNameLength, ' '), elapsed.toString().padStart(maxValueLength, ' '), 'ms')
+        }
+        this.logger.info(hr)
+        this.logger.info('Total'.padEnd(maxNameLength, ' '), msTotal.toString().padStart(maxValueLength, ' '), 'ms')
     }
 }
 

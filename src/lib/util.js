@@ -264,10 +264,13 @@ class Util {
 
 class Timer {
 
+    // For more resolution, see https://stackoverflow.com/a/18197438/794513
+
     constructor() {
         this.startTime = null
         this.isRunning = false
         this.elapsed = 0
+        this.startCount = 0
     }
 
     start() {
@@ -276,6 +279,7 @@ class Timer {
         }
         this.startTime = +new Date
         this.isRunning = true
+        this.startCount += 1
     }
 
     stop() {
@@ -288,9 +292,46 @@ class Timer {
 
     reset() {
         this.elapsed = 0
+        this.startCount = 0
+    }
+}
+
+class Profiler {
+
+    constructor() {
+        this.timers = {}
+    }
+
+    start(name) {
+        if (!this.timers[name]) {
+            this.timers[name] = new Timer
+        }
+        this.timers[name].start()
+    }
+
+    stop(name) {
+        this.timers[name].stop()
+    }
+
+    reset(name) {
+        this.timers[name].reset()
+    }
+
+    summary() {
+        const summary = {}
+        for (var name in this.timers) {
+            summary[name] = this.timers[name].elapsed
+        }
+        return summary
+    }
+    resetAll() {
+        for (var name in this.timers) {
+            this.reset(name)
+        }
     }
 }
 
 Util.Timer = Timer
+Util.Profiler = Profiler
 
 module.exports = Util
