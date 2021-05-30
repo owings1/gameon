@@ -24,7 +24,7 @@
  */
 const Util   = require('./util')
 
-const {intRange} = Util
+const {intRange, Timer} = Util
 
 const White = 'White'
 const Red   = 'Red'
@@ -623,12 +623,16 @@ class Turn {
     }
 
     _compute() {
+        Profiler.start('Turn.compute')
         Object.entries(this._computeAllowedMovesResult()).forEach(([k, v]) => {
             this[k] = v
         })
+        Profiler.stop('Turn.compute')
     }
 
     _computeAllowedMovesResult() {
+
+        Profiler.start('Turn.compute.1')
 
         const trees = Dice.sequencesForFaces(this.faces).map(sequence =>
             SequenceTree.build(this.board, this.color, sequence)
@@ -662,6 +666,10 @@ class Turn {
             )
         )
 
+        Profiler.stop('Turn.compute.1')
+
+        Profiler.start('Turn.compute.2')
+
         const allowedMoveSeries = allowedBranches.map(branch =>
             branch.slice(1).map(node => node.thisMove)
         )
@@ -674,23 +682,18 @@ class Turn {
         })
         const dedupSeries = Object.values(seriesMap)
 
-        // end states
-        const allowedEndStates = Util.uniqueStrings(allowedBranches.map(branch =>
-            branch[branch.length - 1].board.stateString()
-        ))
-
-        const maximalAllowedFaces = Math.max(...dedupSeries.map(allowedMoves => allowedMoves.length))
-        
-        const allowedFaces = dedupSeries.length < 1 ? [] : dedupSeries.find(
-            allowedMoves => allowedMoves.length == maximalAllowedFaces
-        ).map(move => move.face).sort(Util.sortNumericDesc)
-
-        // end states to move series
         const endStatesToSeries = {}
-        allowedEndStates.forEach(endState => {
-            const branch = allowedBranches.find(branch =>
-                branch[branch.length - 1].board.stateString() == endState
-            )
+        const allowedEndStatesMap = {}
+        allowedBranches.forEach(branch => {
+            
+            const endState = branch[branch.length - 1].board.stateString()
+            if (allowedEndStatesMap[endState]) {
+                // de-dupe
+                return
+            }
+            allowedEndStatesMap[endState] = true
+
+            // end states to move series
             const leaf = branch[branch.length - 1]
             const moves = [leaf.thisMove]
             var node = leaf.parent
@@ -700,6 +703,15 @@ class Turn {
             }
             endStatesToSeries[endState] = moves.map(move => move.coords())
         })
+        const allowedEndStates = Object.keys(allowedEndStatesMap)
+
+        const maximalAllowedFaces = Math.max(...dedupSeries.map(allowedMoves => allowedMoves.length))
+
+        const allowedFaces = dedupSeries.length < 1 ? [] : dedupSeries.find(
+            allowedMoves => allowedMoves.length == maximalAllowedFaces
+        ).map(move => move.face).sort(Util.sortNumericDesc)
+
+        Profiler.stop('Turn.compute.2')
 
         return {
             allowedMoveSeries : dedupSeries // constructed Move objects
