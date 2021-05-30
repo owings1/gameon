@@ -146,7 +146,6 @@ class Coordinator {
               , Red   : players.Red.meta()
             }
         }, game.meta())
-        //meta.turns = game.turns.map(turn => turn.meta())
         meta.turnHistory = game.turnHistory
         await fse.writeJson(file, meta, {spaces: 2})
     }

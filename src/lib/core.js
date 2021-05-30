@@ -218,9 +218,6 @@ class Game {
         game.winner      = data.winner
         game.turnHistory = data.turnHistory
 
-        //game.turns = data.turns.map(turn => Turn.unserialize(turn, game.board))
-        //game.thisTurn = game.turns[game.turns.length - 1] || null
-
         if (data.thisTurn) {
             game.thisTurn = Turn.unserialize(data.thisTurn, game.board)
         }
@@ -243,7 +240,6 @@ class Game {
         this.isPass     = false
         this.winner     = null
 
-        //this.turns = []
         this.turnHistory = []
         this.thisTurn = null
     }
@@ -281,7 +277,6 @@ class Game {
         this.thisTurn = new Turn(this.board, firstColor)
         this.thisTurn.setRoll(dice)
         this.thisTurn.isFirstTurn = true
-        //this.turns.push(this.thisTurn)
         return this.thisTurn
     }
 
@@ -300,7 +295,6 @@ class Game {
         }
         this.turnHistory.push(this.thisTurn.meta())
         this.thisTurn = new Turn(this.board, Opponent[this.thisTurn.color])
-        //this.turns.push(this.thisTurn)
         return this.thisTurn
     }
 
@@ -377,8 +371,6 @@ class Game {
           , isPass     : this.isPass
           , endState   : this.endState
           , turnCount  : this.getTurnCount()
-          //, turnCount  : this.turns.length
-          //, turns      : this.turns.map(turn => turn.meta())
         }
     }
 
@@ -389,9 +381,6 @@ class Game {
             data.thisTurn = this.thisTurn.serialize()
         }
         return data
-        //return Util.merge(this.meta(), {
-        //    turns : this.turns.map(Turn.serialize)
-        //})
     }
 
     // allow override for testing
