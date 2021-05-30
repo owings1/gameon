@@ -1,7 +1,7 @@
 /**
  * gameon - auth:unlock command
  *
- * Copyright (C) 2020 Doug Owings
+ * Copyright (C) 2020-2021 Doug Owings
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files (the
