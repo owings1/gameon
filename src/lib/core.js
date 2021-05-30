@@ -209,17 +209,21 @@ class Game {
 
         game.uuid = data.uuid
 
-        game.cubeOwner  = data.cubeOwner
-        game.cubeValue  = data.cubeValue
-        game.endState   = data.endState
-        game.finalValue = data.finalValue
-        game.isFinished = data.isFinished
-        game.isPass     = data.isPass
-        game.winner     = data.winner
+        game.cubeOwner   = data.cubeOwner
+        game.cubeValue   = data.cubeValue
+        game.endState    = data.endState
+        game.finalValue  = data.finalValue
+        game.isFinished  = data.isFinished
+        game.isPass      = data.isPass
+        game.winner      = data.winner
+        game.turnHistory = data.turnHistory
 
-        game.turns = data.turns.map(turn => Turn.unserialize(turn, game.board))
-        game.thisTurn = game.turns[game.turns.length - 1] || null
+        //game.turns = data.turns.map(turn => Turn.unserialize(turn, game.board))
+        //game.thisTurn = game.turns[game.turns.length - 1] || null
 
+        if (data.thisTurn) {
+            game.thisTurn = Turn.unserialize(data.thisTurn, game.board)
+        }
         game.board.setStateString(data.board)
 
         return game
@@ -239,7 +243,8 @@ class Game {
         this.isPass     = false
         this.winner     = null
 
-        this.turns = []
+        //this.turns = []
+        this.turnHistory = []
         this.thisTurn = null
     }
 
@@ -276,7 +281,7 @@ class Game {
         this.thisTurn = new Turn(this.board, firstColor)
         this.thisTurn.setRoll(dice)
         this.thisTurn.isFirstTurn = true
-        this.turns.push(this.thisTurn)
+        //this.turns.push(this.thisTurn)
         return this.thisTurn
     }
 
@@ -293,8 +298,9 @@ class Game {
         if (this.checkFinished()) {
             return null
         }
+        this.turnHistory.push(this.thisTurn.meta())
         this.thisTurn = new Turn(this.board, Opponent[this.thisTurn.color])
-        this.turns.push(this.thisTurn)
+        //this.turns.push(this.thisTurn)
         return this.thisTurn
     }
 
@@ -345,8 +351,16 @@ class Game {
         }
         if (this.isFinished) {
             this.endState = this.board.stateString()
+            this.turnHistory.push(this.thisTurn.meta())
+            // We can't clear the turn because the net server expects it to be there
+            // for the second player request
+            //this.thisTurn = null
         }
         return this.isFinished
+    }
+
+    getTurnCount() {
+        return this.turnHistory.length + +!!this.thisTurn
     }
 
     meta() {
@@ -362,15 +376,22 @@ class Game {
           , isFinished : this.isFinished
           , isPass     : this.isPass
           , endState   : this.endState
-          , turnCount  : this.turns.length
+          , turnCount  : this.getTurnCount()
+          //, turnCount  : this.turns.length
           //, turns      : this.turns.map(turn => turn.meta())
         }
     }
 
     serialize() {
-        return Util.merge(this.meta(), {
-            turns : this.turns.map(Turn.serialize)
-        })
+        const data = this.meta()
+        data.turnHistory = this.turnHistory.slice(0)
+        if (this.thisTurn) {
+            data.thisTurn = this.thisTurn.serialize()
+        }
+        return data
+        //return Util.merge(this.meta(), {
+        //    turns : this.turns.map(Turn.serialize)
+        //})
     }
 
     // allow override for testing

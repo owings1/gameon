@@ -31,7 +31,7 @@ class FirstTurnRobot extends Base {
 
     async getRankings(turn, game, match) {
         const rankings = this.zeroRankings(turn)
-        if (!game || game.turns.length > 2 || turn.dice[0] == turn.dice[1]) {
+        if (!game || game.getTurnCount() > 2 || turn.dice[0] == turn.dice[1]) {
             return rankings
         }
         const board = turn.board.copy()
@@ -39,7 +39,7 @@ class FirstTurnRobot extends Base {
             this.pointMoves(turn.diceSorted).forEach(({point, face}) => {
                 board.move(turn.color, board.pointOrigin(turn.color, point), face)
             })
-            rankings[board.stateString()] = 1 / game.turns.length
+            rankings[board.stateString()] = 1 / game.getTurnCount()
         } catch (err) {
             if (turn.isFirstTurn || !err.isIllegalMoveError) {
                 throw err

@@ -1410,12 +1410,12 @@ describe('Robot', () => {
         white.logger.stdout = {write: () => {}}
         red.logger.stdout = {write: () => {}}
         white.robot.turnOption = (turn, game) => {
-            if (game.turns.length > 3) {
+            if (game.getTurnCount() > 3) {
                 turn.setDoubleOffered()
             }
         }
         red.robot.turnOption = (turn, game) => {
-            if (game.turns.length > 3) {
+            if (game.getTurnCount() > 3) {
                 turn.setDoubleOffered()
             }
         }

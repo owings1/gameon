@@ -1137,12 +1137,12 @@ describe('NetPlayer', () => {
         const {east, west} = await eastAndWest({total: 2, isCrawford: false})
 
         west.players.White.turnOption = (turn, game) => {
-            if (game.turns.length > 3) {
+            if (game.getTurnCount() > 3) {
                 turn.setDoubleOffered()
             }
         }
         east.players.Red.turnOption = (turn, game) => {
-            if (game.turns.length > 3) {
+            if (game.getTurnCount() > 3) {
                 turn.setDoubleOffered()
             }
         }
