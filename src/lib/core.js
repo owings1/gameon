@@ -723,9 +723,9 @@ class Turn {
 
             const allowedMoves = branch.slice(1).map(node => node.thisMove)
             allowedMoveSeries.push(allowedMoves)
-            
 
-            const endState = branch[branch.length - 1].board.stateString()
+            const board = branch[branch.length - 1].board
+            const endState = board.stateString()
             if (endStatesToSeries[endState]) {
                 // de-dupe
                 return
@@ -733,7 +733,8 @@ class Turn {
 
             allowedEndStates.push(endState)
             endStatesToSeries[endState] = allowedMoves.map(Move.coords)
-
+            // populate board cache
+            this.boardCache[endState] = board
         })
 
         Profiler.stop('Turn.compute.3')
@@ -773,8 +774,8 @@ class Board {
         // isSkipInit is for performance on copy
         if (!isSkipInit) {
             this.clear()
-            this.analyzer = new BoardAnalyzer(this)
         }
+        this.analyzer = new BoardAnalyzer(this)
     }
 
     static setup() {
@@ -1103,14 +1104,12 @@ class Board {
 
     static fromStateString(str) {
         const board = new Board(true)
-        board.analyzer = new BoardAnalyzer(board)
         board.setStateString(str)
         return board
     }
 
     static fromStateStructure(structure) {
         const board = new Board(true)
-        board.analyzer = new BoardAnalyzer(board)
         board.setStateStructure(structure)
         return board
     }
