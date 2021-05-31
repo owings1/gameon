@@ -706,17 +706,19 @@ class Turn {
             allowedMoves => allowedMoves.length == maximalAllowedFaces
         ).map(move => move.face).sort(Util.sortNumericDesc)
 
-        Profiler.stop('Turn.compute.4')
-
-        return {
-            allowedMoveCount  : maxDepth
-          , isForceMove       : allowedMoveSeries.length == 1
-          , isCantMove        : maxDepth == 0
+        const res = {
+            allowedMoveCount : maxDepth
+          , isForceMove      : allowedMoveSeries.length == 1
+          , isCantMove       : maxDepth == 0
           , allowedMoveSeries // constructed Move objects
           , allowedFaces
           , allowedEndStates
           , endStatesToSeries // move coords objects
         }
+
+        Profiler.stop('Turn.compute.4')
+
+        return res
     }
 
     // allow override for testing
@@ -921,8 +923,33 @@ class Board {
         this.homes.Red = Piece.make(locs[27], Red)
     }
 
+    // Optimized for performance
     stateString() {
         // <White bar count>|<Red bar count>|<slot count>:<Red/White/empty>|...|<White home count>|<Red home count>
+        // string concat implementation -- appears to be the best so far
+        var str = this.bars.White.length + '|' + this.bars.Red.length + '|'
+        for (var i = 0; i < 24; i++) {
+            var slot = this.slots[i]
+            str += slot.length + ':' + (slot.length ? slot[0].color : '') + '|'
+        }
+        return str + this.homes.White.length + '|' + this.homes.Red.length
+
+        // push/join implementation -- about 2x slower than string concat
+        /*
+        const parts = [
+            this.bars.White.length
+          , this.bars.Red.length
+        ]
+        this.slots.forEach(slot => {
+            parts.push([slot.length, slot.length > 0 ? slot[0].color : ''].join(':'))
+        })
+        parts.push(this.homes.White.length)
+        parts.push(this.homes.Red.length)
+        return parts.join('|')
+        */
+
+        // concat/join implementation -- no observed degredation over pushs
+        /*
         return [
             this.bars.White.length
           , this.bars.Red.length
@@ -932,6 +959,7 @@ class Board {
             this.homes.White.length
           , this.homes.Red.length
         ]).join('|')
+        */
     }
 
     stateStructure() {
