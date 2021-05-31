@@ -729,9 +729,12 @@ class Turn {
 
 class Board {
 
-    constructor() {
-        this.clear()
-        this.analyzer = new BoardAnalyzer(this)
+    constructor(isSkipInit) {
+        // isSkipInit is for performance on copy
+        if (!isSkipInit) {
+            this.clear()
+            this.analyzer = new BoardAnalyzer(this)
+        }
     }
 
     static setup() {
@@ -746,15 +749,24 @@ class Board {
         return move
     }
 
+    // Performance optimized
     getPossibleMovesForFace(color, face) {
         Profiler.start('Board.getPossibleMovesForFace')
         try {
             if (this.hasBar(color)) {
-                return [this.getMoveIfCanMove(color, -1, face)].filter(move => move != null)
+                const barMove = this.getMoveIfCanMove(color, -1, face)
+                return barMove ? [barMove] : []
             }
-            return this.originsOccupied(color).map(origin =>
-                this.getMoveIfCanMove(color, origin, face)
-            ).filter(move => move != null)
+            const origins = this.originsOccupied(color)
+            const len = origins.length
+            const moves = []
+            for (var i = 0; i < len; i++) {
+                var move = this.getMoveIfCanMove(color, origins[i], face)
+                if (move) {
+                    moves.push(move)
+                }
+            }
+            return moves
         } finally {
             Profiler.stop('Board.getPossibleMovesForFace')
         }
@@ -787,7 +799,7 @@ class Board {
     //    build: an object for constructing the move {class, args}
     //
     // The caller must test whether check === true, else construct and throw the
-    // error. The build object is still populated even if there is an error.
+    // error. The build object may still populated even if there is an error.
     checkMove(color, origin, face) {
         Dice.checkOne(face)
         var check
@@ -850,10 +862,15 @@ class Board {
         return false
     }
 
+    // Performance optimized
     originsOccupied(color) {
-        return Object.keys(this.slots).filter(i =>
-            this.slots[i].length > 0 && this.slots[i][0].color == color
-        ).map(i => +i)
+        const origins = []
+        for (var i = 0; i < 24; i++) {
+            if (this.slots[i][0] && this.slots[i][0].color == color) {
+                origins.push(i)
+            }
+        }
+        return origins
     }
 
     clear() {
@@ -863,7 +880,7 @@ class Board {
     }
 
     copy() {
-        const board = new Board
+        const board = new Board(true)
         board.slots = this.slots.map(it => it.slice(0))
         board.bars = {
             Red   : this.bars.Red.slice(0)
@@ -1223,9 +1240,11 @@ class SequenceTree {
 
         const nodes = [new BoardNode(board, 0, null)]
 
+        const nodesAtDepth = [nodes.slice(0)]
         sequence.forEach((face, seqi) => {
             const depth = seqi + 1
-            nodes.filter(n => n.depth == depth - 1).forEach(parentNode => {
+            nodesAtDepth[depth] = []
+            nodesAtDepth[depth - 1].forEach(parentNode => {
                 parentNode.nextFace = face
                 parentNode.nextMoves = parentNode.board.getPossibleMovesForFace(color, face)
                 parentNode.nextMoves.forEach(move => {
@@ -1237,6 +1256,7 @@ class SequenceTree {
                     childNode.thisFace = face
                     parentNode.children.push(childNode)
                     nodes.push(childNode)
+                    nodesAtDepth[depth].push(childNode)
                 })
             })
         })
