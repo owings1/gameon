@@ -63,7 +63,8 @@ const Opponent = {
   , Red   : White
 }
 
-const Profiler = new Util.Profiler
+// Must manually enable
+const Profiler = Util.Profiler.createDisabled()
 
 class Match {
 
@@ -951,7 +952,7 @@ class Board {
         }
         return str + this.homes.White.length + '|' + this.homes.Red.length
 
-        // push/join implementation -- about 2x slower than string concat
+        // array push/join implementation -- about 2x slower than string concat
         /*
         const parts = [
             this.bars.White.length
@@ -965,7 +966,7 @@ class Board {
         return parts.join('|')
         */
 
-        // concat/join implementation -- no observed degredation over pushs
+        // array concat/join implementation -- no observed degredation over pushs
         /*
         return [
             this.bars.White.length
@@ -1111,49 +1112,55 @@ class BoardAnalyzer {
 
     blots(color) {
 
-        const blots = []
+        Profiler.start('BoardAnalyzer.blots')
 
-        const blotSlots = Object.keys(this.board.slots).filter(i => {
-            const slot = this.board.slots[i]
-            return slot.length == 1 && slot[0].color == color
-        }).map(i => +i)
+        try {
+            const blots = []
 
-        if (blotSlots.length == 0) {
-            return blots
-        }
+            const blotSlots = Object.keys(this.board.slots).filter(i => {
+                const slot = this.board.slots[i]
+                return slot.length == 1 && slot[0].color == color
+            }).map(i => +i)
 
-        const opponentSlots = this.board.originsOccupied(Opponent[color])
-        const opponentPoints = opponentSlots.map(i => this.board.originPoint(color, i))
-        const hasBar = this.board.bars[Opponent[color]].length > 0
-
-        blotSlots.forEach(origin => {
-
-            const point = this.board.originPoint(color, origin)
-            const attackerPoints = opponentPoints.filter(p => p < point)
-            const attackerDistances = attackerPoints.map(p => point - p)
-            if (hasBar) {
-                attackerDistances.push(point)
+            if (blotSlots.length == 0) {
+                return blots
             }
-            const minDistance = Math.min(...attackerDistances)
-            const directCount = attackerDistances.filter(n => n < 7).length
-            const indirectCount = attackerDistances.filter(n => n > 6 && n < 12).length
-            // TODO: risk factor?
-            const attackerSlots = attackerPoints.map(p => this.board.pointOrigin(color, p))
 
-            blots.push({
-                point
-              , origin
-              , minDistance
-              , directCount
-              , indirectCount
-              , attackerDistances
-              , attackerPoints
-              , attackerSlots
-              , hasBar
+            const opponentSlots = this.board.originsOccupied(Opponent[color])
+            const opponentPoints = opponentSlots.map(i => this.board.originPoint(color, i))
+            const hasBar = this.board.bars[Opponent[color]].length > 0
+
+            blotSlots.forEach(origin => {
+
+                const point = this.board.originPoint(color, origin)
+                const attackerPoints = opponentPoints.filter(p => p < point)
+                const attackerDistances = attackerPoints.map(p => point - p)
+                if (hasBar) {
+                    attackerDistances.push(point)
+                }
+                const minDistance = Math.min(...attackerDistances)
+                const directCount = attackerDistances.filter(n => n < 7).length
+                const indirectCount = attackerDistances.filter(n => n > 6 && n < 12).length
+                // TODO: risk factor?
+                const attackerSlots = attackerPoints.map(p => this.board.pointOrigin(color, p))
+
+                blots.push({
+                    point
+                  , origin
+                  , minDistance
+                  , directCount
+                  , indirectCount
+                  , attackerDistances
+                  , attackerPoints
+                  , attackerSlots
+                  , hasBar
+                })
             })
-        })
 
-        return blots
+            return blots
+        } finally {
+            Profiler.stop('BoardAnalyzer.blots')
+        }
     }
 
     isDisengaged() {
@@ -1169,6 +1176,7 @@ class BoardAnalyzer {
     }
 
     primes(color) {
+        Profiler.start('BoardAnalyzer.primes')
         const slotsHeld = this.slotsHeld(color)
         const pointsHeld = slotsHeld.map(i => this.board.originPoint(color, i))
         pointsHeld.sort(Util.sortNumericAsc)
@@ -1189,6 +1197,7 @@ class BoardAnalyzer {
                 })
             }
         }
+        Profiler.stop('BoardAnalyzer.primes')
         return primes
     }
 }

@@ -56,6 +56,8 @@ class Helper {
     }
 
     async run() {
+        Profiler.enabled = true
+        Profiler.resetAll()
         const white = RobotDelegator.forDefaults(White)
         const red = RobotDelegator.forDefaults(Red)
         try {
@@ -71,6 +73,7 @@ class Helper {
         } finally {
             white.destroy()
             red.destroy()
+            Profiler.resetAll()
         }
     }
 

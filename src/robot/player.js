@@ -26,7 +26,7 @@ const Core = require('../lib/core')
 const Base = require('../lib/player')
 const Util = require('../lib/util')
 
-const {Board} = Core
+const {Board, Profiler} = Core
 const {HasNotRolledError} = Core.Errors
 const {merge} = Util
 
@@ -297,47 +297,59 @@ class RobotDelegator extends Robot {
     }
 
     async getMoves(turn, game, match) {
-        if (this.delegates.length == 0) {
-            throw new NoDelegatesError('No delegates to consult')
-        }
-        if (turn.isCantMove) {
-            return []
-        }
-        if (!turn.isRolled) {
-            throw new HasNotRolledError('Turn is not rolled')
-        }
-        const startState = turn.board.stateString()
-        // [{robot, moveWeight, doubleWeight, rankings}]
-        const delegates = []
-        for (var delegate of this.delegates) {
-            delegates.push({
-                ...delegate
-              , rankings: await delegate.robot.getRankings(turn, game, match)
+        Profiler.start('RobotDelegator.getMoves')
+        try {
+            if (this.delegates.length == 0) {
+                throw new NoDelegatesError('No delegates to consult')
+            }
+            if (turn.isCantMove) {
+                return []
+            }
+            if (!turn.isRolled) {
+                throw new HasNotRolledError('Turn is not rolled')
+            }
+            Profiler.start('RobotDelegator.getMoves.1')
+            const startState = turn.board.stateString()
+            // [{robot, moveWeight, doubleWeight, rankings}]
+            const delegates = []
+            for (var delegate of this.delegates) {
+                var timerName = 'getRankings.' + delegate.robot.constructor.name
+                Profiler.start(timerName)
+                delegates.push({
+                    ...delegate
+                  , rankings: await delegate.robot.getRankings(turn, game, match)
+                })
+                Profiler.stop(timerName)
+            }
+            Profiler.stop('RobotDelegator.getMoves.1')
+            Profiler.start('RobotDelegator.getMoves.2')
+            const rankings = {}
+            delegates.forEach(delegate => {
+                Object.entries(delegate.rankings).forEach(([endState, localWeight]) => {
+                    if (!(endState in rankings)) {
+                        rankings[endState] = 0
+                    }
+                    if (localWeight > 1 || localWeight < 0) {
+                        this.logger.warn(delegate.robot.name, 'gave weight', localWeight)
+                    }
+                    //this.logger.debug({localWeight, robot: delegate.robot.name})
+                    rankings[endState] += localWeight * delegate.moveWeight
+                })
             })
+            const maxWeight = Math.max(...Object.values(rankings))
+            //this.logger.debug({rankings, maxWeight})
+            const endState = turn.allowedEndStates.find(endState => rankings[endState] == maxWeight)
+            const moves = turn.endStatesToSeries[endState]
+            Profiler.stop('RobotDelegator.getMoves.2')
+            if (!moves) {
+                this.logger.error({maxWeight, rankings, endState, allowedEndStates: turn.allowedEndStates})
+                throw new UndecidedMoveError('Cannot find moves among delegates')
+            }
+            this.emit('turnData', turn, {startState, endState, rankings, moves})
+            return moves
+        } finally {
+            Profiler.stop('RobotDelegator.getMoves')
         }
-        const rankings = {}
-        delegates.forEach(delegate => {
-            Object.entries(delegate.rankings).forEach(([endState, localWeight]) => {
-                if (!(endState in rankings)) {
-                    rankings[endState] = 0
-                }
-                if (localWeight > 1 || localWeight < 0) {
-                    this.logger.warn(delegate.robot.name, 'gave weight', localWeight)
-                }
-                //this.logger.debug({localWeight, robot: delegate.robot.name})
-                rankings[endState] += localWeight * delegate.moveWeight
-            })
-        })
-        const maxWeight = Math.max(...Object.values(rankings))
-        //this.logger.debug({rankings, maxWeight})
-        const endState = turn.allowedEndStates.find(endState => rankings[endState] == maxWeight)
-        const moves = turn.endStatesToSeries[endState]
-        if (!moves) {
-            this.logger.error({maxWeight, rankings, endState, allowedEndStates: turn.allowedEndStates})
-            throw new UndecidedMoveError('Cannot find moves among delegates')
-        }
-        this.emit('turnData', turn, {startState, endState, rankings, moves})
-        return moves
     }
 
     async shouldDouble(turn, game, match) {

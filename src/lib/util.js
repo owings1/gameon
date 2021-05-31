@@ -298,11 +298,25 @@ class Timer {
 
 class Profiler {
 
+    static createEnabled() {
+        return new Profiler
+    }
+
+    static createDisabled() {
+        const profiler = new Profiler
+        profiler.enabled = false
+        return profiler
+    }
+
     constructor() {
         this.timers = {}
+        this.enabled = true
     }
 
     start(name) {
+        if (!this.enabled) {
+            return
+        }
         if (!this.timers[name]) {
             this.timers[name] = new Timer
         }
@@ -310,21 +324,34 @@ class Profiler {
     }
 
     stop(name) {
+        if (!this.enabled) {
+            return
+        }
         this.timers[name].stop()
     }
 
     reset(name) {
+        if (!this.enabled) {
+            return
+        }
         this.timers[name].reset()
     }
 
     summary() {
+        if (!this.enabled) {
+            return
+        }
         const summary = {}
         for (var name in this.timers) {
             summary[name] = this.timers[name].elapsed
         }
         return summary
     }
+
     resetAll() {
+        if (!this.enabled) {
+            return
+        }
         for (var name in this.timers) {
             this.reset(name)
         }
