@@ -932,13 +932,18 @@ class Board {
 
     setStateString(str) {
         const locs = str.split('|')
-        this.bars.White = Piece.make(locs[0], White)
-        this.bars.Red = Piece.make(locs[1], Red)
+        this.bars = {
+            White : Piece.make(locs[0], White)
+          , Red   : Piece.make(locs[1], Red)
+        }
+        this.slots = []
         for (var i = 0; i < 24; i++) {
             this.slots[i] = Piece.make(...locs[i + 2].split(':'))
         }
-        this.homes.White = Piece.make(locs[26], White)
-        this.homes.Red = Piece.make(locs[27], Red)
+        this.homes = {
+            White : Piece.make(locs[26], White)
+          , Red   : Piece.make(locs[27], Red)
+        }
     }
 
     // Optimized for performance
@@ -993,13 +998,18 @@ class Board {
     }
 
     setStateStructure(structure) {
-        this.bars.White = Piece.make(Math.abs(structure[0]), White)
-        this.bars.Red = Piece.make(Math.abs(structure[1]), Red)
+        this.bars = {
+            White : Piece.make(Math.abs(structure[0]), White)
+          , Red   : Piece.make(Math.abs(structure[1]), Red)
+        }
+        this.slots = []
         for (var i = 0; i < 24; i++) {
             this.slots[i] = Piece.make(Math.abs(structure[i + 2]), structure[i + 2] < 0 ? Red : White)
         }
-        this.homes.White = Piece.make(Math.abs(structure[26]), White)
-        this.homes.Red = Piece.make(Math.abs(structure[27]), Red)
+        this.homes = {
+            White : Piece.make(Math.abs(structure[26]), White)
+          , Red   : Piece.make(Math.abs(structure[27]), Red)
+        }
     }
 
     pointOrigin(color, point) {
@@ -1050,13 +1060,15 @@ class Board {
     }
 
     static fromStateString(str) {
-        const board = new Board
+        const board = new Board(true)
+        board.analyzer = new BoardAnalyzer(board)
         board.setStateString(str)
         return board
     }
 
     static fromStateStructure(structure) {
-        const board = new Board
+        const board = new Board(true)
+        board.analyzer = new BoardAnalyzer(board)
         board.setStateStructure(structure)
         return board
     }
