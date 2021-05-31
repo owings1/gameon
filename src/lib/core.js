@@ -772,7 +772,7 @@ class Board {
     getMoveIfCanMove(color, origin, face) {
         Profiler.start('Board.getMoveIfCanMove')
         try {
-            if (this.canMove(color, origin, face)) {
+            if (this.checkMove(color, origin, face) === true) {
                 return this.buildMove(color, origin, face)
             }
             return null
@@ -803,7 +803,7 @@ class Board {
 
     // This logic is duplicated for performance, to avoid Exception overhead
     // TODO: make DRYer
-    canMove(color, origin, face) {
+    checkMove(color, origin, face) {
         Dice.checkOne(face)
         if (origin == -1) {
             return ComeInMove.check(this, color, face)
@@ -821,6 +821,11 @@ class Board {
             return BearoffMove.check(this, color, origin, face)
         }
         return RegularMove.check(this, color, origin, face)
+    }
+
+    canOccupyOrigin(color, origin) {
+        const slot = this.slots[origin]
+        return slot.length < 2 || slot[0].color == color
     }
 
     hasWinner() {
@@ -1264,6 +1269,13 @@ class Move {
         return new this.constructor(...this._constructArgs)
     }
 
+    check(...args) {
+        const check = this.constructor.check(...args)
+        if (check !== true) {
+            throw new check.class(check.message)
+        }
+    }
+
     copyForBoard(board) {
         return new this.constructor(board, ...this._constructArgs.slice(1))
     }
@@ -1283,31 +1295,30 @@ class Move {
 
 class ComeInMove extends Move {
 
+    // Returns true or error object
     static check(board, color, face) {
         if (!board.hasBar(color)) {
-            return false
+            return {class: NoPieceOnBarError, message: [color, 'does not have a piece on the bar']}
         }
-        const {destSlot} = ComeInMove.getDestInfo(board, color, face)
-        return ComeInMove.canOccupySlot(color, destSlot)
+        const {dest} = ComeInMove.getDestInfo(board, color, face)
+        if (!board.canOccupyOrigin(color, dest)) {
+            return {class: OccupiedSlotError, message: [color, 'cannot come in on space', dest + 1]}
+        }
+        return true
     }
 
     constructor(board, color, face) {
 
-        if (!board.hasBar(color)) {
-            throw new NoPieceOnBarError([color, 'does not have a piece on the bar'])
-        }
-        
-        const {dest, destSlot} = ComeInMove.getDestInfo(board, color, face)
-        if (!ComeInMove.canOccupySlot(color, destSlot)) {
-            throw new OccupiedSlotError([color, 'cannot come in on space', dest + 1])
-        }
-
         super(board, color, -1, face)
         this._constructArgs = Object.values(arguments)
 
+        this.check(board, color, face)
+
+        const {dest, isHit} = this.getDestInfo(board, color, face)
+
         this.isComeIn = true
         this.dest = dest
-        this.isHit = destSlot.length == 1 && destSlot[0].color != color
+        this.isHit = isHit
     }
 
     do() {
@@ -1328,38 +1339,41 @@ class ComeInMove extends Move {
         return this.board.bars[this.color]
     }
 
+    getDestInfo(...args) {
+        return this.constructor.getDestInfo(...args)
+    }
+
     static getDestInfo(board, color, face) {
         const dest = Direction[color] == 1 ? face - 1 : 24 - face
         const destSlot = board.slots[dest]
-        return {dest, destSlot}
-    }
-
-    static canOccupySlot(color, slot) {
-        return slot.length < 2 || slot[0].color == color
+        const isHit = destSlot.length == 1 && destSlot[0].color != color
+        return {dest, isHit}
     }
 }
 
 class RegularMove extends Move {
 
+    // Returns true or error object
     static check(board, color, origin, face) {
-        const {destSlot} = RegularMove.getDestInfo(board, color, origin, face)
-        return RegularMove.canOccupySlot(color, destSlot)
+        const {dest} = RegularMove.getDestInfo(board, color, origin, face)
+        if (!board.canOccupyOrigin(color, dest)) {
+            return {class: OccupiedSlotError, message: [color, 'may not occupy space', dest + 1]}
+        }
+        return true
     }
 
     constructor(board, color, origin, face) {
 
-        const {dest, destSlot} = RegularMove.getDestInfo(board, color, origin, face)
-
-        if (!RegularMove.canOccupySlot(color, destSlot)) {
-            throw new OccupiedSlotError([color, 'may not occupy space', dest + 1])
-        }
-
         super(board, color, origin, face)
         this._constructArgs = Object.values(arguments)
 
+        this.check(board, color, origin, face)
+
+        const {dest, isHit} = this.getDestInfo(board, color, origin, face)
+
         this.dest = dest
         this.isRegular = true
-        this.isHit = destSlot.length == 1 && destSlot[0].color != color
+        this.isHit = isHit
     }
 
     do() {
@@ -1376,46 +1390,40 @@ class RegularMove extends Move {
         }
     }
 
+    getDestInfo(...args) {
+        return this.constructor.getDestInfo(...args)
+    }
+
     static getDestInfo(board, color, origin, face) {
         const dest = origin + face * Direction[color]
         const destSlot = board.slots[dest]
-        return {dest, destSlot}
-    }
-
-    static canOccupySlot(color, slot) {
-        return slot.length < 2 || slot[0].color == color
+        const isHit = destSlot.length == 1 && destSlot[0].color != color
+        return {dest, isHit}
     }
 }
 
 class BearoffMove extends Move {
 
+    // Returns true or error object
     static check(board, color, origin, face) {
         if (!board.mayBearoff(color)) {
-            return false
+            return {class: MayNotBearoffError, message: [color, 'may not bare off']}
         }
         // get distance to home
         const homeDistance = BearoffMove.getHomeDistance(color, origin)
         // make sure no piece is behind
         if (face > homeDistance && board.hasPieceBehind(color, origin)) {
-            return false
+            return {class: IllegalBareoffError, message: ['cannot bear off with a piece behind']}
         }
         return true
     }
 
     constructor(board, color, origin, face) {
 
-        if (!board.mayBearoff(color)) {
-            throw new MayNotBearoffError([color, 'may not bare off'])
-        }
-        // get distance to home
-        const homeDistance = BearoffMove.getHomeDistance(color, origin)
-        // make sure no piece is behind
-        if (face > homeDistance && board.hasPieceBehind(color, origin)) {
-            throw new IllegalBareoffError(['cannot bear off with a piece behind'])
-        }
-
         super(board, color, origin, face)
         this._constructArgs = Object.values(arguments)
+
+        this.check(board, color, origin, face)
 
         this.isBearoff = true
     }
