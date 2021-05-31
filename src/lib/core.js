@@ -992,40 +992,12 @@ class Board {
     // Optimized for performance
     stateString() {
         // <White bar count>|<Red bar count>|<slot count>:<Red/White/empty>|...|<White home count>|<Red home count>
-        // string concat implementation -- appears to be the best so far
         var str = this.bars.White.length + '|' + this.bars.Red.length + '|'
         for (var i = 0; i < 24; i++) {
             var slot = this.slots[i]
             str += slot.length + ':' + (slot.length ? slot[0].color : '') + '|'
         }
         return str + this.homes.White.length + '|' + this.homes.Red.length
-
-        // array push/join implementation -- about 2x slower than string concat
-        /*
-        const parts = [
-            this.bars.White.length
-          , this.bars.Red.length
-        ]
-        this.slots.forEach(slot => {
-            parts.push([slot.length, slot.length > 0 ? slot[0].color : ''].join(':'))
-        })
-        parts.push(this.homes.White.length)
-        parts.push(this.homes.Red.length)
-        return parts.join('|')
-        */
-
-        // array concat/join implementation -- no observed degredation over pushs
-        /*
-        return [
-            this.bars.White.length
-          , this.bars.Red.length
-        ].concat(this.slots.map(slot =>
-            [slot.length, slot.length > 0 ? slot[0].color : ''].join(':')
-        )).concat([
-            this.homes.White.length
-          , this.homes.Red.length
-        ]).join('|')
-        */
     }
 
     stateStructure() {
