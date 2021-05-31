@@ -676,54 +676,43 @@ class Turn {
 
         Profiler.start('Turn.compute.3')
 
-        const allowedMoveSeries = allowedBranches.map(branch =>
-            branch.slice(1).map(node => node.thisMove)
-        )
-        // De-duplicate
-        const seriesMap = {}
-        allowedMoveSeries.forEach(allowedMoves => {
-            // TODO: we could de-dupe further by inspecting end-states
-            const hash = allowedMoves.map(Move.hash).join('|')
-            seriesMap[hash] = allowedMoves
-        })
-        const dedupSeries = Object.values(seriesMap)
-
         const endStatesToSeries = {}
-        const allowedEndStatesMap = {}
+        const allowedEndStates = []
+        const allowedMoveSeries = []
         allowedBranches.forEach(branch => {
+
+            const allowedMoves = branch.slice(1).map(node => node.thisMove)
+            allowedMoveSeries.push(allowedMoves)
             
+
             const endState = branch[branch.length - 1].board.stateString()
-            if (allowedEndStatesMap[endState]) {
+            if (endStatesToSeries[endState]) {
                 // de-dupe
                 return
             }
-            allowedEndStatesMap[endState] = true
 
-            // end states to move series
-            const leaf = branch[branch.length - 1]
-            const moves = [leaf.thisMove]
-            var node = leaf.parent
-            while (node && node.thisMove) {
-                moves.unshift(node.thisMove)
-                node = node.parent
-            }
-            endStatesToSeries[endState] = moves.map(move => move.coords())
+            allowedEndStates.push(endState)
+            endStatesToSeries[endState] = allowedMoves.map(Move.coords)
+
         })
-        const allowedEndStates = Object.keys(allowedEndStatesMap)
-
-        const maximalAllowedFaces = Math.max(...dedupSeries.map(allowedMoves => allowedMoves.length))
-
-        const allowedFaces = dedupSeries.length < 1 ? [] : dedupSeries.find(
-            allowedMoves => allowedMoves.length == maximalAllowedFaces
-        ).map(move => move.face).sort(Util.sortNumericDesc)
 
         Profiler.stop('Turn.compute.3')
 
+        Profiler.start('Turn.compute.4')
+
+        const maximalAllowedFaces = Math.max(...allowedMoveSeries.map(allowedMoves => allowedMoves.length))
+
+        const allowedFaces = allowedMoveSeries.length < 1 ? [] : allowedMoveSeries.find(
+            allowedMoves => allowedMoves.length == maximalAllowedFaces
+        ).map(move => move.face).sort(Util.sortNumericDesc)
+
+        Profiler.stop('Turn.compute.4')
+
         return {
-            allowedMoveSeries : dedupSeries // constructed Move objects
-          , allowedMoveCount  : maxDepth
-          , isForceMove       : dedupSeries.length == 1
+            allowedMoveCount  : maxDepth
+          , isForceMove       : allowedMoveSeries.length == 1
           , isCantMove        : maxDepth == 0
+          , allowedMoveSeries // constructed Move objects
           , allowedFaces
           , allowedEndStates
           , endStatesToSeries // move coords objects
