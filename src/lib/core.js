@@ -512,6 +512,7 @@ class Turn {
 
     getNextAvailableMoves() {
         this.assertIsRolled()
+        Profiler.start('Turn.getNextAvailableMoves')
         const moveMap = {}
         this.allowedMoveSeries.filter(allowedMoves => {
             // compare the first parts of allowedMoves to this.moves
@@ -521,7 +522,9 @@ class Turn {
         }).map(moves => moves[this.moves.length]).filter(it => it != undefined).forEach(move => {
             moveMap[Move.hash(move)] = move
         })
-        return Object.values(moveMap)
+        const moves = Object.values(moveMap)
+        Profiler.stop('Turn.getNextAvailableMoves')
+        return moves
     }
 
     move(origin, face) {
@@ -909,11 +912,14 @@ class Board {
     }
 
     mayBearoff(color) {
-        return !this.hasBar(color) && undefined == OutsideSlots[color].find(i =>
+        Profiler.start('Board.mayBearoff')
+        const isAble = !this.hasBar(color) && undefined == OutsideSlots[color].find(i =>
             this.slots[i].find(piece =>
                 piece.color == color
             )
         )
+        Profiler.stop('Board.mayBearoff')
+        return isAble
     }
 
     isAllHome(color) {
@@ -1090,11 +1096,14 @@ class BoardAnalyzer {
         this.board = board
     }
 
-    slotsHeld(color) {
-        return Object.keys(this.board.slots).filter(i => {
+    originsHeld(color) {
+        Profiler.start('BoardAnalyzer.originsHeld')
+        const origins = Object.keys(this.board.slots).filter(i => {
             const slot = this.board.slots[i]
             return slot.length > 1 && slot[0].color == color
         }).map(i => +i)
+        Profiler.stop('BoardAnalyzer.originsHeld')
+        return origins
     }
 
     piecesHome(color) {
@@ -1129,7 +1138,10 @@ class BoardAnalyzer {
     }
 
     pointsOccupied(color) {
-        return this.board.originsOccupied(color).map(i => this.board.originPoint(color, i))
+        Profiler.start('BoardAnalyzer.pointsOccupied')
+        const points = this.board.originsOccupied(color).map(i => this.board.originPoint(color, i))
+        Profiler.stop('BoardAnalyzer.pointsOccupied')
+        return points
     }
 
     blots(color) {
@@ -1186,21 +1198,26 @@ class BoardAnalyzer {
     }
 
     isDisengaged() {
-        if (this.board.hasWinner()) {
-            return true
+        Profiler.start('BoardAnalyzer.isDisengaged')
+        try {
+            if (this.board.hasWinner()) {
+                return true
+            }
+            if (this.board.hasBar(White) || this.board.hasBar(Red)) {
+                return false
+            }
+            const backmostRed = Math.max(...this.board.originsOccupied(Red))
+            const backmostWhite = Math.min(...this.board.originsOccupied(White))
+            return backmostWhite > backmostRed
+        } finally {
+            Profiler.stop('BoardAnalyzer.isDisengaged')
         }
-        if (this.board.hasBar(White) || this.board.hasBar(Red)) {
-            return false
-        }
-        const backmostRed = Math.max(...this.board.originsOccupied(Red))
-        const backmostWhite = Math.min(...this.board.originsOccupied(White))
-        return backmostWhite > backmostRed
     }
 
     primes(color) {
         Profiler.start('BoardAnalyzer.primes')
-        const slotsHeld = this.slotsHeld(color)
-        const pointsHeld = slotsHeld.map(i => this.board.originPoint(color, i))
+        const originsHeld = this.originsHeld(color)
+        const pointsHeld = originsHeld.map(i => this.board.originPoint(color, i))
         pointsHeld.sort(Util.sortNumericAsc)
         const primes = []
         while (pointsHeld.length > 1) {
