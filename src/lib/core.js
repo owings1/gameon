@@ -779,7 +779,7 @@ class Board {
     }
 
     static setup() {
-        const board = new Board
+        const board = new Board(true)
         board.setup()
         return board
     }
@@ -793,37 +793,24 @@ class Board {
     // Performance optimized
     getPossibleMovesForFace(color, face) {
         Profiler.start('Board.getPossibleMovesForFace')
-        try {
-            if (this.hasBar(color)) {
-                const barMove = this.getMoveIfCanMove(color, -1, face)
-                return barMove ? [barMove] : []
+        const moves = []
+        if (this.bars[color].length) {
+            var {check, build} = this.checkMove(color, -1, face)
+            if (check === true) {
+                moves.push(new build.class(...build.args))
             }
+        } else {
             const origins = this.originsOccupied(color)
             const len = origins.length
-            const moves = []
             for (var i = 0; i < len; i++) {
-                var move = this.getMoveIfCanMove(color, origins[i], face)
-                if (move) {
-                    moves.push(move)
+                var {check, build} = this.checkMove(color, origins[i], face)
+                if (check === true) {
+                    moves.push(new build.class(...build.args))
                 }
             }
-            return moves
-        } finally {
-            Profiler.stop('Board.getPossibleMovesForFace')
         }
-    }
-
-    getMoveIfCanMove(color, origin, face) {
-        Profiler.start('Board.getMoveIfCanMove')
-        try {
-            const {check, build} = this.checkMove(color, origin, face)
-            if (check === true) {
-                return new build.class(...build.args)
-            }
-            return null
-        } finally {
-            Profiler.stop('Board.getMoveIfCanMove')
-        }
+        Profiler.stop('Board.getPossibleMovesForFace')
+        return moves
     }
 
     buildMove(color, origin, face) {
@@ -842,33 +829,38 @@ class Board {
     // The caller must test whether check === true, else construct and throw the
     // error. The build object may still populated even if there is an error.
     checkMove(color, origin, face) {
-        Dice.checkOne(face)
-        var check
-        var build
-        if (origin == -1) {
-            check = ComeInMove.check(this, color, face)
-            build = {class: ComeInMove, args: [this, color, face]}
-            return {check, build}
-        }
-        if (this.hasBar(color)) {
-            check = {class: PieceOnBarError, message: [color, 'has a piece on the bar']}
-        } else {
-            const slot = this.slots[origin]
-            if (slot.length < 1 || slot[0].color != color) {
-                check = {class: NoPieceOnSlotError, message: [color, 'does not have a piece on slot', origin + 1]}
+        Profiler.start('Board.checkMove')
+        try {
+            Dice.checkOne(face)
+            var check
+            var build
+            if (origin == -1) {
+                check = ComeInMove.check(this, color, face)
+                build = {class: ComeInMove, args: [this, color, face, check === true]}
+                return {check, build}
+            }
+            if (this.hasBar(color)) {
+                check = {class: PieceOnBarError, message: [color, 'has a piece on the bar']}
             } else {
-                const dest = origin + face * Direction[color]
-                const isBearoff = dest < 0 || dest > 23
-                if (isBearoff) {
-                    check = BearoffMove.check(this, color, origin, face)
-                    build = {class: BearoffMove, args: [this, color, origin, face]}
+                const slot = this.slots[origin]
+                if (slot.length < 1 || slot[0].color != color) {
+                    check = {class: NoPieceOnSlotError, message: [color, 'does not have a piece on slot', origin + 1]}
                 } else {
-                    check = RegularMove.check(this, color, origin, face)
-                    build = {class: RegularMove, args: [this, color, origin, face]}
+                    const dest = origin + face * Direction[color]
+                    const isBearoff = dest < 0 || dest > 23
+                    if (isBearoff) {
+                        check = BearoffMove.check(this, color, origin, face)
+                        build = {class: BearoffMove, args: [this, color, origin, face, check === true]}
+                    } else {
+                        check = RegularMove.check(this, color, origin, face)
+                        build = {class: RegularMove, args: [this, color, origin, face, check === true]}
+                    }
                 }
             }
+            return {check, build}
+        } finally {
+            Profiler.stop('Board.checkMove')
         }
-        return {check, build}
     }
 
     canOccupyOrigin(color, origin) {
@@ -1293,7 +1285,9 @@ class SequenceTree {
                 parentNode.nextFace = face
                 parentNode.nextMoves = parentNode.board.getPossibleMovesForFace(color, face)
                 parentNode.nextMoves.forEach(move => {
+                    Profiler.start('SequenceTree.buildNodes.1')
                     move.board = move.board.copy()
+                    Profiler.stop('SequenceTree.buildNodes.1')
                     move.do()
                     const childNode = new BoardNode(move.board, depth, parentNode)
                     childNode.isWinner = move.board.hasWinner() && move.board.getWinner() == color
@@ -1392,12 +1386,14 @@ class ComeInMove extends Move {
         return true
     }
 
-    constructor(board, color, face) {
+    constructor(board, color, face, isChecked) {
 
         super(board, color, -1, face)
         this._constructArgs = Object.values(arguments)
 
-        this.check(board, color, face)
+        if (!isChecked) {
+            this.check(board, color, face)
+        }
 
         const {dest, isHit} = this.getDestInfo(board, color, face)
 
@@ -1447,12 +1443,14 @@ class RegularMove extends Move {
         return true
     }
 
-    constructor(board, color, origin, face) {
+    constructor(board, color, origin, face, isChecked) {
 
         super(board, color, origin, face)
         this._constructArgs = Object.values(arguments)
 
-        this.check(board, color, origin, face)
+        if (!isChecked) {
+            this.check(board, color, origin, face)
+        }
 
         const {dest, isHit} = this.getDestInfo(board, color, origin, face)
 
@@ -1503,12 +1501,14 @@ class BearoffMove extends Move {
         return true
     }
 
-    constructor(board, color, origin, face) {
+    constructor(board, color, origin, face, isChecked) {
 
         super(board, color, origin, face)
         this._constructArgs = Object.values(arguments)
 
-        this.check(board, color, origin, face)
+        if (!isChecked) {
+            this.check(board, color, origin, face)
+        }
 
         this.isBearoff = true
     }
