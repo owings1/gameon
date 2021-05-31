@@ -889,7 +889,7 @@ describe('Board', () => {
 
 		it('should throw when non IllegalMoveError is thrown', () => {
 			board.setup()
-			board.buildMove = () => { throw new Error }
+			board.getMoveIfCanMove = () => { throw new Error }
 			const err = getError(() => board.getPossibleMovesForFace(White, 1))
 			expect(err instanceof Error).to.equal(true)
 		})

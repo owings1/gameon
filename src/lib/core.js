@@ -772,8 +772,9 @@ class Board {
     getMoveIfCanMove(color, origin, face) {
         Profiler.start('Board.getMoveIfCanMove')
         try {
-            if (this.checkMove(color, origin, face) === true) {
-                return this.buildMove(color, origin, face)
+            const {check, build} = this.checkMove(color, origin, face)
+            if (check === true) {
+                return new build.class(...build.args)
             }
             return null
         } finally {
@@ -782,45 +783,48 @@ class Board {
     }
 
     buildMove(color, origin, face) {
-        Dice.checkOne(face)
-        if (origin == -1) {
-            return new ComeInMove(this, color, face)
+        const {check, build} = this.checkMove(color, origin, face)
+        if (check !== true) {
+            throw new check.class(check.message)
         }
-        if (this.hasBar(color)) {
-            throw new PieceOnBarError([color, 'has a piece on the bar'])
-        }
-        const slot = this.slots[origin]
-        if (slot.length < 1 || slot[0].color != color) {
-            throw new NoPieceOnSlotError([color, 'does not have a piece on slot', origin + 1])
-        }
-        const dest = origin + face * Direction[color]
-        const isBearoff = dest < 0 || dest > 23
-        if (isBearoff) {
-            return new BearoffMove(this, color, origin, face)
-        }
-        return new RegularMove(this, color, origin, face)
+        return new build.class(...build.args)
     }
 
-    // This logic is duplicated for performance, to avoid Exception overhead
-    // TODO: make DRYer
+    // Returns an object with two keys:
+    //
+    //    check: true iff the move is valid, else an error object {class, message}
+    //    build: an object for constructing the move {class, args}
+    //
+    // The caller must test whether check === true, else construct and throw the
+    // error. The build object is still populated even if there is an error.
     checkMove(color, origin, face) {
         Dice.checkOne(face)
+        var check
+        var build
         if (origin == -1) {
-            return ComeInMove.check(this, color, face)
+            check = ComeInMove.check(this, color, face)
+            build = {class: ComeInMove, args: [this, color, face]}
+            return {check, build}
         }
         if (this.hasBar(color)) {
-            return false
+            check = {class: PieceOnBarError, message: [color, 'has a piece on the bar']}
+        } else {
+            const slot = this.slots[origin]
+            if (slot.length < 1 || slot[0].color != color) {
+                check = {class: NoPieceOnSlotError, message: [color, 'does not have a piece on slot', origin + 1]}
+            } else {
+                const dest = origin + face * Direction[color]
+                const isBearoff = dest < 0 || dest > 23
+                if (isBearoff) {
+                    check = BearoffMove.check(this, color, origin, face)
+                    build = {class: BearoffMove, args: [this, color, origin, face]}
+                } else {
+                    check = RegularMove.check(this, color, origin, face)
+                    build = {class: RegularMove, args: [this, color, origin, face]}
+                }
+            }
         }
-        const slot = this.slots[origin]
-        if (slot.length < 1 || slot[0].color != color) {
-            return false
-        }
-        const dest = origin + face * Direction[color]
-        const isBearoff = dest < 0 || dest > 23
-        if (isBearoff) {
-            return BearoffMove.check(this, color, origin, face)
-        }
-        return RegularMove.check(this, color, origin, face)
+        return {check, build}
     }
 
     canOccupyOrigin(color, origin) {
