@@ -510,20 +510,46 @@ class Turn {
         }
     }
 
+    // Performance optimized
     getNextAvailableMoves() {
+
         this.assertIsRolled()
+
         Profiler.start('Turn.getNextAvailableMoves')
-        const moveMap = {}
-        this.allowedMoveSeries.filter(allowedMoves => {
-            // compare the first parts of allowedMoves to this.moves
-            const subSeriesA = allowedMoves.slice(0, this.moves.length).map(Move.hash)
-            const subSeriesB = this.moves.map(Move.hash)
-            return JSON.stringify(subSeriesA) == JSON.stringify(subSeriesB)
-        }).map(moves => moves[this.moves.length]).filter(it => it != undefined).forEach(move => {
-            moveMap[Move.hash(move)] = move
+
+        const moves = []
+        const movesMap = {}
+        const thisMovesStr = this.moves.map(Move.hash).join('|')
+
+        this.allowedMoveSeries.forEach(allowedMoves => {
+
+            // skip fast if there is no next move in the series
+            const move = allowedMoves[this.moves.length]
+            if (!move) {
+                return
+            }
+
+            // skip fast if we already processed this move
+            const hash = Move.hash(move)
+            if (movesMap[hash]) {
+                return
+            }
+
+            // compare the beginning of the series to this.moves
+            // TODO: more performant comparison
+            const movesSlice = allowedMoves.slice(0, this.moves.length)
+            const movesSliceStr = movesSlice.map(Move.hash).join('|')
+            const isEqual = movesSliceStr == thisMovesStr
+            if (!isEqual) {
+                return
+            }
+
+            movesMap[hash] = true
+            moves.push(move)
         })
-        const moves = Object.values(moveMap)
+
         Profiler.stop('Turn.getNextAvailableMoves')
+
         return moves
     }
 
@@ -1331,12 +1357,11 @@ class BoardNode {
 class Move {
 
     static coords(move) {
-        const {origin, face} = move
-        return {origin, face}
+        return {origin: move.origin, face: move.face}
     }
 
     static hash(move) {
-        return [move.origin, move.face].join(':')
+        return move.origin + ':' + move.face
     }
 
     constructor(board, color, origin, face) {
