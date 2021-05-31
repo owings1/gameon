@@ -252,10 +252,6 @@ class ConfidenceRobot extends Robot {
     spreadRanking(...args) {
         return Util.spreadRanking(...args)
     }
-
-    createBoard(stateString) {
-        return Board.fromStateString(stateString)
-    }
 }
 
 class RobotDelegator extends Robot {

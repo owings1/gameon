@@ -35,7 +35,7 @@ class HittingRobot extends Base {
 
         // TODO: quadrant/pip offset
         turn.allowedEndStates.forEach(endState => {
-            const board = this.createBoard(endState)
+            const board = turn.fetchBoard(endState)
             const added = board.bars[turn.opponent].length - baseline
             counts[endState] = added
             //if (added < 1) {

@@ -36,7 +36,7 @@ class SafetyRobot extends Base {
         const scores = {}
         const zeros = []
         turn.allowedEndStates.forEach(endState => {
-            const {analyzer} = this.createBoard(endState)
+            const {analyzer} = turn.fetchBoard(endState)
             const blots = analyzer.blots(turn.color)
             var score = 0
             var directCount = 0

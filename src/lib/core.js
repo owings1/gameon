@@ -439,6 +439,7 @@ class Turn {
         this.isRolled         = false
 
         this.moves = []
+        this.boardCache = {}
     }
 
     setDoubleOffered() {
@@ -576,6 +577,7 @@ class Turn {
         }
         this.endState = this.board.stateString()
         this.isFinished = true
+        this.boardCache = {}
         return this
     }
 
@@ -595,6 +597,14 @@ class Turn {
         if (this.isRolled) {
             throw new AlreadyRolledError([this.color, 'has already rolled'])
         }
+    }
+
+    // Fetch cached. Cache is cleared on turn finish.
+    fetchBoard(stateString) {
+        if (!this.boardCache[stateString]) {
+            this.boardCache[stateString] = Board.fromStateString(stateString)
+        }
+        return this.boardCache[stateString]
     }
 
     meta() {

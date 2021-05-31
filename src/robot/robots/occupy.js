@@ -33,7 +33,7 @@ class OccupyRobot extends Base {
         }
         const pointCounts = {}
         turn.allowedEndStates.forEach(endState => {
-            const {analyzer} = this.createBoard(endState)
+            const {analyzer} = turn.fetchBoard(endState)
             pointCounts[endState] = analyzer.slotsHeld(turn.color).length
         })
         return this.spreadRanking(pointCounts)

@@ -32,7 +32,7 @@ class RunningRobot extends Base {
         const scores = {}
         //const bkBefore = turn.board.analyzer.countPiecesInPointRange(turn.color, 19, 24)
         turn.allowedEndStates.forEach(endState => {
-            const {analyzer} = this.createBoard(endState)
+            const {analyzer} = turn.fetchBoard(endState)
             scores[endState] = sumArray(analyzer.pointsOccupied(turn.color).map(point =>
                 point * analyzer.piecesOnPoint(turn.color, point) * this.quadrantMultiplier(point)
             ))

@@ -36,7 +36,7 @@ class PrimeRobot extends Base {
         const zeros = []
 
         turn.allowedEndStates.forEach(endState => {
-            const {analyzer} = this.createBoard(endState)
+            const {analyzer} = turn.fetchBoard(endState)
             const primes = analyzer.primes(turn.color)
             if (primes.length) {
                 const maxSize = Math.max(...primes.map(prime => prime.size))
