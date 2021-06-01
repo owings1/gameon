@@ -1706,24 +1706,6 @@ class SequenceTree {
     }
 }
 
-/*
-class BoardNode {
-
-    constructor(board, depth, parent) {
-        this.board = board
-        this.depth = depth
-        this.parent = parent
-        this.thisFace = null
-        this.thisMove = null
-        this.nextFace = null
-        this.nextMoves = null
-        this.isWinner = null
-        // only set on leaf nodes
-        this.highestFace = null
-    }
-}
-*/
-
 class Move {
 
     static coords(move) {
