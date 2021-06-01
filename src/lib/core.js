@@ -102,7 +102,11 @@ function populateCacheKeys(keys) {
     atomicKeys.forEach(key => keys[key] = key)
 
     const colorKeys = [
-        'originsHeld'
+        'maxOriginOccupied'
+      , 'mayBearoff'
+      , 'minOriginOccupied'
+      , 'originsHeld'
+      , 'originsHeldMap'
       , 'originsOccupied'
       , 'pipCount'
       , 'pointsHeld'
@@ -719,14 +723,69 @@ class Turn {
 
     _compute() {
         Profiler.start('Turn.compute')
-        Object.entries(this._computeAllowedMovesResult()).forEach(([k, v]) => {
-            this[k] = v
-        })
+        const result = this._computeAllowedMovesResult()
+        for (var k in result) {
+            this[k] = result[k]
+        }
         Profiler.stop('Turn.compute')
     }
 
     _computeAllowedMovesResult() {
 
+        const {branches, maxDepth} = this._computeAllowedBranches()
+
+        // Construct the move series, end states
+        // -------------------------------------
+
+        Profiler.start('Turn.compute.3')
+
+        const endStatesToSeries = {}
+        const allowedEndStates = []
+        const allowedMoveSeries = []
+        // the max number of faces determine the faces allowed, though not always required.
+        var maxFaces = 0
+        var maxExample
+        branches.forEach(branch => {
+
+            const allowedMoves = []
+            for (var i = 1; i < branch.length; i++) {
+                allowedMoves.push(branch[i].thisMove)
+            }
+            allowedMoveSeries.push(allowedMoves)
+
+            if (allowedMoves.length > maxFaces) {
+                maxFaces = allowedMoves.length
+                maxExample = allowedMoves
+            }
+            const board = branch[branch.length - 1].board
+            const endState = board.stateString()
+            if (endStatesToSeries[endState]) {
+                // de-dupe
+                return
+            }
+
+            allowedEndStates.push(endState)
+            endStatesToSeries[endState] = allowedMoves.map(Move.coords)
+            // populate board cache
+            this.boardCache[endState] = board
+        })
+
+        const allowedFaces = maxExample ? maxExample.map(move => move.face).sort(Util.sortNumericDesc) : []
+
+        Profiler.stop('Turn.compute.3')
+
+        return {
+            allowedMoveCount : maxDepth
+          , isForceMove      : allowedMoveSeries.length == 1
+          , isCantMove       : maxDepth == 0
+          , allowedMoveSeries // constructed Move objects
+          , allowedFaces
+          , allowedEndStates
+          , endStatesToSeries // move coords objects
+        }
+    }
+
+    _computeAllowedBranches() {
         // Build the sequence trees
         // ------------------------
 
@@ -791,58 +850,10 @@ class Turn {
                 branches.push(branch)
             }
         })
-        
+
         Profiler.stop('Turn.compute.2')
 
-        // Construct the move series, end states
-        // -------------------------------------
-
-        Profiler.start('Turn.compute.3')
-
-        const endStatesToSeries = {}
-        const allowedEndStates = []
-        const allowedMoveSeries = []
-        // the max number of faces determine the faces allowed, though not always required.
-        var maxFaces = 0
-        var maxExample
-        branches.forEach(branch => {
-
-            const allowedMoves = []
-            for (var i = 1; i < branch.length; i++) {
-                allowedMoves.push(branch[i].thisMove)
-            }
-            allowedMoveSeries.push(allowedMoves)
-
-            if (allowedMoves.length > maxFaces) {
-                maxFaces = allowedMoves.length
-                maxExample = allowedMoves
-            }
-            const board = branch[branch.length - 1].board
-            const endState = board.stateString()
-            if (endStatesToSeries[endState]) {
-                // de-dupe
-                return
-            }
-
-            allowedEndStates.push(endState)
-            endStatesToSeries[endState] = allowedMoves.map(Move.coords)
-            // populate board cache
-            this.boardCache[endState] = board
-        })
-
-        const allowedFaces = maxExample ? maxExample.map(move => move.face).sort(Util.sortNumericDesc) : []
-
-        Profiler.stop('Turn.compute.3')
-
-        return {
-            allowedMoveCount : maxDepth
-          , isForceMove      : allowedMoveSeries.length == 1
-          , isCantMove       : maxDepth == 0
-          , allowedMoveSeries // constructed Move objects
-          , allowedFaces
-          , allowedEndStates
-          , endStatesToSeries // move coords objects
-        }
+        return {branches, maxDepth}
     }
 
     // allow override for testing
@@ -882,19 +893,63 @@ class Board {
         Profiler.start('Board.getPossibleMovesForFace')
         const moves = []
         if (this.bars[color].length) {
+            Profiler.start('Board.getPossibleMovesForFace.1')
             var {check, build} = this.checkMove(color, -1, face)
             if (check === true) {
                 moves.push(new build.class(...build.args))
             }
+            Profiler.stop('Board.getPossibleMovesForFace.1')
         } else {
+            Profiler.start('Board.getPossibleMovesForFace.2')
+            
+            const unavailable = this.analyzer.originsHeldMap(Opponent[color])
             const origins = this.originsOccupied(color)
-            const len = origins.length
-            for (var i = 0; i < len; i++) {
-                var {check, build} = this.checkMove(color, origins[i], face)
-                if (check === true) {
-                    moves.push(new build.class(...build.args))
+            const mayBearoff = this.mayBearoff(color)
+
+            if (mayBearoff) {
+                if (color == White) {
+                    var minOriginOccupied = this.minOriginOccupied(color)
+                } else {
+                    var maxOriginOccupied = this.maxOriginOccupied(color)
                 }
             }
+            
+            const len = origins.length
+            for (var i = 0; i < len; i++) {
+                var origin = origins[i]
+                // Apply quick filters for performance
+                var dest = origin + face * Direction[color]
+                // filter opponent points held
+                if (unavailable[dest]) {
+                    continue
+                }
+                // filter bearoff moves
+                var distanceToHome = Direction[color] == 1 ? 24 - origin : origin + 1
+                if (distanceToHome <= face) {
+                    if (!mayBearoff) {
+                        continue
+                    }
+                    if (distanceToHome < face) {
+                        if (color == White) {
+                            if (minOriginOccupied < origin) {
+                                continue
+                            }
+                        } else {
+                            if (maxOriginOccupied > origin) {
+                                continue
+                            }
+                        }
+                        //if (this.hasPieceBehind(color, origin)) {
+                        //    continue
+                        //}
+                    }
+                    moves.push(new BearoffMove(this, color, origin, face, true))
+                } else {
+                    moves.push(new RegularMove(this, color, origin, face, true))
+                }
+                // We already filtered all the invalid moves, so we don't need to call checkMove
+            }
+            Profiler.stop('Board.getPossibleMovesForFace.2')
         }
         Profiler.stop('Board.getPossibleMovesForFace')
         return moves
@@ -997,12 +1052,41 @@ class Board {
         const key = CacheKeys.originsOccupied[color]
         if (!this.cache[key]) {
             const origins = []
+            var minOrigin = Infinity
+            var maxOrigin = -Infinity
+            const minKey = CacheKeys.minOriginOccupied[color]
+            const maxKey = CacheKeys.maxOriginOccupied[color]
             for (var i = 0; i < 24; i++) {
                 if (this.slots[i][0] && this.slots[i][0].color == color) {
                     origins.push(i)
+                    if (i < minOrigin) {
+                        minOrigin = i
+                    } else if (i > maxOrigin) {
+                        maxOrigin = i
+                    }
                 }
             }
             this.cache[key] = origins
+            this.cache[minKey] = minOrigin
+            this.cache[maxKey] = maxOrigin
+        }
+        return this.cache[key]
+    }
+
+    maxOriginOccupied(color) {
+        const key = CacheKeys.maxOriginOccupied[color]
+        if (!(key in this.cache)) {
+            // will populate
+            this.originsOccupied(color)
+        }
+        return this.cache[key]
+    }
+
+    minOriginOccupied(color) {
+        const key = CacheKeys.minOriginOccupied[color]
+        if (!(key in this.cache)) {
+            // will populate
+            this.originsOccupied(color)
         }
         return this.cache[key]
     }
@@ -1033,21 +1117,26 @@ class Board {
         return this.bars[color].length > 0
     }
 
-    // More performant not to cache
+    // @cache
     mayBearoff(color) {
         Profiler.start('Board.mayBearoff')
-        var isAble = !this.hasBar(color)
-        if (isAble) {
-            for (var origin of OutsideOrigins[color]) {
-                var slot = this.slots[origin]
-                if (slot[0] && slot[0].color == color) {
-                    isAble = false
-                    break
+        const key = CacheKeys.mayBearoff[color]
+        if (!(key in this.cache)) {
+            var isAble = !this.hasBar(color)
+            if (isAble) {
+                //isAble = !this.hasPieceBehind(color, PointOrigins[color][6])
+                for (var origin of OutsideOrigins[color]) {
+                    var slot = this.slots[origin]
+                    if (slot[0] && slot[0].color == color) {
+                        isAble = false
+                        break
+                    }
                 }
             }
+            this.cache[key] = isAble
         }
         Profiler.stop('Board.mayBearoff')
-        return isAble
+        return this.cache[key]
     }
 
     isAllHome(color) {
@@ -1070,6 +1159,14 @@ class Board {
             }
         }
         return false
+        /*
+        if (color == White) {
+            // for white, point 1 is origin 23, so we are looking for the min
+            return this.minOriginOccupied(color) < origin
+        }
+        // for red point 1 is origin 0, so we are looking for the max
+        return this.maxOriginOccupied(color) > origin
+        */
     }
 
     setup() {
@@ -1145,10 +1242,14 @@ class Board {
         this.markChange()
     }
 
+    // Red point 1 is origin 0
+    // White point 1 is origin 23
     pointOrigin(color, point) {
         return PointOrigins[color][point]
     }
 
+    // Red origin 0 is point 1
+    // White origin 0 is point 24
     originPoint(color, origin) {
         return OriginPoints[color][origin]
     }
@@ -1217,18 +1318,6 @@ class Board {
         this.markChange()
     }
 
-    // Red point 1 is origin 0
-    // White point 1 is origin 23
-    static pointOrigin(color, point) {
-        return PointOrigins[color][point]
-    }
-
-    // Red origin 0 is point 1
-    // White origin 0 is point 24
-    static originPoint(color, origin) {
-        return OriginPoints[color][origin]
-    }
-
     static fromStateString(str) {
         const board = new Board(true)
         board.setStateString(str)
@@ -1242,7 +1331,7 @@ class Board {
     }
 }
 
-// NB: Cached methods return a reference for performance. Callers must make a copy
+// NB: Caching methods return a reference for performance. Callers must make a copy
 ///    if they will modify the result
 class BoardAnalyzer {
 
@@ -1293,6 +1382,20 @@ class BoardAnalyzer {
             this.cache[key] = origins
         }
         //Profiler.stop('BoardAnalyzer.originsHeld')
+        return this.cache[key]
+    }
+
+    // @cache
+    originsHeldMap(color) {
+        const key = CacheKeys.originsHeldMap[color]
+        if (!this.cache[key]) {
+            const origins = this.originsHeld(color)
+            const originsMap = {}
+            for (var i = 0; i < origins.length; i++) {
+                originsMap[origins[i]] = true
+            }
+            this.cache[key] = originsMap
+        }
         return this.cache[key]
     }
 
@@ -1505,7 +1608,7 @@ class SequenceTree {
         this.leaves = this.nodes.filter(node => node.depth == this.depth)
         this.branches = SequenceTree.buildBranchesForLeaves(this.leaves)
         this.hasWinner = undefined != this.leaves.find(node => node.isWinner)
-        this.winningBranches = this.branches.filter(branch => branch[branch.length - 1].isWinner)
+        //this.winningBranches = this.branches.filter(branch => branch[branch.length - 1].isWinner)
         Profiler.stop('SequenceTree.build.2')
     }
 
@@ -1543,11 +1646,14 @@ class SequenceTree {
             nodesAtDepth[depth] = []
             nodesAtDepth[depth - 1].forEach(parentNode => {
                 parentNode.nextFace = face
+                Profiler.start('SequenceTree.buildNodes.1')
                 parentNode.nextMoves = parentNode.board.getPossibleMovesForFace(color, face)
+                Profiler.stop('SequenceTree.buildNodes.1')
                 parentNode.nextMoves.forEach(move => {
-                    Profiler.start('SequenceTree.buildNodes.1')
+                    Profiler.start('SequenceTree.buildNodes.2')
                     move.board = move.board.copy()
-                    Profiler.stop('SequenceTree.buildNodes.1')
+                    Profiler.stop('SequenceTree.buildNodes.2')
+                    Profiler.start('SequenceTree.buildNodes.3')
                     move.do()
                     const childNode = new BoardNode(move.board, depth, parentNode)
                     childNode.isWinner = move.board.hasWinner() && move.board.getWinner() == color
@@ -1556,6 +1662,7 @@ class SequenceTree {
                     parentNode.children.push(childNode)
                     nodes.push(childNode)
                     nodesAtDepth[depth].push(childNode)
+                    Profiler.stop('SequenceTree.buildNodes.3')
                 })
             })
         })

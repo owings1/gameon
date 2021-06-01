@@ -24,6 +24,19 @@
  */
 const Base = require('../player').ConfidenceRobot
 
+const {intRange} = require('../../lib/util')
+
+function quadrantMultiplier(point) {
+    const quadrant = Math.ceil(point / 6)
+    return (4 - quadrant) * 2
+}
+
+const QuadrantMultipliers = {}
+
+intRange(1, 24).forEach(point =>
+    QuadrantMultipliers[point] = quadrantMultiplier(point)
+)
+
 class SafetyRobot extends Base {
 
     // minimum number of blots left
@@ -44,7 +57,7 @@ class SafetyRobot extends Base {
                 directCount += blot.directCount
                 score += blot.directCount * 4
                 score += blot.indirectCount
-                score *= this.quadrantMultiplier(blot.point)
+                score *= QuadrantMultipliers[blot.point]
             })
             scores[endState] = score
             if (directCount == 0) {
@@ -54,11 +67,6 @@ class SafetyRobot extends Base {
         const rankings = this.spreadRanking(scores, true)
         zeros.forEach(endState => rankings[endState] = 1)
         return rankings
-    }
-
-    quadrantMultiplier(point) {
-        const quadrant = Math.ceil(point / 6)
-        return (4 - quadrant) * 2
     }
 }
 
