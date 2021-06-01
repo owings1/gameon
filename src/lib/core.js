@@ -821,7 +821,8 @@ class Turn {
     }
 }
 
-// NB: Do not directly modify slots, bars, or homes unless you call markChange() afterward
+// NB: Do not directly modify slots, bars, or homes unless you call markChange()
+//     afterward. Validated moves can use push/pop methods.
 // NB: Cached methods return a reference, so callers must make a copy if they will modify
 class Board {
 
@@ -960,7 +961,7 @@ class Board {
         return false
     }
 
-    // One or more checkers
+    // One or more pieces
     // @cache
     originsOccupied(color) {
         const key = CacheKeys.originsOccupied[color]
