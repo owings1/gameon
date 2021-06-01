@@ -33,7 +33,7 @@ const fs    = require('fs')
 const fse   = require('fs-extra')
 const path  = require('path')
 
-const {intRange} = Util
+const {intRange, Timer} = Util
 const {resolve} = path
 
 const {Match, Colors, Profiler} = Core
@@ -48,9 +48,12 @@ const TableChars = {
   , middleLeft   : '\u2523'
   , middleMiddle : '\u254b'
   , middleRight  : '\u252b'
-  , bottomLeft   : '\u2517'
+  , bottomLeft   : '\u2523'//'\u2517'
   , bottomMiddle : '\u253b'
-  , bottomRight  : '\u251b'
+  , bottomRight  : '\u252b'//'\u251b'
+  , footerLeft   : '\u2517'
+  , footerMiddle : '\u2501'
+  , footerRight  : '\u251b'
   , dash         : '\u2501'
   , pipe         : '\u2503'
 }
@@ -61,6 +64,10 @@ function getTableChars(color) {
         chrs[k] = chalk[color](TableChars[k])
     }
     return chrs
+}
+
+function repeat(str, n) {
+    return intRange(0, n - 1).map(() => str).join('')
 }
 
 class Helper {
@@ -87,14 +94,15 @@ class Helper {
         const red = RobotDelegator.forDefaults(Red)
         try {
             this.logger.info('Running', this.opts.numMatches, 'matches of', this.opts.matchTotal, 'points each')
-            const startTime = +new Date
+            const summaryTimer = new Timer
+            summaryTimer.start()
             for (var i = 0; i < this.opts.numMatches; i++) {
                 var match = new Match(this.opts.matchTotal)
                 await this.coordinator.runMatch(match, white, red)
             }
-            const endTime = +new Date
+            summaryTimer.stop()
             this.logger.info('Done')
-            this.logTimers(Object.values(Profiler.timers), endTime - startTime)
+            this.logTimers(Object.values(Profiler.timers), summaryTimer.elapsed)
         } finally {
             white.destroy()
             red.destroy()
@@ -102,9 +110,15 @@ class Helper {
         }
     }
 
-    logTimers(timers, msTotal) {
+    logTimers(timers, totalElapsed) {
 
-        const columns = ['name', 'elapsed', 'average', 'count', 'match']
+        const columns = [
+            'name'
+          , 'elapsed'
+          , 'average'
+          , 'count'
+          , 'match'
+        ]
 
         const titles = {
             // optional
@@ -131,6 +145,10 @@ class Helper {
             match   : value => Math.round(value).toString()
         }
 
+        const footerLines = [
+            ['Total Elapsed:', format.elapsed(totalElapsed)].join(' ')
+        ]
+
         const colors = {
             border: 'grey'
         }
@@ -142,7 +160,7 @@ class Helper {
 
         const widths = {
             // optional min width
-            elapsed: (msTotal.toString() + ' ms').length
+            elapsed: (totalElapsed.toString() + ' ms').length
         }
 
         const data = timers.map(timer => {
@@ -157,19 +175,23 @@ class Helper {
 
         switch (this.opts.sortBy) {
             case 'name':
-                cmp = (a, b) => a.name.localeCompare(b.name)
+                // ascending
+                cmp = (a, b) => (a.name + '').localeCompare(b.name + '')
                 break
             case 'elapsed':
                 // descending
                 cmp = (a, b) => b.elapsed - a.elapsed
                 break
             case 'average':
-                cmp = (a, b) => b.average - a.elapsaverageed
+                // descending
+                cmp = (a, b) => b.average - a.average
                 break
             case 'count':
+                // descending
                 cmp = (a, b) => b.count - a.count
                 break
             case 'match':
+                // descending
                 cmp = (a, b) => b.match - a.match
                 break
             default:
@@ -181,13 +203,8 @@ class Helper {
             data.sort(cmp)
         }
 
-
-
-        const border = getTableChars(colors.border)
-
-        border.pipeSpaced = ' ' + border.pipe + ' '
-
         // setup columns
+        var rowWidth = 0
         const dashParts = []
         columns.forEach(key => {
             // defaults
@@ -197,13 +214,37 @@ class Helper {
             widths[key] = widths[key] || 0
             // fit column width to data
             widths[key] = Math.max(widths[key], titles[key].length, ...data.map(row => format[key](row[key]).length))
+            rowWidth += widths[key]
+        })
+
+        rowWidth += Math.max(columns.length - 1, 0) * 3
+
+        // verify footer will fit in column
+        const minFooterWidth = Math.max(...footerLines.map(str => str.length))
+        var widthDeficit = minFooterWidth - rowWidth
+        if (widthDeficit > 0) {
+            if (columns.length) {
+                // adjust the last column width
+                widths[columns[columns.length - 1]] += widthDeficit
+            } else {
+                // corner case of no columns
+                // create dummy column space of dashes
+                var dummyDashes = repeat(TableChars.dash, widthDeficit)
+                dashParts.push(chalk[colors.border](dummyDashes))
+            }
+            rowWidth += widthDeficit
+        }
+
+        columns.forEach(key => {
             // some reason dash doesn't pad when chalked
-            const dashes = intRange(0, widths[key] - 1).map(() => TableChars.dash).join('')
+            const dashes = repeat(TableChars.dash, widths[key])
             dashParts.push(chalk[colors.border](dashes))
         })
 
-        // make border rows
-        for (var vpos of ['top', 'middle', 'bottom']) {
+        // setup border
+        const border = getTableChars(colors.border)
+        border.pipeSpaced = ' ' + border.pipe + ' '
+        for (var vpos of ['top', 'middle', 'bottom', 'footer']) {
             var joiner = [border.dash, border[vpos + 'Middle'], border.dash].join('')
             border[vpos] = [
                 border[vpos + 'Left'], border.dash, dashParts.join(joiner), border.dash, border[vpos + 'Right']
@@ -212,23 +253,22 @@ class Helper {
 
         // build header
         const headerInnerStr = columns.map(key => titles[key][aligns[key]](widths[key], ' ')).join(border.pipeSpaced)
-        const headerStr = [border.pipe, headerInnerStr, border.pipe].join(' ')
+        const headerStr = [
+            border.pipe, headerInnerStr.padEnd(rowWidth, ' '), border.pipe
+        ].join(' ')
 
         // build body
         const bodyStrs = data.map(row => {
             const innerStr = columns.map(key =>
                 format[key](row[key])[aligns[key]](widths[key], ' ')
             ).join(border.pipeSpaced)
-            return [border.pipe, innerStr, border.pipe].join(' ')
+            return [border.pipe, innerStr.padEnd(rowWidth, ' '), border.pipe].join(' ')
         })
 
         // build footer
-        const footerInnerStr = [
-            'Total'.padEnd(widths.name, ' '),
-            format.elapsed(msTotal).padStart(widths.elapsed, ' '),
-            ...columns.slice(2).map(key => ''.padEnd(widths[key], ' '))
-        ].join(border.pipeSpaced)
-        const footerStr = [border.pipe, footerInnerStr, border.pipe].join(' ')
+        const footerStrs = footerLines.map(line =>
+            [border.pipe, line.padEnd(rowWidth, ' '), border.pipe].join(' ')
+        )
 
         // Write
 
@@ -238,9 +278,9 @@ class Helper {
 
         bodyStrs.forEach(rowStr => this.logger.info(rowStr))
 
-        this.logger.info(border.middle)
-        this.logger.info(footerStr)
         this.logger.info(border.bottom)
+        footerStrs.forEach(footerStr => this.logger.info(footerStr))
+        this.logger.info(border.footer)
     }
 }
 
