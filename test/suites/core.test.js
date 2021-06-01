@@ -1365,6 +1365,8 @@ describe('BoardAnalyzer', () => {
         })
     })
 
+    /*
+    // Obsolete methods
     describe('#piecesInPointRange', () => {
 
         it('should return 5 for white 1-6 for initial state', () => {
@@ -1379,6 +1381,7 @@ describe('BoardAnalyzer', () => {
             expect(result).to.equal(0)
         })
     })
+    */
 
     describe('#piecesOnPoint', () => {
 

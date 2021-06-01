@@ -95,7 +95,8 @@ const CacheKeys = {}
 function populateCacheKeys(keys) {
 
     const atomicKeys = [
-        'stateString'
+        'isDisengaged'
+      , 'stateString'
     ]
 
     atomicKeys.forEach(key => keys[key] = key)
@@ -103,6 +104,7 @@ function populateCacheKeys(keys) {
     const colorKeys = [
         'originsHeld'
       , 'originsOccupied'
+      , 'pipCount'
       , 'pointsHeld'
       , 'pointsOccupied'
     ]
@@ -918,7 +920,8 @@ class Board {
     }
 
     occupiesOrigin(color, origin) {
-        return this.slots[origin][0] && this.slots[origin][0].color == color
+        const slot = this.slots[origin]
+        return slot[0] && slot[0].color == color
     }
 
     canOccupyOrigin(color, origin) {
@@ -1220,35 +1223,33 @@ class BoardAnalyzer {
     // One or more checkers
     // @cache
     pointsOccupied(color) {
-        Profiler.start('BoardAnalyzer.pointsOccupied')
+        //Profiler.start('BoardAnalyzer.pointsOccupied')
         const key = CacheKeys.pointsOccupied[color]
         if (!this.cache[key]) {
-            Profiler.start('BoardAnalyzer.pointsOccupied.1')
+            //Profiler.start('BoardAnalyzer.pointsOccupied.1')
             const points = []
             const origins = this.board.originsOccupied(color)
-            const len = origins.length
-            for (var i = 0; i < len; i++) {
-                var origin = origins[i]
-                // create sorted
+            for (var i = 0; i < origins.length; i++) {
+                // create pre-sorted
                 if (color == Red) {
                     // Origin 0 is Red point 1
-                    points.push(OriginPoints[color][origin])
+                    points.push(OriginPoints[color][origins[i]])
                 } else {
                     // Origin 0 is White point 24
-                    points.unshift(OriginPoints[color][origin])
+                    points.unshift(OriginPoints[color][origins[i]])
                 }
             }
             this.cache[key] = points
-            Profiler.stop('BoardAnalyzer.pointsOccupied.1')
+            //Profiler.stop('BoardAnalyzer.pointsOccupied.1')
         }
-        Profiler.stop('BoardAnalyzer.pointsOccupied')
+        //Profiler.stop('BoardAnalyzer.pointsOccupied')
         return this.cache[key]
     }
 
     // Two or more checkers
     // @cache
     originsHeld(color) {
-        Profiler.start('BoardAnalyzer.originsHeld')
+        //Profiler.start('BoardAnalyzer.originsHeld')
         const key = CacheKeys.originsHeld[color]
         if (!this.cache[key]) {
             const origins = []
@@ -1260,7 +1261,7 @@ class BoardAnalyzer {
             }
             this.cache[key] = origins
         }
-        Profiler.stop('BoardAnalyzer.originsHeld')
+        //Profiler.stop('BoardAnalyzer.originsHeld')
         return this.cache[key]
     }
 
@@ -1269,8 +1270,18 @@ class BoardAnalyzer {
     pointsHeld(color) {
         const key = CacheKeys.pointsHeld[color]
         if (!this.cache[key]) {
-            const points = this.originsHeld(color).map(i => OriginPoints[color][i])
-            points.sort(Util.sortNumericAsc)
+            const points = []
+            const origins = this.originsHeld(color)
+            for (var i = 0; i < origins.length; i++) {
+                // create pre-sorted
+                if (color == Red) {
+                    // Origin 0 is Red point 1
+                    points.push(OriginPoints[color][origins[i]])
+                } else {
+                    // Origin 0 is White point 24
+                    points.unshift(OriginPoints[color][origins[i]])
+                }
+            }
             this.cache[key] = points
         }
         return this.cache[key]
@@ -1285,20 +1296,18 @@ class BoardAnalyzer {
         return (slot[0] && slot[0].color == color) ? slot.length : 0
     }
 
-    piecesInPointRange(color, px, py) {
-        var count = 0
-        for (var p = px; p <= py; p++) {
-            count += this.piecesOnPoint(color, p)
-        }
-        return count
-    }
-
+    // @cache
     pipCount(color) {
-        var count = this.board.bars[color].length * 25
-        this.pointsOccupied(color).forEach(point => {
-            count += this.piecesOnPoint(color, point) * point
-        })
-        return count
+        const key = CacheKeys.pipCount[color]
+        if (!(key in this.cache)) {
+            var count = this.board.bars[color].length * 25
+            const points = this.pointsOccupied(color)
+            for (var i = 0; i < points.length; i++) {
+                count += this.piecesOnPoint(color, points[i]) * points[i]
+            }
+            this.cache[key] = count
+        }
+        return this.cache[key]
     }
 
     pipCounts() {
@@ -1308,6 +1317,7 @@ class BoardAnalyzer {
         }
     }
 
+    // Not cached, since it is currently only called once by SafetyRobot
     blots(color) {
 
         Profiler.start('BoardAnalyzer.blots')
@@ -1317,8 +1327,7 @@ class BoardAnalyzer {
 
             const blotOrigins = []
             for (var i = 0; i < 24; i++) {
-                var slot = this.board.slots[i]
-                if (slot.length == 1 && slot[0].color == color) {
+                if (this.board.piecesOnOrigin(color, i) == 1) {
                     blotOrigins.push(i)
                 }
             }
@@ -1335,16 +1344,46 @@ class BoardAnalyzer {
             blotOrigins.forEach(origin => {
 
                 const point = OriginPoints[color][origin]
-                const attackerPoints = opponentPoints.filter(p => p < point)
-                const attackerDistances = attackerPoints.map(p => point - p)
-                if (opponentHasBar) {
-                    attackerDistances.push(point)
+
+                // Not currently used
+                //const attackerPoints = []
+                //const attackerDistances = []
+
+                var minDistance = Infinity
+                var directCount = 0
+                var indirectCount = 0
+                for (var i = 0; i < opponentPoints.length; i++) {
+                    var p = opponentPoints[i]
+                    if (p < point) {
+                        //attackerPoints.push(p)
+                        var distance = point - p
+                        //attackerDistances.push(distance)
+                        if (distance < minDistance) {
+                            minDistance = distance
+                        }
+                        if (distance < 7) {
+                            directCount += 1
+                        }
+                        if (distance > 6 && distance < 12) {
+                            indirectCount += 1
+                        }
+                    }
                 }
-                const minDistance = Math.min(...attackerDistances)
-                const directCount = attackerDistances.filter(n => n < 7).length
-                const indirectCount = attackerDistances.filter(n => n > 6 && n < 12).length
+
+                if (opponentHasBar) {
+                    //attackerDistances.push(point)
+                    if (point < minDistance) {
+                        minDistance = point
+                    }
+                    if (point < 7) {
+                        directCount += 1
+                    }
+                    if (point > 6 && point < 12) {
+                        indirectCount += 1
+                    }
+                }
+
                 // TODO: risk factor?
-                //const attackerSlots = attackerPoints.map(p => this.board.pointOrigin(color, p))
 
                 blots.push({
                     point
@@ -1352,10 +1391,9 @@ class BoardAnalyzer {
                   , minDistance
                   , directCount
                   , indirectCount
-                  , attackerDistances
-                  , attackerPoints
-                  //, attackerSlots
-                  //, hasBar
+                  //, attackerDistances
+                  //, attackerPoints
+                  //, opponentHasBar
                 })
             })
 
@@ -1365,27 +1403,32 @@ class BoardAnalyzer {
         }
     }
 
+    // This function is relatively fast, but we cache since several robots use it.
+    // @cache
     isDisengaged() {
-        Profiler.start('BoardAnalyzer.isDisengaged')
-        try {
+        //Profiler.start('BoardAnalyzer.isDisengaged')
+        const key = CacheKeys.isDisengaged
+        if (!(key in this.cache)) {
             if (this.board.hasWinner()) {
-                return true
+                var isDisengaged = true
+            } else if (this.board.hasBar(White) || this.board.hasBar(Red)) {
+                var isDisengaged = false
+            } else {
+                const originsRed = this.board.originsOccupied(Red)
+                const originsWhite = this.board.originsOccupied(White)
+                const backmostRed = originsRed.length ? originsRed[originsRed.length - 1] : -Infinity
+                const backmostWhite = originsWhite.length ? originsWhite[0] : Infinity
+                var isDisengaged = backmostWhite > backmostRed
             }
-            if (this.board.hasBar(White) || this.board.hasBar(Red)) {
-                return false
-            }
-            const originsRed = this.board.originsOccupied(Red)
-            const originsWhite = this.board.originsOccupied(White)
-            const backmostRed = originsRed.length ? originsRed[originsRed.length - 1] : -Infinity
-            const backmostWhite = originsWhite.length ? originsWhite[0] : Infinity
-            return backmostWhite > backmostRed
-        } finally {
-            Profiler.stop('BoardAnalyzer.isDisengaged')
+            this.cache[key] = isDisengaged
         }
+        //Profiler.stop('BoardAnalyzer.isDisengaged')
+        return this.cache[key]
     }
 
+    // Not cached, since it is currently only called once by PrimeRobot
     primes(color) {
-        Profiler.start('BoardAnalyzer.primes')
+        //Profiler.start('BoardAnalyzer.primes')
         // NB: make a copy, so we can modify
         const pointsHeld = this.pointsHeld(color).slice(0)
         const primes = []
@@ -1405,7 +1448,7 @@ class BoardAnalyzer {
                 })
             }
         }
-        Profiler.stop('BoardAnalyzer.primes')
+        //Profiler.stop('BoardAnalyzer.primes')
         return primes
     }
 }
