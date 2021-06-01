@@ -1414,6 +1414,23 @@ describe('BoardAnalyzer', () => {
         })
     })
 
+    describe('#pointsOccupied', () => {
+
+        it('should be sorted and return expected for White at initial state', () => {
+            const exp = [6, 8, 13, 24]
+            const {analyzer} = Board.setup()
+            const result = analyzer.pointsOccupied(White)
+            expect(JSON.stringify(result)).to.equal(JSON.stringify(exp))
+        })
+
+        it('should be sorted and return expected for Red at initial state', () => {
+            const exp = [6, 8, 13, 24]
+            const {analyzer} = Board.setup()
+            const result = analyzer.pointsOccupied(Red)
+            expect(JSON.stringify(result)).to.equal(JSON.stringify(exp))
+        })
+    })
+
     describe('#primes', () => {
 
         it('should return 1 prime of size 5 for white for White5PointPrime1', () => {
