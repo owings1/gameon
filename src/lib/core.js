@@ -90,6 +90,33 @@ const Opponent = {
 // Must manually enable
 const Profiler = Util.Profiler.createDisabled()
 
+const CacheKeys = {}
+
+function populateCacheKeys(keys) {
+
+    const atomicKeys = [
+        'stateString'
+    ]
+
+    atomicKeys.forEach(key => keys[key] = key)
+
+    const colorKeys = [
+        'originsHeld'
+      , 'originsOccupied'
+      , 'pointsHeld'
+      , 'pointsOccupied'
+    ]
+
+    colorKeys.forEach(key => {
+        keys[key] = {
+            Red   : key + '.' + Red
+          , White : key + '.' + White
+        }
+    })
+}
+
+populateCacheKeys(CacheKeys)
+
 class Match {
 
     static defaults() {
@@ -930,10 +957,12 @@ class Board {
         return false
     }
 
+
+
     // One or more checkers
     // @cache
     originsOccupied(color) {
-        const key = 'originsOccupied.' + color
+        const key = CacheKeys.originsOccupied[color]
         if (!this.cache[key]) {
             const origins = []
             for (var i = 0; i < 24; i++) {
@@ -1150,11 +1179,26 @@ class BoardAnalyzer {
     // @cache
     pointsOccupied(color) {
         Profiler.start('BoardAnalyzer.pointsOccupied')
-        const key = 'pointsOccupied.' + color
+        //const key = 'pointsOccupied.' + color
+        const key = CacheKeys.pointsOccupied[color]
         if (!this.cache[key]) {
-            const points = this.board.originsOccupied(color).map(i => OriginPoints[color][i])
-            points.sort(Util.sortNumericAsc)
+            Profiler.start('BoardAnalyzer.pointsOccupied.1')
+            const points = []
+            const origins = this.board.originsOccupied(color)
+            const len = origins.length
+            for (var i = 0; i < len; i++) {
+                var origin = origins[i]
+                // create sorted
+                if (color == Red) {
+                    // Origin 0 is Red point 1
+                    points.push(OriginPoints[color][origin])
+                } else {
+                    // Origin 0 is White point 24
+                    points.unshift(OriginPoints[color][origin])
+                }
+            }
             this.cache[key] = points
+            Profiler.stop('BoardAnalyzer.pointsOccupied.1')
         }
         Profiler.stop('BoardAnalyzer.pointsOccupied')
         return this.cache[key]
@@ -1164,7 +1208,8 @@ class BoardAnalyzer {
     // @cache
     originsHeld(color) {
         Profiler.start('BoardAnalyzer.originsHeld')
-        const key = 'originsHeld.' + color
+        const key = CacheKeys.originsHeld[color]
+        //const key = 'originsHeld.' + color
         if (!this.cache[key]) {
             const origins = []
             for (var i = 0; i < 24; i++) {
@@ -1182,7 +1227,8 @@ class BoardAnalyzer {
     // Two or more checkers
     // @cache
     pointsHeld(color) {
-        const key = 'pointsHeld.' + color
+        const key = CacheKeys.pointsHeld[color]
+        //const key = 'pointsHeld.' + color
         if (!this.cache[key]) {
             const points = this.originsHeld(color).map(i => OriginPoints[color][i])
             points.sort(Util.sortNumericAsc)
