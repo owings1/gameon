@@ -1070,13 +1070,17 @@ class Board {
 
     // Optimized for performance
     stateString() {
-        // <White bar count>|<Red bar count>|<slot count>:<Red/White/empty>|...|<White home count>|<Red home count>
-        var str = this.bars.White.length + '|' + this.bars.Red.length + '|'
-        for (var i = 0; i < 24; i++) {
-            var slot = this.slots[i]
-            str += slot.length + ':' + (slot.length ? slot[0].color : '') + '|'
+        const key = CacheKeys.stateString
+        if (!this.cache[key]) {
+            // <White bar count>|<Red bar count>|<slot count>:<Red/White/empty>|...|<White home count>|<Red home count>
+            var str = this.bars.White.length + '|' + this.bars.Red.length + '|'
+            for (var i = 0; i < 24; i++) {
+                var slot = this.slots[i]
+                str += slot.length + ':' + (slot.length ? slot[0].color : '') + '|'
+            }
+            this.cache[key] = str + this.homes.White.length + '|' + this.homes.Red.length
         }
-        return str + this.homes.White.length + '|' + this.homes.Red.length
+        return this.cache[key]
     }
 
     stateStructure() {
