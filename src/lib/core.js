@@ -62,20 +62,23 @@ const OriginPoints = {
   , White : {'-1': -1}
 }
 
-intRange(0, 23).forEach(origin => {
-    // Origins are from 0 to 23
-    // Points are from 1 to 24
-    const point = origin + 1
-    // Red point 1 is origin 0
-    PointOrigins.Red[point] = point - 1
-    // White point 1 is origin 23
-    PointOrigins.White[point] = 24 - point
-    // Red origin 0 is point 1
-    OriginPoints.Red[origin] = origin + 1
-    // White origin 0 is point 24
-    OriginPoints.White[origin] = 24 - origin
-})
+function populatePointsAndOrigins(pointOrigins, originPoints) {
+    intRange(0, 23).forEach(origin => {
+        // Origins are from 0 to 23
+        // Points are from 1 to 24
+        const point = origin + 1
+        // Red point 1 is origin 0
+        pointOrigins.Red[point] = point - 1
+        // White point 1 is origin 23
+        pointOrigins.White[point] = 24 - point
+        // Red origin 0 is point 1
+        originPoints.Red[origin] = origin + 1
+        // White origin 0 is point 24
+        originPoints.White[origin] = 24 - origin
+    })
+}
 
+populatePointsAndOrigins(PointOrigins, OriginPoints)
 
 const Direction = {
     White : 1
@@ -123,6 +126,20 @@ function populateCacheKeys(keys) {
 }
 
 populateCacheKeys(CacheKeys)
+
+const MoveHashes = {}
+
+function populateMoveHashes(hashes) {
+    const faces = intRange(1, 6)
+    intRange(-1, 23).forEach(origin => {
+        hashes[origin] = {}
+        faces.forEach(face => {
+            hashes[origin][face] = origin + ':' + face
+        })
+    })
+}
+
+populateMoveHashes(MoveHashes)
 
 class Match {
 
@@ -575,9 +592,25 @@ class Turn {
 
         Profiler.start('Turn.getNextAvailableMoves')
 
+        var index = this.allowedMoveIndex
+        for (var i = 0, ilen = this.moves.length; i < ilen; ++i) {
+            var move = this.moves[i]
+            index = index[move.hash].index
+        }
+
         const moves = []
+
+        for (var k in index) {
+            moves.push(index[k].move)
+        }
+
+        Profiler.stop('Turn.getNextAvailableMoves')
+
+        return moves
+
+        /*
         const movesMap = {}
-        const thisMovesStr = this.moves.map(Move.hash).join('|')
+        const thisMovesStr = this.moves.map(move => move.hash).join('|')
 
         for (var i = 0, ilen = this.allowedMoveSeries.length; i < ilen; ++i) {
 
@@ -590,27 +623,28 @@ class Turn {
             }
 
             // skip fast if we already processed this move
-            var hash = Move.hash(move)
-            if (movesMap[hash]) {
+            //var hash = Move.hash(move)
+            if (movesMap[move.hash]) {
                 continue
             }
 
             // compare the beginning of the series to this.moves
             // TODO: more performant comparison
             var movesSlice = allowedMoves.slice(0, this.moves.length)
-            var movesSliceStr = movesSlice.map(Move.hash).join('|')
+            var movesSliceStr = movesSlice.map(move => move.hash).join('|')
             var isEqual = movesSliceStr == thisMovesStr
             if (!isEqual) {
                 continue
             }
 
-            movesMap[hash] = true
+            movesMap[move.hash] = true
             moves.push(move)
         }
 
         Profiler.stop('Turn.getNextAvailableMoves')
 
         return moves
+        */
     }
 
     move(origin, face) {
@@ -719,9 +753,10 @@ class Turn {
     serialize() {
         return Util.merge(this.meta(), {
             allowedMoveCount   : this.allowedMoveCount
-          , allowedMoveSeries  : this.allowedMoveSeries && this.allowedMoveSeries.map(moves => moves.map(Move.coords))
+          //, allowedMoveSeries  : this.allowedMoveSeries && this.allowedMoveSeries.map(moves => moves.map(Move.coords))
           , allowedEndStates   : this.allowedEndStates
           , allowedFaces       : this.allowedFaces
+          //, allowedMoveIndex   : this.allowedMoveIndex // circular with move objects
           , endStatesToSeries  : this.endStatesToSeries
         })
     }
@@ -742,15 +777,16 @@ class Turn {
         const result = this._computeMoves(leaves)
         Profiler.stop('Turn.compute.3')
 
-        this.allowedMoveSeries = result.allowedMoveSeries
+        //this.allowedMoveSeries = result.allowedMoveSeries
         this.allowedFaces      = result.allowedFaces
         this.allowedEndStates  = result.allowedEndStates
+        this.allowedMoveIndex  = result.allowedMoveIndex
         this.endStatesToSeries = result.endStatesToSeries
 
         this.allowedMoveCount = maxDepth
         this.isCantMove       = maxDepth == 0
-        this.isForceMove      = result.allowedMoveSeries.length == 1
-
+        this.isForceMove      = leaves.length == 1//result.allowedMoveSeries.length == 1
+        
         Profiler.stop('Turn.compute')
     }
 
@@ -761,6 +797,8 @@ class Turn {
         const allowedMoveSeries = []
         // State strings
         const allowedEndStates  = []
+        // Map of {moveHash: {move, index: {...}}}
+        const allowedMoveIndex  = {}
         // Map of stateString to move coords
         const endStatesToSeries = {}
 
@@ -770,10 +808,10 @@ class Turn {
 
         for (var i = 0, ilen = leaves.length; i < ilen; ++i) {
 
-            var leaf = leaves[i]
+            //var leaf = leaves[i]
 
-            var {board, movesMade} = leaf
-            allowedMoveSeries.push(movesMade)
+            var {board, movesMade} = leaves[i]//leaf
+            //allowedMoveSeries.push(movesMade)
 
             if (movesMade.length > maxFaces) {
                 maxFaces = movesMade.length
@@ -781,20 +819,36 @@ class Turn {
             }
 
             var endState = board.stateString()
+
+            var seriesCoords = []
+            var currentIndex = allowedMoveIndex
+            for (var j = 0, jlen = movesMade.length; j < jlen; ++j) {
+                var move = movesMade[j]
+                if (!currentIndex[move.hash]) {
+                    currentIndex[move.hash] = {move, index: {}}
+                }
+                currentIndex = currentIndex[move.hash].index
+                // only if we will use it below
+                if (!endStatesToSeries[endState]) {
+                    seriesCoords.push(Move.coords(move))
+                }
+            }
+
             if (endStatesToSeries[endState]) {
                 // de-dupe
                 continue
             }
 
             allowedEndStates.push(endState)
-            endStatesToSeries[endState] = movesMade.map(Move.coords)
+            endStatesToSeries[endState] = seriesCoords
+
             // populate board cache
             this.boardCache[endState] = board
         }
 
         const allowedFaces = maxExample ? maxExample.map(move => move.face).sort(Util.sortNumericDesc) : []
 
-        return {allowedMoveSeries, allowedFaces, allowedEndStates, endStatesToSeries}
+        return {/*allowedMoveSeries,*/ allowedFaces, allowedEndStates, allowedMoveIndex, endStatesToSeries}
     }
 
     // Build the sequence trees
@@ -1651,6 +1705,9 @@ class SequenceTree {
 
         const root = {board, depth: 0, parent: null, movesMade: [], highestFace: -Infinity}
 
+        // {moveHash : {moveHash: {moveHash: {}}}}
+        //root.index = {}
+
         var hasWinner = false
         var maxDepth = 0
         var nodeCount = 1
@@ -1669,15 +1726,13 @@ class SequenceTree {
 
                 var parent = lastNodes[j]
 
-                parent.nextFace = face
-
                 Profiler.start('SequenceTree.buildNodes.1')
-                parent.nextMoves = parent.board.getPossibleMovesForFace(color, face)
+                var nextMoves = parent.board.getPossibleMovesForFace(color, face)
                 Profiler.stop('SequenceTree.buildNodes.1')
 
-                for (var k = 0, klen = parent.nextMoves.length; k < klen; ++k) {
+                for (var k = 0, klen = nextMoves.length; k < klen; ++k) {
 
-                    var move = parent.nextMoves[k]
+                    var move = nextMoves[k]
 
                     Profiler.start('SequenceTree.buildNodes.2')
                     move.board = move.board.copy()
@@ -1739,15 +1794,16 @@ class Move {
         this.color = color
         this.origin = origin
         this.face = face
+        this.hash = MoveHashes[origin][face]//origin + ':' + face
     }
 
     coords() {
         return Move.coords(this)
     }
 
-    hash() {
-        return Move.hash(this)
-    }
+    //hash() {
+    //    return Move.hash(this)
+    //}
 
     copy() {
         return new this.constructor(...this._constructArgs)

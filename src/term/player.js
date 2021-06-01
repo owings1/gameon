@@ -152,10 +152,20 @@ class TermPlayer extends Base {
         while (true) {
             if (this.opts.fastForced && turn.allowedEndStates.length == 1) {
                 this.info(chalk.bold.yellow('Forced move'), 'for', this.ccolor(turn.color), 'with', turn.diceSorted.join())
-                turn.allowedMoveSeries[0].forEach(move => {
-                    turn.move(move)
-                    this.info(this.describeMove(move))
-                })
+
+                // TODO: implement better forced move routine
+                var index = turn.allowedMoveIndex
+                var keys = Object.keys(index)
+                while (Object.keys(index).length) {
+                    turn.move(Object.values(index)[0].move)
+                    index = Object.values(index)[0].index
+                }
+
+                //turn.allowedMoveSeries[0].forEach(move => {
+                //    turn.move(move)
+                //    this.info(this.describeMove(move))
+                //})
+
                 //this.drawBoard()
                 break
             }
