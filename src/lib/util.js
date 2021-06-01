@@ -156,17 +156,22 @@ class Util {
     }
 
     static spreadRanking(obj, isInverse) {
-        const size = Object.keys(obj).length
         const iobj = {}
+        var size = 0
+        var minRaw = Infinity
         for (var k in obj) {
             iobj[k] = isInverse ? -obj[k] : obj[k]
+            if (iobj[k] < minRaw) {
+                minRaw = iobj[k]
+            }
+            size += 1
         }
-        const minRaw = Math.min(...Object.values(iobj))
         const normObj = {}
+        var scale = 0
         for (var k in obj) {
             normObj[k] = iobj[k] - minRaw
+            scale += normObj[k]
         }
-        const scale = Util.sumArray(Object.values(normObj))
         const spreadObj = {}
         for (var k in obj) {
             if (scale == 0) {
