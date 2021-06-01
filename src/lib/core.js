@@ -768,14 +768,17 @@ class Turn {
     }
 }
 
+// NB: Do not directly modify slots, bars, or homes unless you call markChange() afterward
+// NB: Cached methods return a reference, so callers must make a copy if they will modify
 class Board {
 
     constructor(isSkipInit) {
+        this.analyzer = new BoardAnalyzer(this)
+        this.cache = {}
         // isSkipInit is for performance on copy
         if (!isSkipInit) {
             this.clear()
         }
-        this.analyzer = new BoardAnalyzer(this)
     }
 
     static setup() {
@@ -895,21 +898,27 @@ class Board {
         return false
     }
 
-    // Performance optimized
+    // One or more checkers
+    // @cache
     originsOccupied(color) {
-        const origins = []
-        for (var i = 0; i < 24; i++) {
-            if (this.slots[i][0] && this.slots[i][0].color == color) {
-                origins.push(i)
+        const key = 'originsOccupied.' + color
+        if (!this.cache[key]) {
+            const origins = []
+            for (var i = 0; i < 24; i++) {
+                if (this.slots[i][0] && this.slots[i][0].color == color) {
+                    origins.push(i)
+                }
             }
+            this.cache[key] = origins
         }
-        return origins
+        return this.cache[key]
     }
 
     clear() {
         this.slots = intRange(0, 23).map(i => [])
         this.bars  = {Red: [], White: []}
         this.homes = {Red: [], White: []}
+        this.markChange()
     }
 
     copy() {
@@ -923,6 +932,7 @@ class Board {
             Red   : this.homes.Red.slice(0)
           , White : this.homes.White.slice(0)
         }
+        board.markChange()
         return board
     }
 
@@ -963,6 +973,7 @@ class Board {
         this.slots[16] = Piece.make(3, White)
         this.slots[18] = Piece.make(5, White)
         this.slots[23] = Piece.make(2, Red)
+        this.markChange()
     }
 
     setStateString(str) {
@@ -979,6 +990,7 @@ class Board {
             White : Piece.make(locs[26], White)
           , Red   : Piece.make(locs[27], Red)
         }
+        this.markChange()
     }
 
     // Optimized for performance
@@ -1017,6 +1029,7 @@ class Board {
             White : Piece.make(Math.abs(structure[26]), White)
           , Red   : Piece.make(Math.abs(structure[27]), Red)
         }
+        this.markChange()
     }
 
     pointOrigin(color, point) {
@@ -1044,6 +1057,11 @@ class Board {
             }
         })
         return board
+    }
+
+    markChange() {
+        this.cache = {}
+        this.analyzer.cache = {}
     }
 
     static pointOrigin(color, point) {
@@ -1079,20 +1097,32 @@ class Board {
     }
 }
 
+// NB: Cached methods return a reference for performance. Callers must make a copy
+///    if they will modify the result
 class BoardAnalyzer {
 
     constructor(board) {
         this.board = board
+        this.cache = {}
     }
 
+    // Two or more checkers
+    // @cache
     originsHeld(color) {
         Profiler.start('BoardAnalyzer.originsHeld')
-        const origins = Object.keys(this.board.slots).filter(i => {
-            const slot = this.board.slots[i]
-            return slot.length > 1 && slot[0].color == color
-        }).map(i => +i)
+        const key = 'originsHeld.' + color
+        if (!this.cache[key]) {
+            const origins = []
+            for (var i = 0; i < 24; i++) {
+                var slot = this.board.slots[i]
+                if (slot.length > 1 && slot[0].color == color) {
+                    origins.push(i)
+                }
+            }
+            this.cache[key] = origins
+        }
         Profiler.stop('BoardAnalyzer.originsHeld')
-        return origins
+        return this.cache[key]
     }
 
     piecesHome(color) {
@@ -1140,20 +1170,23 @@ class BoardAnalyzer {
         try {
             const blots = []
 
-            const blotSlots = Object.keys(this.board.slots).filter(i => {
-                const slot = this.board.slots[i]
-                return slot.length == 1 && slot[0].color == color
-            }).map(i => +i)
+            const blotOrigins = []
+            for (var i = 0; i < 24; i++) {
+                var slot = this.board.slots[i]
+                if (slot.length == 1 && slot[0].color == color) {
+                    blotOrigins.push(i)
+                }
+            }
 
-            if (blotSlots.length == 0) {
+            if (blotOrigins.length == 0) {
                 return blots
             }
 
-            const opponentSlots = this.board.originsOccupied(Opponent[color])
-            const opponentPoints = opponentSlots.map(i => this.board.originPoint(color, i))
+            const opponentOrigins = this.board.originsOccupied(Opponent[color])
+            const opponentPoints = opponentOrigins.map(i => this.board.originPoint(color, i))
             const hasBar = this.board.bars[Opponent[color]].length > 0
 
-            blotSlots.forEach(origin => {
+            blotOrigins.forEach(origin => {
 
                 const point = this.board.originPoint(color, origin)
                 const attackerPoints = opponentPoints.filter(p => p < point)
@@ -1165,7 +1198,7 @@ class BoardAnalyzer {
                 const directCount = attackerDistances.filter(n => n < 7).length
                 const indirectCount = attackerDistances.filter(n => n > 6 && n < 12).length
                 // TODO: risk factor?
-                const attackerSlots = attackerPoints.map(p => this.board.pointOrigin(color, p))
+                //const attackerSlots = attackerPoints.map(p => this.board.pointOrigin(color, p))
 
                 blots.push({
                     point
@@ -1175,7 +1208,7 @@ class BoardAnalyzer {
                   , indirectCount
                   , attackerDistances
                   , attackerPoints
-                  , attackerSlots
+                  //, attackerSlots
                   , hasBar
                 })
             })
@@ -1205,8 +1238,8 @@ class BoardAnalyzer {
 
     primes(color) {
         Profiler.start('BoardAnalyzer.primes')
-        const originsHeld = this.originsHeld(color)
-        const pointsHeld = originsHeld.map(i => this.board.originPoint(color, i))
+        const originsHeld = this.originsHeld(color) // reference - do not modify, or make a copy
+        const pointsHeld = originsHeld.map(i => this.board.originPoint(color, i)) // make a copy, so we can modify
         pointsHeld.sort(Util.sortNumericAsc)
         const primes = []
         while (pointsHeld.length > 1) {
@@ -1370,6 +1403,16 @@ class Move {
     getOriginSlot() {
         return this.board.slots[this.origin]
     }
+
+    // NB: implementations must call board.markChange() after modifying board internals
+    do() {
+        throw new NotImplementedError('Not Implemented')
+    }
+
+    // NB: implementations must call board.markChange() after modifying board internals
+    undo() {
+        throw new NotImplementedError('Not Implemented')
+    }
 }
 
 class ComeInMove extends Move {
@@ -1407,6 +1450,7 @@ class ComeInMove extends Move {
             this.getOpponentBar().push(this.getDestSlot().pop())
         }
         this.getDestSlot().push(this.getBar().pop())
+        this.board.markChange()
     }
 
     undo() {
@@ -1414,6 +1458,7 @@ class ComeInMove extends Move {
         if (this.isHit) {
             this.getDestSlot().push(this.getOpponentBar().pop())
         }
+        this.board.markChange()
     }
 
     getBar() {
@@ -1464,6 +1509,7 @@ class RegularMove extends Move {
             this.getOpponentBar().push(this.getDestSlot().pop())
         }
         this.getDestSlot().push(this.getOriginSlot().pop())
+        this.board.markChange()
     }
 
     undo() {
@@ -1471,6 +1517,7 @@ class RegularMove extends Move {
         if (this.isHit) {
             this.getDestSlot().push(this.getOpponentBar().pop())
         }
+        this.board.markChange()
     }
 
     getDestInfo(...args) {
@@ -1515,10 +1562,12 @@ class BearoffMove extends Move {
 
     do() {
         this.getHome().push(this.getOriginSlot().pop())
+        this.board.markChange()
     }
 
     undo() {
         this.getOriginSlot().push(this.getHome().pop())
+        this.board.markChange()
     }
 
     getHome() {
@@ -1615,6 +1664,7 @@ class GameError extends Error {
     }
 }
 
+class NotImplementedError extends GameError {}
 class IllegalStateError extends GameError {
     constructor(...args) {
         super(...args)

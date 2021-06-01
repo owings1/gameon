@@ -497,6 +497,7 @@ describe('Turn', () => {
         it('should allow after setRoll 6,6 for white on bar with setup board', () => {
             const board = Board.setup()
             board.bars.White.push(board.slots[0].pop())
+            board.markChange()
             const turn = new Turn(board, White)
             turn.setRoll([6, 6])
             turn.finish()
@@ -543,6 +544,7 @@ describe('Turn', () => {
             const bexp = Board.setup()
             bexp.slots[4].push(bexp.slots[7].pop())
             bexp.slots[4].push(bexp.slots[5].pop())
+            bexp.markChange()
             const exp = bexp.stateString()
 
             const board = Board.setup()
@@ -768,6 +770,7 @@ describe('Turn', () => {
         it('should have expected value for sparse board with 2,1 roll', () => {
             const board = new Board
             board.slots[0] = Piece.make(2, White)
+            board.markChange()
 
             // build expected board outcomes
             const b1 = board.copy()
@@ -775,6 +778,8 @@ describe('Turn', () => {
             b1.slots[1].push(b1.slots[0].pop())
             b1.slots[2].push(b1.slots[0].pop())
             b2.slots[3].push(b2.slots[0].pop())
+            b1.markChange()
+            b2.markChange()
 
             const turn = new Turn(board, White)
             turn.setRoll([2, 1])
@@ -874,6 +879,7 @@ describe('Board', () => {
 
 		it('should return singleton isComeIn face=2 with white from bar on sparse board', () => {
 			board.bars.White = Piece.make(1, White)
+            board.markChange()
 			const result = board.getPossibleMovesForFace(White, 2)
 			expect(result).to.have.length(1)
 			expect(result[0].isComeIn).to.equal(true)
@@ -883,6 +889,7 @@ describe('Board', () => {
 		it('should return empty for white face=5 with one on 0 and red 2 on 5', () => {
 			board.slots[0] = Piece.make(1, White)
 			board.slots[5] = Piece.make(2, Red)
+            board.markChange()
 			const result = board.getPossibleMovesForFace(White, 5)
 			expect(result).to.have.length(0)
 		})
@@ -910,12 +917,14 @@ describe('Board', () => {
 
         it('should return white when home has 15', () => {
             board.homes.White = Piece.make(15, White)
+            board.markChange()
             const result = board.getWinner()
             expect(result).to.equal(White)
         })
 
         it('should return red when home has 15', () => {
             board.homes.Red = Piece.make(15, Red)
+            board.markChange()
             const result = board.getWinner()
             expect(result).to.equal(Red)
         })
@@ -925,6 +934,7 @@ describe('Board', () => {
 
         it('should return true for white with one on bar', () => {
             board.bars.White = Piece.make(1, White)
+            board.markChange()
             const result = board.hasBar(White)
             expect(result).to.equal(true)
         })
@@ -934,12 +944,14 @@ describe('Board', () => {
 
         it('should return true when red has 15 in home', () => {
             board.homes.Red = Piece.make(15, Red)
+            board.markChange()
             const result = board.hasWinner()
             expect(result).to.equal(true)
         })
 
         it('should return true when white has 15 in home', () => {
             board.homes.White = Piece.make(15, White)
+            board.markChange()
             const result = board.hasWinner()
             expect(result).to.equal(true)
         })
@@ -964,6 +976,7 @@ describe('Board', () => {
 
         it('should return true when red has 15 in home', () => {
             board.homes.Red = Piece.make(15, Red)
+            board.markChange()
             const result = board.isAllHome(Red)
             expect(result).to.equal(true)
         })
@@ -1037,12 +1050,14 @@ describe('Board', () => {
 
         it('should return false for white with one on bar', () => {
             board.bars.White = Piece.make(1, White)
+            board.markChange()
             const result = board.mayBearoff(White)
             expect(result).to.equal(false)
         })
 
         it('should return true for red with none on bar and 15 on 0', () => {
             board.slots[0] = Piece.make(15, Red)
+            board.markChange()
             const result = board.mayBearoff(Red)
             expect(result).to.equal(true)
         })
@@ -1050,6 +1065,7 @@ describe('Board', () => {
         it('should return false for red with none on bar and 1 on 0 and 14 on 23', () => {
             board.slots[23] = Piece.make(14, Red)
             board.slots[0] = Piece.make(1, Red)
+            board.markChange()
             const result = board.mayBearoff(Red)
             expect(result).to.equal(false)
         })
@@ -1079,24 +1095,28 @@ describe('Board', () => {
 
         it('should comein to face=1 for white with bar', () => {
             board.bars.White.push(board.slots[0].pop())
+            board.markChange()
             board.move(White, -1, 1)
             expect(board.slots[0]).to.have.length(2)
         })
 
         it('should comein to face=1 for red with bar', () => {
             board.bars.Red.push(board.slots[23].pop())
+            board.markChange()
             board.move(Red, -1, 1)
             expect(board.slots[23]).to.have.length(2)
         })
 
         it('should not comein to face=6 for white with bar as OccupiedSlotError', () => {
             board.bars.White.push(board.slots[0].pop())
+            board.markChange()
             const err = getError(() => board.move(White, -1, 6))
             expect(err.name).to.equal('OccupiedSlotError')
         })
 
         it('should not advance white with bar as PieceOnBarError', () => {
             board.bars.White.push(board.slots[0].pop())
+            board.markChange()
             const err = getError(() => board.move(White, 1, 1))
             expect(err.name).to.equal('PieceOnBarError')
         })
@@ -1121,6 +1141,7 @@ describe('Board', () => {
                 board.slots[11].splice(0),
                 board.slots[16].splice(0)
             )
+            board.markChange()
             board.move(White, 18, 6)
             expect(board.slots[18]).to.have.length(4)
             expect(board.homes.White).to.have.length(1)
@@ -1131,6 +1152,7 @@ describe('Board', () => {
                 board.slots[11].splice(0),
                 board.slots[16].splice(0)
             )
+            board.markChange()
             board.move(White, 19, 5)
             expect(board.slots[19]).to.have.length(9)
             expect(board.homes.White).to.have.length(1)
@@ -1141,6 +1163,7 @@ describe('Board', () => {
                 board.slots[12].splice(0),
                 board.slots[7].splice(0)
             )
+            board.markChange()
             board.move(Red, 4, 5)
             expect(board.slots[4]).to.have.length(9)
             expect(board.homes.Red).to.have.length(1)
@@ -1151,6 +1174,7 @@ describe('Board', () => {
                 board.slots[11].splice(0),
                 board.slots[16].splice(0)
             )
+            board.markChange()
             const err = getError(() => board.move(White, 19, 6))
             expect(err.name).to.equal('IllegalBareoffError')
         })
@@ -1160,6 +1184,7 @@ describe('Board', () => {
                 board.slots[12].splice(0),
                 board.slots[7].splice(0)
             )
+            board.markChange()
             const err = getError(() => board.move(Red, 4, 6))
             expect(err.name).to.equal('IllegalBareoffError')
         })
@@ -1207,6 +1232,7 @@ describe('Board', () => {
         it('should undo bareoff on sparse board white i:22,n:3', () => {
             board.clear()
             board.slots[22] = Piece.make(2, White)
+            board.markChange()
             const move = board.move(White, 22, 3)
             expect(board.slots[22].length).to.equal(1)
             expect(board.homes.White).to.have.length(1)
@@ -1218,6 +1244,7 @@ describe('Board', () => {
         it('should undo comein on sparse board white i:-1,n:2', () => {
             board.clear()
             board.bars.White.push(new Piece(White))
+            board.markChange()
             const move = board.move(White, -1, 2)
             expect(board.bars.White).to.have.length(0)
             expect(board.slots[1]).to.have.length(1)
@@ -1422,6 +1449,7 @@ describe('Move', () => {
 
         it('should return new ComeInMove with same board, color, and face', () => {
             board.bars.White.push(board.slots[0].pop())
+            board.markChange()
             const move = board.buildMove(White, -1, 1)
             const copy = move.copy()
             expect(copy.constructor.name).to.equal('ComeInMove')
@@ -1436,6 +1464,7 @@ describe('Move', () => {
         it('should return new ComeInMove with same color and face, but other board', () => {
             const board = Board.setup()
             board.bars.White.push(board.slots[0].pop())
+            board.markChange()
             const move = board.buildMove(White, -1, 1)
             const otherBoard = board.copy()
             const copy = move.copyForBoard(otherBoard)
