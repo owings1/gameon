@@ -890,9 +890,17 @@ class Board {
         }
     }
 
+    occupiesOrigin(color, origin) {
+        return this.slots[origin][0] && this.slots[origin][0].color == color
+    }
+
     canOccupyOrigin(color, origin) {
         const slot = this.slots[origin]
         return slot.length < 2 || slot[0].color == color
+    }
+
+    piecesOnOrigin(color, origin) {
+        return this.occupiesOrigin(color, origin) ? this.slots[origin].length : 0
     }
 
     hasWinner() {
