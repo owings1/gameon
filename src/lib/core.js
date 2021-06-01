@@ -957,8 +957,6 @@ class Board {
         return false
     }
 
-
-
     // One or more checkers
     // @cache
     originsOccupied(color) {
@@ -1219,7 +1217,6 @@ class BoardAnalyzer {
     // @cache
     pointsOccupied(color) {
         Profiler.start('BoardAnalyzer.pointsOccupied')
-        //const key = 'pointsOccupied.' + color
         const key = CacheKeys.pointsOccupied[color]
         if (!this.cache[key]) {
             Profiler.start('BoardAnalyzer.pointsOccupied.1')
@@ -1249,7 +1246,6 @@ class BoardAnalyzer {
     originsHeld(color) {
         Profiler.start('BoardAnalyzer.originsHeld')
         const key = CacheKeys.originsHeld[color]
-        //const key = 'originsHeld.' + color
         if (!this.cache[key]) {
             const origins = []
             for (var i = 0; i < 24; i++) {
@@ -1268,7 +1264,6 @@ class BoardAnalyzer {
     // @cache
     pointsHeld(color) {
         const key = CacheKeys.pointsHeld[color]
-        //const key = 'pointsHeld.' + color
         if (!this.cache[key]) {
             const points = this.originsHeld(color).map(i => OriginPoints[color][i])
             points.sort(Util.sortNumericAsc)
@@ -1540,20 +1535,6 @@ class Move {
         return new this.constructor(board, ...this._constructArgs.slice(1))
     }
 
-    /*
-    getDestSlot() {
-        return this.board.slots[this.dest]
-    }
-
-    getOpponentBar() {
-        return this.board.bars[Opponent[this.color]]
-    }
-
-    getOriginSlot() {
-        return this.board.slots[this.origin]
-    }
-    */
-
     // NB: implementations should use board push/pop methods, and not directly
     //     modify board internals.
     do() {
@@ -1602,14 +1583,6 @@ class ComeInMove extends Move {
             this.board.pushBar(Opponent[this.color], this.board.popOrigin(this.dest))
         }
         this.board.pushOrigin(this.dest, this.board.popBar(this.color))
-
-        /*
-        if (this.isHit) {
-            this.getOpponentBar().push(this.getDestSlot().pop())
-        }
-        this.getDestSlot().push(this.getBar().pop())
-        this.board.markChange()
-        */
     }
 
     undo() {
@@ -1617,20 +1590,7 @@ class ComeInMove extends Move {
         if (this.isHit) {
             this.board.pushOrigin(this.dest, this.board.popBar(Opponent[this.color]))
         }
-        /*
-        this.getBar().push(this.getDestSlot().pop())
-        if (this.isHit) {
-            this.getDestSlot().push(this.getOpponentBar().pop())
-        }
-        this.board.markChange()
-        */
     }
-
-    /*
-    getBar() {
-        return this.board.bars[this.color]
-    }
-    */
 
     getDestInfo(...args) {
         return this.constructor.getDestInfo(...args)
@@ -1639,8 +1599,6 @@ class ComeInMove extends Move {
     static getDestInfo(board, color, face) {
         const dest = Direction[color] == 1 ? face - 1 : 24 - face
         const isHit = board.piecesOnOrigin(Opponent[color], dest) == 1
-        //const destSlot = board.slots[dest]
-        //const isHit = destSlot.length == 1 && destSlot[0].color != color
         return {dest, isHit}
     }
 }
@@ -1677,13 +1635,6 @@ class RegularMove extends Move {
             this.board.pushBar(Opponent[this.color], this.board.popOrigin(this.dest))
         }
         this.board.pushOrigin(this.dest, this.board.popOrigin(this.origin))
-        /*
-        if (this.isHit) {
-            this.getOpponentBar().push(this.getDestSlot().pop())
-        }
-        this.getDestSlot().push(this.getOriginSlot().pop())
-        this.board.markChange()
-        */
     }
 
     undo() {
@@ -1691,13 +1642,6 @@ class RegularMove extends Move {
         if (this.isHit) {
             this.board.pushOrigin(this.dest, this.board.popBar(Opponent[this.color]))
         }
-        /*
-        this.getOriginSlot().push(this.getDestSlot().pop())
-        if (this.isHit) {
-            this.getDestSlot().push(this.getOpponentBar().pop())
-        }
-        this.board.markChange()
-        */
     }
 
     getDestInfo(...args) {
@@ -1707,8 +1651,6 @@ class RegularMove extends Move {
     static getDestInfo(board, color, origin, face) {
         const dest = origin + face * Direction[color]
         const isHit = board.piecesOnOrigin(Opponent[color], dest) == 1
-        //const destSlot = board.slots[dest]
-        //const isHit = destSlot.length == 1 && destSlot[0].color != color
         return {dest, isHit}
     }
 }
@@ -1721,7 +1663,7 @@ class BearoffMove extends Move {
             return {class: MayNotBearoffError, message: [color, 'may not bare off']}
         }
         // get distance to home
-        const homeDistance = BearoffMove.getHomeDistance(color, origin)
+        const homeDistance = Direction[color] == 1 ? 24 - origin : origin + 1
         // make sure no piece is behind if we are taking more than the face
         if (face > homeDistance && board.hasPieceBehind(color, origin)) {
             return {class: IllegalBareoffError, message: ['cannot bear off with a piece behind']}
@@ -1743,26 +1685,10 @@ class BearoffMove extends Move {
 
     do() {
         this.board.pushHome(this.color, this.board.popOrigin(this.origin))
-        /*
-        this.getHome().push(this.getOriginSlot().pop())
-        this.board.markChange()
-        */
     }
 
     undo() {
         this.board.pushOrigin(this.origin, this.board.popHome(this.color))
-        /*
-        this.getOriginSlot().push(this.getHome().pop())
-        this.board.markChange()
-        */
-    }
-
-    getHome() {
-        return this.board.homes[this.color]
-    }
-
-    static getHomeDistance(color, origin) {
-        return Direction[color] == 1 ? 24 - origin : origin + 1
     }
 }
 
