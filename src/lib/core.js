@@ -62,15 +62,19 @@ const OriginPoints = {
   , White : {'-1': -1}
 }
 
-;(() => {
-    for (var i = 0; i < 24; i++) {
-        var p = i + 1
-        PointOrigins.Red[p] = p - 1
-        PointOrigins.White[p] = 24 - p
-        OriginPoints.Red[i] = i + 1
-        OriginPoints.White[i] = 24 - i
-    }
-})();
+intRange(0, 23).forEach(origin => {
+    // Origins are from 0 to 23
+    // Points are from 1 to 24
+    const point = origin + 1
+    // Red point 1 is origin 0
+    PointOrigins.Red[point] = point - 1
+    // White point 1 is origin 23
+    PointOrigins.White[point] = 24 - point
+    // Red origin 0 is point 1
+    OriginPoints.Red[origin] = origin + 1
+    // White origin 0 is point 24
+    OriginPoints.White[origin] = 24 - origin
+})
 
 
 const Direction = {
@@ -1100,10 +1104,14 @@ class Board {
         this.analyzer.cache = {}
     }
 
+    // Red point 1 is origin 0
+    // White point 1 is origin 23
     static pointOrigin(color, point) {
         return PointOrigins[color][point]
     }
 
+    // Red origin 0 is point 1
+    // White origin 0 is point 24
     static originPoint(color, origin) {
         return OriginPoints[color][origin]
     }
@@ -1180,7 +1188,8 @@ class BoardAnalyzer {
     }
 
     piecesOnPoint(color, point) {
-        return this.board.slots[PointOrigins[color][point]].filter(piece => piece.color == color).length
+        const slot = this.board.slots[PointOrigins[color][point]]
+        return (slot[0] && slot[0].color == color) ? slot.length : 0
     }
 
     piecesInPointRange(color, px, py) {
@@ -1516,8 +1525,9 @@ class ComeInMove extends Move {
 
     static getDestInfo(board, color, face) {
         const dest = Direction[color] == 1 ? face - 1 : 24 - face
-        const destSlot = board.slots[dest]
-        const isHit = destSlot.length == 1 && destSlot[0].color != color
+        const isHit = board.piecesOnOrigin(Opponent[color], dest) == 1
+        //const destSlot = board.slots[dest]
+        //const isHit = destSlot.length == 1 && destSlot[0].color != color
         return {dest, isHit}
     }
 }
@@ -1571,8 +1581,9 @@ class RegularMove extends Move {
 
     static getDestInfo(board, color, origin, face) {
         const dest = origin + face * Direction[color]
-        const destSlot = board.slots[dest]
-        const isHit = destSlot.length == 1 && destSlot[0].color != color
+        const isHit = board.piecesOnOrigin(Opponent[color], dest) == 1
+        //const destSlot = board.slots[dest]
+        //const isHit = destSlot.length == 1 && destSlot[0].color != color
         return {dest, isHit}
     }
 }
