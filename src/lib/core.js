@@ -732,7 +732,7 @@ class Turn {
 
     _computeAllowedMovesResult() {
 
-        const {branches, maxDepth} = this._computeAllowedBranches()
+        const {maxDepth, leaves /* , branches */} = this._computeAllowedBranches()
 
         // Construct the move series, end states
         // -------------------------------------
@@ -745,19 +745,24 @@ class Turn {
         // the max number of faces determine the faces allowed, though not always required.
         var maxFaces = 0
         var maxExample
-        branches.forEach(branch => {
 
-            const allowedMoves = []
-            for (var i = 1; i < branch.length; i++) {
-                allowedMoves.push(branch[i].thisMove)
-            }
+        //branches.forEach((branch, i) => {
+        leaves.forEach(leaf => {
+            
+            const allowedMoves = leaf.movesMade
+            //const allowedMoves = []
+            //for (var i = 1; i < branch.length; i++) {
+            //    allowedMoves.push(branch[i].thisMove)
+            //}
             allowedMoveSeries.push(allowedMoves)
 
             if (allowedMoves.length > maxFaces) {
                 maxFaces = allowedMoves.length
                 maxExample = allowedMoves
             }
-            const board = branch[branch.length - 1].board
+            const board = leaf.board
+            //const board = branch[branch.length - 1].board
+
             const endState = board.stateString()
             if (endStatesToSeries[endState]) {
                 // de-dupe
@@ -795,10 +800,15 @@ class Turn {
         const trees = []
         // the max depth, or number of faces/moves, of all the trees
         var maxDepth = 0
+        // debug
         var allNodesCount = 0
+        var allTreesCount = 0
+        //var allBranchesCount = 0
         Dice.sequencesForFaces(this.faces).forEach(sequence => {
             const tree = SequenceTree.build(this.board, this.color, sequence)
-            allNodesCount += tree.nodes.length
+            allNodesCount += tree.nodeCount
+            allTreesCount += 1
+            //allBranchesCount += tree.branches.length
             if (tree.depth > maxDepth) {
                 maxDepth = tree.depth
             }
@@ -818,16 +828,37 @@ class Turn {
         // the "most number of faces" rule has an exception when bearing off the last piece.
         // see test case RedBearoff51
 
+        // leaves that use the most number of faces, or are winners
+        const candidateLeaves = []
         // branches that use the most number of faces, or are winners
-        const candidateBranches = []
+        //const candidateBranches = []
         // the highest die face used by any of the branch candidates
         var highestFace = -Infinity
+        // debug
+        var useableTreesCount = 0
+        
         if (maxDepth > 0) {
             trees.forEach(tree => {
                 // Tree Filter 2 - trees must meet the final depth/win threshold
                 if (tree.depth < maxDepth && !tree.hasWinner) {
                     return
                 }
+                useableTreesCount += 1
+
+                tree.leaves.forEach(leaf => {
+                    // Node Filter 1 - leaves must meet the depth/win threshold
+                    if (leaf.depth == maxDepth || leaf.isWinner) {
+                        if (leaf.highestFace > highestFace) {
+                            highestFace = leaf.highestFace
+                        }
+                        // Node Filter 2 - leaves must meet the in-progress high-face/win threshold
+                        if (leaf.highestFace >= highestFace || leaf.isWinner) {
+                            candidateLeaves.push(leaf)
+                        }
+                    }
+                })
+
+                /*
                 tree.branches.forEach(branch => {
                     const leaf = branch[branch.length - 1]
                     // Branch Filter 1 - branches must meet the depth/win threshold
@@ -841,11 +872,25 @@ class Turn {
                         }
                     }
                 })
+                */
             })
         }
 
+        // final list of approved leaves
+        const leaves = []
+        candidateLeaves.forEach(leaf => {
+            // Node Filter 3 - leaves must meet the final high-face/win threshold
+            if (leaf.highestFace == highestFace || leaf.isWinner) {
+                leaves.push(leaf)
+            }
+        })
+        // WIP --------------
+
+        /*
         // final list of approved branches
         const branches = []
+        // debug
+        var useableBranchesCount = 0
         var useableNodesCount = 0
         candidateBranches.forEach(branch => {
             const leaf = branch[branch.length - 1]
@@ -853,14 +898,56 @@ class Turn {
             if (leaf.highestFace == highestFace || leaf.isWinner) {
                 branches.push(branch)
                 useableNodesCount += branch.length
+                useableBranchesCount += 1
             }
         })
+        */
 
         Profiler.stop('Turn.compute.2')
 
-        //console.log({allNodesCount, useableNodesCount})
+        //if (candidateBranches.length != useableBranchesCount) {
+        //    console.log({allNodesCount, useableNodesCount, allTreesCount, useableTreesCount, allBranchesCount, useableBranchesCount, candidateBranches: candidateBranches.length})
+        //    throw new Error
+        //}
 
-        return {branches, maxDepth}
+        //console.log({allNodesCount, useableNodesCount, allTreesCount, useableTreesCount, allBranchesCount, useableBranchesCount})
+
+        /*
+        if (leaves.length != branches.length) {
+            console.log({leaves: leaves.length, branches: branches.length})
+            throw new Error   
+        }
+        for (var i = 0; i < branches.length; i++) {
+            var leaf = leaves[i]
+            var branch = branches[i]
+            var bleaf = branch[branch.length - 1]
+            if (bleaf !== leaf) {
+                console.log('notEqual')
+                console.log(bleaf)
+                console.log(leaf)
+                throw new Error
+            }
+            var bmoves = []
+            for (var j = 1; j < branch.length; j++) {
+                bmoves.push(branch[j].thisMove)
+            }
+            if (leaf.movesMade.length != bmoves.length) {
+                console.log(leaf.movesMade.length, bmoves.length)
+                throw new Error
+            }
+            var lstr = JSON.stringify(leaf.movesMade.map(Move.coords))
+            var bstr = JSON.stringify(bmoves.map(Move.coords))
+            if (lstr != bstr) {
+                console.log(lstr)
+                console.log(bstr)
+                throw new Error
+            } else {
+                //console.log({lstr, bstr})
+            }
+        }
+        */
+
+        return {leaves, maxDepth /* , branches */}
     }
 
     // allow override for testing
@@ -1600,28 +1687,32 @@ class SequenceTree {
         this.board = board
         this.color = color
         this.sequence = sequence
-        this.nodes = null
-        this.branches = null
+        //this.nodes = null
+        //this.branches = null
+        this.leaves = null
+        this.nodeCount = 0
         this.depth = -1
         this.hasWinner = null
     }
 
     build() {
 
-        Profiler.start('SequenceTree.build.1')
+        Profiler.start('SequenceTree.build')
         
-        const {nodes, maxDepth, hasWinner} = SequenceTree.buildNodes(this.board, this.color, this.sequence)
-        this.nodes = nodes
+        const {/*nodes, */maxDepth, hasWinner, leaves, nodeCount} = SequenceTree.buildNodes(this.board, this.color, this.sequence)
+        //this.nodes = nodes
         this.depth = maxDepth
         this.hasWinner = hasWinner
+        this.leaves = leaves
+        this.nodeCount = nodeCount
 
-        Profiler.stop('SequenceTree.build.1')
+        Profiler.stop('SequenceTree.build')
 
-        Profiler.start('SequenceTree.build.2')
-        // TODO: weird that the leaves are only at maxDepth, what about winners?
-        this.leaves = this.nodes.filter(node => node.depth == this.depth)
-        this.branches = SequenceTree.buildBranchesForLeaves(this.leaves)
-        Profiler.stop('SequenceTree.build.2')
+        //Profiler.start('SequenceTree.build.2')
+        
+        //this.leaves = this.nodes.filter(node => node.depth == this.depth /* || node.isWinner */)
+        //this.branches = SequenceTree.buildBranchesForLeaves(this.leaves)
+        //Profiler.stop('SequenceTree.build.2')
     }
 
     static build(board, color, sequence) {
@@ -1630,6 +1721,7 @@ class SequenceTree {
         return tree
     }
 
+    /*
     static buildBranchesForLeaves(leaves) {
         const branches = []
         leaves.forEach(leaf => {
@@ -1647,22 +1739,30 @@ class SequenceTree {
         })
         return branches
     }
+    */
 
     static buildNodes(board, color, sequence) {
 
-        const root = {board, depth: 0, parent: null}
-        const nodes = [root]
-        const nodesAtDepth = [[root]]
+        const root = {board, depth: 0, parent: null, movesMade: [], highestFace: -Infinity /*, children: []*/}
+        //const nodes = [root]
+        //const nodesAtDepth = [[root]]
         var hasWinner = false
         var maxDepth = 0
+        var nodeCount = 1
+
+        var lastNodes = [root]
+        var leaves = lastNodes
 
         sequence.forEach((face, seqi) => {
 
             const depth = seqi + 1
 
-            nodesAtDepth[depth] = []
+            const nextNodes = []
 
-            nodesAtDepth[depth - 1].forEach(parent => {
+            //nodesAtDepth[depth] = []
+
+            lastNodes.forEach(parent => {
+            //nodesAtDepth[depth - 1].forEach(parent => {
 
                 parent.nextFace = face
 
@@ -1688,21 +1788,39 @@ class SequenceTree {
                       , isWinner : move.board.getWinner() == color
                       , thisMove : move
                       , thisFace : face
+                      //, children : []
+                      , movesMade : parent.movesMade.slice(0)
+                      , highestFace : face > parent.highestFace ? face : parent.highestFace
                     }
-                    nodes.push(child)
-                    nodesAtDepth[depth].push(child)
+
+                    nodeCount += 1
+
+                    child.movesMade.push(move)
+                    //nodes.push(child)
+                    //nodesAtDepth[depth].push(child)
+                    nextNodes.push(child)
+                    //parent.children.push(child)
                     if (child.isWinner) {
                         hasWinner = true
                     }
                     if (depth > maxDepth) {
                         maxDepth = depth
+                        // leaves only include nodes of maxDepth, since a tree is for a single sequnce
+                        // i.e. a shorter winning tree would always have a different sequence.
+                        leaves = nextNodes
                     }
                     Profiler.stop('SequenceTree.buildNodes.4')
                 })
             })
+
+            lastNodes = nextNodes
         })
 
-        return {nodes, hasWinner, maxDepth}
+        // leaves only include nodes of maxDepth, since a tree is for a single sequnce
+        // i.e. a shorter winning tree would always have a different sequence.
+        //const leaves = nodesAtDepth[maxDepth]
+
+        return {/*nodes, */hasWinner, maxDepth, leaves, nodeCount}
     }
 }
 
