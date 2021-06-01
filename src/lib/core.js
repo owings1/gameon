@@ -727,56 +727,96 @@ class Turn {
 
     _computeAllowedMovesResult() {
 
+        // Build the sequence trees
+        // ------------------------
+
         Profiler.start('Turn.compute.1')
 
-        const trees = Dice.sequencesForFaces(this.faces).map(sequence =>
-            SequenceTree.build(this.board, this.color, sequence)
-        )
+        const trees = []
+        // the max depth, or number of faces/moves, of all the trees
+        var maxDepth = 0
+        Dice.sequencesForFaces(this.faces).forEach(sequence => {
+            const tree = SequenceTree.build(this.board, this.color, sequence)
+            if (tree.depth > maxDepth) {
+                maxDepth = tree.depth
+            }
+            // Tree Filter 1 - trees must meet the in-progress depth/win threshold
+            if (tree.depth >= maxDepth || tree.hasWinner) {
+                trees.push(tree)
+            }
+        })
 
         Profiler.stop('Turn.compute.1')
 
-        Profiler.start('Turn.compute.2')
+        // Filter the branches
+        // -------------------
 
-        const maxDepth = Math.max(...trees.map(tree => tree.depth))
+        Profiler.start('Turn.compute.2')
 
         // the "most number of faces" rule has an exception when bearing off the last piece.
         // see test case RedBearoff51
 
-        // trees that use the most number of faces, or have a winning branch
-        const fullestTrees = trees.filter(tree =>
-            maxDepth > 0 && (tree.depth == maxDepth || tree.hasWinner)
-        )
-
-        // branches that use the most number of faces, or is a winner
-        const fullestBranches = []
-        fullestTrees.forEach(tree => {
-            tree.branches.filter(branch =>
-                branch.length - 1 == maxDepth || tree.winningBranches.indexOf(branch) > -1
-            ).forEach(branch => {
-                fullestBranches.push(branch)
+        // branches that use the most number of faces, or are winners
+        const candidateBranches = []
+        // the highest die face used by any of the branch candidates
+        var highestFace = -Infinity
+        if (maxDepth > 0) {
+            trees.forEach(tree => {
+                // Tree Filter 2 - trees must meet the final depth/win threshold
+                if (tree.depth < maxDepth && !tree.hasWinner) {
+                    return
+                }
+                tree.branches.forEach(branch => {
+                    const leaf = branch[branch.length - 1]
+                    // Branch Filter 1 - branches must meet the depth/win threshold
+                    if (branch.length - 1 == maxDepth || leaf.isWinner) {
+                        if (leaf.highestFace > highestFace) {
+                            highestFace = leaf.highestFace
+                        }
+                        // Branch Filter 2 - branches must meet the in-progress high-face/win threshold
+                        if (leaf.highestFace >= highestFace || leaf.isWinner) {
+                            candidateBranches.push(branch)
+                        }
+                    }
+                })
             })
-        })
-        // the highest face of nodes of the fullest branches
-        const maxFace = Math.max(...fullestBranches.map(branch => Math.max(...branch.map(node => node.thisFace))))
-        // branches that use the highest face, or is a winner
-        const allowedBranches = fullestBranches.filter(branch =>
-            branch.find(node =>
-                node.thisFace == maxFace || node.isWinner
-            )
-        )
+        }
 
+        // final list of approved branches
+        const branches = []
+        candidateBranches.forEach(branch => {
+            const leaf = branch[branch.length - 1]
+            // Branch Filter 3 - branches must meet the final high-face/win threshold
+            if (leaf.highestFace == highestFace || leaf.isWinner) {
+                branches.push(branch)
+            }
+        })
+        
         Profiler.stop('Turn.compute.2')
+
+        // Construct the move series, end states
+        // -------------------------------------
 
         Profiler.start('Turn.compute.3')
 
         const endStatesToSeries = {}
         const allowedEndStates = []
         const allowedMoveSeries = []
-        allowedBranches.forEach(branch => {
+        // the max number of faces determine the faces allowed, though not always required.
+        var maxFaces = 0
+        var maxExample
+        branches.forEach(branch => {
 
-            const allowedMoves = branch.slice(1).map(node => node.thisMove)
+            const allowedMoves = []
+            for (var i = 1; i < branch.length; i++) {
+                allowedMoves.push(branch[i].thisMove)
+            }
             allowedMoveSeries.push(allowedMoves)
 
+            if (allowedMoves.length > maxFaces) {
+                maxFaces = allowedMoves.length
+                maxExample = allowedMoves
+            }
             const board = branch[branch.length - 1].board
             const endState = board.stateString()
             if (endStatesToSeries[endState]) {
@@ -790,17 +830,11 @@ class Turn {
             this.boardCache[endState] = board
         })
 
+        const allowedFaces = maxExample ? maxExample.map(move => move.face).sort(Util.sortNumericDesc) : []
+
         Profiler.stop('Turn.compute.3')
 
-        Profiler.start('Turn.compute.4')
-
-        const maximalAllowedFaces = Math.max(...allowedMoveSeries.map(allowedMoves => allowedMoves.length))
-
-        const allowedFaces = allowedMoveSeries.length < 1 ? [] : allowedMoveSeries.find(
-            allowedMoves => allowedMoves.length == maximalAllowedFaces
-        ).map(move => move.face).sort(Util.sortNumericDesc)
-
-        const res = {
+        return {
             allowedMoveCount : maxDepth
           , isForceMove      : allowedMoveSeries.length == 1
           , isCantMove       : maxDepth == 0
@@ -809,10 +843,6 @@ class Turn {
           , allowedEndStates
           , endStatesToSeries // move coords objects
         }
-
-        Profiler.stop('Turn.compute.4')
-
-        return res
     }
 
     // allow override for testing
@@ -1489,9 +1519,15 @@ class SequenceTree {
         const branches = []
         leaves.forEach(leaf => {
             const branch = [leaf]
+            // track the highest face in the branch, and store on leaf node
+            var highestFace = leaf.thisFace || null // NB: 1 > null, but !(1 > undefined)
             for (var node = leaf; node.parent; node = node.parent) {
                 branch.unshift(node.parent)
+                if (node.thisFace > highestFace) {
+                    highestFace = node.thisFace
+                }
             }
+            leaf.highestFace = highestFace
             branches.push(branch)
         })
         return branches
@@ -1540,6 +1576,8 @@ class BoardNode {
         this.nextFace = null
         this.nextMoves = null
         this.isWinner = null
+        // only set on leaf nodes
+        this.highestFace = null
     }
 }
 
