@@ -960,13 +960,19 @@ class Board {
         return this.bars[color].length > 0
     }
 
+    // More performant not to cache
     mayBearoff(color) {
         Profiler.start('Board.mayBearoff')
-        const isAble = !this.hasBar(color) && undefined == OutsideOrigins[color].find(i =>
-            this.slots[i].find(piece =>
-                piece.color == color
-            )
-        )
+        var isAble = !this.hasBar(color)
+        if (isAble) {
+            for (var origin of OutsideOrigins[color]) {
+                var slot = this.slots[origin]
+                if (slot[0] && slot[0].color == color) {
+                    isAble = false
+                    break
+                }
+            }
+        }
         Profiler.stop('Board.mayBearoff')
         return isAble
     }
@@ -975,12 +981,22 @@ class Board {
         return this.homes[color].length == 15
     }
 
-    hasPieceBehind(color, i) {
-        const behinds = Direction[color] == 1 ? intRange(0, i - 1) : intRange(i + 1, 23)
-        return undefined != behinds.find(i =>
-            this.slots[i].length > 0 &&
-            this.slots[i][0].color == color
-        )
+    // To check for bearing off for less than a face value
+    // No cache
+    hasPieceBehind(color, origin) {
+        if (Direction[color] == 1) {
+            var start = 0
+            var end   = origin - 1
+        } else {
+            var start = origin + 1
+            var end   = 23
+        }
+        for (var i = start; i <= end; i++) {
+            if (this.slots[i][0] && this.slots[i][0].color == color) {
+                return true
+            }
+        }
+        return false
     }
 
     setup() {
@@ -1570,7 +1586,7 @@ class BearoffMove extends Move {
         }
         // get distance to home
         const homeDistance = BearoffMove.getHomeDistance(color, origin)
-        // make sure no piece is behind
+        // make sure no piece is behind if we are taking more than the face
         if (face > homeDistance && board.hasPieceBehind(color, origin)) {
             return {class: IllegalBareoffError, message: ['cannot bear off with a piece behind']}
         }
