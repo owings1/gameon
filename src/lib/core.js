@@ -884,7 +884,6 @@ class Turn {
                 leaves.push(leaf)
             }
         })
-        // WIP --------------
 
         /*
         // final list of approved branches
@@ -904,48 +903,6 @@ class Turn {
         */
 
         Profiler.stop('Turn.compute.2')
-
-        //if (candidateBranches.length != useableBranchesCount) {
-        //    console.log({allNodesCount, useableNodesCount, allTreesCount, useableTreesCount, allBranchesCount, useableBranchesCount, candidateBranches: candidateBranches.length})
-        //    throw new Error
-        //}
-
-        //console.log({allNodesCount, useableNodesCount, allTreesCount, useableTreesCount, allBranchesCount, useableBranchesCount})
-
-        /*
-        if (leaves.length != branches.length) {
-            console.log({leaves: leaves.length, branches: branches.length})
-            throw new Error   
-        }
-        for (var i = 0; i < branches.length; i++) {
-            var leaf = leaves[i]
-            var branch = branches[i]
-            var bleaf = branch[branch.length - 1]
-            if (bleaf !== leaf) {
-                console.log('notEqual')
-                console.log(bleaf)
-                console.log(leaf)
-                throw new Error
-            }
-            var bmoves = []
-            for (var j = 1; j < branch.length; j++) {
-                bmoves.push(branch[j].thisMove)
-            }
-            if (leaf.movesMade.length != bmoves.length) {
-                console.log(leaf.movesMade.length, bmoves.length)
-                throw new Error
-            }
-            var lstr = JSON.stringify(leaf.movesMade.map(Move.coords))
-            var bstr = JSON.stringify(bmoves.map(Move.coords))
-            if (lstr != bstr) {
-                console.log(lstr)
-                console.log(bstr)
-                throw new Error
-            } else {
-                //console.log({lstr, bstr})
-            }
-        }
-        */
 
         return {leaves, maxDepth /* , branches */}
     }
