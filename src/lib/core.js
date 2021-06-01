@@ -774,6 +774,7 @@ class Turn {
 
         Profiler.stop('Turn.compute.3')
 
+        //console.log({allowedEndStates: allowedEndStates.length})
         return {
             allowedMoveCount : maxDepth
           , isForceMove      : allowedMoveSeries.length == 1
@@ -794,8 +795,10 @@ class Turn {
         const trees = []
         // the max depth, or number of faces/moves, of all the trees
         var maxDepth = 0
+        var allNodesCount = 0
         Dice.sequencesForFaces(this.faces).forEach(sequence => {
             const tree = SequenceTree.build(this.board, this.color, sequence)
+            allNodesCount += tree.nodes.length
             if (tree.depth > maxDepth) {
                 maxDepth = tree.depth
             }
@@ -843,15 +846,19 @@ class Turn {
 
         // final list of approved branches
         const branches = []
+        var useableNodesCount = 0
         candidateBranches.forEach(branch => {
             const leaf = branch[branch.length - 1]
             // Branch Filter 3 - branches must meet the final high-face/win threshold
             if (leaf.highestFace == highestFace || leaf.isWinner) {
                 branches.push(branch)
+                useableNodesCount += branch.length
             }
         })
 
         Profiler.stop('Turn.compute.2')
+
+        //console.log({allNodesCount, useableNodesCount})
 
         return {branches, maxDepth}
     }
@@ -1600,15 +1607,20 @@ class SequenceTree {
     }
 
     build() {
+
         Profiler.start('SequenceTree.build.1')
-        this.nodes = SequenceTree.buildNodes(this.board, this.color, this.sequence)
+        
+        const {nodes, maxDepth, hasWinner} = SequenceTree.buildNodes(this.board, this.color, this.sequence)
+        this.nodes = nodes
+        this.depth = maxDepth
+        this.hasWinner = hasWinner
+
         Profiler.stop('SequenceTree.build.1')
+
         Profiler.start('SequenceTree.build.2')
-        this.depth = Math.max(...this.nodes.map(node => node.depth))
+        // TODO: weird that the leaves are only at maxDepth, what about winners?
         this.leaves = this.nodes.filter(node => node.depth == this.depth)
         this.branches = SequenceTree.buildBranchesForLeaves(this.leaves)
-        this.hasWinner = undefined != this.leaves.find(node => node.isWinner)
-        //this.winningBranches = this.branches.filter(branch => branch[branch.length - 1].isWinner)
         Profiler.stop('SequenceTree.build.2')
     }
 
@@ -1638,46 +1650,69 @@ class SequenceTree {
 
     static buildNodes(board, color, sequence) {
 
-        const nodes = [new BoardNode(board, 0, null)]
+        const root = {board, depth: 0, parent: null}
+        const nodes = [root]
+        const nodesAtDepth = [[root]]
+        var hasWinner = false
+        var maxDepth = 0
 
-        const nodesAtDepth = [nodes.slice(0)]
         sequence.forEach((face, seqi) => {
+
             const depth = seqi + 1
+
             nodesAtDepth[depth] = []
-            nodesAtDepth[depth - 1].forEach(parentNode => {
-                parentNode.nextFace = face
+
+            nodesAtDepth[depth - 1].forEach(parent => {
+
+                parent.nextFace = face
+
                 Profiler.start('SequenceTree.buildNodes.1')
-                parentNode.nextMoves = parentNode.board.getPossibleMovesForFace(color, face)
+                parent.nextMoves = parent.board.getPossibleMovesForFace(color, face)
                 Profiler.stop('SequenceTree.buildNodes.1')
-                parentNode.nextMoves.forEach(move => {
+
+                parent.nextMoves.forEach(move => {
+
                     Profiler.start('SequenceTree.buildNodes.2')
                     move.board = move.board.copy()
                     Profiler.stop('SequenceTree.buildNodes.2')
+
                     Profiler.start('SequenceTree.buildNodes.3')
                     move.do()
-                    const childNode = new BoardNode(move.board, depth, parentNode)
-                    childNode.isWinner = move.board.hasWinner() && move.board.getWinner() == color
-                    childNode.thisMove = move
-                    childNode.thisFace = face
-                    parentNode.children.push(childNode)
-                    nodes.push(childNode)
-                    nodesAtDepth[depth].push(childNode)
                     Profiler.stop('SequenceTree.buildNodes.3')
+
+                    Profiler.start('SequenceTree.buildNodes.4')
+                    const child = {
+                        board: move.board
+                      , depth
+                      , parent
+                      , isWinner : move.board.getWinner() == color
+                      , thisMove : move
+                      , thisFace : face
+                    }
+                    nodes.push(child)
+                    nodesAtDepth[depth].push(child)
+                    if (child.isWinner) {
+                        hasWinner = true
+                    }
+                    if (depth > maxDepth) {
+                        maxDepth = depth
+                    }
+                    Profiler.stop('SequenceTree.buildNodes.4')
                 })
             })
         })
 
-        return nodes
+        return {nodes, hasWinner, maxDepth}
     }
 }
 
+/*
 class BoardNode {
 
     constructor(board, depth, parent) {
         this.board = board
         this.depth = depth
         this.parent = parent
-        this.children = []
         this.thisFace = null
         this.thisMove = null
         this.nextFace = null
@@ -1687,6 +1722,7 @@ class BoardNode {
         this.highestFace = null
     }
 }
+*/
 
 class Move {
 
@@ -2026,7 +2062,7 @@ module.exports = {
   , Game
   , Board
   , SequenceTree
-  , BoardNode
+//  , BoardNode
   , Piece
   , Dice
   , Turn

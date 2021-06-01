@@ -1679,26 +1679,30 @@ describe('SequenceTree', () => {
             const board = new Board
             board.slots[0] = Piece.make(5, White)
 
-            const nodes = SequenceTree.buildNodes(board, White, [1])
+            const {nodes} = SequenceTree.buildNodes(board, White, [1])
 
             expect(nodes).to.have.length(2)
 
             expect(nodes[0].board).to.equal(board)
             expect(nodes[0].depth).to.equal(0)
             expect(nodes[0].parent).to.equal(null)
-            expect(nodes[0].thisFace).to.equal(null)
-            expect(nodes[0].thisMove).to.equal(null)
+            expect(nodes[0].thisFace).to.equal(undefined)
+            //expect(nodes[0].thisFace).to.equal(null)
+            expect(nodes[0].thisMove).to.equal(undefined)
+            //expect(nodes[0].thisMove).to.equal(null)
             expect(nodes[0].nextFace).to.equal(1)
             expect(nodes[0].nextMoves).to.have.length(1)
-            expect(nodes[0].children).to.have.length(1)
+            //expect(nodes[0].children).to.have.length(1)
 
             expect(nodes[1].board).to.not.equal(board)
             expect(nodes[1].depth).to.equal(1)
             expect(nodes[1].parent).to.equal(nodes[0])
             expect(nodes[1].thisFace).to.equal(1)
-            expect(nodes[1].thisMove).to.not.equal(null)
-            expect(nodes[1].nextFace).to.equal(null)
-            expect(nodes[1].children).to.have.length(0)
+            expect(nodes[1].thisMove).to.not.equal(undefined)
+            //expect(nodes[1].thisMove).to.not.equal(null)
+            expect(nodes[1].nextFace).to.equal(undefined)
+            //expect(nodes[1].nextFace).to.equal(null)
+            //expect(nodes[1].children).to.have.length(0)
 
             const move = nodes[1].thisMove
             expect(move).to.equal(nodes[0].nextMoves[0])
