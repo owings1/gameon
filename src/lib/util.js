@@ -267,11 +267,14 @@ class Util {
     }
 }
 
+var timerSuffix = 0
+
 class Timer {
 
     // For more resolution, see https://stackoverflow.com/a/18197438/794513
 
-    constructor() {
+    constructor(name) {
+        this.name = name || 'Timer' + ++timerSuffix
         this.startTime = null
         this.isRunning = false
         this.elapsed = 0
@@ -323,7 +326,7 @@ class Profiler {
             return
         }
         if (!this.timers[name]) {
-            this.timers[name] = new Timer
+            this.timers[name] = new Timer(name)
         }
         this.timers[name].start()
     }

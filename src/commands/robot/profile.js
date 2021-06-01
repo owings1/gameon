@@ -37,6 +37,7 @@ class RobotProfileCommand extends Command {
             outDir      : this.flags.outdir
           , matchTotal  : +this.flags.matchtotal
           , numMatches  : +this.flags.nummatches
+          , sortBy      : this.flags.sortby
         }
         this.helper = this.helper || new Helper(this.opts)
     }
@@ -63,7 +64,12 @@ RobotProfileCommand.flags = {
         char        : 'n'
       , description : 'number of matches to run'
       , default     : defaults.numMatches.toString()
-  })
+    })
+  , sortby: flags.string({
+        char        : 's'
+      , description : 'sort by a column (name, elapsed, average, count, match)'
+      , default     : defaults.sortBy
+    })
 }
 
 module.exports = RobotProfileCommand
