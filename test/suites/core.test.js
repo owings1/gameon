@@ -1357,6 +1357,12 @@ describe('BoardAnalyzer', () => {
             const result = analyzer.isDisengaged()
             expect(result).to.equal(false)
         })
+
+        it('should return true for empty board', () => {
+            const {analyzer} = new Board
+            const result = analyzer.isDisengaged()
+            expect(result).to.equal(true)
+        })
     })
 
     describe('#piecesInPointRange', () => {
