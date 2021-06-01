@@ -1481,6 +1481,8 @@ describe('Move', () => {
         })
     })
 
+    /*
+    // Obsolete methods
     describe('#getDestSlot', () => {
 
         it('should return [] equal to board.slots[1] for white move 0,1', () => {
@@ -1509,6 +1511,7 @@ describe('Move', () => {
             expect(result).to.equal(board.slots[0])
         })
     })
+    */
 })
 
 describe('Piece', () => {

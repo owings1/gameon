@@ -1141,6 +1141,46 @@ class Board {
         this.analyzer.cache = {}
     }
 
+    // NB: the push*/pop* methods perform no checks, and are for use by Move instances
+    //     that have already been validated. These methods are here so that moves
+    //     can avoid directly modifying board internals (slots, homes, bars), and
+    //     so do not need to worry about calling markChange().
+    popBar(color) {
+        const piece = this.bars[color].pop()
+        this.markChange()
+        return piece
+    }
+
+    pushBar(color, piece) {
+        piece = piece || new Piece(color)
+        this.bars[color].push(piece)
+        this.markChange()
+    }
+
+    popHome(color) {
+        const piece = this.homes[color].pop()
+        this.markChange()
+        return piece
+    }
+
+    pushHome(color, piece) {
+        piece = piece || new Piece(color)
+        this.homes[color].push(piece)
+        this.markChange()
+    }
+
+    popOrigin(origin) {
+        const piece = this.slots[origin].pop()
+        this.markChange()
+        return piece
+    }
+
+    pushOrigin(origin, pieceOrColor) {
+        const piece = (pieceOrColor instanceof Piece) ? pieceOrColor : new Piece(pieceOrColor)
+        this.slots[origin].push(piece)
+        this.markChange()
+    }
+
     // Red point 1 is origin 0
     // White point 1 is origin 23
     static pointOrigin(color, point) {
@@ -1500,6 +1540,7 @@ class Move {
         return new this.constructor(board, ...this._constructArgs.slice(1))
     }
 
+    /*
     getDestSlot() {
         return this.board.slots[this.dest]
     }
@@ -1511,13 +1552,16 @@ class Move {
     getOriginSlot() {
         return this.board.slots[this.origin]
     }
+    */
 
-    // NB: implementations must call board.markChange() after modifying board internals
+    // NB: implementations should use board push/pop methods, and not directly
+    //     modify board internals.
     do() {
         throw new NotImplementedError('Not Implemented')
     }
 
-    // NB: implementations must call board.markChange() after modifying board internals
+    // NB: implementations should use board push/pop methods, and not directly
+    //     modify board internals.
     undo() {
         throw new NotImplementedError('Not Implemented')
     }
@@ -1555,23 +1599,38 @@ class ComeInMove extends Move {
 
     do() {
         if (this.isHit) {
+            this.board.pushBar(Opponent[this.color], this.board.popOrigin(this.dest))
+        }
+        this.board.pushOrigin(this.dest, this.board.popBar(this.color))
+
+        /*
+        if (this.isHit) {
             this.getOpponentBar().push(this.getDestSlot().pop())
         }
         this.getDestSlot().push(this.getBar().pop())
         this.board.markChange()
+        */
     }
 
     undo() {
+        this.board.pushBar(this.color, this.board.popOrigin(this.dest))
+        if (this.isHit) {
+            this.board.pushOrigin(this.dest, this.board.popBar(Opponent[this.color]))
+        }
+        /*
         this.getBar().push(this.getDestSlot().pop())
         if (this.isHit) {
             this.getDestSlot().push(this.getOpponentBar().pop())
         }
         this.board.markChange()
+        */
     }
 
+    /*
     getBar() {
         return this.board.bars[this.color]
     }
+    */
 
     getDestInfo(...args) {
         return this.constructor.getDestInfo(...args)
@@ -1615,18 +1674,30 @@ class RegularMove extends Move {
 
     do() {
         if (this.isHit) {
+            this.board.pushBar(Opponent[this.color], this.board.popOrigin(this.dest))
+        }
+        this.board.pushOrigin(this.dest, this.board.popOrigin(this.origin))
+        /*
+        if (this.isHit) {
             this.getOpponentBar().push(this.getDestSlot().pop())
         }
         this.getDestSlot().push(this.getOriginSlot().pop())
         this.board.markChange()
+        */
     }
 
     undo() {
+        this.board.pushOrigin(this.origin, this.board.popOrigin(this.dest))
+        if (this.isHit) {
+            this.board.pushOrigin(this.dest, this.board.popBar(Opponent[this.color]))
+        }
+        /*
         this.getOriginSlot().push(this.getDestSlot().pop())
         if (this.isHit) {
             this.getDestSlot().push(this.getOpponentBar().pop())
         }
         this.board.markChange()
+        */
     }
 
     getDestInfo(...args) {
@@ -1671,13 +1742,19 @@ class BearoffMove extends Move {
     }
 
     do() {
+        this.board.pushHome(this.color, this.board.popOrigin(this.origin))
+        /*
         this.getHome().push(this.getOriginSlot().pop())
         this.board.markChange()
+        */
     }
 
     undo() {
+        this.board.pushOrigin(this.origin, this.board.popHome(this.color))
+        /*
         this.getOriginSlot().push(this.getHome().pop())
         this.board.markChange()
+        */
     }
 
     getHome() {
@@ -1692,6 +1769,9 @@ class BearoffMove extends Move {
 class Piece {
 
     constructor(color) {
+        if (color instanceof Piece) {
+            color = color.color
+        }
         this.color = ColorNorm[color]
         this.c = ColorAbbr[this.color]
     }
