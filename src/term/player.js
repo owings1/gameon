@@ -161,11 +161,6 @@ class TermPlayer extends Base {
                     index = Object.values(index)[0].index
                 }
 
-                //turn.allowedMoveSeries[0].forEach(move => {
-                //    turn.move(move)
-                //    this.info(this.describeMove(move))
-                //})
-
                 //this.drawBoard()
                 break
             }
