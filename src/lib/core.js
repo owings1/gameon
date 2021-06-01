@@ -102,7 +102,8 @@ function populateCacheKeys(keys) {
     atomicKeys.forEach(key => keys[key] = key)
 
     const colorKeys = [
-        'maxOriginOccupied'
+        'blotOrigins'
+      , 'maxOriginOccupied'
       , 'mayBearoff'
       , 'minOriginOccupied'
       , 'originsHeld'
@@ -578,32 +579,34 @@ class Turn {
         const movesMap = {}
         const thisMovesStr = this.moves.map(Move.hash).join('|')
 
-        this.allowedMoveSeries.forEach(allowedMoves => {
+        for (var i = 0, ilen = this.allowedMoveSeries.length; i < ilen; ++i) {
+
+            var allowedMoves = this.allowedMoveSeries[i]
 
             // skip fast if there is no next move in the series
-            const move = allowedMoves[this.moves.length]
+            var move = allowedMoves[this.moves.length]
             if (!move) {
-                return
+                continue
             }
 
             // skip fast if we already processed this move
-            const hash = Move.hash(move)
+            var hash = Move.hash(move)
             if (movesMap[hash]) {
-                return
+                continue
             }
 
             // compare the beginning of the series to this.moves
             // TODO: more performant comparison
-            const movesSlice = allowedMoves.slice(0, this.moves.length)
-            const movesSliceStr = movesSlice.map(Move.hash).join('|')
-            const isEqual = movesSliceStr == thisMovesStr
+            var movesSlice = allowedMoves.slice(0, this.moves.length)
+            var movesSliceStr = movesSlice.map(Move.hash).join('|')
+            var isEqual = movesSliceStr == thisMovesStr
             if (!isEqual) {
-                return
+                continue
             }
 
             movesMap[hash] = true
             moves.push(move)
-        })
+        }
 
         Profiler.stop('Turn.getNextAvailableMoves')
 
@@ -611,6 +614,7 @@ class Turn {
     }
 
     move(origin, face) {
+        Profiler.start('Turn.move')
         if (typeof(origin) == 'object') {
             // allow a move or coords to be passed
             face = origin.face
@@ -632,6 +636,7 @@ class Turn {
         this.moves.push(move)
         const faceIdx = this.remainingFaces.indexOf(face)
         this.remainingFaces.splice(faceIdx, 1)
+        Profiler.stop('Turn.move')
         return move
     }
 
@@ -722,138 +727,139 @@ class Turn {
     }
 
     _compute() {
+
         Profiler.start('Turn.compute')
-        const result = this._computeAllowedMovesResult()
-        for (var k in result) {
-            this[k] = result[k]
-        }
+
+        Profiler.start('Turn.compute.1')
+        const {maxDepth, trees} = this._computeTrees()
+        Profiler.stop('Turn.compute.1')
+
+        Profiler.start('Turn.compute.2')
+        const leaves = this._computeLeaves(trees, maxDepth)
+        Profiler.stop('Turn.compute.2')
+
+        Profiler.start('Turn.compute.3')
+        const result = this._computeMoves(leaves)
+        Profiler.stop('Turn.compute.3')
+
+        this.allowedMoveSeries = result.allowedMoveSeries
+        this.allowedFaces      = result.allowedFaces
+        this.allowedEndStates  = result.allowedEndStates
+        this.endStatesToSeries = result.endStatesToSeries
+
+        this.allowedMoveCount = maxDepth
+        this.isCantMove       = maxDepth == 0
+        this.isForceMove      = result.allowedMoveSeries.length == 1
+
         Profiler.stop('Turn.compute')
     }
 
-    _computeAllowedMovesResult() {
+    // Construct the move series, end states
+    _computeMoves(leaves) {
 
-        const {maxDepth, leaves} = this._computeAllowedBranches()
-
-        // Construct the move series, end states
-        // -------------------------------------
-
-        Profiler.start('Turn.compute.3')
-
-        const endStatesToSeries = {}
-        const allowedEndStates = []
+        // Move objects
         const allowedMoveSeries = []
+        // State strings
+        const allowedEndStates  = []
+        // Map of stateString to move coords
+        const endStatesToSeries = {}
+
         // the max number of faces determine the faces allowed, though not always required.
         var maxFaces = 0
         var maxExample
 
-        leaves.forEach(leaf => {
-            
-            const allowedMoves = leaf.movesMade
-            allowedMoveSeries.push(allowedMoves)
+        for (var i = 0, ilen = leaves.length; i < ilen; ++i) {
 
-            if (allowedMoves.length > maxFaces) {
-                maxFaces = allowedMoves.length
-                maxExample = allowedMoves
+            var leaf = leaves[i]
+
+            var {board, movesMade} = leaf
+            allowedMoveSeries.push(movesMade)
+
+            if (movesMade.length > maxFaces) {
+                maxFaces = movesMade.length
+                maxExample = movesMade
             }
-            const board = leaf.board
 
-            const endState = board.stateString()
+            var endState = board.stateString()
             if (endStatesToSeries[endState]) {
                 // de-dupe
-                return
+                continue
             }
 
             allowedEndStates.push(endState)
-            endStatesToSeries[endState] = allowedMoves.map(Move.coords)
+            endStatesToSeries[endState] = movesMade.map(Move.coords)
             // populate board cache
             this.boardCache[endState] = board
-        })
+        }
 
         const allowedFaces = maxExample ? maxExample.map(move => move.face).sort(Util.sortNumericDesc) : []
 
-        Profiler.stop('Turn.compute.3')
-
-        return {
-            allowedMoveCount : maxDepth
-          , isForceMove      : allowedMoveSeries.length == 1
-          , isCantMove       : maxDepth == 0
-          , allowedMoveSeries // constructed Move objects
-          , allowedFaces
-          , allowedEndStates
-          , endStatesToSeries // move coords objects
-        }
+        return {allowedMoveSeries, allowedFaces, allowedEndStates, endStatesToSeries}
     }
 
-    _computeAllowedBranches() {
-        // Build the sequence trees
-        // ------------------------
-
-        Profiler.start('Turn.compute.1')
+    // Build the sequence trees
+    _computeTrees() {
 
         const trees = []
         // the max depth, or number of faces/moves, of all the trees
         var maxDepth = 0
 
-        Dice.sequencesForFaces(this.faces).forEach(sequence => {
-            const tree = SequenceTree.build(this.board, this.color, sequence)
+        const sequences = Dice.sequencesForFaces(this.faces)
+        for (var i = 0, ilen = sequences.length; i < ilen; ++i) {
+            var sequence = sequences[i]
+            var tree = SequenceTree.build(this.board, this.color, sequence)
             if (tree.depth > maxDepth) {
                 maxDepth = tree.depth
             }
-            // Tree Filter 1 - trees must meet the in-progress depth/win threshold
-            if (tree.depth >= maxDepth || tree.hasWinner) {
-                trees.push(tree)
-            }
-        })
+            trees.push(tree)
+        }
 
-        Profiler.stop('Turn.compute.1')
+        return {trees, maxDepth}
+    }
 
-        // Filter the branches
-        // -------------------
-
-        Profiler.start('Turn.compute.2')
+    // Filter the trees and leaves
+    _computeLeaves(trees, maxDepth) {
 
         // the "most number of faces" rule has an exception when bearing off the last piece.
         // see test case RedBearoff51
 
-        // leaves that use the most number of faces, or are winners
+        // leaves that meet the depth/win threshold, or are winners
         const candidateLeaves = []
         // the highest die face used by any of the branch candidates
         var highestFace = -Infinity
         
         if (maxDepth > 0) {
-            trees.forEach(tree => {
-                // Tree Filter 2 - trees must meet the final depth/win threshold
+            for (var i = 0, ilen = trees.length; i < ilen; ++i) {
+                var tree = trees[i]
+                // Tree Filter - trees must meet the depth/win threshold
                 if (tree.depth < maxDepth && !tree.hasWinner) {
-                    return
+                    continue
                 }
 
-                tree.leaves.forEach(leaf => {
+                for (var j = 0, jlen = tree.leaves.length; j < jlen; ++j) {
+                    var leaf = tree.leaves[j]
                     // Node Filter 1 - leaves must meet the depth/win threshold
                     if (leaf.depth == maxDepth || leaf.isWinner) {
                         if (leaf.highestFace > highestFace) {
                             highestFace = leaf.highestFace
                         }
-                        // Node Filter 2 - leaves must meet the in-progress high-face/win threshold
-                        if (leaf.highestFace >= highestFace || leaf.isWinner) {
-                            candidateLeaves.push(leaf)
-                        }
+                        candidateLeaves.push(leaf)
                     }
-                })
-            })
+                }
+            }
         }
 
-        // final list of approved leaves
+        // leaves that use the most and highest faces, or are winners
         const leaves = []
-        candidateLeaves.forEach(leaf => {
-            // Node Filter 3 - leaves must meet the final high-face/win threshold
+        for (var i = 0, ilen = candidateLeaves.length; i < ilen; ++i) {
+            var leaf = candidateLeaves[i]
+            // Node Filter 2 - leaves must meet the final high-face/win threshold
             if (leaf.highestFace == highestFace || leaf.isWinner) {
                 leaves.push(leaf)
             }
-        })
+        }
 
-        Profiler.stop('Turn.compute.2')
-
-        return {leaves, maxDepth}
+        return leaves
     }
 
     // allow override for testing
@@ -913,13 +919,15 @@ class Board {
                     var maxOriginOccupied = this.maxOriginOccupied(color)
                 }
             }
-            
-            const len = origins.length
-            for (var i = 0; i < len; i++) {
+
+            for (var i = 0, ilen = origins.length; i < ilen; ++i) {
+
                 var origin = origins[i]
+
                 // Apply quick filters for performance
-                var dest = origin + face * Direction[color]
+
                 // filter opponent points held
+                var dest = origin + face * Direction[color]
                 if (unavailable[dest]) {
                     continue
                 }
@@ -1056,7 +1064,7 @@ class Board {
             var maxOrigin = -Infinity
             const minKey = CacheKeys.minOriginOccupied[color]
             const maxKey = CacheKeys.maxOriginOccupied[color]
-            for (var i = 0; i < 24; i++) {
+            for (var i = 0; i < 24; ++i) {
                 if (this.slots[i][0] && this.slots[i][0].color == color) {
                     origins.push(i)
                     if (i < minOrigin) {
@@ -1069,6 +1077,22 @@ class Board {
             this.cache[key] = origins
             this.cache[minKey] = minOrigin
             this.cache[maxKey] = maxOrigin
+        }
+        return this.cache[key]
+    }
+
+    blotOrigins(color) {
+        const key = CacheKeys.blotOrigins[color]
+        if (!this.cache[key]) {
+            const origins = this.originsOccupied(color)
+            const blotOrigins = []
+            for (var i = 0, ilen = origins.length; i < ilen; ++i) {
+                var origin = origins[i]
+                if (this.slots[origin].length == 1) {
+                    blotOrigins.push(origin)
+                }
+            }
+            this.cache[key] = blotOrigins
         }
         return this.cache[key]
     }
@@ -1153,7 +1177,7 @@ class Board {
             var start = origin + 1
             var end   = 23
         }
-        for (var i = start; i <= end; i++) {
+        for (var i = start; i <= end; ++i) {
             if (this.slots[i][0] && this.slots[i][0].color == color) {
                 return true
             }
@@ -1189,7 +1213,7 @@ class Board {
           , Red   : Piece.make(locs[1], Red)
         }
         this.slots = []
-        for (var i = 0; i < 24; i++) {
+        for (var i = 0; i < 24; ++i) {
             this.slots[i] = Piece.make(...locs[i + 2].split(':'))
         }
         this.homes = {
@@ -1205,7 +1229,7 @@ class Board {
         if (!this.cache[key]) {
             // <White bar count>|<Red bar count>|<slot count>:<Red/White/empty>|...|<White home count>|<Red home count>
             var str = this.bars.White.length + '|' + this.bars.Red.length + '|'
-            for (var i = 0; i < 24; i++) {
+            for (var i = 0; i < 24; ++i) {
                 var slot = this.slots[i]
                 str += slot.length + ':' + (slot.length ? slot[0].color : '') + '|'
             }
@@ -1232,7 +1256,7 @@ class Board {
           , Red   : Piece.make(Math.abs(structure[1]), Red)
         }
         this.slots = []
-        for (var i = 0; i < 24; i++) {
+        for (var i = 0; i < 24; ++i) {
             this.slots[i] = Piece.make(Math.abs(structure[i + 2]), structure[i + 2] < 0 ? Red : White)
         }
         this.homes = {
@@ -1349,7 +1373,7 @@ class BoardAnalyzer {
             //Profiler.start('BoardAnalyzer.pointsOccupied.1')
             const points = []
             const origins = this.board.originsOccupied(color)
-            for (var i = 0; i < origins.length; i++) {
+            for (var i = 0, ilen = origins.length; i < ilen; ++i) {
                 // create pre-sorted
                 if (color == Red) {
                     // Origin 0 is Red point 1
@@ -1373,7 +1397,7 @@ class BoardAnalyzer {
         const key = CacheKeys.originsHeld[color]
         if (!this.cache[key]) {
             const origins = []
-            for (var i = 0; i < 24; i++) {
+            for (var i = 0; i < 24; ++i) {
                 var slot = this.board.slots[i]
                 if (slot.length > 1 && slot[0].color == color) {
                     origins.push(i)
@@ -1391,7 +1415,7 @@ class BoardAnalyzer {
         if (!this.cache[key]) {
             const origins = this.originsHeld(color)
             const originsMap = {}
-            for (var i = 0; i < origins.length; i++) {
+            for (var i = 0, ilen = origins.length; i < ilen; ++i) {
                 originsMap[origins[i]] = true
             }
             this.cache[key] = originsMap
@@ -1406,7 +1430,7 @@ class BoardAnalyzer {
         if (!this.cache[key]) {
             const points = []
             const origins = this.originsHeld(color)
-            for (var i = 0; i < origins.length; i++) {
+            for (var i = 0, ilen = origins.length; i < ilen; ++i) {
                 // create pre-sorted
                 if (color == Red) {
                     // Origin 0 is Red point 1
@@ -1436,7 +1460,7 @@ class BoardAnalyzer {
         if (!(key in this.cache)) {
             var count = this.board.bars[color].length * 25
             const points = this.pointsOccupied(color)
-            for (var i = 0; i < points.length; i++) {
+            for (var i = 0, ilen = points.length; i < ilen; ++i) {
                 count += this.piecesOnPoint(color, points[i]) * points[i]
             }
             this.cache[key] = count
@@ -1459,25 +1483,20 @@ class BoardAnalyzer {
         try {
             const blots = []
 
-            const blotOrigins = []
-            for (var i = 0; i < 24; i++) {
-                if (this.board.piecesOnOrigin(color, i) == 1) {
-                    blotOrigins.push(i)
-                }
-            }
+            const blotOrigins = this.board.blotOrigins(color)
 
             if (blotOrigins.length == 0) {
                 return blots
             }
 
             const opponentOrigins = this.board.originsOccupied(Opponent[color])
-            // the opponent points are relative to this color, not the opponent's color
-            const opponentPoints = opponentOrigins.map(i => OriginPoints[color][i])
             const opponentHasBar = this.board.bars[Opponent[color]].length > 0
 
-            blotOrigins.forEach(origin => {
+            for (var i = 0, ilen = blotOrigins.length; i < ilen; ++i) {
 
-                const point = OriginPoints[color][origin]
+                var origin = blotOrigins[i]
+
+                var point = OriginPoints[color][origin]
 
                 // Not currently used
                 //const attackerPoints = []
@@ -1486,12 +1505,17 @@ class BoardAnalyzer {
                 var minDistance = Infinity
                 var directCount = 0
                 var indirectCount = 0
-                for (var i = 0; i < opponentPoints.length; i++) {
-                    var p = opponentPoints[i]
+
+                // TODO: can we avoid a loop within a loop?
+                for (var j = 0, jlen = opponentOrigins.length; j < jlen; ++j) {
+
+                    // the opponent point is relative to this color, not the opponent's color
+                    var p = OriginPoints[color][opponentOrigins[j]]
+
                     if (p < point) {
-                        //attackerPoints.push(p)
+
                         var distance = point - p
-                        //attackerDistances.push(distance)
+
                         if (distance < minDistance) {
                             minDistance = distance
                         }
@@ -1501,11 +1525,14 @@ class BoardAnalyzer {
                         if (distance > 6 && distance < 12) {
                             indirectCount += 1
                         }
+
+                        //attackerPoints.push(p)
+                        //attackerDistances.push(distance)
                     }
                 }
 
                 if (opponentHasBar) {
-                    //attackerDistances.push(point)
+
                     if (point < minDistance) {
                         minDistance = point
                     }
@@ -1515,6 +1542,7 @@ class BoardAnalyzer {
                     if (point > 6 && point < 12) {
                         indirectCount += 1
                     }
+                    //attackerDistances.push(point)
                 }
 
                 // TODO: risk factor?
@@ -1529,9 +1557,10 @@ class BoardAnalyzer {
                   //, attackerPoints
                   //, opponentHasBar
                 })
-            })
+            }
 
             return blots
+
         } finally {
             Profiler.stop('BoardAnalyzer.blots')
         }
@@ -1629,13 +1658,16 @@ class SequenceTree {
         var lastNodes = [root]
         var leaves = lastNodes
 
-        sequence.forEach((face, seqi) => {
+        for (var i = 0, ilen = sequence.length; i < ilen; ++i) {
 
-            const depth = seqi + 1
+            var face = sequence[i]
+            var depth = i + 1
 
-            const nextNodes = []
+            var nextNodes = []
 
-            lastNodes.forEach(parent => {
+            for (var j = 0, jlen = lastNodes.length; j < jlen; ++j) {
+
+                var parent = lastNodes[j]
 
                 parent.nextFace = face
 
@@ -1643,7 +1675,9 @@ class SequenceTree {
                 parent.nextMoves = parent.board.getPossibleMovesForFace(color, face)
                 Profiler.stop('SequenceTree.buildNodes.1')
 
-                parent.nextMoves.forEach(move => {
+                for (var k = 0, klen = parent.nextMoves.length; k < klen; ++k) {
+
+                    var move = parent.nextMoves[k]
 
                     Profiler.start('SequenceTree.buildNodes.2')
                     move.board = move.board.copy()
@@ -1654,7 +1688,7 @@ class SequenceTree {
                     Profiler.stop('SequenceTree.buildNodes.3')
 
                     Profiler.start('SequenceTree.buildNodes.4')
-                    const child = {
+                    var child = {
                         board       : move.board
                       , depth
                       , parent
@@ -1680,11 +1714,11 @@ class SequenceTree {
                         leaves = nextNodes
                     }
                     Profiler.stop('SequenceTree.buildNodes.4')
-                })
-            })
+                }
+            }
 
             lastNodes = nextNodes
-        })
+        }
 
         return {hasWinner, maxDepth, leaves, nodeCount}
     }
