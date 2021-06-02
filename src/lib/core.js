@@ -732,25 +732,31 @@ class Turn {
 
         Profiler.start('Turn.compute')
 
-        Profiler.start('Turn.compute.1')
-        const {maxDepth, trees, trees2, highestFace} = this._computeTrees()
-        Profiler.stop('Turn.compute.1')
+        Profiler.start('Turn.compute.d1')
+        const {maxDepth, trees, highestFace} = this._computeTreesDepth()
+        Profiler.stop('Turn.compute.d1')
 
-        Profiler.start('Turn.compute.2')
-        const leaves = this._computeLeaves(trees, maxDepth)
-        Profiler.stop('Turn.compute.2')
+        Profiler.start('Turn.compute.d2')
+        const result = this._computeMovesDepth(trees, maxDepth, highestFace)
+        Profiler.stop('Turn.compute.d2')
 
-        Profiler.start('Turn.compute.3')
-        const result = this._computeMoves(leaves)
-        Profiler.stop('Turn.compute.3')
+        /*
+        Profiler.start('Turn.compute.b1')
+        const {maxDepth, trees} = this._computeTreesBreadth()
+        Profiler.stop('Turn.compute.b1')
 
-        Profiler.start('Turn.compute.4')
-        const result2 = this._computeMoves2(trees2, maxDepth, highestFace)
-        Profiler.stop('Turn.compute.4')
+        Profiler.start('Turn.compute.b2')
+        const leaves = this._computeLeavesBreadth(trees, maxDepth)
+        Profiler.stop('Turn.compute.b2')
+
+        Profiler.start('Turn.compute.b3')
+        const result = this._computeMovesBreadth(leaves)
+        Profiler.stop('Turn.compute.b3')
+        */
 
         this.allowedFaces      = result.allowedFaces
         this.allowedEndStates  = result.allowedEndStates
-        this.allowedMoveIndex  = result2.allowedMoveIndex
+        this.allowedMoveIndex  = result.allowedMoveIndex
         this.endStatesToSeries = result.endStatesToSeries
 
         //if (this.startState == '0|0|2:White|0:|0:|0:|0:|5:Red|0:|3:Red|0:|0:|0:|5:White|5:Red|0:|0:|0:|3:White|0:|5:White|0:|0:|0:|0:|2:Red|0|0') {
@@ -765,16 +771,12 @@ class Turn {
         //console.log(result2.allowedMoveIndex)
         this.allowedMoveCount = maxDepth
         this.isCantMove       = maxDepth == 0
-        this.isForceMove      = leaves.length == 1
+        this.isForceMove      = this.allowedEndStates.length == 1//leaves.length == 1
         
         Profiler.stop('Turn.compute')
     }
 
-    _storeCheck(store, maxDepth, highestFace) {
-        return 
-    }
-
-    _computeMoves2(trees, maxDepth, highestFace) {
+    _computeMovesDepth(trees, maxDepth, highestFace) {
         
         // State strings
         const allowedEndStates  = []
@@ -791,8 +793,6 @@ class Turn {
                 var store = index[hashes[i]]
                 if (!storeCheck(store)) {
                     Profiler.inc('discardStore')
-                    //console.log(store)
-                    //console.log('deleting', hashes[i])
                     delete index[hashes[i]]
                 } else {
                     pruneRecursive(store.index)
@@ -801,19 +801,67 @@ class Turn {
         }
 
         // the max number of faces determine the faces allowed, though not always required.
-        var maxFaces = 0
         var maxExample
 
-        for (var i = 0, ilen = trees.length; i < ilen; ++i) {
+        for (var i = 0, ilen = trees.length; i < ilen && maxDepth > 0; ++i) {
+
             var tree = trees[i]
             if (!storeCheck(tree)) {
                 Profiler.inc('discardTree')
                 continue
             }
+
             pruneRecursive(tree.index)
+
             for (var hash in tree.index) {
                 allowedMoveIndex[hash] = tree.index[hash]
-            }       
+            }
+
+            var leaves = tree.depthIndex[maxDepth]
+            if (leaves) {
+                for (var j = 0, jlen = leaves.length; j < jlen; ++j) {
+                    var store = leaves[j]
+                    if (!storeCheck(store)) {
+                        Profiler.inc('discardStore')
+                        continue
+                    }
+                    var {board} = store.move
+                    var endState = board.stateString()
+                    if (endStatesToSeries[endState]) {
+                        // de-dupe
+                        Profiler.inc('discardStore')
+                        continue
+                    }
+                    endStatesToSeries[endState] = store.moveSeries
+                    allowedEndStates.push(endState)
+                    if (!maxExample) {
+                        maxExample = store.moveSeries
+                    }
+                    // populate board cache
+                    this.boardCache[endState] = board
+                }
+            }
+
+            var winners = tree.winners
+            for (var j = 0, jlen = winners.length; j < jlen; ++j) {
+                var store = winners[j]
+                if (store.depth == maxDepth) {
+                    // already covered in leaves
+                    Profiler.inc('discardStore')
+                    continue
+                }
+                var {board} = store.move
+                var endState = board.stateString()
+                if (endStatesToSeries[endState]) {
+                    // de-dupe
+                    Profiler.inc('discardStore')
+                    continue
+                }
+                endStatesToSeries[endState] = store.moveSeries
+                allowedEndStates.push(endState)
+                // populate board cache
+                this.boardCache[endState] = board
+            }
         }
 
         const allowedFaces = maxExample ? maxExample.map(move => move.face).sort(Util.sortNumericDesc) : []
@@ -821,8 +869,32 @@ class Turn {
         return {allowedFaces, allowedEndStates, allowedMoveIndex, endStatesToSeries}
     }
 
+    // Build the sequence trees
+    _computeTreesDepth() {
+
+        const trees = []
+        // the max depth, or number of faces/moves, of all the trees
+        var maxDepth = 0
+
+        var highestFace = 0
+        const sequences = Dice.sequencesForFaces(this.faces)
+        for (var i = 0, ilen = sequences.length; i < ilen; ++i) {
+            var sequence = sequences[i]
+            var tree = SequenceTree.buildDepth(this.board, this.color, sequence)
+            if (tree.maxDepth > maxDepth) {
+                maxDepth = tree.maxDepth
+            }
+            if (tree.highestFace > highestFace) {
+                highestFace = tree.highestFace
+            }
+            trees.push(tree)
+        }
+
+        return {trees, maxDepth, highestFace}
+    }
+
     // Construct the move series, end states
-    _computeMoves(leaves) {
+    _computeMovesBreadth(leaves) {
 
         // State strings
         const allowedEndStates  = []
@@ -884,43 +956,27 @@ class Turn {
     }
 
     // Build the sequence trees
-    _computeTrees() {
+    _computeTreesBreadth() {
 
         const trees = []
-        const trees2 = []
         // the max depth, or number of faces/moves, of all the trees
         var maxDepth = 0
-        var maxDepth2 = 0
 
-        var highestFace = 0
         const sequences = Dice.sequencesForFaces(this.faces)
         for (var i = 0, ilen = sequences.length; i < ilen; ++i) {
             var sequence = sequences[i]
-            var tree = SequenceTree.build(this.board, this.color, sequence)
+            var tree = SequenceTree.buildBreadth(this.board, this.color, sequence)
             if (tree.maxDepth > maxDepth) {
                 maxDepth = tree.maxDepth
             }
             trees.push(tree)
-            var tree2 = SequenceTree.build2(this.board, this.color, sequence)
-            if (tree2.maxDepth > maxDepth2) {
-                maxDepth2 = tree2.maxDepth
-            }
-            if (tree2.highestFace > highestFace) {
-                highestFace = tree2.highestFace
-            }
-            trees2.push(tree2)
         }
 
-        // sanity check
-        if (maxDepth != maxDepth2) {
-            throw new Error('maxDepths do not match')
-        }
-
-        return {trees, trees2, maxDepth, highestFace}
+        return {trees, maxDepth}
     }
 
     // Filter the trees and leaves
-    _computeLeaves(trees, maxDepth) {
+    _computeLeavesBreadth(trees, maxDepth) {
 
         // the "most number of faces" rule has an exception when bearing off the last piece.
         // see test case RedBearoff51
@@ -1732,36 +1788,35 @@ class SequenceTree {
         this.nodeCount = 0
     }
 
-    build() {
+    buildBreadth() {
 
-        Profiler.start('SequenceTree.build')
+        Profiler.start('SequenceTree.buildBreadth')
 
-        const result = this._buildNodes()
+        const result = this._buildBreadth()
         this.maxDepth  = result.maxDepth
         this.hasWinner = result.hasWinner
         this.leaves    = result.leaves
-        this.nodeCount = result.nodeCount        
+        this.nodeCount = result.nodeCount
 
-        Profiler.stop('SequenceTree.build')
+        Profiler.stop('SequenceTree.buildBreadth')
     }
 
-    build2() {
-        Profiler.start('SequenceTree.newBuild')
+    buildDepth() {
+        Profiler.start('SequenceTree.buildDepth')
         this.hasWinner = false
         this.depth = 0
         this.maxDepth = 0
         this.highestFace = 0
         this.index = {}
         this.depthIndex = {}
-        this._build2(this.board, this.sequence, this.index)
-        Profiler.stop('SequenceTree.newBuild')
+        this.winners = []
+        this._buildDepth(this.board, this.sequence, this.index)
+        Profiler.stop('SequenceTree.buildDepth')
     }
 
     // try to build depth first
     // recursion should be ok, since the max stack would be 4
-    _build2(board, faces, index, parentStore, depth = 0) {
-        
-        Profiler.inc('SequenceTree._build2')
+    _buildDepth(board, faces, index, parentStore, depth = 0) {
 
         if (!faces.length) {
             // sanity - this shouldn't happen
@@ -1773,6 +1828,7 @@ class SequenceTree {
             this.hasWinner = true
             if (parentStore) {
                 parentStore.setWinner()
+                this.winners.push(parentStore)
             }
             return true
         }
@@ -1841,7 +1897,7 @@ class SequenceTree {
             }
 
             // recurse
-            this._build2(move.board, nextFaces, store.index, store, depth)
+            this._buildDepth(move.board, nextFaces, store.index, store, depth)
         }
     }
 
@@ -1900,7 +1956,7 @@ class SequenceTree {
         return store
     }
 
-    _buildNodes() {
+    _buildBreadth() {
 
         const root = {board: this.board, depth: 0, parent: null, movesMade: [], highestFace: -Infinity}
         Profiler.inc('createNode')
@@ -1978,15 +2034,15 @@ class SequenceTree {
         return {hasWinner, maxDepth, leaves, nodeCount}
     }
 
-    static build(board, color, sequence) {
+    static buildBreadth(board, color, sequence) {
         const tree = new SequenceTree(board, color, sequence)
-        tree.build()
+        tree.buildBreadth()
         return tree
     }
 
-    static build2(board, color, sequence) {
+    static buildDepth(board, color, sequence) {
         const tree = new SequenceTree(board, color, sequence)
-        tree.build2()
+        tree.buildDepth()
         return tree
     }
 }

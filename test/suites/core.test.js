@@ -1676,11 +1676,11 @@ describe('Dice', () => {
 describe('SequenceTree', () => {
 
     describe('#build2', () => {
-        it('build2 playground', () => {
+        it.skip('build2 playground', () => {
 
             var board = Board.fromStateString(States.WhiteCornerCase26)
             var tree = new SequenceTree(board, White, [2, 6])
-            tree.build2()
+            tree.buildDepth()
 
             //console.log(JSON.stringify(tree.index, null, 2))
 
@@ -1688,7 +1688,7 @@ describe('SequenceTree', () => {
 
             var board = Board.setup()
             var tree = new SequenceTree(board, White, [6, 5, 3, 1])
-            tree.build2()
+            tree.buildDepth()
 
             //console.log(JSON.stringify(tree.index['11:6'], null, 2))
 
@@ -1709,9 +1709,9 @@ describe('SequenceTree', () => {
             var board = Board.fromStateString(States.WhiteCornerCase26)
             var tree = new SequenceTree(board, White, [2, 6])
 
-            tree.build2()
+            tree.buildDepth()
 
-            console.log(JSON.stringify(tree.index, null, 2))
+            //console.log(JSON.stringify(tree.index, null, 2))
         })
     })
     describe('#buildNodes', () => {
@@ -1761,7 +1761,7 @@ describe('SequenceTree', () => {
 
         it('should have node with winner for 2,1 from EitherOneMoveWin', () => {
             const board = Board.fromStateString(States.EitherOneMoveWin)
-            const tree = SequenceTree.build(board, White, [2, 1])
+            const tree = SequenceTree.buildBreadth(board, White, [2, 1])
             expect(tree.hasWinner).to.equal(true)
             expect(tree.leaves[0].isWinner).to.equal(true)
         })
@@ -1772,7 +1772,7 @@ describe('SequenceTree', () => {
         it.skip('should return one branch for regular move from i:0 to i:1 for sparse board with sequence [5]', () => {
             const board = new Board
             board.slots[4] = Piece.make(4, White)
-            const tree = SequenceTree.build(board, White, [5])
+            const tree = SequenceTree.buildBreadth(board, White, [5])
             expect(tree.branches).to.have.length(1)
         })
 
@@ -1782,7 +1782,7 @@ describe('SequenceTree', () => {
             board.setup()
             board.bars.White.push(board.slots[0].pop())
 
-            const tree = SequenceTree.build(board, White, [6, 6, 6, 6])
+            const tree = SequenceTree.buildBreadth(board, White, [6, 6, 6, 6])
 
             expect(tree.maxDepth).to.equal(0)
         })
@@ -1791,7 +1791,7 @@ describe('SequenceTree', () => {
 
             const board = Board.setup()
 
-            const tree = SequenceTree.build(board, Red, [3, 1])
+            const tree = SequenceTree.buildBreadth(board, Red, [3, 1])
 
             expect(tree.maxDepth).to.equal(2)
         })
@@ -1803,7 +1803,7 @@ describe('SequenceTree', () => {
             boardExp.move(Red, 7, 3)
             const exp = boardExp.stateString()
             
-            const tree = SequenceTree.build(Board.setup(), Red, [1, 3])
+            const tree = SequenceTree.buildBreadth(Board.setup(), Red, [1, 3])
 
             const leafStates = tree.leaves.map(node => node.board.stateString())
 
