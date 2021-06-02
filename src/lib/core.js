@@ -780,7 +780,7 @@ class Turn {
         const seriesFlagKeys = {}
 
         const pruneRecursive = index => {
-            const hashes = Object.keys(index)
+            const hashes = Object.keys(index) // copy for modifying in place
             for (var i = 0, ilen = hashes.length; i < ilen; ++i) {
                 var store = index[hashes[i]]
                 if (!storeCheck(store)) {
@@ -820,33 +820,31 @@ class Turn {
                     var store = leaves[j]
                     var {board} = store.move
 
-                    if (store.flagKey && seriesFlagKeys[store.flagKey]) {
-                        Profiler.inc('store.discard')
-                        Profiler.inc('store.discard.leaf.flagKey')
-                        continue
-                    }
-                    if (store.flagKey) {
-                        Profiler.inc('store.keep.leaf.flagKey')
+                    var flagKey = store.flagKey()
+
+                    if (flagKey) {
+                        Profiler.inc('store.check.flagKey')
+                        if (seriesFlagKeys[flagKey]) {
+                            Profiler.inc('store.discard.leaf')
+                            Profiler.inc('store.discard.leaf.flagKey')
+                            continue
+                        }
                     }
 
-                    var isMiss = !board.cache.stateString
+                    Profiler.inc('store.check.endState')
+
                     var endState = board.stateString()
 
                     if (endStatesToSeries[endState]) {
 
-                        Profiler.inc('store.discard')
+                        Profiler.inc('store.discard.leaf')
                         Profiler.inc('store.discard.leaf.endState')
-                        //if (isMiss) {
-                        //    Profiler.inc('store.discard.leaf.endState.cache.miss')
-                        //} else {
-                        //    Profiler.inc('store.discard.leaf.endState.cache.hit')
-                        //}
 
                         continue
                     }
 
                     // only about 25% of leaves are kept
-                    Profiler.inc('store.keep.leaf.endState')
+                    Profiler.inc('store.keep.leaf')
 
                     endStatesToSeries[endState] = store.moveSeries()
                     allowedEndStates.push(endState)
@@ -855,8 +853,8 @@ class Turn {
                         maxExample = endStatesToSeries[endState]
                     }
 
-                    if (store.flagKey) {
-                        seriesFlagKeys[store.flagKey] = endState
+                    if (flagKey) {
+                        seriesFlagKeys[flagKey] = endState
                     }
                     // populate board cache
                     this.boardCache[endState] = board
@@ -1943,7 +1941,6 @@ class SequenceTree {
 
         var highestFace = face
         var moveSeriesFlag = move.flag
-        var flagKey = null
 
         if (parentStore) {
             if (parentStore.moveSeriesFlag != moveSeriesFlag) {
@@ -1955,46 +1952,7 @@ class SequenceTree {
             }
         }
 
-        if (depth == this.sequence.length) {
-
-            if (moveSeriesFlag > -1) {
-
-                if (moveSeriesFlag == 8) {
-
-                    Profiler.start('SequenceTree.newStore.flagKey')
-
-                    if (depth == 4) {
-                        const flagOrigins = [move.origin]
-                        for (var parent = parentStore; parent; parent = parent.parent()) {
-                            flagOrigins.push(parent.move.origin)
-                        }
-                        flagOrigins.sort(Util.sortNumericAsc)
-                        flagKey = moveSeriesFlag + '/' + depth + '-'
-                        for (var i = 0, ilen = flagOrigins.length; i < ilen; ++i) {
-                            if (i > 0) {
-                                flagKey += ','
-                            }
-                            flagKey += flagOrigins[i]
-                        }
-                    } else {
-                        // skeptical whether it's worth it to do more
-                        /*
-                        const flagHashes = [move.hash, parentStore.move.hash]
-                        flagHashes.sort()
-                        flagKey = moveSeriesFlag + '/' + depth + '-'
-                        for (var i = 0, ilen = flagHashes.length; i < ilen; ++i) {
-                            if (i > 0) {
-                                flagKey += ','
-                            }
-                            flagKey += flagHashes[i]
-                        }
-                        */
-                    }
-
-                    Profiler.stop('SequenceTree.newStore.flagKey')
-                }
-            }
-        }
+        var flagKey = undefined
 
         const store = {
 
@@ -2002,8 +1960,6 @@ class SequenceTree {
           , depth
           , face
           , highestFace
-
-          , flagKey
           , moveSeriesFlag
 
           , maxDepth : depth
@@ -2047,6 +2003,35 @@ class SequenceTree {
                 if (parentStore && parentStore.highestFace < face) {
                     parentStore.setHighFace(face)
                 }
+            }
+          , flagKey: () => {
+
+                if (flagKey === undefined) {
+
+                    flagKey = null
+
+                    if (moveSeriesFlag == 8 && depth == 4) {
+
+                        Profiler.start('SequenceTree.newStore.flagKey')
+
+                        const flagOrigins = [move.origin]
+                        for (var parent = parentStore; parent; parent = parent.parent()) {
+                            flagOrigins.push(parent.move.origin)
+                        }
+                        flagOrigins.sort(Util.sortNumericAsc)
+                        flagKey = moveSeriesFlag + '/' + depth + '-'
+                        for (var i = 0, ilen = flagOrigins.length; i < ilen; ++i) {
+                            if (i > 0) {
+                                flagKey += ','
+                            }
+                            flagKey += flagOrigins[i]
+                        }
+
+                        Profiler.stop('SequenceTree.newStore.flagKey')
+                    }
+                }
+
+                return flagKey
             }
         }
 

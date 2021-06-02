@@ -41,6 +41,7 @@ const {White, Red} = Colors
 
 const {RobotDelegator} = Robot
 
+// https://codepoints.net/box_drawing
 const TableChars = {
     topLeft      : '\u250f'
   , topMiddle    : '\u2533'
