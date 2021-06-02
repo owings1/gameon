@@ -145,7 +145,8 @@ class Helper {
               , gameCount
               , turnCount
             }
-            this.logTimers(Object.values(Profiler.timers), summary)
+            const data = this.buildData(Profiler, summary)
+            this.logData(data, summary)
         } finally {
             white.destroy()
             red.destroy()
@@ -153,37 +154,89 @@ class Helper {
         }
     }
 
-    logTimers(timers, summary) {
+    buildData(profiler, summary) {
 
-        const columns = this.opts.columns
+        const {columns, sortBy} = this.opts
 
-        const titles = {
-            // optional
-            name    : 'timer'
-          , elapsed : 't-total'
-          , average : 't-avg'
-          , count   : 'n-total'
-          , match   : 'n-match'
-          , game    : 'n-game'
-          , turn    : 'n-turn'
-        }
-
-        const getters = {
-            // required
+        const timerGetters = {
             name    : timer => timer.name
           , elapsed : timer => timer.elapsed
           , average : timer => timer.elapsed / timer.startCount
           , count   : timer => timer.startCount
-          , match   : timer => timer.startCount / this.opts.numMatches
+          , match   : timer => timer.startCount / summary.matchCount
           , game    : timer => timer.startCount / summary.gameCount
           , turn    : timer => timer.startCount / summary.turnCount
+        }
+
+        const counterGetters = {
+            name    : counter => counter.name
+          , elapsed : counter => null
+          , average : counter => null
+          , count   : counter => counter.value
+          , match   : counter => counter.value / summary.matchCount
+          , game    : counter => counter.value / summary.gameCount
+          , turn    : counter => counter.value / summary.turnCount
+        }
+
+        const sorters = {
+            // ascending
+            name    : (a, b) => (a.name + '').localeCompare(b.name + '')
+            // descending
+          , elapsed : (a, b) => b.elapsed - a.elapsed
+          , average : (a, b) => b.average - a.average
+          , count   : (a, b) => b.count - a.count
+          , match   : (a, b) => b.match - a.match
+          , game    : (a, b) => b.game - a.game
+          , turn    : (a, b) => b.turn - a.turn
+        }
+
+        const data = []
+
+        Object.values(profiler.timers).forEach(timer => {
+            const row = {}
+            columns.forEach(key => {
+                row[key] = timerGetters[key](timer)
+            })
+            data.push(row)
+        })
+
+        Object.values(profiler.counters).forEach(counter => {
+            const row = {}
+            columns.forEach(key => {
+                row[key] = counterGetters[key](counter)
+            })
+            data.push(row)
+        })
+
+        const cmp = sorters[sortBy]
+
+        if (cmp) {
+            data.sort((a, b) => cmp(a, b) || sorters.name(a, b))
+        }
+
+        return data
+    }
+
+    logData(data, summary) {
+
+        const {columns} = this.opts
+
+        const titles = {
+            // optional
+            name    : 'Name'
+          , elapsed : 'Elapsed (ms)'
+          , average : 'Average (ms)'
+          , count   : 'Count'
+          , match   : 'Match (avg)'
+          , game    : 'Game (avg)'
+          , turn    : 'Turn (avg)'
         }
 
         const format = {
             // optional, but should return string
             round   : value => Math.round(value).toString()
-          , elapsed : value => value + ' ms'
-          , average : value => value.toFixed(4) + ' ms'
+          , elapsed : value => value == null ? '' : value + ' ms'
+          , average : value => value == null ? '' : value.toFixed(4) + ' ms'
           , match   : value => format.round(value)
           , game    : value => format.round(value)
           , turn    : value => format.round(value)
@@ -209,53 +262,6 @@ class Helper {
 
         const widths = {
             // optional min width
-        }
-
-        const data = timers.map(timer => {
-            const row = {}
-            columns.forEach(key => {
-                row[key] = getters[key](timer)
-            })
-            return row
-        })
-
-        var cmp
-
-        switch (this.opts.sortBy) {
-            case 'name':
-                // ascending
-                cmp = (a, b) => (a.name + '').localeCompare(b.name + '')
-                break
-            case 'elapsed':
-                // descending
-                cmp = (a, b) => b.elapsed - a.elapsed
-                break
-            case 'average':
-                // descending
-                cmp = (a, b) => b.average - a.average
-                break
-            case 'count':
-                // descending
-                cmp = (a, b) => b.count - a.count
-                break
-            case 'match':
-                // descending
-                cmp = (a, b) => b.match - a.match
-            case 'game':
-                // descending
-                cmp = (a, b) => b.game - a.game
-                break
-            case 'turn':
-                // descending
-                cmp = (a, b) => b.turn - a.turn
-                break
-            default:
-                this.logger.warn('Invalid sort column:', this.opts.sortBy)
-                break
-        }
-
-        if (cmp) {
-            data.sort(cmp)
         }
 
         // setup columns

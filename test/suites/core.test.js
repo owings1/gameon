@@ -1672,6 +1672,45 @@ describe('Dice', () => {
 
 describe('SequenceTree', () => {
 
+    describe('#build2', () => {
+        it('build2 playground', () => {
+
+            var board = Board.fromStateString(States.WhiteCornerCase26)
+            var tree = new SequenceTree(board, White, [2, 6])
+            tree.build2()
+
+            //console.log(JSON.stringify(tree.index, null, 2))
+
+            expect(tree.maxDepth).to.equal(2)
+
+            var board = Board.setup()
+            var tree = new SequenceTree(board, White, [6, 5, 3, 1])
+            tree.build2()
+
+            //console.log(JSON.stringify(tree.index['11:6'], null, 2))
+
+            expect(tree.maxDepth).to.equal(4)
+        })
+
+        it.skip('build2 console', () => {
+            // this is for copy/paste to console
+            /*
+            // WhiteCornerCase26
+            //  with 2,6 white has to move its rearmost piece(i:14) 2 then 6. it cannot move its middle piece(i:17) 2 first
+            , WhiteCornerCase26 : '0|0|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|1:White|0:|0:|1:White|0:|0:|2:Red|0:|0:|2:Red|0|0'
+            */
+            var Core = require('./src/lib/core')
+            var States = require('./test/states')
+            var {Board, SequenceTree, White} = Core
+
+            var board = Board.fromStateString(States.WhiteCornerCase26)
+            var tree = new SequenceTree(board, White, [2, 6])
+
+            tree.build2()
+
+            console.log(JSON.stringify(tree.index, null, 2))
+        })
+    })
     describe('#buildNodes', () => {
 
         // major refactor, nodes property is gone
@@ -1734,7 +1773,7 @@ describe('SequenceTree', () => {
             expect(tree.branches).to.have.length(1)
         })
 
-        it('should have depth 0 with white piece on bar for sequence [6,6,6,6] on setup board', () => {
+        it('should have maxDepth 0 with white piece on bar for sequence [6,6,6,6] on setup board', () => {
 
             const board = new Board
             board.setup()
@@ -1742,16 +1781,16 @@ describe('SequenceTree', () => {
 
             const tree = SequenceTree.build(board, White, [6, 6, 6, 6])
 
-            expect(tree.depth).to.equal(0)
+            expect(tree.maxDepth).to.equal(0)
         })
 
-        it('should have depth 2 for red for sequence [3, 1] on setup board', () => {
+        it('should have maxDepth 2 for red for sequence [3, 1] on setup board', () => {
 
             const board = Board.setup()
 
             const tree = SequenceTree.build(board, Red, [3, 1])
 
-            expect(tree.depth).to.equal(2)
+            expect(tree.maxDepth).to.equal(2)
         })
 
         it('should have leaf for taking 5 point for red with sequence [1, 3]', () => {

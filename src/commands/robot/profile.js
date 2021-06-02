@@ -37,7 +37,7 @@ class RobotProfileCommand extends Command {
             outDir      : this.flags.outdir
           , matchTotal  : +this.flags.matchtotal
           , numMatches  : +this.flags.nummatches
-          , sortBy      : this.flags.sortby
+          , sortBy      : this.flags.sortby.toLowerCase()
         }
         this.helper = this.helper || new Helper(this.opts)
     }

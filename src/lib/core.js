@@ -766,6 +766,8 @@ class Turn {
 
         for (var i = 0, ilen = leaves.length; i < ilen; ++i) {
 
+            Profiler.inc('processNode')
+
             var {board, movesMade} = leaves[i]
 
             if (movesMade.length > maxFaces) {
@@ -777,10 +779,14 @@ class Turn {
 
             var seriesCoords = []
             var currentIndex = allowedMoveIndex
+
             for (var j = 0, jlen = movesMade.length; j < jlen; ++j) {
                 var move = movesMade[j]
+                Profiler.inc('processMove')
                 if (!currentIndex[move.hash]) {
                     currentIndex[move.hash] = {move, index: {}}
+                } else {
+                    Profiler.inc('moveExists')
                 }
                 currentIndex = currentIndex[move.hash].index
                 // only if we will use it below
@@ -810,6 +816,7 @@ class Turn {
     _computeTrees() {
 
         const trees = []
+        const trees2 = []
         // the max depth, or number of faces/moves, of all the trees
         var maxDepth = 0
 
@@ -817,10 +824,12 @@ class Turn {
         for (var i = 0, ilen = sequences.length; i < ilen; ++i) {
             var sequence = sequences[i]
             var tree = SequenceTree.build(this.board, this.color, sequence)
-            if (tree.depth > maxDepth) {
-                maxDepth = tree.depth
+            if (tree.maxDepth > maxDepth) {
+                maxDepth = tree.maxDepth
             }
             trees.push(tree)
+            var tree2 = SequenceTree.build2(this.board, this.color, sequence)
+            trees2.push(tree2)
         }
 
         return {trees, maxDepth}
@@ -841,7 +850,7 @@ class Turn {
             for (var i = 0, ilen = trees.length; i < ilen; ++i) {
                 var tree = trees[i]
                 // Tree Filter - trees must meet the depth/win threshold
-                if (tree.depth < maxDepth && !tree.hasWinner) {
+                if (tree.maxDepth < maxDepth && !tree.hasWinner) {
                     continue
                 }
 
@@ -1633,33 +1642,160 @@ class SequenceTree {
         this.color = color
         this.sequence = sequence
         this.leaves = null
-        this.nodeCount = 0
-        this.depth = -1
+        this.maxDepth = -1
         this.hasWinner = null
+        //this.index = {}
+        this.nodeCount = 0
     }
 
     build() {
 
         Profiler.start('SequenceTree.build')
-        
-        const {maxDepth, hasWinner, leaves, nodeCount} = SequenceTree.buildNodes(this.board, this.color, this.sequence)
-        this.depth = maxDepth
-        this.hasWinner = hasWinner
-        this.leaves = leaves
-        this.nodeCount = nodeCount
+
+        const result = this._buildNodes()
+        this.maxDepth  = result.maxDepth
+        this.hasWinner = result.hasWinner
+        this.leaves    = result.leaves
+        this.nodeCount = result.nodeCount        
 
         Profiler.stop('SequenceTree.build')
     }
 
-    static build(board, color, sequence) {
-        const tree = new SequenceTree(board, color, sequence)
-        tree.build()
-        return tree
+    build2() {
+        Profiler.start('SequenceTree.newBuild')
+        this.hasWinner = false
+        this.maxDepth = 0
+        this.index = {}
+        this.leaves = []
+        this._build2(this.board, this.sequence, this.index)
+        Profiler.stop('SequenceTree.newBuild')
     }
 
-    static buildNodes(board, color, sequence) {
+    // try to build depth first
+    // recursion should be ok, since the max stack would be 4
+    _build2(board, faces, index, parentStore, depth = 0) {
 
-        const root = {board, depth: 0, parent: null, movesMade: [], highestFace: -Infinity}
+        Profiler.inc('SequenceTree._build2')
+
+        if (board.getWinner() == this.color) {
+            // terminal valid case - winner
+            this.hasWinner = true
+            index.hasWinner = true
+            if (parentStore) {
+                parentStore.setWinner()
+            }
+            return true
+        }
+
+        if (!faces.length) {
+            // terminal valid case - maximal
+            return true
+        }
+
+        const face = faces[0]
+        const moves = board.getPossibleMovesForFace(this.color, face)
+
+        if (!moves.length) {
+            // terminal case - no available moves
+
+            // we could consider deleting ourselves from the parentStore
+            // if our depth is less than maxDepth
+
+            return false
+        }
+
+        // recursion case
+
+        depth += 1
+        const nextFaces = faces.slice(1)
+
+        if (depth > this.maxDepth) {
+            this.maxDepth = depth
+        }
+
+        var highestFace = face
+
+        if (parentStore) {
+            if (depth > parentStore.maxDepth) {
+                // propagate up the max depth
+                parentStore.setMaxDepth(depth)
+            }
+            if (parentStore.highestFace < face) {
+                // propagate up highest face
+                parentStore.setHighFace(face)
+            }
+        }
+
+        for (var i = 0, ilen = moves.length; i < ilen; ++i) {
+
+            var move = moves[i]
+
+            // temp sanity check
+            //if (index[move.hash]) {
+            //    throw new Error('move already exists in index')
+            //}
+
+            // careful about loop and closure references
+            var store = this.newStore(move, index, depth, face, highestFace, parentStore)
+
+            move.board = move.board.copy()
+            move.do()
+
+            // temp for serializing debug
+            //store.move = move.coords()
+
+            index[move.hash] = store
+
+            // recurse
+            var isProgress = this._build2(move.board, nextFaces, store.index, store, depth)
+            if (!isProgress) {
+                Profiler.inc('noProgress')
+            }
+        }
+    }
+
+    newStore(move, index, depth, face, highestFace, parentStore) {
+
+        Profiler.inc('createStore')
+
+        const store = {
+
+            move
+          , depth
+          , face
+          , highestFace
+          , maxDepth : depth
+          , index    : {}
+
+          // propagate up maxDepth, hasWinner, highestFace
+
+          , setMaxDepth: depth => {
+                store.maxDepth = depth
+                if (parentStore && parentStore.maxDepth < depth) {
+                    parentStore.setMaxDepth(depth)
+                }
+            }
+          , setWinner: () => {
+                store.hasWinner = true
+                if (parentStore && !parentStore.hasWinner) {
+                    parentStore.setWinner()
+                }
+            }
+          , setHighFace: face => {
+                store.highestFace = face
+                if (parentStore && parentStore.highestFace < face) {
+                    parentStore.setHighFace(face)
+                }
+            }
+        }
+
+        return store
+    }
+
+    _buildNodes() {
+
+        const root = {board: this.board, depth: 0, parent: null, movesMade: [], highestFace: -Infinity}
+        Profiler.inc('createNode')
 
         var hasWinner = false
         var maxDepth = 0
@@ -1668,9 +1804,10 @@ class SequenceTree {
         var lastNodes = [root]
         var leaves = lastNodes
 
-        for (var i = 0, ilen = sequence.length; i < ilen; ++i) {
 
-            var face = sequence[i]
+        for (var i = 0, ilen = this.sequence.length; i < ilen; ++i) {
+
+            var face = this.sequence[i]
             var depth = i + 1
 
             var nextNodes = []
@@ -1680,7 +1817,7 @@ class SequenceTree {
                 var parent = lastNodes[j]
 
                 Profiler.start('SequenceTree.buildNodes.1')
-                var nextMoves = parent.board.getPossibleMovesForFace(color, face)
+                var nextMoves = parent.board.getPossibleMovesForFace(this.color, face)
                 Profiler.stop('SequenceTree.buildNodes.1')
 
                 for (var k = 0, klen = nextMoves.length; k < klen; ++k) {
@@ -1699,13 +1836,14 @@ class SequenceTree {
                     var child = {
                         board       : move.board
                       , depth
-                      , parent
-                      , isWinner    : move.board.getWinner() == color
-                      , thisMove    : move
-                      , thisFace    : face
+                      , isWinner    : move.board.getWinner() == this.color
                       , movesMade   : parent.movesMade.slice(0)
                       , highestFace : face > parent.highestFace ? face : parent.highestFace
+                      //, thisMove    : move
+                      //, thisFace    : face
+                      //, parent
                     }
+                    Profiler.inc('createNode')
 
                     nodeCount += 1
 
@@ -1717,8 +1855,9 @@ class SequenceTree {
                     }
                     if (depth > maxDepth) {
                         maxDepth = depth
-                        // leaves only include nodes of maxDepth, since a tree is for a single sequnce
-                        // i.e. a shorter winning tree would always have a different sequence.
+                        // leaves only include nodes of maxDepth, since a tree is for a single sequence
+                        // i.e. a shorter winning tree would always have a different sequence. the proof
+                        // is left as an exercise for the reader.
                         leaves = nextNodes
                     }
                     Profiler.stop('SequenceTree.buildNodes.4')
@@ -1729,6 +1868,18 @@ class SequenceTree {
         }
 
         return {hasWinner, maxDepth, leaves, nodeCount}
+    }
+
+    static build(board, color, sequence) {
+        const tree = new SequenceTree(board, color, sequence)
+        tree.build()
+        return tree
+    }
+
+    static build2(board, color, sequence) {
+        const tree = new SequenceTree(board, color, sequence)
+        tree.build2()
+        return tree
     }
 }
 
@@ -1748,6 +1899,7 @@ class Move {
         this.origin = origin
         this.face = face
         this.hash = MoveHashes[origin][face]
+        Profiler.inc('createMove')
     }
 
     coords() {

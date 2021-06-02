@@ -268,6 +268,7 @@ class Util {
 }
 
 var timerSuffix = 0
+var counterSuffix = 0
 
 class Timer {
 
@@ -304,6 +305,22 @@ class Timer {
     }
 }
 
+class Counter {
+
+    constructor(name) {
+        this.name = name || 'Counter' + ++counterSuffix
+        this.value = 0
+    }
+
+    inc(amount = 1) {
+        this.value += amount
+    }
+
+    zero() {
+        this.value = 0
+    }
+}
+
 class Profiler {
 
     static createEnabled() {
@@ -318,6 +335,7 @@ class Profiler {
 
     constructor() {
         this.timers = {}
+        this.counters = {}
         this.enabled = true
     }
 
@@ -345,17 +363,6 @@ class Profiler {
         this.timers[name].reset()
     }
 
-    summary() {
-        if (!this.enabled) {
-            return
-        }
-        const summary = {}
-        for (var name in this.timers) {
-            summary[name] = this.timers[name].elapsed
-        }
-        return summary
-    }
-
     resetAll() {
         if (!this.enabled) {
             return
@@ -363,6 +370,26 @@ class Profiler {
         for (var name in this.timers) {
             this.reset(name)
         }
+        for (var name in this.counters) {
+            this.zero(name)
+        }
+    }
+
+    inc(name, amount) {
+        if (!this.enabled) {
+            return
+        }
+        if (!this.counters[name]) {
+            this.counters[name] = new Counter(name)
+        }
+        this.counters[name].inc(amount)
+    }
+
+    zero(name) {
+        if (!this.enabled) {
+            return
+        }
+        this.counters[name].zero()
     }
 }
 
