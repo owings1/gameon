@@ -591,21 +591,27 @@ class Turn {
         this.assertIsRolled()
 
         //Profiler.start('Turn.getNextAvailableMoves')
-
+        
         var index = this.allowedMoveIndex
+        //console.log('before')
+        //console.log(Object.keys(index))
         for (var i = 0, ilen = this.moves.length; i < ilen; ++i) {
             var move = this.moves[i]
+            //console.log(move.coords())
             index = index[move.hash].index
         }
 
         const moves = []
 
+        //console.log('after')
+        //console.log(Object.keys(index))
         for (var k in index) {
+            //console.log('index.k', index[k])
             moves.push(index[k].move)
         }
 
         //Profiler.stop('Turn.getNextAvailableMoves')
-
+        //console.log({moves})
         return moves
     }
 
@@ -727,7 +733,7 @@ class Turn {
         Profiler.start('Turn.compute')
 
         Profiler.start('Turn.compute.1')
-        const {maxDepth, trees} = this._computeTrees()
+        const {maxDepth, trees, trees2, highestFace} = this._computeTrees()
         Profiler.stop('Turn.compute.1')
 
         Profiler.start('Turn.compute.2')
@@ -738,16 +744,81 @@ class Turn {
         const result = this._computeMoves(leaves)
         Profiler.stop('Turn.compute.3')
 
+        Profiler.start('Turn.compute.4')
+        const result2 = this._computeMoves2(trees2, maxDepth, highestFace)
+        Profiler.stop('Turn.compute.4')
+
         this.allowedFaces      = result.allowedFaces
         this.allowedEndStates  = result.allowedEndStates
-        this.allowedMoveIndex  = result.allowedMoveIndex
+        this.allowedMoveIndex  = result2.allowedMoveIndex
         this.endStatesToSeries = result.endStatesToSeries
 
+        //if (this.startState == '0|0|2:White|0:|0:|0:|0:|5:Red|0:|3:Red|0:|0:|0:|5:White|5:Red|0:|0:|0:|3:White|0:|5:White|0:|0:|0:|0:|2:Red|0|0') {
+           //console.log(Object.keys(result.allowedMoveIndex))
+           //console.log(Object.keys(result2.allowedMoveIndex))
+        //}
+        //console.log(result.allowedMoveIndex['2:5'])
+        //console.log('----')
+        //console.log(result2.allowedMoveIndex['2:5'])
+        //console.log(result.allowedMoveIndex)
+        //console.log(' ')
+        //console.log(result2.allowedMoveIndex)
         this.allowedMoveCount = maxDepth
         this.isCantMove       = maxDepth == 0
         this.isForceMove      = leaves.length == 1
         
         Profiler.stop('Turn.compute')
+    }
+
+    _storeCheck(store, maxDepth, highestFace) {
+        return 
+    }
+
+    _computeMoves2(trees, maxDepth, highestFace) {
+        
+        // State strings
+        const allowedEndStates  = []
+        // Map of {moveHash: {move, index: {...}}}
+        const allowedMoveIndex  = {}
+        // Map of stateString to move coords
+        const endStatesToSeries = {}
+
+        const storeCheck = store => store.hasWinner || (store.maxDepth == maxDepth && store.highestFace == highestFace)
+
+        const pruneRecursive = index => {
+            const hashes = Object.keys(index)
+            for (var i = 0, ilen = hashes.length; i < ilen; ++i) {
+                var store = index[hashes[i]]
+                if (!storeCheck(store)) {
+                    Profiler.inc('discardStore')
+                    //console.log(store)
+                    //console.log('deleting', hashes[i])
+                    delete index[hashes[i]]
+                } else {
+                    pruneRecursive(store.index)
+                }
+            }
+        }
+
+        // the max number of faces determine the faces allowed, though not always required.
+        var maxFaces = 0
+        var maxExample
+
+        for (var i = 0, ilen = trees.length; i < ilen; ++i) {
+            var tree = trees[i]
+            if (!storeCheck(tree)) {
+                Profiler.inc('discardTree')
+                continue
+            }
+            pruneRecursive(tree.index)
+            for (var hash in tree.index) {
+                allowedMoveIndex[hash] = tree.index[hash]
+            }       
+        }
+
+        const allowedFaces = maxExample ? maxExample.map(move => move.face).sort(Util.sortNumericDesc) : []
+
+        return {allowedFaces, allowedEndStates, allowedMoveIndex, endStatesToSeries}
     }
 
     // Construct the move series, end states
@@ -819,7 +890,9 @@ class Turn {
         const trees2 = []
         // the max depth, or number of faces/moves, of all the trees
         var maxDepth = 0
+        var maxDepth2 = 0
 
+        var highestFace = 0
         const sequences = Dice.sequencesForFaces(this.faces)
         for (var i = 0, ilen = sequences.length; i < ilen; ++i) {
             var sequence = sequences[i]
@@ -829,10 +902,21 @@ class Turn {
             }
             trees.push(tree)
             var tree2 = SequenceTree.build2(this.board, this.color, sequence)
+            if (tree2.maxDepth > maxDepth2) {
+                maxDepth2 = tree2.maxDepth
+            }
+            if (tree2.highestFace > highestFace) {
+                highestFace = tree2.highestFace
+            }
             trees2.push(tree2)
         }
 
-        return {trees, maxDepth}
+        // sanity check
+        if (maxDepth != maxDepth2) {
+            throw new Error('maxDepths do not match')
+        }
+
+        return {trees, trees2, maxDepth, highestFace}
     }
 
     // Filter the trees and leaves
@@ -1664,9 +1748,11 @@ class SequenceTree {
     build2() {
         Profiler.start('SequenceTree.newBuild')
         this.hasWinner = false
+        this.depth = 0
         this.maxDepth = 0
+        this.highestFace = 0
         this.index = {}
-        this.leaves = []
+        this.depthIndex = {}
         this._build2(this.board, this.sequence, this.index)
         Profiler.stop('SequenceTree.newBuild')
     }
@@ -1674,21 +1760,20 @@ class SequenceTree {
     // try to build depth first
     // recursion should be ok, since the max stack would be 4
     _build2(board, faces, index, parentStore, depth = 0) {
-
+        
         Profiler.inc('SequenceTree._build2')
+
+        if (!faces.length) {
+            // sanity - this shouldn't happen
+            throw new Error('no faces to process')
+        }
 
         if (board.getWinner() == this.color) {
             // terminal valid case - winner
             this.hasWinner = true
-            index.hasWinner = true
             if (parentStore) {
                 parentStore.setWinner()
             }
-            return true
-        }
-
-        if (!faces.length) {
-            // terminal valid case - maximal
             return true
         }
 
@@ -1712,8 +1797,9 @@ class SequenceTree {
         if (depth > this.maxDepth) {
             this.maxDepth = depth
         }
-
-        var highestFace = face
+        if (face > this.highestFace) {
+            this.highestFace = face
+        }
 
         if (parentStore) {
             if (depth > parentStore.maxDepth) {
@@ -1735,53 +1821,75 @@ class SequenceTree {
             //    throw new Error('move already exists in index')
             //}
 
-            // careful about loop and closure references
-            var store = this.newStore(move, index, depth, face, highestFace, parentStore)
-
             move.board = move.board.copy()
             move.do()
+
+            // careful about loop and closure references
+            var store = this.newStore(move, depth, face, index, parentStore)
+            if (!this.depthIndex[depth]) {
+                this.depthIndex[depth] = []
+            }
+            this.depthIndex[depth].push(store)
 
             // temp for serializing debug
             //store.move = move.coords()
 
             index[move.hash] = store
 
-            // recurse
-            var isProgress = this._build2(move.board, nextFaces, store.index, store, depth)
-            if (!isProgress) {
-                Profiler.inc('noProgress')
+            if (!nextFaces.length) {
+                continue
             }
+
+            // recurse
+            this._build2(move.board, nextFaces, store.index, store, depth)
         }
     }
 
-    newStore(move, index, depth, face, highestFace, parentStore) {
+    newStore(move, depth, face, index, parentStore) {
 
         Profiler.inc('createStore')
+
+        const moveSeries = parentStore ? parentStore.moveSeries.slice(0) : []
+        moveSeries.push(move.coords())
+
+        if (parentStore && parentStore.face > face) {
+            // progagate down the parent's face
+            var highestFace = parentStore.face
+        } else {
+            var highestFace = face
+        }
 
         const store = {
 
             move
           , depth
           , face
+          , moveSeries
           , highestFace
-          , maxDepth : depth
-          , index    : {}
+          , maxDepth    : depth
+          , index       : {}
 
           // propagate up maxDepth, hasWinner, highestFace
 
           , setMaxDepth: depth => {
+                Profiler.inc('upPropagate')
+                Profiler.inc('upPropagate.setMaxDepth')
                 store.maxDepth = depth
                 if (parentStore && parentStore.maxDepth < depth) {
                     parentStore.setMaxDepth(depth)
                 }
             }
           , setWinner: () => {
+                Profiler.inc('upPropagate')
+                Profiler.inc('upPropagate.setWinner')
                 store.hasWinner = true
                 if (parentStore && !parentStore.hasWinner) {
                     parentStore.setWinner()
                 }
             }
           , setHighFace: face => {
+                Profiler.inc('upPropagate')
+                Profiler.inc('upPropagate.setHighFace')
                 store.highestFace = face
                 if (parentStore && parentStore.highestFace < face) {
                     parentStore.setHighFace(face)

@@ -59,6 +59,7 @@ function makeRandomMoves(turn, isFinish) {
             break
         }
         var move = randomElement(moves)
+        //console.log(move)
         turn.move(move.origin, move.face)
     }
     if (isFinish) {

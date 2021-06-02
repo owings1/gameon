@@ -645,11 +645,14 @@ describe('Turn', () => {
         })
 
         it('should allow red to bearoff with the 5 on 5,1 roll with one on i:1, one on i:2', () => {
+
             const board = Board.fromStateString(States.RedBearoff51easy)
+            //console.log(board.stateString())
             const turn = new Turn(board, Red)
             turn.setRoll([5, 1])
             turn.move(2, 5)
-            turn.move(1, 1)
+            // This is weird, I think it was a bug before -- it shouldn't let you continue after a win
+            //turn.move(1, 1)
             turn.finish()
         })
     })
