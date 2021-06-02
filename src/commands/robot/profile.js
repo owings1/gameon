@@ -67,7 +67,7 @@ RobotProfileCommand.flags = {
     })
   , sortby: flags.string({
         char        : 's'
-      , description : 'sort by a column (name, elapsed, average, count, match)'
+      , description : 'sort by a column (' + Helper.sortableColumns().join(', ') + ')'
       , default     : defaults.sortBy
     })
 }

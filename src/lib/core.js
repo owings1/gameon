@@ -277,33 +277,6 @@ class Game {
         }
     }
 
-    static serialize(game) {
-        return game.serialize()
-    }
-
-    static unserialize(data) {
-
-        const game = new Game(data.opts)
-
-        game.uuid = data.uuid
-
-        game.cubeOwner   = data.cubeOwner
-        game.cubeValue   = data.cubeValue
-        game.endState    = data.endState
-        game.finalValue  = data.finalValue
-        game.isFinished  = data.isFinished
-        game.isPass      = data.isPass
-        game.winner      = data.winner
-        game.turnHistory = data.turnHistory
-
-        if (data.thisTurn) {
-            game.thisTurn = Turn.unserialize(data.thisTurn, game.board)
-        }
-        game.board.setStateString(data.board)
-
-        return game
-    }
-
     constructor(opts) {
 
         this.opts  = Util.defaults(Game.defaults(), opts)
@@ -453,12 +426,39 @@ class Game {
     }
 
     serialize() {
-        const data = this.meta()
-        data.turnHistory = this.turnHistory.slice(0)
-        if (this.thisTurn) {
-            data.thisTurn = this.thisTurn.serialize()
+        return Game.serialize(this)
+    }
+
+    static serialize(game) {
+        const data = game.meta()
+        data.turnHistory = game.turnHistory.slice(0)
+        if (game.thisTurn) {
+            data.thisTurn = game.thisTurn.serialize()
         }
         return data
+    }
+
+    static unserialize(data) {
+
+        const game = new Game(data.opts)
+
+        game.uuid = data.uuid
+
+        game.cubeOwner   = data.cubeOwner
+        game.cubeValue   = data.cubeValue
+        game.endState    = data.endState
+        game.finalValue  = data.finalValue
+        game.isFinished  = data.isFinished
+        game.isPass      = data.isPass
+        game.winner      = data.winner
+        game.turnHistory = data.turnHistory
+
+        if (data.thisTurn) {
+            game.thisTurn = Turn.unserialize(data.thisTurn, game.board)
+        }
+        game.board.setStateString(data.board)
+
+        return game
     }
 
     // allow override for testing
@@ -1303,6 +1303,7 @@ class Board {
                 board.slots[j] = Piece.make(slot.length, Opponent[slot[0].color])
             }
         })
+        board.markChange()
         return board
     }
 

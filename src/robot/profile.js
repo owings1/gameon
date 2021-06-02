@@ -70,7 +70,23 @@ function repeat(str, n) {
     return intRange(0, n - 1).map(() => str).join('')
 }
 
+const AvailableColumns = [
+    'name'
+  , 'elapsed'
+  , 'average'
+  , 'count'
+  , 'game'
+  , 'match'
+  , 'turn'
+]
+
+const SortableColumns = AvailableColumns
+
 class Helper {
+
+    static sortableColumns() {
+        return SortableColumns.slice(0)
+    }
 
     static defaults() {
         return {
@@ -78,11 +94,24 @@ class Helper {
           , matchTotal  : 1
           , numMatches  : 500
           , sortBy      : 'name'
+          , indent      : 4
+          , columns     : [
+                'name'
+              , 'elapsed'
+              , 'average'
+              , 'count'
+              , 'game'
+              //, 'match'
+              , 'turn'
+            ]
         }
     }
 
     constructor(opts) {
         this.opts = Util.defaults(Helper.defaults(), opts)
+        if (SortableColumns.indexOf(this.opts.sortBy) < 0) {
+            throw new Error('Invalid sort column: ' + this.opts.sortBy)
+        }
         this.logger = new Logger
         this.coordinator = new Coordinator
     }
@@ -94,15 +123,29 @@ class Helper {
         const red = RobotDelegator.forDefaults(Red)
         try {
             this.logger.info('Running', this.opts.numMatches, 'matches of', this.opts.matchTotal, 'points each')
+            var matchCount = 0
+            var gameCount = 0
+            var turnCount = 0
             const summaryTimer = new Timer
             summaryTimer.start()
-            for (var i = 0; i < this.opts.numMatches; i++) {
+            for (var i = 0; i < this.opts.numMatches; ++i) {
                 var match = new Match(this.opts.matchTotal)
                 await this.coordinator.runMatch(match, white, red)
+                matchCount += 1
+                gameCount += match.games.length
+                for (var j = 0, jlen = match.games.length; j < jlen; ++j) {
+                    turnCount += match.games[j].getTurnCount()
+                }
             }
             summaryTimer.stop()
             this.logger.info('Done')
-            this.logTimers(Object.values(Profiler.timers), summaryTimer.elapsed)
+            const summary = {
+                elapsed : summaryTimer.elapsed
+              , matchCount
+              , gameCount
+              , turnCount
+            }
+            this.logTimers(Object.values(Profiler.timers), summary)
         } finally {
             white.destroy()
             red.destroy()
@@ -110,44 +153,50 @@ class Helper {
         }
     }
 
-    logTimers(timers, totalElapsed) {
+    logTimers(timers, summary) {
 
-        const columns = [
-            'name'
-          , 'elapsed'
-          , 'average'
-          , 'count'
-          , 'match'
-        ]
+        const columns = this.opts.columns
 
         const titles = {
             // optional
-            name    : 'timer',
-            elapsed : 't-total',
-            average : 't-avg',
-            count   : 'n-total',
-            match   : 'n-match'
+            name    : 'timer'
+          , elapsed : 't-total'
+          , average : 't-avg'
+          , count   : 'n-total'
+          , match   : 'n-match'
+          , game    : 'n-game'
+          , turn    : 'n-turn'
         }
 
         const getters = {
             // required
-            name    : timer => timer.name,
-            elapsed : timer => timer.elapsed,
-            average : timer => timer.elapsed / timer.startCount,
-            count   : timer => timer.startCount,
-            match   : timer => timer.startCount / this.opts.numMatches
+            name    : timer => timer.name
+          , elapsed : timer => timer.elapsed
+          , average : timer => timer.elapsed / timer.startCount
+          , count   : timer => timer.startCount
+          , match   : timer => timer.startCount / this.opts.numMatches
+          , game    : timer => timer.startCount / summary.gameCount
+          , turn    : timer => timer.startCount / summary.turnCount
         }
 
         const format = {
             // optional, but should return string
-            elapsed : value => value + ' ms',
-            average : value => value.toFixed(4) + ' ms',
-            match   : value => Math.round(value).toString()
+            round   : value => Math.round(value).toString()
+          , elapsed : value => value + ' ms'
+          , average : value => value.toFixed(4) + ' ms'
+          , match   : value => format.round(value)
+          , game    : value => format.round(value)
+          , turn    : value => format.round(value)
         }
 
         const footerLines = [
-            ['Total Elapsed:', format.elapsed(totalElapsed)].join(' ')
-        ]
+            ['Total Elapsed :', format.elapsed(summary.elapsed)]
+          , ['Total Matches :', summary.matchCount.toString()]
+          , ['Total Games   :', summary.gameCount.toString()]
+          , ['Total Turns   :', summary.turnCount.toString()]
+          , ['Games / Match :', format.round(summary.gameCount / summary.matchCount)]
+          , ['Turns / Game  :', format.round(summary.turnCount / summary.gameCount)]
+        ].map(arr => arr.join(' '))
 
         const colors = {
             border: 'grey'
@@ -160,7 +209,6 @@ class Helper {
 
         const widths = {
             // optional min width
-            elapsed: (totalElapsed.toString() + ' ms').length
         }
 
         const data = timers.map(timer => {
@@ -193,6 +241,13 @@ class Helper {
             case 'match':
                 // descending
                 cmp = (a, b) => b.match - a.match
+            case 'game':
+                // descending
+                cmp = (a, b) => b.game - a.game
+                break
+            case 'turn':
+                // descending
+                cmp = (a, b) => b.turn - a.turn
                 break
             default:
                 this.logger.warn('Invalid sort column:', this.opts.sortBy)
@@ -247,12 +302,13 @@ class Helper {
         for (var vpos of ['top', 'middle', 'bottom', 'footer']) {
             var joiner = [border.dash, border[vpos + 'Middle'], border.dash].join('')
             border[vpos] = [
-                border[vpos + 'Left'], border.dash, dashParts.join(joiner), border.dash, border[vpos + 'Right']
-            ].join('')
+                border[vpos + 'Left'], dashParts.join(joiner), border[vpos + 'Right']
+            ].join(border.dash)
         }
 
         // build header
-        const headerInnerStr = columns.map(key => titles[key][aligns[key]](widths[key], ' ')).join(border.pipeSpaced)
+        const headerInnerStr = columns.map(key =>
+            titles[key][aligns[key]](widths[key], ' ')).join(border.pipeSpaced)
         const headerStr = [
             border.pipe, headerInnerStr.padEnd(rowWidth, ' '), border.pipe
         ].join(' ')
@@ -272,15 +328,21 @@ class Helper {
 
         // Write
 
-        this.logger.info(border.top)
-        this.logger.info(headerStr)
-        this.logger.info(border.middle)
+        this.println(border.top)
+        this.println(headerStr)
+        this.println(border.middle)
 
-        bodyStrs.forEach(rowStr => this.logger.info(rowStr))
+        bodyStrs.forEach(rowStr => this.println(rowStr))
 
-        this.logger.info(border.bottom)
-        footerStrs.forEach(footerStr => this.logger.info(footerStr))
-        this.logger.info(border.footer)
+        this.println(border.bottom)
+        footerStrs.forEach(footerStr => this.println(footerStr))
+        this.println(border.footer)
+    }
+
+    println(line) {
+        this.logger.writeStdout(''.padEnd(this.opts.indent, ' '))
+        this.logger.writeStdout(line)
+        this.logger.writeStdout('\n')
     }
 }
 
