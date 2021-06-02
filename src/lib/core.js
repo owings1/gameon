@@ -467,6 +467,8 @@ class Game {
     }
 }
 
+var turnIdTrack = 0
+
 class Turn {
 
     static serialize(turn) {
@@ -496,6 +498,8 @@ class Turn {
     }
 
     constructor(board, color) {
+
+        this.id = ++turnIdTrack
 
         this.board      = board
         this.color      = color
@@ -773,12 +777,14 @@ class Turn {
 
         const storeCheck = store => store.hasWinner || (store.maxDepth == maxDepth && store.highestFace == highestFace)
 
+        const seriesFlagKeys = {}
+
         const pruneRecursive = index => {
             const hashes = Object.keys(index)
             for (var i = 0, ilen = hashes.length; i < ilen; ++i) {
                 var store = index[hashes[i]]
                 if (!storeCheck(store)) {
-                    Profiler.inc('discardStore')
+                    Profiler.inc('pruneStore')
                     delete index[hashes[i]]
                 } else {
                     pruneRecursive(store.index)
@@ -797,37 +803,66 @@ class Turn {
                 continue
             }
 
+            Profiler.start('Turn.compute.prune')
             pruneRecursive(tree.index)
+            Profiler.stop('Turn.compute.prune')
 
             for (var hash in tree.index) {
                 allowedMoveIndex[hash] = tree.index[hash]
             }
 
+            Profiler.start('Turn.compute.leaves')
             var leaves = tree.depthIndex[maxDepth]
             if (leaves) {
+
                 for (var j = 0, jlen = leaves.length; j < jlen; ++j) {
                     var store = leaves[j]
                     if (!storeCheck(store)) {
+                        // this seems to never be called
                         Profiler.inc('discardStore')
+                        Profiler.inc('discardStore.leaf.depth')
                         continue
                     }
+
+                    if (store.flagKey && seriesFlagKeys[store.flagKey]) {
+                        Profiler.inc('discardStore')
+                        Profiler.inc('discardStore.leaf.flagKey')
+                        continue
+                    }
+
                     var {board} = store.move
+                    var isMiss = !board.cache.stateString
                     var endState = board.stateString()
+
                     if (endStatesToSeries[endState]) {
-                        // de-dupe
+
                         Profiler.inc('discardStore')
+                        Profiler.inc('discardStore.leaf.endState')
+                        if (isMiss) {
+                            Profiler.inc('discardStore.leaf.endState.cache.miss')
+                        } else {
+                            Profiler.inc('discardStore.leaf.endState.cache.hit')
+                        }
+
                         continue
                     }
+                    // only about 25% of leaves are kept
+                    Profiler.inc('keepStore.leaf.endState')
                     endStatesToSeries[endState] = store.moveSeries
                     allowedEndStates.push(endState)
                     if (!maxExample) {
                         maxExample = store.moveSeries
                     }
+                    if (store.flagKey) {
+                        seriesFlagKeys[store.flagKey] = endState
+                    }
                     // populate board cache
                     this.boardCache[endState] = board
                 }
             }
+            Profiler.stop('Turn.compute.leaves')
 
+            Profiler.start('Turn.compute.winners')
             var winners = tree.winners
             for (var j = 0, jlen = winners.length; j < jlen; ++j) {
                 var store = winners[j]
@@ -848,6 +883,7 @@ class Turn {
                 // populate board cache
                 this.boardCache[endState] = board
             }
+            Profiler.stop('Turn.compute.winners')
         }
 
         const allowedFaces = maxExample ? maxExample.map(move => move.face).sort(Util.sortNumericDesc) : []
@@ -1018,6 +1054,7 @@ class Turn {
 class Board {
 
     constructor(isSkipInit) {
+        Profiler.inc('createBoard')
         this.analyzer = new BoardAnalyzer(this)
         this.cache = {}
         // isSkipInit is for performance on copy
@@ -1064,6 +1101,9 @@ class Board {
                 }
             }
 
+            Profiler.stop('Board.getPossibleMovesForFace.2')
+
+            Profiler.start('Board.getPossibleMovesForFace.3')
             for (var i = 0, ilen = origins.length; i < ilen; ++i) {
 
                 var origin = origins[i]
@@ -1075,6 +1115,7 @@ class Board {
                 if (unavailable[dest]) {
                     continue
                 }
+
                 // filter bearoff moves
                 var distanceToHome = Direction[color] == 1 ? 24 - origin : origin + 1
                 if (distanceToHome <= face) {
@@ -1101,7 +1142,7 @@ class Board {
                 }
                 // We already filtered all the invalid moves, so we don't need to call checkMove
             }
-            Profiler.stop('Board.getPossibleMovesForFace.2')
+            Profiler.stop('Board.getPossibleMovesForFace.3')
         }
         Profiler.stop('Board.getPossibleMovesForFace')
         return moves
@@ -1203,6 +1244,7 @@ class Board {
     originsOccupied(color) {
         const key = CacheKeys.originsOccupied[color]
         if (!this.cache[key]) {
+            Profiler.inc('originsOccupied.cache.miss')
             const origins = []
             var minOrigin = Infinity
             var maxOrigin = -Infinity
@@ -1221,6 +1263,8 @@ class Board {
             this.cache[key] = origins
             this.cache[minKey] = minOrigin
             this.cache[maxKey] = maxOrigin
+        } else {
+            Profiler.inc('originsOccupied.cache.hit')
         }
         return this.cache[key]
     }
@@ -1808,7 +1852,7 @@ class SequenceTree {
 
     _buildDepth(board, faces, index, parentStore, depth = 0) {
 
-        // sanity checka
+        // sanity checks
         /*
         if (!faces.length) {
             throw new Error('no faces to process')
@@ -1903,8 +1947,19 @@ class SequenceTree {
 
         Profiler.inc('createStore')
 
-        const moveSeries = parentStore ? parentStore.moveSeries.slice(0) : []
+        var moveSeriesFlag = move.flag
+        if (parentStore) {
+            var moveSeries = parentStore.moveSeries.slice(0)
+            var moveOrigins = parentStore.moveOrigins.slice(0)
+            if (parentStore.moveSeriesFlag != moveSeriesFlag) {
+                moveSeriesFlag = -1
+            }
+        } else {
+            var moveSeries = []
+            var moveOrigins = []
+        }
         moveSeries.push(move.coords())
+        moveOrigins.push(move.origin)
 
         if (parentStore && parentStore.face > face) {
             // progagate down the parent's face
@@ -1913,12 +1968,27 @@ class SequenceTree {
             var highestFace = face
         }
 
+        var flagKey = null
+        if (moveSeriesFlag == 8 && depth == 4) {
+            moveOrigins.sort(Util.sortNumericAsc)
+            flagKey = '8/4-'
+            for (var i = 0, ilen = moveOrigins.length; i < ilen; ++i) {
+                if (i > 0) {
+                    flagKey += ','
+                }
+                flagKey += moveOrigins[i]
+            }
+        }
+
         const store = {
 
             move
           , depth
           , face
           , moveSeries
+          , moveSeriesFlag
+          , moveOrigins
+          , flagKey
           , highestFace
           , maxDepth    : depth
           , index       : {}
@@ -2061,6 +2131,7 @@ class Move {
         this.origin = origin
         this.face = face
         this.hash = MoveHashes[origin][face]
+        this.flag = -1
         Profiler.inc('createMove')
     }
 
@@ -2176,6 +2247,9 @@ class RegularMove extends Move {
         this.dest = dest
         this.isRegular = true
         this.isHit = isHit
+        if (!isHit) {
+            this.flag = 8
+        }
     }
 
     do() {
