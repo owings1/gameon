@@ -829,6 +829,7 @@ class Turn {
                             Profiler.inc('store.discard.leaf.flagKey')
                             continue
                         }
+                        seriesFlagKeys[flagKey] = true
                     }
 
                     Profiler.inc('store.check.endState')
@@ -843,7 +844,8 @@ class Turn {
                         continue
                     }
 
-                    // only about 25% of leaves are kept
+                    // only about 25% of leaves are kept, flag key gets about twice
+                    /// as many as endState
                     Profiler.inc('store.keep.leaf')
 
                     endStatesToSeries[endState] = store.moveSeries()
@@ -852,10 +854,7 @@ class Turn {
                     if (!maxExample) {
                         maxExample = endStatesToSeries[endState]
                     }
-
-                    if (flagKey) {
-                        seriesFlagKeys[flagKey] = endState
-                    }
+                    
                     // populate board cache
                     this.boardCache[endState] = board
                 }
