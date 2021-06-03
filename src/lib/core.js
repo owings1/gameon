@@ -148,8 +148,9 @@ class Match {
 
     static defaults() {
         return {
-            isCrawford : true
-          , isJacoby   : false
+            isCrawford   : true
+          , isJacoby     : false
+          , breadthTrees : false
         }
     }
 
@@ -275,8 +276,9 @@ class Game {
 
     static defaults() {
         return {
-            isCrawford : false
-          , isJacoby   : false
+            isCrawford   : false
+          , isJacoby     : false
+          , breadthTrees : false
         }
     }
 
@@ -324,11 +326,9 @@ class Game {
         if (this.thisTurn) {
             throw new GameAlreadyStartedError('The game has already started')
         }
-        do {
-            var dice = this._rollFirst()
-        } while (dice[0] == dice[1])
+        const dice = this._rollFirst()
         const firstColor = Dice.getWinner(dice)
-        this.thisTurn = new Turn(this.board, firstColor)
+        this.thisTurn = new Turn(this.board, firstColor, {breadthTrees: this.opts.breadthTrees})
         this.thisTurn.setRoll(dice)
         this.thisTurn.isFirstTurn = true
         return this.thisTurn
@@ -466,17 +466,13 @@ class Game {
 
     // allow override for testing
     _rollFirst() {
-        return Dice.rollTwo()
+        return Dice.rollTwoUnique()
     }
 }
 
-var turnIdTrack = 0
-
 class Turn {
 
-    constructor(board, color) {
-
-        this.id = ++turnIdTrack
+    constructor(board, color, opts = {}) {
 
         this.board      = board
         this.color      = color
@@ -491,11 +487,14 @@ class Turn {
         this.isDoubleDeclined = false
         this.isDoubleOffered  = false
         this.isFinished       = false
+        this.isFirstTurn      = false
         this.isForceMove      = false
         this.isRolled         = false
 
         this.moves = []
         this.boardCache = {}
+
+        this.opts = opts
     }
 
     setDoubleOffered() {
@@ -558,9 +557,21 @@ class Turn {
 
         this.faces = Dice.faces(this.dice)
 
-        this._compute()
+        Profiler.start('Turn.compute')
+        const result = this.opts.breadthTrees ? this._computeBreadth() : this._computeDepth()
+        Profiler.stop('Turn.compute')
+
+        this.allowedFaces      = result.allowedFaces
+        this.allowedEndStates  = result.allowedEndStates
+        this.allowedMoveIndex  = result.allowedMoveIndex
+        this.endStatesToSeries = result.endStatesToSeries
+
+        this.allowedMoveCount = result.maxDepth
+        this.isCantMove       = result.maxDepth == 0
+        this.isForceMove      = this.allowedEndStates.length == 1
 
         this.remainingFaces = this.allowedFaces.slice(0)
+
         if (this.isCantMove) {
             this.finish()
         }
@@ -593,13 +604,13 @@ class Turn {
 
     move(origin, face) {
         Profiler.start('Turn.move')
+        this.assertNotFinished()
+        this.assertIsRolled()
         if (typeof(origin) == 'object') {
             // allow a move or coords to be passed
             face = origin.face
             origin = origin.origin
         }
-        this.assertNotFinished()
-        this.assertIsRolled()
         const nextMoves = this.getNextAvailableMoves()
         if (nextMoves.length == 0) {
             throw new NoMovesRemainingError([this.color, 'has no more moves to do'])
@@ -696,7 +707,6 @@ class Turn {
 
     serialize() {
         return Turn.serialize(this)
-        
     }
 
     static serialize(turn) {
@@ -731,19 +741,24 @@ class Turn {
         return turn
     }
 
-    _compute() {
-
-        Profiler.start('Turn.compute')
-
+    _computeDepth() {
+        Profiler.start('Turn.compute.depth')
         Profiler.start('Turn.compute.depth.trees')
         const {maxDepth, trees, highestFace} = this._computeTreesDepth()
         Profiler.stop('Turn.compute.depth.trees')
 
         Profiler.start('Turn.compute.depth.moves')
         const result = this._computeMovesDepth(trees, maxDepth, highestFace)
+        result.maxDepth = maxDepth
         Profiler.stop('Turn.compute.depth.moves')
 
-        /*
+        Profiler.stop('Turn.compute.depth')
+
+        return result
+    }
+
+    _computeBreadth() {
+        Profiler.start('Turn.compute.breadth')
         Profiler.start('Turn.compute.breadth.trees')
         const {maxDepth, trees} = this._computeTreesBreadth()
         Profiler.stop('Turn.compute.breadth.trees')
@@ -754,19 +769,11 @@ class Turn {
 
         Profiler.start('Turn.compute.breadth.moves')
         const result = this._computeMovesBreadth(leaves)
+        result.maxDepth = maxDepth
         Profiler.stop('Turn.compute.breadth.moves')
-        */
+        Profiler.stop('Turn.compute.breadth')
 
-        this.allowedFaces      = result.allowedFaces
-        this.allowedEndStates  = result.allowedEndStates
-        this.allowedMoveIndex  = result.allowedMoveIndex
-        this.endStatesToSeries = result.endStatesToSeries
-
-        this.allowedMoveCount = maxDepth
-        this.isCantMove       = maxDepth == 0
-        this.isForceMove      = this.allowedEndStates.length == 1
-        
-        Profiler.stop('Turn.compute')
+        return result
     }
 
     // Construct the move series, end states
@@ -1442,34 +1449,6 @@ class Board {
         return this.cache[key]
     }
 
-    stateStructure() {
-        return [
-            this.bars.White.length * Direction.White
-          , this.bars.Red.length * Direction.Red
-        ].concat(this.slots.map(slot =>
-            slot.length > 0 ? Direction[slot[0].color] * slot.length : 0
-        )).concat([
-            this.homes.White.length * Direction.White
-          , this.homes.Red.length * Direction.Red
-        ])
-    }
-
-    setStateStructure(structure) {
-        this.bars = {
-            White : Piece.make(Math.abs(structure[0]), White)
-          , Red   : Piece.make(Math.abs(structure[1]), Red)
-        }
-        this.slots = []
-        for (var i = 0; i < 24; ++i) {
-            this.slots[i] = Piece.make(Math.abs(structure[i + 2]), structure[i + 2] < 0 ? Red : White)
-        }
-        this.homes = {
-            White : Piece.make(Math.abs(structure[26]), White)
-          , Red   : Piece.make(Math.abs(structure[27]), Red)
-        }
-        this.markChange()
-    }
-
     // Red point 1 is origin 0
     // White point 1 is origin 23
     pointOrigin(color, point) {
@@ -1550,12 +1529,6 @@ class Board {
     static fromStateString(str) {
         const board = new Board(true)
         board.setStateString(str)
-        return board
-    }
-
-    static fromStateStructure(structure) {
-        const board = new Board(true)
-        board.setStateStructure(structure)
         return board
     }
 }
@@ -2355,11 +2328,20 @@ class Dice {
         return [Dice.rollOne(), Dice.rollOne()]
     }
 
+    static rollTwoUnique() {
+        do {
+            var dice = Dice.rollTwo()
+        } while (dice[0] == dice[1])
+        return dice
+    }
+
     static faces(roll) {
+        const faces = [roll[0], roll[1]]
         if (roll[0] == roll[1]) {
-            return roll.concat(roll)
+            faces.push(roll[0])
+            faces.push(roll[1])
         }
-        return roll
+        return faces
     }
 
     static checkOne(face) {
@@ -2375,11 +2357,11 @@ class Dice {
     }
 
     static checkTwo(faces) {
-        Dice.checkOne(faces[0])
-        Dice.checkOne(faces[1])
         if (faces.length > 2) {
             throw new InvalidRollError('more than two dice not allowed')
         }
+        Dice.checkOne(faces[0])
+        Dice.checkOne(faces[1])
     }
 
     static getWinner(dice) {

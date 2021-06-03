@@ -34,7 +34,7 @@ const path = require('path')
 
 const {resolve} = path
 
-const {Game, Board, Colors} = Core
+const {Game, Board, Colors, Direction} = Core
 const {White, Red} = Colors
 
 class Helper {
@@ -104,11 +104,11 @@ class Helper {
         const trains = []
         turnDatas.forEach(({startState, rankings}) => {
             const spreadRankings = Util.spreadRanking(rankings)
-            const startStructure = Board.fromStateString(startState).stateStructure()
+            const startStructure = Helper.boardStructure(Board.fromStateString(startState))
             const startPos = startStructure.map(i => 1 / (i + 15))
             const startSpread = Util.spreadRanking(startStructure)
             Object.entries(rankings).forEach(([endState, score]) => {
-                const endStructure = Board.fromStateString(endState).stateStructure()
+                const endStructure = Helper.boardStructure(Board.fromStateString(endState))
                 const endPos = endStructure.map(i => 1 / (i + 15))
                 const endSpread = Util.spreadRanking(endStructure)
                 const scoreSpread = spreadRankings[endState]
@@ -127,7 +127,54 @@ class Helper {
         return ['game', g.toString().padStart(this.opts.numGames.toString().length, '0')].join('_') + '.json'
     }
 
+    // moved from Board class since it wasn't used anywhere else
+    static boardStructure(board) {
+        return [
+            board.bars.White.length * Direction.White
+          , board.bars.Red.length * Direction.Red
+        ].concat(board.slots.map(slot =>
+            slot.length > 0 ? Direction[slot[0].color] * slot.length : 0
+        )).concat([
+            board.homes.White.length * Direction.White
+          , board.homes.Red.length * Direction.Red
+        ])
+    }
 
+    /*
+    // moved from Board class since it wasn't used anywhere
+    setStateStructure(structure) {
+        this.bars = {
+            White : Piece.make(Math.abs(structure[0]), White)
+          , Red   : Piece.make(Math.abs(structure[1]), Red)
+        }
+        this.slots = []
+        for (var i = 0; i < 24; ++i) {
+            this.slots[i] = Piece.make(Math.abs(structure[i + 2]), structure[i + 2] < 0 ? Red : White)
+        }
+        this.homes = {
+            White : Piece.make(Math.abs(structure[26]), White)
+          , Red   : Piece.make(Math.abs(structure[27]), Red)
+        }
+        this.markChange()
+    }
+
+    // old tests
+    describe('#fromStateStructure', () => {
+
+        it('should give board meeting initial string for initial structure', () => {
+            const board = Board.fromStateStructure(Structures.Initial)
+            expect(board.stateString()).to.equal(States.Initial)
+        })
+    })
+    describe('#stateStructure', () => {
+
+        it('should return expected for initial state', () => {
+            board.setup()
+            const result = board.stateStructure()
+            expect(JSON.stringify(result)).to.equal(JSON.stringify(Structures.Initial))
+        })
+    })
+    */
 }
 
 module.exports = {
