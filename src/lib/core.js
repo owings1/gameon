@@ -1867,8 +1867,12 @@ class SequenceTree {
 
     _buildDepth(board, faces, index, parentStore, depth = 0) {
 
+        if (depth > 4) {
+            throw new MaxDepthExceededError
+        }
+
         if (board.getWinner() == this.color) {
-            // terminal valid case - winner
+            // terminal case - winner
             this.hasWinner = true
             if (parentStore) {
                 parentStore.setWinner()
@@ -2426,6 +2430,8 @@ class IllegalMoveError extends GameError {
 
 class ArgumentError     extends GameError {}
 class InvalidRollError  extends GameError {}
+
+class MaxDepthExceededError extends ArgumentError {}
 
 class AlreadyRolledError        extends IllegalStateError {}
 class DoubleNotAllowedError     extends IllegalStateError {}
