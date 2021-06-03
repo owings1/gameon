@@ -55,7 +55,7 @@ class NetPlayer extends Base {
             //    return
             //}
             if (!turn.isDoubleDeclined && turn.color == this.opponent.color) {
-                const moves = turn.moves.map(move => move.coords())
+                const moves = turn.moves.map(move => move.coords)
                 this.logger.debug(['on turnEnd', 'before holds push', 'playRoll'])
                 this.holds.push(this.client.matchRequest('playRoll', {moves}))
                 this.logger.debug(['on turnEnd', 'after holds push', 'playRoll'])

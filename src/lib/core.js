@@ -128,18 +128,21 @@ function populateCacheKeys(keys) {
 populateCacheKeys(CacheKeys)
 
 const MoveHashes = {}
+const MoveCoords = {}
 
-function populateMoveHashes(hashes) {
+function populateMoveHashesCoords(hashes, coords) {
     const faces = intRange(1, 6)
     intRange(-1, 23).forEach(origin => {
         hashes[origin] = {}
+        coords[origin] = {}
         faces.forEach(face => {
             hashes[origin][face] = origin + ':' + face
+            coords[origin][face] = {origin, face}
         })
     })
 }
 
-populateMoveHashes(MoveHashes)
+populateMoveHashesCoords(MoveHashes, MoveCoords)
 
 class Match {
 
@@ -713,7 +716,7 @@ class Turn {
           , isFirstTurn      : this.isFirstTurn
           , isFinished       : this.isFinished
           , isRolled         : this.isRolled
-          , moves            : this.moves.map(Move.coords)
+          , moves            : this.moves.map(move => move.coords)
         }
     }
 
@@ -966,7 +969,7 @@ class Turn {
                 currentIndex = currentIndex[move.hash].index
                 // only if we will use it below
                 if (!endStatesToSeries[endState]) {
-                    seriesCoords.push(Move.coords(move))
+                    seriesCoords.push(move.coords)
                 }
             }
 
@@ -1951,6 +1954,7 @@ class SequenceTree {
             }
         }
 
+        // lazy getter
         var flagKey = undefined
 
         const store = {
@@ -1967,14 +1971,12 @@ class SequenceTree {
           , parent   : () => parentStore
 
           , moveSeries : () => {
-                if (!store._moveSeries) {
-                    const moveSeries = [move.coords()]
-                    for (var parent = store.parent(); parent; parent = parent.parent()) {
-                        moveSeries.unshift(parent.move.coords())
-                    }
-                    store._moveSeries = moveSeries
+                // profiling shows caching unnecessary (never hit)
+                const moveSeries = [move.coords]
+                for (var parent = parentStore; parent; parent = parent.parent()) {
+                    moveSeries.unshift(parent.move.coords)
                 }
-                return store._moveSeries
+                return moveSeries
             }
 
           // propagate up maxDepth, hasWinner, highestFace
@@ -2132,26 +2134,15 @@ class SequenceTree {
 
 class Move {
 
-    static coords(move) {
-        return {origin: move.origin, face: move.face}
-    }
-
-    static hash(move) {
-        return move.origin + ':' + move.face
-    }
-
     constructor(board, color, origin, face) {
         this.board = board
         this.color = color
         this.origin = origin
         this.face = face
         this.hash = MoveHashes[origin][face]
+        this.coords = MoveCoords[origin][face]
         this.flag = -1
         Profiler.inc('move.create')
-    }
-
-    coords() {
-        return Move.coords(this)
     }
 
     copy() {

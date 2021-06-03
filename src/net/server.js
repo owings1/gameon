@@ -480,7 +480,7 @@ class Server {
                     this.checkMatchFinished(match)
 
                     const res = {
-                        moves : thisTurn.moves.map(move => move.coords())
+                        moves : thisTurn.moves.map(move => move.coords)
                       , turn  : thisTurn.meta()
                       , game  : thisGame.meta()
                       , match : match.meta()
