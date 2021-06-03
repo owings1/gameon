@@ -6,6 +6,7 @@ const Core = require('../src/lib/core')
 const tmp = require('tmp')
 
 const States = require('./states')
+const Rolls = require('./rolls')
 
 const Structures = {
     Initial : [0, 0, 2, 0, 0, 0, 0, -5, 0, -3, 0, 0, 0, 5, -5, 0, 0, 0, 3, 0, 5, 0, 0, 0, 0, -2, 0, 0]
@@ -188,6 +189,7 @@ module.exports = {
     normState,
     parseCookies,
     MockPrompter,
+    Rolls,
     States,
     Structures
 }

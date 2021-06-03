@@ -7,13 +7,16 @@ const {
     makeRandomMoves,
     randomElement,
     requireSrc,
+    Rolls,
     States,
     Structures
 } = TestUtil
 
 const Core = requireSrc('lib/core')
+const Util = requireSrc('lib/util')
 
 const {White, Red, Match, Game, Board, Turn, Piece, Dice, SequenceTree} = Core
+
 
 describe('Match', () => {
 
@@ -800,6 +803,114 @@ describe('Turn', () => {
             expect(JSON.stringify(b2MovesAcutal)).to.equal(JSON.stringify(b2MovesExp))
         })
     })
+
+    describe('tree equivalence', () => {
+
+        describe('depth vs breadth', () => {
+
+            function checkEquivalence(t1, t2) {
+
+                const amKeys1 = Object.keys(t1.allowedMoveIndex).sort()
+                const amKeys2 = Object.keys(t2.allowedMoveIndex).sort()
+                const stKeys1 = Object.keys(t1.endStatesToSeries).sort()
+                const stKeys2 = Object.keys(t2.endStatesToSeries).sort()
+                const states1 = t1.allowedEndStates.slice(0).sort()
+                const states2 = t2.allowedEndStates.slice(0).sort()
+
+                expect(JSON.stringify(t1.allowedFaces)).to.equal(JSON.stringify(t2.allowedFaces))
+                expect(JSON.stringify(amKeys1)).to.equal(JSON.stringify(amKeys2))
+                expect(JSON.stringify(stKeys1)).to.equal(JSON.stringify(stKeys2))
+                expect(JSON.stringify(states1)).to.equal(JSON.stringify(states2))
+                
+                // the series selected for an end state can be different, and often are,
+                // since depth strategy uses flagKey optimization, which sorts the series
+                /*
+                for (var i = 0; i < stKeys1.length; i++) {
+                    var series1 = t1.endStatesToSeries[stKeys1[i]]
+                    var series2 = t2.endStatesToSeries[stKeys1[i]]
+                    for (var series of [series1, series2]) {
+                        series.sort((a, b) => {
+                            const cmp = Util.sortNumericAsc(a.origin, b.origin)
+                            return cmp != 0 ? cmp : Util.sortNumericAsc(a.face, b.face)
+                        })
+                    }
+                    expect(JSON.stringify(series1)).to.equal(JSON.stringify(series2))
+                }
+                */
+            }
+
+            describe('all rolls', () => {
+                Rolls.allRolls.forEach(roll => {
+                    it('should be equivalent for White at initial state for ' + roll.join(','), () => {
+                        const t1 = new Turn(Board.setup(), White)
+                        const t2 = new Turn(Board.setup(), White, {breadthTrees: true})
+                        expect(t2.opts.breadthTrees).to.equal(true)
+                        t1.setRoll(roll)
+                        t2.setRoll(roll.slice(0).reverse())
+                        checkEquivalence(t1, t2)
+                    })
+                })
+            })
+
+            describe('fixed game play', () => {
+                var game1
+                var game2
+
+                before(() => {
+                    game1 = new Game
+                    game2 = new Game({breadthTrees: true})
+                    game1._rollFirst = () => Rolls.allFirstRolls[0]
+                    game2._rollFirst = () => Rolls.allFirstRolls[0]
+                })
+
+                function nextTurns(roll) {
+                    const turns = [game1.nextTurn(), game2.nextTurn()]
+                    turns.forEach(turn => turn.setRoll(roll))
+                    return turns
+                }
+
+                function playTurns(t1, t2) {
+                    const moves = t1.endStatesToSeries[t1.allowedEndStates[0]] || []
+                    for (var move of moves) {
+                        t1.move(move)
+                        t2.move(move)
+                    }
+                    t1.finish()
+                    t2.finish()
+                }
+
+                it('game2 should have breadthTrees but not game1', () => {
+                    expect(!!game1.opts.breadthTrees).to.equal(false)
+                    expect(game2.opts.breadthTrees).to.equal(true)
+                })
+
+                it('should be equivalent at first turn', () => {
+                    const t1 = game1.firstTurn()
+                    const t2 = game2.firstTurn()
+                    checkEquivalence(t1, t2)
+                    playTurns(t1, t2)
+                })
+
+                Util.intRange(2, 63).forEach(i => {
+                    const roll = Rolls.fixedRandomRolls[i]
+                    it('should be equivalent at turn ' + i + ' for roll ' + roll.join(','), () => {
+                        const turns = nextTurns(roll)
+                        checkEquivalence(...turns)
+                        playTurns(...turns)
+                    })
+                })
+
+                it('games should be finished and White should win', () => {
+                    game1.checkFinished()
+                    game2.checkFinished()
+                    expect(game1.isFinished).to.equal(true)
+                    expect(game2.isFinished).to.equal(true)
+                    expect(game1.getWinner()).to.equal(game2.getWinner())
+                    expect(game1.getWinner()).to.equal(White)
+                })
+            })
+        })
+    })
 })
 
 describe('Board', () => {
@@ -869,14 +980,6 @@ describe('Board', () => {
             expect(result.stateString()).to.equal(board.stateString())
         })
 	})
-
-    describe('#fromStateStructure', () => {
-
-        it('should give board meeting initial string for initial structure', () => {
-            const board = Board.fromStateStructure(Structures.Initial)
-            expect(board.stateString()).to.equal(States.Initial)
-        })
-    })
 
 	describe('#getPossibleMovesForFace', () => {
 
@@ -1314,15 +1417,6 @@ describe('Board', () => {
             board.setup()
             const result = board.stateString()
             expect(result).to.equal(States.Initial)
-        })
-    })
-
-    describe('#stateStructure', () => {
-
-        it('should return expected for initial state', () => {
-            board.setup()
-            const result = board.stateStructure()
-            expect(JSON.stringify(result)).to.equal(JSON.stringify(Structures.Initial))
         })
     })
 
