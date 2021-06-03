@@ -153,26 +153,6 @@ class Match {
         }
     }
 
-    static serialize(match) {
-        return match.serialize()
-    }
-
-    static unserialize(data) {
-        const match = new Match(data.total, data.opts)
-
-        match.uuid = data.uuid
-
-        match.hasCrawforded = data.hasCrawforded
-        match.winner = data.winner
-        match.isFinished = data.isFinished
-        match.scores = data.scores
-
-        match.games = data.games.map(Game.unserialize)
-        match.thisGame = match.games[match.games.length - 1] || null
-
-        return match
-    }
-
     constructor(total, opts) {
 
         if (!Number.isInteger(total) || total < 1) {
@@ -265,9 +245,29 @@ class Match {
     }
 
     serialize() {
-        return Util.merge(this.meta(), {
-            games: this.games.map(Game.serialize)
+        return Match.serialize(this)
+    }
+
+    static serialize(match) {
+        return Util.merge(match.meta(), {
+            games: match.games.map(Game.serialize)
         })
+    }
+
+    static unserialize(data) {
+        const match = new Match(data.total, data.opts)
+
+        match.uuid = data.uuid
+
+        match.hasCrawforded = data.hasCrawforded
+        match.winner = data.winner
+        match.isFinished = data.isFinished
+        match.scores = data.scores
+
+        match.games = data.games.map(Game.unserialize)
+        match.thisGame = match.games[match.games.length - 1] || null
+
+        return match
     }
 }
 
@@ -473,32 +473,6 @@ class Game {
 var turnIdTrack = 0
 
 class Turn {
-
-    static serialize(turn) {
-        return turn.serialize()
-    }
-
-    static unserialize(data, board) {
-
-        board = board || Board.fromStateString(data.startState)
-
-        const turn = new Turn(board, data.color)
-
-        if (data.isRolled) {
-            turn.setRoll(...data.dice)
-        }
-
-        data.moves.forEach(move => turn.move(move.origin, move.face))
-    
-        turn.isDoubleDeclined = data.isDoubleDeclined
-        turn.isDoubleOffered  = data.isDoubleOffered
-
-        if (data.isFinished) {
-            turn.finish()
-        }
-
-        return turn
-    }
 
     constructor(board, color) {
 
@@ -721,13 +695,40 @@ class Turn {
     }
 
     serialize() {
-        return Util.merge(this.meta(), {
-            allowedMoveCount   : this.allowedMoveCount
-          , allowedEndStates   : this.allowedEndStates
-          , allowedFaces       : this.allowedFaces
-          //, allowedMoveIndex   : this.allowedMoveIndex // TODO: circular with move objects
-          , endStatesToSeries  : this.endStatesToSeries
+        return Turn.serialize(this)
+        
+    }
+
+    static serialize(turn) {
+        return Util.merge(turn.meta(), {
+            allowedMoveCount   : turn.allowedMoveCount
+          , allowedEndStates   : turn.allowedEndStates
+          , allowedFaces       : turn.allowedFaces
+          //, allowedMoveIndex   : turn.allowedMoveIndex // TODO: circular with move objects
+          , endStatesToSeries  : turn.endStatesToSeries
         })
+    }
+
+    static unserialize(data, board) {
+
+        board = board || Board.fromStateString(data.startState)
+
+        const turn = new Turn(board, data.color)
+
+        if (data.isRolled) {
+            turn.setRoll(...data.dice)
+        }
+
+        data.moves.forEach(move => turn.move(move.origin, move.face))
+    
+        turn.isDoubleDeclined = data.isDoubleDeclined
+        turn.isDoubleOffered  = data.isDoubleOffered
+
+        if (data.isFinished) {
+            turn.finish()
+        }
+
+        return turn
     }
 
     _compute() {
@@ -2015,9 +2016,10 @@ class SequenceTree {
 
                     flagKey = null
 
+                    // only do for doubles
                     if (moveSeriesFlag == 8 && depth == 4) {
 
-                        Profiler.start('SequenceTree.newStore.flagKey')
+                        Profiler.start('store.flagKey')
 
                         const flagOrigins = [move.origin]
                         for (var parent = parentStore; parent; parent = parent.parent()) {
@@ -2032,7 +2034,7 @@ class SequenceTree {
                             flagKey += flagOrigins[i]
                         }
 
-                        Profiler.stop('SequenceTree.newStore.flagKey')
+                        Profiler.stop('store.flagKey')
                     }
                 }
 
