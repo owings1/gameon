@@ -66,9 +66,8 @@ describe('Match', () => {
         })
 
         it('should return White when red doubles and white declines for 1 point match isCrawford=false', () => {
-            const match = new Match(1, {isCrawford: false})
+            const match = new Match(1, {isCrawford: false, roller: () => [6, 1]})
             const game = match.nextGame()
-            game._rollFirst = () => [6, 1]
             makeRandomMoves(game.firstTurn(), true)
             game.nextTurn().setDoubleOffered()
             game.thisTurn.setDoubleDeclined()
@@ -111,11 +110,11 @@ describe('Match', () => {
 
         it('should set isCrawford only once', () => {
 
-            const match = new Match(2, {isCrawford: true, isJacoby: true})
+            const rolls = [[1, 6], [6, 1], [6, 6]]
+            const match = new Match(2, {isCrawford: true, isJacoby: true, roller: () => rolls.shift()})
 
             const game1 = match.nextGame()
             // red moves first
-            game1._rollFirst = () => [1, 6]
             makeRandomMoves(game1.firstTurn(), true)
             // white doubles
             game1.nextTurn().setDoubleOffered()
@@ -127,7 +126,6 @@ describe('Match', () => {
             const game2 = match.nextGame()
             expect(game2.opts.isCrawford).to.equal(true)
             // white moves first
-            game2._rollFirst = () => [6, 1]
             makeRandomMoves(game2.firstTurn(), true)
             // force state red will win
             game2.board.setStateString(States.EitherOneMoveWin)
@@ -155,11 +153,11 @@ describe('Match', () => {
         })
 
         it('should serialize/unserialize and continue play with total:1', () => {
-            const m1 = new Match(1)
+            const m1 = new Match(1, {roller: () => [6, 1]})
             const g1 = m1.nextGame()
 
             // white moves first
-            g1._rollFirst = () => [6, 1]
+            //g1._rollFirst = () => [6, 1]
             makeRandomMoves(g1.firstTurn(), true)
 
             const m2 = Match.unserialize(m1.serialize())
@@ -350,7 +348,8 @@ describe('Game', () => {
         })
 
         it('should return red after red first turn then force state to EitherOneMoveWin and white move', () => {
-            game._rollFirst = () => [1, 6]
+            const rolls = [[1, 6], [5, 2]]
+            game.opts.roller = () => rolls.shift()
             makeRandomMoves(game.firstTurn()).finish()
             game.board.setStateString(States.EitherOneMoveWin)
             const turn = game.nextTurn()
@@ -369,7 +368,8 @@ describe('Game', () => {
         })
 
         it('should return white after red first turn then force state to EitherOneMoveWin and white move', () => {
-            game._rollFirst = () => [1, 6]
+            const rolls = [[1, 6], [5, 2]]
+            game.opts.roller = () => rolls.shift()
             makeRandomMoves(game.firstTurn()).finish()
             game.board.setStateString(States.EitherOneMoveWin)
             const turn = game.nextTurn()
@@ -380,7 +380,8 @@ describe('Game', () => {
         })
 
         it('should return red after white first turn then force state to EitherOneMoveWin and red move', () => {
-            game._rollFirst = () => [6, 1]
+            const rolls = [[6, 1], [5, 2]]
+            game.opts.roller = () => rolls.shift()
             makeRandomMoves(game.firstTurn()).finish()
             game.board.setStateString(States.EitherOneMoveWin)
             const turn = game.nextTurn()
@@ -499,8 +500,9 @@ describe('Turn', () => {
 
         it('should allow after setRoll 6,6 for white on bar with setup board', () => {
             const board = Board.setup()
-            board.bars.White.push(board.slots[0].pop())
-            board.markChange()
+            board.pushBar(White, board.popOrigin(0))
+            //board.bars.White.push(board.slots[0].pop())
+            //board.markChange()
             const turn = new Turn(board, White)
             turn.setRoll([6, 6])
             turn.finish()
@@ -545,9 +547,8 @@ describe('Turn', () => {
 
         it('should move Red 3,1 to 5 point with expected state', () => {
             const bexp = Board.setup()
-            bexp.slots[4].push(bexp.slots[7].pop())
-            bexp.slots[4].push(bexp.slots[5].pop())
-            bexp.markChange()
+            bexp.pushOrigin(4, bexp.popOrigin(7))
+            bexp.pushOrigin(4, bexp.popOrigin(5))
             const exp = bexp.stateString()
 
             const board = Board.setup()
@@ -750,8 +751,8 @@ describe('Turn', () => {
         })
 
         it('should leave second turn unrolled, then continue play', () => {
-            const game = new Game
-            game._rollFirst = () => [6, 1]
+            const rolls = [[6, 1]]
+            const game = new Game({roller: () => rolls.shift() || Dice.rollTwo()})
             makeRandomMoves(game.firstTurn(), true)
             game.nextTurn()
             const t2 = Turn.unserialize(Turn.serialize(game.thisTurn))
@@ -780,8 +781,7 @@ describe('Turn', () => {
             turn.unmove()
             turn.move(7, 3)
             turn.finish()
-            expect(turn.board.slots[4]).to.have.length(2)
-            expect(turn.board.slots[4][0].color).to.equal(Red)
+            expect(turn.board.piecesOnOrigin(Red, 4)).to.equal(2)
         })
 
         it('should undo both moves to end up with 5 point for red for 3,1', () => {
@@ -794,8 +794,7 @@ describe('Turn', () => {
             turn.move(5, 1)
             turn.move(7, 3)
             turn.finish()
-            expect(turn.board.slots[4]).to.have.length(2)
-            expect(turn.board.slots[4][0].color).to.equal(Red)
+            expect(turn.board.piecesOnOrigin(Red, 4)).to.equal(2)
         })
     })
 
@@ -803,17 +802,15 @@ describe('Turn', () => {
 
         it('should have expected value for sparse board with 2,1 roll', () => {
             const board = new Board
-            board.slots[0] = Piece.make(2, White)
-            board.markChange()
+            board.pushOrigin(0, White)
+            board.pushOrigin(0, White)
 
             // build expected board outcomes
             const b1 = board.copy()
             const b2 = board.copy()
-            b1.slots[1].push(b1.slots[0].pop())
-            b1.slots[2].push(b1.slots[0].pop())
-            b2.slots[3].push(b2.slots[0].pop())
-            b1.markChange()
-            b2.markChange()
+            b1.pushOrigin(1, b1.popOrigin(0))
+            b1.pushOrigin(2, b1.popOrigin(0))
+            b2.pushOrigin(3, b2.popOrigin(0))
 
             const turn = new Turn(board, White)
             turn.setRoll([2, 1])
@@ -875,8 +872,9 @@ describe('Board', () => {
         it('should have two pieces on slot 0 copying setup board, but slot arrays non-identical', () => {
             board.setup()
             const copy = board.copy()
-            expect(copy.slots[0]).to.have.length(2)
-            expect(copy.slots[0]).to.not.equal(board.slots[0])
+            expect(copy.piecesOnOrigin(White, 0)).to.equal(2)
+            board.popOrigin(0)
+            expect(copy.piecesOnOrigin(White, 0)).to.equal(2)
         })
     })
 
@@ -904,8 +902,7 @@ describe('Board', () => {
 	describe('#getPossibleMovesForFace', () => {
 
 		it('should return singleton isComeIn face=2 with white from bar on sparse board', () => {
-			board.bars.White = Piece.make(1, White)
-            board.markChange()
+            board.pushBar(White)
 			const result = board.getPossibleMovesForFace(White, 2)
 			expect(result).to.have.length(1)
 			expect(result[0].isComeIn).to.equal(true)
@@ -913,9 +910,9 @@ describe('Board', () => {
 		})
 
 		it('should return empty for white face=5 with one on 0 and red 2 on 5', () => {
-			board.slots[0] = Piece.make(1, White)
-			board.slots[5] = Piece.make(2, Red)
-            board.markChange()
+            board.pushOrigin(0, White)
+            board.pushOrigin(5, Red)
+            board.pushOrigin(5, Red)
 			const result = board.getPossibleMovesForFace(White, 5)
 			expect(result).to.have.length(0)
 		})
@@ -943,15 +940,17 @@ describe('Board', () => {
         })
 
         it('should return white when home has 15', () => {
-            board.homes.White = Piece.make(15, White)
-            board.markChange()
+            for (var i = 0; i < 15; i++) {
+                board.pushHome(White)
+            }
             const result = board.getWinner()
             expect(result).to.equal(White)
         })
 
         it('should return red when home has 15', () => {
-            board.homes.Red = Piece.make(15, Red)
-            board.markChange()
+            for (var i = 0; i < 15; i++) {
+                board.pushHome(Red)
+            }
             const result = board.getWinner()
             expect(result).to.equal(Red)
         })
@@ -960,8 +959,7 @@ describe('Board', () => {
     describe('#hasBar', () => {
 
         it('should return true for white with one on bar', () => {
-            board.bars.White = Piece.make(1, White)
-            board.markChange()
+            board.pushBar(White)
             const result = board.hasBar(White)
             expect(result).to.equal(true)
         })
@@ -970,15 +968,17 @@ describe('Board', () => {
     describe('#hasWinner', () => {
 
         it('should return true when red has 15 in home', () => {
-            board.homes.Red = Piece.make(15, Red)
-            board.markChange()
+            for (var i = 0; i < 15; i++) {
+                board.pushHome(Red)
+            }
             const result = board.hasWinner()
             expect(result).to.equal(true)
         })
 
         it('should return true when white has 15 in home', () => {
-            board.homes.White = Piece.make(15, White)
-            board.markChange()
+            for (var i = 0; i < 15; i++) {
+                board.pushHome(White)
+            }
             const result = board.hasWinner()
             expect(result).to.equal(true)
         })
@@ -1002,8 +1002,9 @@ describe('Board', () => {
     describe('#isAllHome', () => {
 
         it('should return true when red has 15 in home', () => {
-            board.homes.Red = Piece.make(15, Red)
-            board.markChange()
+            for (var i = 0; i < 15; i++) {
+                board.pushHome(Red)
+            }
             const result = board.isAllHome(Red)
             expect(result).to.equal(true)
         })
@@ -1076,23 +1077,24 @@ describe('Board', () => {
     describe('#mayBearoff', () => {
 
         it('should return false for white with one on bar', () => {
-            board.bars.White = Piece.make(1, White)
-            board.markChange()
+            board.pushBar(White)
             const result = board.mayBearoff(White)
             expect(result).to.equal(false)
         })
 
         it('should return true for red with none on bar and 15 on 0', () => {
-            board.slots[0] = Piece.make(15, Red)
-            board.markChange()
+            for (var i = 0; i < 15; ++i) {
+                board.pushOrigin(0, Red)
+            }
             const result = board.mayBearoff(Red)
             expect(result).to.equal(true)
         })
 
         it('should return false for red with none on bar and 1 on 0 and 14 on 23', () => {
-            board.slots[23] = Piece.make(14, Red)
-            board.slots[0] = Piece.make(1, Red)
-            board.markChange()
+            for (var i = 0; i < 14; ++i) {
+                board.pushOrigin(23, Red)
+            }
+            board.pushOrigin(0, Red)
             const result = board.mayBearoff(Red)
             expect(result).to.equal(false)
         })
@@ -1121,29 +1123,25 @@ describe('Board', () => {
         })
 
         it('should comein to face=1 for white with bar', () => {
-            board.bars.White.push(board.slots[0].pop())
-            board.markChange()
+            board.pushBar(White, board.popOrigin(0))
             board.move(White, -1, 1)
-            expect(board.slots[0]).to.have.length(2)
+            expect(board.piecesOnOrigin(White, 0)).to.equal(2)
         })
 
         it('should comein to face=1 for red with bar', () => {
-            board.bars.Red.push(board.slots[23].pop())
-            board.markChange()
+            board.pushBar(Red, board.popOrigin(23))
             board.move(Red, -1, 1)
-            expect(board.slots[23]).to.have.length(2)
+            expect(board.piecesOnOrigin(Red, 23)).to.equal(2)
         })
 
         it('should not comein to face=6 for white with bar as OccupiedSlotError', () => {
-            board.bars.White.push(board.slots[0].pop())
-            board.markChange()
+            board.pushBar(White, board.popOrigin(0))
             const err = getError(() => board.move(White, -1, 6))
             expect(err.name).to.equal('OccupiedSlotError')
         })
 
         it('should not advance white with bar as PieceOnBarError', () => {
-            board.bars.White.push(board.slots[0].pop())
-            board.markChange()
+            board.pushBar(White, board.popOrigin(0))
             const err = getError(() => board.move(White, 1, 1))
             expect(err.name).to.equal('PieceOnBarError')
         })
@@ -1164,62 +1162,42 @@ describe('Board', () => {
         })
 
         it('should bear off white from 6 point with all other pieces on 5 point', () => {
-            board.slots[19] = board.slots[0].splice(0).concat(
-                board.slots[11].splice(0),
-                board.slots[16].splice(0)
-            )
-            board.markChange()
+            board.setStateString('0|0|0:|0:|0:|0:|0:|5:Red|0:|3:Red|0:|0:|0:|0:|5:Red|0:|0:|0:|0:|0:|5:White|10:White|0:|0:|0:|2:Red|0|0')
             board.move(White, 18, 6)
-            expect(board.slots[18]).to.have.length(4)
-            expect(board.homes.White).to.have.length(1)
+            expect(board.piecesOnOrigin(White, 18)).to.equal(4)
+            expect(board.analyzer.piecesHome(White)).to.equal(1)
         })
 
         it('should bear off white from 5 point on face=5 with other pieces on 6 point', () => {
-            board.slots[19] = board.slots[0].splice(0).concat(
-                board.slots[11].splice(0),
-                board.slots[16].splice(0)
-            )
-            board.markChange()
+            board.setStateString('0|0|0:|0:|0:|0:|0:|5:Red|0:|3:Red|0:|0:|0:|0:|5:Red|0:|0:|0:|0:|0:|5:White|10:White|0:|0:|0:|2:Red|0|0')
             board.move(White, 19, 5)
-            expect(board.slots[19]).to.have.length(9)
-            expect(board.homes.White).to.have.length(1)
+            expect(board.piecesOnOrigin(White, 19)).to.equal(9)
+            expect(board.analyzer.piecesHome(White)).to.equal(1)
         })
 
         it('should bear off red from 5 point on face=5 with other pieces on 6 point', () => {
-            board.slots[4] = board.slots[23].splice(0).concat(
-                board.slots[12].splice(0),
-                board.slots[7].splice(0)
-            )
-            board.markChange()
+            board.setStateString('0|0|2:White|0:|0:|0:|10:Red|5:Red|0:|0:|0:|0:|0:|5:White|0:|0:|0:|0:|3:White|0:|5:White|0:|0:|0:|0:|0:|0|0')
             board.move(Red, 4, 5)
-            expect(board.slots[4]).to.have.length(9)
-            expect(board.homes.Red).to.have.length(1)
+            expect(board.piecesOnOrigin(Red, 4)).to.equal(9)
+            expect(board.analyzer.piecesHome(Red)).to.equal(1)
         })
 
         it('should not bear off white with face=6 from 5 point with piece behind as IllegalBareoffError', () => {
-            board.slots[19] = board.slots[0].splice(0).concat(
-                board.slots[11].splice(0),
-                board.slots[16].splice(0)
-            )
-            board.markChange()
+            board.setStateString('0|0|0:|0:|0:|0:|0:|5:Red|0:|3:Red|0:|0:|0:|0:|5:Red|0:|0:|0:|0:|0:|5:White|10:White|0:|0:|0:|2:Red|0|0')
             const err = getError(() => board.move(White, 19, 6))
             expect(err.name).to.equal('IllegalBareoffError')
         })
 
         it('should not bear off red with face=6 from 5 point with piece behind as IllegalBareoffError', () => {
-            board.slots[4] = board.slots[23].splice(0).concat(
-                board.slots[12].splice(0),
-                board.slots[7].splice(0)
-            )
-            board.markChange()
+            board.setStateString('0|0|2:White|0:|0:|0:|10:Red|5:Red|0:|0:|0:|0:|0:|5:White|0:|0:|0:|0:|3:White|0:|5:White|0:|0:|0:|0:|0:|0|0')
             const err = getError(() => board.move(Red, 4, 6))
             expect(err.name).to.equal('IllegalBareoffError')
         })
 
         it('should advance white from 0 to 1', () => {
             board.move(White, 0, 1)
-            expect(board.slots[0]).to.have.length(1)
-            expect(board.slots[1]).to.have.length(1)
+            expect(board.piecesOnOrigin(White, 0)).to.equal(1)
+            expect(board.piecesOnOrigin(White, 1)).to.equal(1)
         })
 
         it('should not advance white from 0 to 5 as OccupiedSlotError', () => {
@@ -1230,9 +1208,8 @@ describe('Board', () => {
         it('should move white to bar when red hits on 1', () => {
             board.move(White, 0, 1)
             board.move(Red, 5, 4)
-            expect(board.slots[1]).to.have.length(1)
-            expect(board.slots[1][0].color).to.equal(Red)
-            expect(board.bars.White).to.have.length(1)
+            expect(board.piecesOnOrigin(Red, 1)).to.equal(1)
+            expect(board.analyzer.piecesOnBar(White)).to.equal(1)
         })
 
         it('should return expected state string after white moves 2 pips for one runner', () => {
@@ -1258,45 +1235,42 @@ describe('Board', () => {
 
         it('should undo bareoff on sparse board white i:22,n:3', () => {
             board.clear()
-            board.slots[22] = Piece.make(2, White)
-            board.markChange()
+            board.pushOrigin(22, White)
+            board.pushOrigin(22, White)
             const move = board.move(White, 22, 3)
-            expect(board.slots[22].length).to.equal(1)
-            expect(board.homes.White).to.have.length(1)
+            expect(board.piecesOnOrigin(White, 22)).to.equal(1)
+            expect(board.analyzer.piecesHome(White)).to.equal(1)
             move.undo()
-            expect(board.slots[22].length).to.equal(2)
-            expect(board.homes.White).to.have.length(0)
+            expect(board.piecesOnOrigin(White, 22)).to.equal(2)
+            expect(board.analyzer.piecesHome(White)).to.equal(0)
         })
 
         it('should undo comein on sparse board white i:-1,n:2', () => {
             board.clear()
-            board.bars.White.push(new Piece(White))
-            board.markChange()
+            board.pushBar(White)
             const move = board.move(White, -1, 2)
-            expect(board.bars.White).to.have.length(0)
-            expect(board.slots[1]).to.have.length(1)
+            expect(board.analyzer.piecesOnBar(White)).to.equal(0)
+            expect(board.piecesOnOrigin(White, 1)).to.equal(1)
             move.undo()
-            expect(board.bars.White).to.have.length(1)
-            expect(board.slots[1]).to.have.length(0)
+            expect(board.analyzer.piecesOnBar(White)).to.equal(1)
+            expect(board.piecesOnOrigin(White, 1)).to.equal(0)
         })
 
         it('should hit for red come in with 3 with RedHitComeIn3', () => {
             board.setStateString(States.RedHitComeIn3)
             const move = board.move(Red, -1, 3)
-            expect(board.bars.Red).to.have.length(0)
-            expect(board.slots[21]).to.have.length(1)
-            expect(board.slots[21][0].color).to.equal(Red)
-            expect(board.bars.White).to.have.length(1)
+            expect(board.analyzer.piecesOnBar(Red)).to.equal(0)
+            expect(board.piecesOnOrigin(Red, 21)).to.equal(1)
+            expect(board.analyzer.piecesOnBar(White)).to.equal(1)
         })
 
         it('should undo hit for red come in with 3 with RedHitComeIn3', () => {
             board.setStateString(States.RedHitComeIn3)
             const move = board.move(Red, -1, 3)
             move.undo()
-            expect(board.bars.Red).to.have.length(1)
-            expect(board.slots[21]).to.have.length(1)
-            expect(board.slots[21][0].color).to.equal(White)
-            expect(board.bars.White).to.have.length(0)
+            expect(board.analyzer.piecesOnBar(Red)).to.equal(1)
+            expect(board.piecesOnOrigin(White,21)).to.equal(1)
+            expect(board.analyzer.piecesOnBar(White)).to.equal(0)
         })
     })
 
@@ -1479,12 +1453,11 @@ describe('Move', () => {
         board = Board.setup()
     })
 
-    // refactored to property
-    describe.skip('#coords', () => {
+    describe('.coords', () => {
 
-        it('should return origin and face properties', () => {
+        it('should have origin and face properties', () => {
             const move = board.buildMove(White, 0, 1)
-            const result = move.coords()
+            const result = move.coords
             expect(result.origin).to.equal(0)
             expect(result.face).to.equal(1)
         })
@@ -1493,8 +1466,7 @@ describe('Move', () => {
     describe('#copy', () => {
 
         it('should return new ComeInMove with same board, color, and face', () => {
-            board.bars.White.push(board.slots[0].pop())
-            board.markChange()
+            board.pushBar(White, board.popOrigin(0))
             const move = board.buildMove(White, -1, 1)
             const copy = move.copy()
             expect(copy.constructor.name).to.equal('ComeInMove')
@@ -1507,9 +1479,7 @@ describe('Move', () => {
     describe('#copyForBoard', () => {
 
         it('should return new ComeInMove with same color and face, but other board', () => {
-            const board = Board.setup()
-            board.bars.White.push(board.slots[0].pop())
-            board.markChange()
+            board.pushBar(White, board.popOrigin(0))
             const move = board.buildMove(White, -1, 1)
             const otherBoard = board.copy()
             const copy = move.copyForBoard(otherBoard)
@@ -1519,38 +1489,6 @@ describe('Move', () => {
             expect(copy.face).to.equal(1)
         })
     })
-
-    /*
-    // Obsolete methods
-    describe('#getDestSlot', () => {
-
-        it('should return [] equal to board.slots[1] for white move 0,1', () => {
-            const move = board.buildMove(White, 0, 1)
-            const result = move.getDestSlot()
-            expect(result.length).to.equal(0)
-            expect(result).to.equal(board.slots[1])
-        })
-    })
-
-    describe('#getOpponentBar', () => {
-
-        it('should return board.bars.Red for White 0,1', () => {
-            const move = board.buildMove(White, 0, 1)
-            const result = move.getOpponentBar()
-            expect(result).to.equal(board.bars.Red)
-        })
-    })
-
-    describe('#getOriginSlot', () => {
-
-        it('should return slot with length 2 equal to board.slots[0] for white move 0,1', () => {
-            const move = board.buildMove(White, 0, 1)
-            const result = move.getOriginSlot()
-            expect(result.length).to.equal(2)
-            expect(result).to.equal(board.slots[0])
-        })
-    })
-    */
 })
 
 describe('Piece', () => {
@@ -1819,7 +1757,9 @@ describe('SequenceTree', () => {
             }
 
             describe('all rolls', () => {
+
                 Rolls.allRolls.forEach(roll => {
+
                     it('should be equivalent for White at initial state for ' + roll.join(','), () => {
                         const t1 = new Turn(Board.setup(), White)
                         const t2 = new Turn(Board.setup(), White, {breadthTrees: true})
@@ -1832,21 +1772,18 @@ describe('SequenceTree', () => {
             })
 
             describe('fixed game play', () => {
+
                 var game1
                 var game2
 
                 before(() => {
-                    game1 = new Game
-                    game2 = new Game({breadthTrees: true})
-                    game1._rollFirst = () => Rolls.allFirstRolls[0]
-                    game2._rollFirst = () => Rolls.allFirstRolls[0]
+                    var rollIndex1 = 1
+                    var rollIndex2 = 1
+                    const roller1 = () => Rolls.rolls[rollIndex1++]
+                    const roller2 = () => Rolls.rolls[rollIndex2++]
+                    game1 = new Game({roller: roller1})
+                    game2 = new Game({roller: roller2, breadthTrees: true})
                 })
-
-                function nextTurns(roll) {
-                    const turns = [game1.nextTurn(), game2.nextTurn()]
-                    turns.forEach(turn => turn.setRoll(roll))
-                    return turns
-                }
 
                 function playTurns(t1, t2) {
                     const moves = t1.endStatesToSeries[t1.allowedEndStates[0]] || []
@@ -1871,9 +1808,8 @@ describe('SequenceTree', () => {
                 })
 
                 Util.intRange(2, 63).forEach(i => {
-                    const roll = Rolls.rolls[i]
-                    it('should be equivalent at turn ' + i + ' for roll ' + roll.join(','), () => {
-                        const turns = nextTurns(roll)
+                    it('should be equivalent at turn ' + i + ' for roll ' + Rolls.rolls[i].join(','), () => {
+                        const turns = [game1.nextTurn().roll(), game2.nextTurn().roll()]
                         checkEquivalence(...turns)
                         playTurns(...turns)
                     })

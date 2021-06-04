@@ -1652,6 +1652,10 @@ class BoardAnalyzer {
         return this.board.homes[color].length
     }
 
+    piecesOnBar(color) {
+        return this.board.bars[color].length
+    }
+
     piecesOnPoint(color, point) {
         const slot = this.board.slots[PointOrigins[color][point]]
         return (slot[0] && slot[0].color == color) ? slot.length : 0
