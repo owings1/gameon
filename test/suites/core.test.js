@@ -1871,7 +1871,7 @@ describe('SequenceTree', () => {
                 })
 
                 Util.intRange(2, 63).forEach(i => {
-                    const roll = Rolls.fixedRandomRolls[i]
+                    const roll = Rolls.rolls[i]
                     it('should be equivalent at turn ' + i + ' for roll ' + roll.join(','), () => {
                         const turns = nextTurns(roll)
                         checkEquivalence(...turns)

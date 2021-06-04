@@ -1,5 +1,5 @@
 /**
- * gameon - Robot Pofiling Helper class
+ * gameon - Robot Performance Pofiling Helper class
  *
  * Copyright (C) 2020-2021 Doug Owings
  *
@@ -91,12 +91,14 @@ class Helper {
 
     static defaults() {
         return {
-            outDir      : null
-          , matchTotal  : 1
-          , numMatches  : 500
-          , sortBy      : 'name'
-          , indent      : 4
-          , columns     : [
+            outDir       : null
+          , matchTotal   : 1
+          , numMatches   : 500
+          , sortBy       : 'name'
+          , breadthTrees : false
+          , indent       : 4
+          , rollsFile    : null
+          , columns      : [
                 'name'
               , 'elapsed'
               , 'average'
@@ -104,7 +106,7 @@ class Helper {
               , 'game'
               //, 'match'
               , 'turn'
-            ]
+            ].join(',')
         }
     }
 
@@ -115,9 +117,17 @@ class Helper {
         }
         this.logger = new Logger
         this.coordinator = new Coordinator
+        this.roller = null
     }
 
     async run() {
+        if (this.opts.breadthTrees) {
+            this.logger.info('Using breadth trees')
+        }
+        if (this.opts.rollsFile) {
+            this.logger.info('Loading rolls file', path.basename(this.opts.rollsFile))
+            await this.loadRollsFile(this.opts.rollsFile)
+        }
         Profiler.enabled = true
         Profiler.resetAll()
         const white = RobotDelegator.forDefaults(White)
@@ -127,10 +137,11 @@ class Helper {
             var matchCount = 0
             var gameCount = 0
             var turnCount = 0
+            const matchOpts = {breadthTrees: this.opts.breadthTrees, roller: this.roller}
             const summaryTimer = new Timer
             summaryTimer.start()
             for (var i = 0; i < this.opts.numMatches; ++i) {
-                var match = new Match(this.opts.matchTotal)
+                var match = new Match(this.opts.matchTotal, matchOpts)
                 await this.coordinator.runMatch(match, white, red)
                 matchCount += 1
                 gameCount += match.games.length
@@ -157,7 +168,8 @@ class Helper {
 
     buildData(profiler, summary) {
 
-        const {columns, sortBy} = this.opts
+        const {sortBy} = this.opts
+        const columns = this.opts.columns.split(',')
 
         const timerGetters = {
             name    : timer => timer.name
@@ -220,7 +232,7 @@ class Helper {
 
     logData(data, summary) {
 
-        const {columns} = this.opts
+        const columns = this.opts.columns.split(',')
 
         const titles = {
             // optional
@@ -350,6 +362,41 @@ class Helper {
         this.logger.writeStdout(''.padEnd(this.opts.indent, ' '))
         this.logger.writeStdout(line)
         this.logger.writeStdout('\n')
+    }
+
+    loadRollsFile(file) {
+        file = resolve(file)
+        const data = JSON.parse(fs.readFileSync(file, 'utf-8'))
+        if (!Array.isArray(data.rolls)) {
+            throw new Error('Invalid rolls data, expects rolls key to be an array')
+        }
+        this.loadRolls(data.rolls)
+    }
+
+    loadRolls(rolls) {
+        if (!rolls.length) {
+            throw new Error('Rolls cannot be empty')
+        }
+        // check for at least one valid first roll
+        var isFound = false
+        for (var i = 0; i < rolls.length; ++i) {
+            var dice = rolls[i]
+            if (dice[0] != dice[1]) {
+                isFound = true
+                break
+            }
+        }
+        if (!isFound) {
+            throw new Error('Cannot find one unique roll')
+        }
+        var rollIndex = 0
+        var maxIndex = rolls.length - 1
+        this.roller = () => {
+            if (rollIndex > maxIndex) {
+                rollIndex = 0
+            }
+            return rolls[rollIndex++]
+        }
     }
 }
 

@@ -1,5 +1,5 @@
 /**
- * gameon - robot:calibrate:generate command
+ * gameon - robot:profile command
  *
  * Copyright (C) 2020-2021 Doug Owings
  *
@@ -34,10 +34,12 @@ class RobotProfileCommand extends Command {
         const {flags} = this.parse(RobotProfileCommand)
         this.flags = flags
         this.opts = {
-            outDir      : this.flags.outdir
-          , matchTotal  : +this.flags.matchtotal
-          , numMatches  : +this.flags.nummatches
-          , sortBy      : this.flags.sortby.toLowerCase()
+            outDir       : this.flags.outdir
+          , matchTotal   : +this.flags.matchtotal
+          , numMatches   : +this.flags.nummatches
+          , sortBy       : this.flags.sortby.toLowerCase()
+          , breadthTrees : this.flags.breadth
+          , rollsFile    : this.flags.rollsfile
         }
         this.helper = this.helper || new Helper(this.opts)
     }
@@ -51,7 +53,11 @@ class RobotProfileCommand extends Command {
 RobotProfileCommand.description = `Run performance profiling`
 
 RobotProfileCommand.flags = {
-    outdir: flags.string({
+    breadth: flags.boolean({
+        char        : 'b'
+      , description : 'generate breadthFirst trees'
+    })
+  , outdir: flags.string({
         char        : 'd'
       , description : 'output directory, if desired'
     })
@@ -64,6 +70,10 @@ RobotProfileCommand.flags = {
         char        : 'n'
       , description : 'number of matches to run'
       , default     : defaults.numMatches.toString()
+    })
+  , rollsfile: flags.string({
+        char        : 'r'
+      , description : 'fixed rolls file to use'
     })
   , sortby: flags.string({
         char        : 's'

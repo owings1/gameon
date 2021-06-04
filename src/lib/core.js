@@ -151,6 +151,7 @@ class Match {
             isCrawford   : true
           , isJacoby     : false
           , breadthTrees : false
+          , roller       : null
         }
     }
 
@@ -279,6 +280,7 @@ class Game {
             isCrawford   : false
           , isJacoby     : false
           , breadthTrees : false
+          , roller       : null
         }
     }
 
@@ -326,9 +328,11 @@ class Game {
         if (this.thisTurn) {
             throw new GameAlreadyStartedError('The game has already started')
         }
-        const dice = this._rollFirst()
+        do {
+            var dice = this._rollFirst()
+        } while (dice[0] == dice[1])
         const firstColor = Dice.getWinner(dice)
-        this.thisTurn = new Turn(this.board, firstColor, {breadthTrees: this.opts.breadthTrees})
+        this.thisTurn = new Turn(this.board, firstColor, this.opts)
         this.thisTurn.setRoll(dice)
         this.thisTurn.isFirstTurn = true
         return this.thisTurn
@@ -348,7 +352,7 @@ class Game {
             return null
         }
         this.turnHistory.push(this.thisTurn.meta())
-        this.thisTurn = new Turn(this.board, Opponent[this.thisTurn.color])
+        this.thisTurn = new Turn(this.board, Opponent[this.thisTurn.color], this.opts)
         return this.thisTurn
     }
 
@@ -466,6 +470,9 @@ class Game {
 
     // allow override for testing
     _rollFirst() {
+        if (this.opts.roller) {
+            return this.opts.roller()
+        }
         return Dice.rollTwoUnique()
     }
 }
@@ -690,6 +697,7 @@ class Turn {
     meta() {
         return {
             color            : this.color
+          , opts             : this.opts
           , dice             : this.dice
           , diceSorted       : this.diceSorted
           , startState       : this.startState
@@ -716,6 +724,8 @@ class Turn {
           , allowedFaces       : turn.allowedFaces
           , allowedMoveIndex   : SequenceTree.serializeIndex(turn.allowedMoveIndex) // circular with move objects (board/analyzer)
           , endStatesToSeries  : turn.endStatesToSeries
+          , isDepthTree        : this.isDepthTree
+          , isBreadthTree      : this.isBreadthTree
         })
     }
 
@@ -723,7 +733,7 @@ class Turn {
 
         board = board || Board.fromStateString(data.startState)
 
-        const turn = new Turn(board, data.color)
+        const turn = new Turn(board, data.color, data.opts)
 
         if (data.isRolled) {
             turn.setRoll(...data.dice)
@@ -733,6 +743,7 @@ class Turn {
     
         turn.isDoubleDeclined = data.isDoubleDeclined
         turn.isDoubleOffered  = data.isDoubleOffered
+        turn.isFirstTurn      = data.isFirstTurn
 
         if (data.isFinished) {
             turn.finish()
@@ -954,7 +965,7 @@ class Turn {
 
         for (var i = 0, ilen = leaves.length; i < ilen; ++i) {
 
-            Profiler.inc('processNode')
+            Profiler.inc('tree.leaf.process')
 
             var {board, movesMade} = leaves[i]
 
@@ -970,11 +981,12 @@ class Turn {
 
             for (var j = 0, jlen = movesMade.length; j < jlen; ++j) {
                 var move = movesMade[j]
-                Profiler.inc('processMove')
+                Profiler.inc('tree.leaf.move.process')
                 if (!currentIndex[move.hash]) {
                     currentIndex[move.hash] = {move, index: {}}
+                    Profiler.inc('tree.leaf.move.cache.miss')
                 } else {
-                    Profiler.inc('moveExists')
+                    Profiler.inc('tree.leaf.move.cache.hit')
                 }
                 currentIndex = currentIndex[move.hash].index
                 // only if we will use it below
@@ -1067,6 +1079,9 @@ class Turn {
 
     // allow override for testing
     _roll() {
+        if (this.opts.roller) {
+            return this.opts.roller()
+        }
         return Dice.rollTwo()
     }
 }
@@ -1334,6 +1349,7 @@ class Board {
     }
 
     copy() {
+        Profiler.start('Board.copy')
         const board = new Board(true)
         board.slots = this.slots.map(it => it.slice(0))
         board.bars = {
@@ -1345,6 +1361,7 @@ class Board {
           , White : this.homes.White.slice(0)
         }
         board.markChange()
+        Profiler.stop('Board.copy')
         return board
     }
 
@@ -1357,6 +1374,7 @@ class Board {
         Profiler.start('Board.mayBearoff')
         const key = CacheKeys.mayBearoff[color]
         if (!(key in this.cache)) {
+            Profiler.inc('board.mayBearoff.cache.miss')
             var isAble = !this.hasBar(color)
             if (isAble) {
                 //isAble = !this.hasPieceBehind(color, PointOrigins[color][6])
@@ -1369,6 +1387,8 @@ class Board {
                 }
             }
             this.cache[key] = isAble
+        } else {
+            Profiler.inc('board.mayBearoff.cache.hit')
         }
         Profiler.stop('Board.mayBearoff')
         return this.cache[key]
@@ -1437,8 +1457,9 @@ class Board {
     // Optimized for performance
     stateString() {
         const key = CacheKeys.stateString
+        Profiler.start('Board.stateString')
         if (!this.cache[key]) {
-            Profiler.start('Board.stateString.cache.miss')
+            Profiler.inc('board.stateString.cache.miss')
             // <White bar count>|<Red bar count>|<slot count>:<Red/White/empty>|...|<White home count>|<Red home count>
             var str = this.bars.White.length + '|' + this.bars.Red.length + '|'
             for (var i = 0; i < 24; ++i) {
@@ -1446,8 +1467,10 @@ class Board {
                 str += slot.length + ':' + (slot.length ? slot[0].color : '') + '|'
             }
             this.cache[key] = str + this.homes.White.length + '|' + this.homes.Red.length
-            Profiler.stop('Board.stateString.cache.miss')
+        } else {
+            Profiler.inc('board.stateString.cache.hit')
         }
+        Profiler.stop('Board.stateString')
         return this.cache[key]
     }
 
@@ -2020,7 +2043,7 @@ class SequenceTree {
     _buildBreadth() {
 
         const root = {board: this.board, depth: 0, parent: null, movesMade: [], highestFace: -Infinity}
-        Profiler.inc('createNode')
+        Profiler.inc('node.create')
 
         var hasWinner = false
         var maxDepth = 0
@@ -2041,34 +2064,31 @@ class SequenceTree {
 
                 var parent = lastNodes[j]
 
-                Profiler.start('SequenceTree.buildNodes.1')
+                Profiler.start('SequenceTree.buildBreadth.1')
                 var nextMoves = parent.board.getPossibleMovesForFace(this.color, face)
-                Profiler.stop('SequenceTree.buildNodes.1')
+                Profiler.stop('SequenceTree.buildBreadth.1')
 
                 for (var k = 0, klen = nextMoves.length; k < klen; ++k) {
 
                     var move = nextMoves[k]
 
-                    Profiler.start('SequenceTree.buildNodes.2')
+                    Profiler.start('SequenceTree.buildBreadth.2')
                     move.board = move.board.copy()
-                    Profiler.stop('SequenceTree.buildNodes.2')
+                    Profiler.stop('SequenceTree.buildBreadth.2')
 
-                    Profiler.start('SequenceTree.buildNodes.3')
+                    Profiler.start('SequenceTree.buildBreadth.3')
                     move.do()
-                    Profiler.stop('SequenceTree.buildNodes.3')
+                    Profiler.stop('SequenceTree.buildBreadth.3')
 
-                    Profiler.start('SequenceTree.buildNodes.4')
+                    Profiler.start('SequenceTree.buildBreadth.4')
                     var child = {
                         board       : move.board
                       , depth
                       , isWinner    : move.board.getWinner() == this.color
                       , movesMade   : parent.movesMade.slice(0)
                       , highestFace : face > parent.highestFace ? face : parent.highestFace
-                      //, thisMove    : move
-                      //, thisFace    : face
-                      //, parent
                     }
-                    Profiler.inc('createNode')
+                    Profiler.inc('node.create')
 
                     nodeCount += 1
 
@@ -2085,7 +2105,7 @@ class SequenceTree {
                         // is left as an exercise for the reader.
                         leaves = nextNodes
                     }
-                    Profiler.stop('SequenceTree.buildNodes.4')
+                    Profiler.stop('SequenceTree.buildBreadth.4')
                 }
             }
 
