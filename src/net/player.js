@@ -36,13 +36,14 @@ class NetPlayer extends Base {
         this.client = client
         this.isNet = true
 
+        this.dice = null
+
         this.on('gameStart', (game, match, players) => {
             this.holds.push(new Promise(async (resolve) => {
                 await this.client.matchRequest('nextGame')
+                game.opts.roller = () => this.dice
                 const {dice} = await this.client.matchRequest('firstTurn')
-                game._rollFirst = () => {
-                    return dice
-                }
+                this.dice = dice
                 this.opponent.rollTurn = async (turn, game, match) => {
                     await this.rollTurn(turn, game, match)
                 }
@@ -94,7 +95,8 @@ class NetPlayer extends Base {
 
     async rollTurn(turn, game, match) {
         const {dice} = await this.client.matchRequest('rollTurn')
-        turn.setRoll(dice)
+        this.dice = dice
+        turn.roll()
     }
 
     async turnOption(turn, game, match) {
