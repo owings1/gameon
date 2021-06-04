@@ -54,8 +54,7 @@ describe('#playRoll', () => {
 describe('#rollTurn', () => {
 
     it('should roll turn', async () => {
-        const game = new Game
-        game._rollFirst = () => [1, 6]
+        const game = new Game({roller: () => [1, 6]})
         makeRandomMoves(game.firstTurn(), true)
         const turn = game.nextTurn()
         await players.Red.rollTurn(turn, game)

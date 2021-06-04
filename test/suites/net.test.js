@@ -20,7 +20,7 @@ const Auth  = requireSrc('net/auth')
 
 const Coordinator = requireSrc('lib/coordinator')
 
-const {White, Red, Match} = Core
+const {White, Red, Match, Dice} = Core
 
 const AWS = require('aws-sdk')
 const fetch = require('node-fetch')
@@ -487,8 +487,13 @@ describe('Server', () => {
 
             var id
 
+            var rolls
+            var roller
+
             beforeEach(async () => {
                 const match = await startMatch()
+                rolls = []
+                match.opts.roller = () => rolls.shift() || Dice.rollTwo()
                 match.total = 3
                 id = match.id
             })
@@ -532,7 +537,7 @@ describe('Server', () => {
 
                 it('should reply with same moves', async () => {
                     const game = server.matches[id].nextGame()
-                    game._rollFirst = () => [2, 1]
+                    rolls = [[2, 1]]
                     game.firstTurn()
                     client2.sendAndWait({action: 'playRoll', color: Red, id})
                     const moves = [
@@ -574,7 +579,7 @@ describe('Server', () => {
 
                 it('should return isDouble=true for isDouble=true', async () => {
                     const game = server.matches[id].nextGame()
-                    game._rollFirst = () => [2, 1]
+                    rolls = [[2, 1]]
                     makeRandomMoves(game.firstTurn(), true)
                     game.nextTurn()
                     client2.sendAndWait({action: 'turnOption', color: Red, id, isDouble: true})
@@ -587,7 +592,7 @@ describe('Server', () => {
 
                 it('should set double declined for isAccept=false', async () => {
                     const game = server.matches[id].nextGame()
-                    game._rollFirst = () => [2, 1]
+                    rolls = [[2, 1]]
                     makeRandomMoves(game.firstTurn(), true)
                     game.nextTurn().setDoubleOffered()
                     client2.sendAndWait({action: 'doubleResponse', color: Red, id})
@@ -598,7 +603,7 @@ describe('Server', () => {
 
                 it('should double game for isAccept=true', async () => {
                     const game = server.matches[id].nextGame()
-                    game._rollFirst = () => [2, 1]
+                    rolls = [[2, 1]]
                     makeRandomMoves(game.firstTurn(), true)
                     game.nextTurn().setDoubleOffered()
                     client2.sendAndWait({action: 'doubleResponse', color: Red, id})

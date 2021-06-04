@@ -287,6 +287,10 @@ class Game {
     constructor(opts) {
 
         this.opts  = Util.defaults(Game.defaults(), opts)
+        if (!this.opts.roller) {
+            this.opts.roller = Dice.rollTwo
+        }
+
         this.uuid  = Util.uuid()
         this.board = Board.setup()
 
@@ -317,6 +321,7 @@ class Game {
         if (!this.canDouble(this.thisTurn.color)) {
             throw new DoubleNotAllowedError(this.thisTurn.color + ' cannot double')
         }
+        Profiler.inc('double.accepted')
         this.cubeValue *= 2
         this.cubeOwner = this.thisTurn.opponent
     }
@@ -329,7 +334,7 @@ class Game {
             throw new GameAlreadyStartedError('The game has already started')
         }
         do {
-            var dice = this._rollFirst()
+            var dice = this.opts.roller()
         } while (dice[0] == dice[1])
         const firstColor = Dice.getWinner(dice)
         this.thisTurn = new Turn(this.board, firstColor, this.opts)
@@ -467,14 +472,6 @@ class Game {
 
         return game
     }
-
-    // allow override for testing
-    _rollFirst() {
-        if (this.opts.roller) {
-            return this.opts.roller()
-        }
-        return Dice.rollTwoUnique()
-    }
 }
 
 class Turn {
@@ -498,16 +495,24 @@ class Turn {
         this.isForceMove      = false
         this.isRolled         = false
 
+        this.isDepthTree      = null
+        this.isBreadthTree    = null
+
         this.moves = []
         this.boardCache = {}
 
         this.opts = opts
+        if (!this.opts.roller) {
+            this.opts.roller = Dice.rollTwo
+        }
     }
 
     setDoubleOffered() {
 
         this.assertNotFinished()
         this.assertNotRolled()
+
+        Profiler.inc('double.offered')
 
         this.isDoubleOffered = true
         return this
@@ -524,6 +529,8 @@ class Turn {
             throw new HasNotDoubledError([this.color, 'has not doubled'])
         }
 
+        Profiler.inc('double.declined')
+
         this.isDoubleDeclined = true
 
         this.finish()
@@ -534,13 +541,14 @@ class Turn {
 
         this.assertNotFinished()
         this.assertNotRolled()
+
         const dice = args.length == 1 ? args[0] : args
         Dice.checkTwo(dice)
-        this.dice = dice
-        this.diceSorted = dice.slice(0).sort(Util.sortNumericDesc)
-        this.isRolled = true
 
+        this.dice = dice        
+        this.isRolled = true
         this.afterRoll()
+
         return this
     }
 
@@ -549,11 +557,10 @@ class Turn {
         this.assertNotFinished()
         this.assertNotRolled()
 
-        this.dice = this._roll()
-        this.diceSorted = this.dice.slice(0).sort(Util.sortNumericDesc)
+        this.dice = this.opts.roller()
         this.isRolled = true
-
         this.afterRoll()
+
         return this
     }
 
@@ -562,6 +569,7 @@ class Turn {
         this.assertNotFinished()
         this.assertIsRolled()
 
+        this.diceSorted = this.dice.slice(0).sort(Util.sortNumericDesc)
         this.faces = Dice.faces(this.dice)
 
         Profiler.start('Turn.compute')
@@ -699,7 +707,6 @@ class Turn {
             color            : this.color
           , opts             : this.opts
           , dice             : this.dice
-          , diceSorted       : this.diceSorted
           , startState       : this.startState
           , endState         : this.endState
           , isForceMove      : this.isForceMove
@@ -724,8 +731,6 @@ class Turn {
           , allowedFaces       : turn.allowedFaces
           , allowedMoveIndex   : SequenceTree.serializeIndex(turn.allowedMoveIndex) // circular with move objects (board/analyzer)
           , endStatesToSeries  : turn.endStatesToSeries
-          , isDepthTree        : this.isDepthTree
-          , isBreadthTree      : this.isBreadthTree
         })
     }
 
@@ -1075,14 +1080,6 @@ class Turn {
         }
 
         return leaves
-    }
-
-    // allow override for testing
-    _roll() {
-        if (this.opts.roller) {
-            return this.opts.roller()
-        }
-        return Dice.rollTwo()
     }
 }
 
@@ -2369,13 +2366,6 @@ class Dice {
 
     static rollTwo() {
         return [Dice.rollOne(), Dice.rollOne()]
-    }
-
-    static rollTwoUnique() {
-        do {
-            var dice = Dice.rollTwo()
-        } while (dice[0] == dice[1])
-        return dice
     }
 
     static faces(roll) {

@@ -18,7 +18,7 @@ const Core        = requireSrc('lib/core')
 const Coordinator = requireSrc('lib/coordinator')
 const Player      = requireSrc('lib/player')
 
-const {White, Red, Match, Game} = Core
+const {White, Red, Match, Game, Dice} = Core
 
 class MockPlayer extends Player {
 
@@ -164,10 +164,19 @@ describe('#recordMatch', () => {
 
 describe('#runGame', () => {
 
+    var rolls
+
+    var roller
+
+    beforeEach(() => {
+        rolls = [[2, 1], [6, 5]]
+        roller = () => rolls.shift() || Dice.rollTwo()
+    })
+
     it('should run EitherOneMoveWin with 2,1 first roll white to win', async () => {
-        const game = new Game
+        rolls = [[2, 1]]
+        const game = new Game({roller})
         game.board.setStateString(States.EitherOneMoveWin)
-        game._rollFirst = () => [2, 1]
         players.White.moves.push([23, 2])
         await coordinator.runGame(players, game)
         expect(game.getWinner()).to.equal(White)
@@ -175,10 +184,9 @@ describe('#runGame', () => {
 
     it('should run Either65Win with 2,1 first roll, next roll 6,5 red to win', async () => {
         //coordinator.logger.loglevel = 4
-        const game = new Game
+        const game = new Game({roller})
         const board = game.board
         board.setStateString(States.Either65Win)
-        game._rollFirst = () => [2, 1]
         players.White.moves = [
             [board.pointOrigin(White, 6), 2],
             [board.pointOrigin(White, 5), 1]
@@ -187,16 +195,14 @@ describe('#runGame', () => {
             [board.pointOrigin(Red, 6), 6],
             [board.pointOrigin(Red, 5), 5]
         ]
-        players.Red.rollTurn = turn => turn.setRoll([6, 5])
         await coordinator.runGame(players, game)
         expect(game.getWinner()).to.equal(Red)
     })
 
     it('should run Either65Win with 2,1 first roll, red double, white decline, red win with 1 point', async () => {
-        const game = new Game
+        const game = new Game({roller})
         const board = game.board
         board.setStateString(States.Either65Win)
-        game._rollFirst = () => [2, 1]
         players.White.moves = [
             [board.pointOrigin(White, 6), 2],
             [board.pointOrigin(White, 5), 1]
@@ -209,10 +215,9 @@ describe('#runGame', () => {
     })
 
     it('should run Either65Win with 2,1 first roll, next roll 6,5 red to win and not call red turnOption with isCrawford=true', async () => {
-        const game = new Game({isCrawford: true})
+        const game = new Game({isCrawford: true, roller})
         const board = game.board
         board.setStateString(States.Either65Win)
-        game._rollFirst = () => [2, 1]
         players.White.moves = [
             [board.pointOrigin(White, 6), 2],
             [board.pointOrigin(White, 5), 1]
@@ -221,17 +226,15 @@ describe('#runGame', () => {
             [board.pointOrigin(Red, 6), 6],
             [board.pointOrigin(Red, 5), 5]
         ]
-        players.Red.rollTurn = turn => turn.setRoll([6, 5])
         players.Red.turnOption = () => {throw new Error}
         await coordinator.runGame(players, game)
         expect(game.getWinner()).to.equal(Red)
     })
 
     it('should run Either65Win with 2,1 first roll, red double, white accept, red rolls 6,5 to win finalValue 2', async () => {
-        const game = new Game
+        const game = new Game({roller})
         const board = game.board
         board.setStateString(States.Either65Win)
-        game._rollFirst = () => [2, 1]
         players.White.moves = [
             [board.pointOrigin(White, 6), 2],
             [board.pointOrigin(White, 5), 1]
@@ -240,7 +243,6 @@ describe('#runGame', () => {
             [board.pointOrigin(Red, 6), 6],
             [board.pointOrigin(Red, 5), 5]
         ]
-        players.Red.rollTurn = turn => turn.setRoll([6, 5])
         players.Red.turnOption = turn => turn.setDoubleOffered()
         await coordinator.runGame(players, game)
         expect(game.getWinner()).to.equal(Red)
@@ -252,13 +254,18 @@ describe('#runMatch', () => {
 
     var match
     var recordDir
+    var rolls
+
+    var roller
 
     before(() => {
         recordDir = tmpDir()
     })
 
     beforeEach(() => {
-        match = new Match(1)
+        rolls = [[2, 1]]
+        roller = () => rolls.shift() || Dice.rollTwo()
+        match = new Match(1, {roller})
     })
 
     afterEach(async () => {
@@ -267,7 +274,6 @@ describe('#runMatch', () => {
 
     it('should run EitherOneMoveWin with 2,1 first roll white to win', async () => {
         players.White.on('gameStart', game => {
-            game._rollFirst = () => [2, 1]
             game.board.setStateString(States.EitherOneMoveWin)
         })
         players.White.moves.push([23, 2])
@@ -277,7 +283,6 @@ describe('#runMatch', () => {
 
     it('should run EitherOneMoveWin with isRecord=true and record match to expected file', async () => {
         players.White.on('gameStart', game => {
-            game._rollFirst = () => [2, 1]
             game.board.setStateString(States.EitherOneMoveWin)
         })
         players.White.moves.push([23, 2])

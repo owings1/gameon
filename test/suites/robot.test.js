@@ -17,13 +17,15 @@ const Util  = requireSrc('lib/util')
 
 const {ConfidenceRobot} = Robot
 
-const {White, Red, Game, Match} = Core
+const {White, Red, Game, Match, Dice} = Core
 
 var game
 var robot
 
+var rolls
+var roller
+
 function doFirstTurn() {
-    game._rollFirst = () => [1, 2]
     makeRandomMoves(game.firstTurn(), true)
 }
 
@@ -32,7 +34,9 @@ function getRobot(...args) {
 }
 
 beforeEach(() => {
-    game = new Game
+    rolls = [[1, 2]]
+    roller = () => rolls.shift() || Dice.rollTwo()
+    game = new Game({roller})
 })
 
 afterEach(async () => {
@@ -135,7 +139,7 @@ describe('RandomRobot', () => {
     describe('#playRoll', () => {
 
         it('should play legal move for first roll 6,1', async () => {
-            game._rollFirst = () => [6, 1]
+            rolls = [[6, 1]]
             const turn = game.firstTurn()
             await robot.playRoll(turn, game)
             turn.finish()
@@ -149,7 +153,7 @@ describe('RandomRobot', () => {
         })
 
         it('should get rankings', async () => {
-            game._rollFirst = () => [6, 2]
+            rolls = [[6, 2]]
             const turn = game.firstTurn()
             const rankings = await robot.getRankings(turn, game)
             expect(Object.keys(rankings).length).to.equal(turn.allowedEndStates.length)
@@ -258,7 +262,7 @@ describe('FirstTurnRobot', () => {
     describe('#getRankings', () => {
 
         it('should return all end states for 4th turn', async () => {
-            game._rollFirst = () => [1, 2]
+            rolls = [[1, 2]]
             makeRandomMoves(game.firstTurn(), true)
             game.nextTurn().roll()
             makeRandomMoves(game.thisTurn, true)
@@ -274,7 +278,7 @@ describe('FirstTurnRobot', () => {
 
         it('should throw non illegal move error on second turn', async () => {
             const e = new Error
-            game._rollFirst= () => [1, 2]
+            rolls = [[1, 2]]
             makeRandomMoves(game.firstTurn(), true)
             const turn = game.nextTurn()
             turn.setRoll([2, 1])
@@ -284,7 +288,7 @@ describe('FirstTurnRobot', () => {
         })
 
         it('should catch illegal move error on second turn and return all 0 rankings', async () => {
-            game._rollFirst = () => [1, 6]
+            rolls = [[1, 6]]
             const firstTurn = game.firstTurn()
             firstTurn.move(12, 6)
             firstTurn.move(7, 1)
@@ -301,7 +305,7 @@ describe('FirstTurnRobot', () => {
 
         firstRolls.forEach(dice => {
             it('should have valid move for ' + dice.join(), async () => {
-                game._rollFirst = () => dice
+                rolls = [dice]
                 const turn = game.firstTurn()
                 await robot.playRoll(turn, game)
             })
@@ -548,7 +552,7 @@ describe('RobotDelegator', () => {
                 rankings[key] = -1
                 return rankings
             }
-            game._rollFirst = () => [1, 2]
+            rolls = [[1, 2]]
             makeRandomMoves(game.firstTurn(), true)
             robot.addDelegate(rando, 1, 0)
             const turn = game.nextTurn()

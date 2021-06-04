@@ -27,7 +27,7 @@ const Robot       = requireSrc('robot/player')
 const Client      = requireSrc('net/client')
 const Server      = requireSrc('net/server')
 
-const {White, Red, Match, Game, Board, Turn} = Core
+const {White, Red, Match, Game, Board, Turn, Dice} = Core
 
 const {RandomRobot} = Robot
 
@@ -882,13 +882,18 @@ describe('Coordinator', () => {
 
         var game
 
+        var rolls
+        var roller
+
         beforeEach(() => {
-            game = new Game
+            rolls = []
+            roller = () => rolls.shift() || Dice.rollTwo()
+            game = new Game({roller})
         })
 
         it('should play RedWinWith66 for white first move 6,1 then red 6,6', async () => {
             game.board.setStateString(States.RedWinWith66)
-            game._rollFirst = () => [6, 1]
+            rolls = [[6, 1]]
             t1.rollTurn = turn => turn.setRoll([6, 6])
             t2.rollTurn = turn => turn.setRoll([6, 6])
             t1.prompt = MockPrompter([
@@ -912,7 +917,7 @@ describe('Coordinator', () => {
         })
 
         it('should end with white refusing double on second turn', async () => {
-            game._rollFirst = () => [6, 1]
+            rolls = [[6, 1]]
             t1.prompt = MockPrompter([
                 // white's first turn
                 {origin: '13'},
@@ -930,7 +935,7 @@ describe('Coordinator', () => {
 
         it('should play RedWinWith66 for white first move 6,1 then red double, white accept, red rolls 6,6 backgammon', async () => {
             game.board.setStateString(States.RedWinWith66)
-            game._rollFirst = () => [6, 1]
+            rolls = [[6, 1]]
             t1.rollTurn = turn => turn.setRoll([6, 6])
             t2.rollTurn = turn => turn.setRoll([6, 6])
             t1.prompt = MockPrompter([
@@ -958,14 +963,12 @@ describe('Coordinator', () => {
 
         it('should play RedWinWith66, white 6,1, red double, white accept, red 6,5, white 1,2, red cant double 6,6, backgammon', async () => {
             game.board.setStateString(States.RedWinWith66)
-            game._rollFirst = () => [6, 1]
-            const rolls = [
+            rolls = [
+                [6, 1],
                 [6, 5],
                 [1, 2],
                 [6, 6]
             ]
-            t1.rollTurn = turn => turn.setRoll(rolls.shift())
-            t2.rollTurn = turn => turn.setRoll(rolls.shift())
             t1.prompt = MockPrompter([
                 // white's first turn
                 {origin: '13'},
@@ -1047,9 +1050,13 @@ describe('TermPlayer', () => {
     describe('#playRoll', () => {
 
         var game
+        var rolls
+        var roller
 
         beforeEach(() => {
-            game = new Game
+            rolls = []
+            roller = () => rolls.shift() || Dice.rollTwo()
+            game = new Game({roller})
             player.thisGame = game
         })
 
@@ -1062,7 +1069,7 @@ describe('TermPlayer', () => {
         })
 
         it('should play first roll White 6,1 then break with board as expected for 6 point', async () => {
-            game._rollFirst = () => [6, 1]
+            rolls = [[6, 1]]
             player.prompt = MockPrompter([
                 {origin: '13'},
                 {origin: '8'},
@@ -1076,7 +1083,7 @@ describe('TermPlayer', () => {
         })
 
         it('should play first roll White 6,1 undo first then second with board as expected for 6 point', async () => {
-            game._rollFirst = () => [6, 1]
+            rolls = [[6, 1]]
             player.prompt = MockPrompter([
                 {origin: '13'},
                 {origin: 'u'},
@@ -1094,7 +1101,7 @@ describe('TermPlayer', () => {
         })
 
         it('should not prompt with fastForced on force move', async () => {
-            game._rollFirst = () => [1, 2]
+            rolls = [[1, 2]]
             makeRandomMoves(game.firstTurn(), true)
             game.board.setStateString(States.EitherOneMoveWin)
             player.prompt = () => {throw new Error}
@@ -1321,14 +1328,17 @@ describe('TermPlayer', () => {
 
         var game
         var players
+        var rolls
+        var roller
 
         beforeEach(() => {
-            game = new Game
+            rolls = [[6, 1]]
+            roller = () => rolls.shift() || Dice.rollTwo()
+            game = new Game({roller})
             players = {
                 White : player,
                 Red   : newRando(Red)
             }
-            game._rollFirst = () => [6, 1]
             makeRandomMoves(game.firstTurn(), true)
         })
 

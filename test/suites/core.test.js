@@ -157,7 +157,6 @@ describe('Match', () => {
             const g1 = m1.nextGame()
 
             // white moves first
-            //g1._rollFirst = () => [6, 1]
             makeRandomMoves(g1.firstTurn(), true)
 
             const m2 = Match.unserialize(m1.serialize())
