@@ -831,114 +831,6 @@ describe('Turn', () => {
             expect(JSON.stringify(b2MovesAcutal)).to.equal(JSON.stringify(b2MovesExp))
         })
     })
-
-    describe('tree equivalence', () => {
-
-        describe('depth vs breadth', () => {
-
-            function checkEquivalence(t1, t2) {
-
-                const amKeys1 = Object.keys(t1.allowedMoveIndex).sort()
-                const amKeys2 = Object.keys(t2.allowedMoveIndex).sort()
-                const stKeys1 = Object.keys(t1.endStatesToSeries).sort()
-                const stKeys2 = Object.keys(t2.endStatesToSeries).sort()
-                const states1 = t1.allowedEndStates.slice(0).sort()
-                const states2 = t2.allowedEndStates.slice(0).sort()
-
-                expect(JSON.stringify(t1.allowedFaces)).to.equal(JSON.stringify(t2.allowedFaces))
-                expect(JSON.stringify(amKeys1)).to.equal(JSON.stringify(amKeys2))
-                expect(JSON.stringify(stKeys1)).to.equal(JSON.stringify(stKeys2))
-                expect(JSON.stringify(states1)).to.equal(JSON.stringify(states2))
-                
-                // the series selected for an end state can be different, and often are,
-                // since depth strategy uses flagKey optimization, which sorts the series
-                /*
-                for (var i = 0; i < stKeys1.length; i++) {
-                    var series1 = t1.endStatesToSeries[stKeys1[i]]
-                    var series2 = t2.endStatesToSeries[stKeys1[i]]
-                    for (var series of [series1, series2]) {
-                        series.sort((a, b) => {
-                            const cmp = Util.sortNumericAsc(a.origin, b.origin)
-                            return cmp != 0 ? cmp : Util.sortNumericAsc(a.face, b.face)
-                        })
-                    }
-                    expect(JSON.stringify(series1)).to.equal(JSON.stringify(series2))
-                }
-                */
-            }
-
-            describe('all rolls', () => {
-                Rolls.allRolls.forEach(roll => {
-                    it('should be equivalent for White at initial state for ' + roll.join(','), () => {
-                        const t1 = new Turn(Board.setup(), White)
-                        const t2 = new Turn(Board.setup(), White, {breadthTrees: true})
-                        expect(t2.opts.breadthTrees).to.equal(true)
-                        t1.setRoll(roll)
-                        t2.setRoll(roll.slice(0).reverse())
-                        checkEquivalence(t1, t2)
-                    })
-                })
-            })
-
-            describe('fixed game play', () => {
-                var game1
-                var game2
-
-                before(() => {
-                    game1 = new Game
-                    game2 = new Game({breadthTrees: true})
-                    game1._rollFirst = () => Rolls.allFirstRolls[0]
-                    game2._rollFirst = () => Rolls.allFirstRolls[0]
-                })
-
-                function nextTurns(roll) {
-                    const turns = [game1.nextTurn(), game2.nextTurn()]
-                    turns.forEach(turn => turn.setRoll(roll))
-                    return turns
-                }
-
-                function playTurns(t1, t2) {
-                    const moves = t1.endStatesToSeries[t1.allowedEndStates[0]] || []
-                    for (var move of moves) {
-                        t1.move(move)
-                        t2.move(move)
-                    }
-                    t1.finish()
-                    t2.finish()
-                }
-
-                it('game2 should have breadthTrees but not game1', () => {
-                    expect(!!game1.opts.breadthTrees).to.equal(false)
-                    expect(game2.opts.breadthTrees).to.equal(true)
-                })
-
-                it('should be equivalent at first turn', () => {
-                    const t1 = game1.firstTurn()
-                    const t2 = game2.firstTurn()
-                    checkEquivalence(t1, t2)
-                    playTurns(t1, t2)
-                })
-
-                Util.intRange(2, 63).forEach(i => {
-                    const roll = Rolls.fixedRandomRolls[i]
-                    it('should be equivalent at turn ' + i + ' for roll ' + roll.join(','), () => {
-                        const turns = nextTurns(roll)
-                        checkEquivalence(...turns)
-                        playTurns(...turns)
-                    })
-                })
-
-                it('games should be finished and White should win', () => {
-                    game1.checkFinished()
-                    game2.checkFinished()
-                    expect(game1.isFinished).to.equal(true)
-                    expect(game2.isFinished).to.equal(true)
-                    expect(game1.getWinner()).to.equal(game2.getWinner())
-                    expect(game1.getWinner()).to.equal(White)
-                })
-            })
-        })
-    })
 })
 
 describe('Board', () => {
@@ -1798,112 +1690,64 @@ describe('Dice', () => {
 
 describe('SequenceTree', () => {
 
-    describe('#build2', () => {
-        it.skip('build2 playground', () => {
+    describe('#buildBreadth', () => {
 
-            var board = Board.fromStateString(States.WhiteCornerCase26)
-            var tree = new SequenceTree(board, White, [2, 6])
-            tree.buildDepth()
-
-            //console.log(JSON.stringify(tree.index, null, 2))
-
-            expect(tree.maxDepth).to.equal(2)
-
-            var board = Board.setup()
-            var tree = new SequenceTree(board, White, [6, 5, 3, 1])
-            tree.buildDepth()
-
-            //console.log(JSON.stringify(tree.index['11:6'], null, 2))
-
-            expect(tree.maxDepth).to.equal(4)
-        })
-
-        it.skip('build2 console', () => {
-            // this is for copy/paste to console
-            /*
-            // WhiteCornerCase26
-            //  with 2,6 white has to move its rearmost piece(i:14) 2 then 6. it cannot move its middle piece(i:17) 2 first
-            , WhiteCornerCase26 : '0|0|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|1:White|0:|0:|1:White|0:|0:|2:Red|0:|0:|2:Red|0|0'
-            */
-            var Core = require('./src/lib/core')
-            var States = require('./test/states')
-            var {Board, SequenceTree, White} = Core
-
-            var board = Board.fromStateString(States.WhiteCornerCase26)
-            var tree = new SequenceTree(board, White, [2, 6])
-
-            tree.buildDepth()
-
-            //console.log(JSON.stringify(tree.index, null, 2))
-        })
-    })
-    describe('#buildNodes', () => {
-
-        // major refactor, nodes property is gone
-        it.skip('should return 2 nodes, original state and regular move from origin:0 to dest:1 for sparse board with sequence [1]', () => {
+        it('should return 1 leaf, original state and regular move from origin:0 to dest:1 for sparse board with sequence [1]', () => {
 
             const board = new Board
-            board.slots[0] = Piece.make(5, White)
+            for (var i = 0; i < 5; ++i) {
+                board.pushOrigin(0, White)
+            }
 
-            const {nodes} = SequenceTree.buildNodes(board, White, [1])
+            const tree = SequenceTree.buildBreadth(board, White, [1])
+            const {leaves} = tree
+            const nodes = leaves
 
-            expect(nodes).to.have.length(2)
+            expect(leaves).to.have.length(1)
+            const leaf = leaves[0]
 
-            expect(nodes[0].board).to.equal(board)
-            expect(nodes[0].depth).to.equal(0)
-            expect(nodes[0].parent).to.equal(null)
-            expect(nodes[0].thisFace).to.equal(undefined)
-            //expect(nodes[0].thisFace).to.equal(null)
-            expect(nodes[0].thisMove).to.equal(undefined)
-            //expect(nodes[0].thisMove).to.equal(null)
-            expect(nodes[0].nextFace).to.equal(1)
-            expect(nodes[0].nextMoves).to.have.length(1)
-            //expect(nodes[0].children).to.have.length(1)
+            expect(leaf.board).to.not.equal(board)
+            expect(leaf.depth).to.equal(1)
+            expect(leaf.movesMade).to.have.length(1)
 
-            expect(nodes[1].board).to.not.equal(board)
-            expect(nodes[1].depth).to.equal(1)
-            expect(nodes[1].parent).to.equal(nodes[0])
-            expect(nodes[1].thisFace).to.equal(1)
-            expect(nodes[1].thisMove).to.not.equal(undefined)
-            //expect(nodes[1].thisMove).to.not.equal(null)
-            expect(nodes[1].nextFace).to.equal(undefined)
-            //expect(nodes[1].nextFace).to.equal(null)
-            //expect(nodes[1].children).to.have.length(0)
+            const move = leaf.movesMade[0]
 
-            const move = nodes[1].thisMove
-            expect(move).to.equal(nodes[0].nextMoves[0])
+            expect(move.face).to.equal(1)
+
             expect(move.isRegular).to.equal(true)
             expect(move.origin).to.equal(0)
             expect(move.face).to.equal(1)
 
             const expBoard = new Board
-            expBoard.slots[0] = Piece.make(4, White)
-            expBoard.slots[1] = Piece.make(1, White)
-            expect(nodes[1].board.stateString()).to.equal(expBoard.stateString())
+            for (var i = 0; i < 4; ++i) {
+                expBoard.pushOrigin(0, White)
+            }
+            expBoard.pushOrigin(1, White)
+            expect(leaf.board.stateString()).to.equal(expBoard.stateString())
         })
 
-        it('should have node with winner for 2,1 from EitherOneMoveWin', () => {
+        it('should have leaf node with winner for 2,1 from EitherOneMoveWin', () => {
             const board = Board.fromStateString(States.EitherOneMoveWin)
             const tree = SequenceTree.buildBreadth(board, White, [2, 1])
             expect(tree.hasWinner).to.equal(true)
             expect(tree.leaves[0].isWinner).to.equal(true)
         })
-    })
 
-    describe('#build', () => {
-
-        it.skip('should return one branch for regular move from i:0 to i:1 for sparse board with sequence [5]', () => {
+        it('should return one branch for regular move from i:0 to i:1 for sparse board with sequence [5]', () => {
             const board = new Board
-            board.slots[4] = Piece.make(4, White)
+            for (var i = 0; i < 4; ++i) {
+                board.pushOrigin(4, White)
+            }
             const tree = SequenceTree.buildBreadth(board, White, [5])
-            expect(tree.branches).to.have.length(1)
+            expect(tree.nodeCount).to.equal(2)
+            expect(tree.leaves).to.have.length(1)
         })
 
         it('should have maxDepth 0 with white piece on bar for sequence [6,6,6,6] on setup board', () => {
 
             const board = new Board
             board.setup()
-            board.bars.White.push(board.slots[0].pop())
+            board.pushBar(White, board.popOrigin(0))
 
             const tree = SequenceTree.buildBreadth(board, White, [6, 6, 6, 6])
 
@@ -1931,6 +1775,119 @@ describe('SequenceTree', () => {
             const leafStates = tree.leaves.map(node => node.board.stateString())
 
             expect(leafStates).to.contain(exp)
+        })
+    })
+
+    describe('tree equivalence', () => {
+
+        describe('depth vs breadth', () => {
+
+            function checkEquivalence(t1, t2) {
+
+                const amKeys1 = Object.keys(t1.allowedMoveIndex).sort()
+                const amKeys2 = Object.keys(t2.allowedMoveIndex).sort()
+                const stKeys1 = Object.keys(t1.endStatesToSeries).sort()
+                const stKeys2 = Object.keys(t2.endStatesToSeries).sort()
+                const states1 = t1.allowedEndStates.slice(0).sort()
+                const states2 = t2.allowedEndStates.slice(0).sort()
+
+                expect(JSON.stringify(t1.allowedFaces)).to.equal(JSON.stringify(t2.allowedFaces))
+                expect(JSON.stringify(amKeys1)).to.equal(JSON.stringify(amKeys2))
+                expect(JSON.stringify(stKeys1)).to.equal(JSON.stringify(stKeys2))
+                expect(JSON.stringify(states1)).to.equal(JSON.stringify(states2))
+
+                // check deep equivalence of index
+                const ser1 = SequenceTree.serializeIndex(t1.allowedMoveIndex, true)
+                const ser2 = SequenceTree.serializeIndex(t2.allowedMoveIndex, true)
+                expect(JSON.stringify(ser1)).to.equal(JSON.stringify(ser2))
+
+                // the series selected for an end state can be different, and often are,
+                // since depth strategy uses flagKey optimization, which sorts the series
+                /*
+                for (var i = 0; i < stKeys1.length; i++) {
+                    var series1 = t1.endStatesToSeries[stKeys1[i]]
+                    var series2 = t2.endStatesToSeries[stKeys1[i]]
+                    for (var series of [series1, series2]) {
+                        series.sort((a, b) => {
+                            const cmp = Util.sortNumericAsc(a.origin, b.origin)
+                            return cmp != 0 ? cmp : Util.sortNumericAsc(a.face, b.face)
+                        })
+                    }
+                    expect(JSON.stringify(series1)).to.equal(JSON.stringify(series2))
+                }
+                */
+            }
+
+            describe('all rolls', () => {
+                Rolls.allRolls.forEach(roll => {
+                    it('should be equivalent for White at initial state for ' + roll.join(','), () => {
+                        const t1 = new Turn(Board.setup(), White)
+                        const t2 = new Turn(Board.setup(), White, {breadthTrees: true})
+                        expect(t2.opts.breadthTrees).to.equal(true)
+                        t1.setRoll(roll)
+                        t2.setRoll(roll.slice(0).reverse())
+                        checkEquivalence(t1, t2)
+                    })
+                })
+            })
+
+            describe('fixed game play', () => {
+                var game1
+                var game2
+
+                before(() => {
+                    game1 = new Game
+                    game2 = new Game({breadthTrees: true})
+                    game1._rollFirst = () => Rolls.allFirstRolls[0]
+                    game2._rollFirst = () => Rolls.allFirstRolls[0]
+                })
+
+                function nextTurns(roll) {
+                    const turns = [game1.nextTurn(), game2.nextTurn()]
+                    turns.forEach(turn => turn.setRoll(roll))
+                    return turns
+                }
+
+                function playTurns(t1, t2) {
+                    const moves = t1.endStatesToSeries[t1.allowedEndStates[0]] || []
+                    for (var move of moves) {
+                        t1.move(move)
+                        t2.move(move)
+                    }
+                    t1.finish()
+                    t2.finish()
+                }
+
+                it('game2 should have breadthTrees but not game1', () => {
+                    expect(!!game1.opts.breadthTrees).to.equal(false)
+                    expect(game2.opts.breadthTrees).to.equal(true)
+                })
+
+                it('should be equivalent at first turn', () => {
+                    const t1 = game1.firstTurn()
+                    const t2 = game2.firstTurn()
+                    checkEquivalence(t1, t2)
+                    playTurns(t1, t2)
+                })
+
+                Util.intRange(2, 63).forEach(i => {
+                    const roll = Rolls.fixedRandomRolls[i]
+                    it('should be equivalent at turn ' + i + ' for roll ' + roll.join(','), () => {
+                        const turns = nextTurns(roll)
+                        checkEquivalence(...turns)
+                        playTurns(...turns)
+                    })
+                })
+
+                it('games should be finished and White should win', () => {
+                    game1.checkFinished()
+                    game2.checkFinished()
+                    expect(game1.isFinished).to.equal(true)
+                    expect(game2.isFinished).to.equal(true)
+                    expect(game1.getWinner()).to.equal(game2.getWinner())
+                    expect(game1.getWinner()).to.equal(White)
+                })
+            })
         })
     })
 })

@@ -750,6 +750,7 @@ class Turn {
         Profiler.start('Turn.compute.depth.moves')
         const result = this._computeMovesDepth(trees, maxDepth, highestFace)
         result.maxDepth = maxDepth
+        this.isDepthTree = true
         Profiler.stop('Turn.compute.depth.moves')
 
         Profiler.stop('Turn.compute.depth')
@@ -770,6 +771,7 @@ class Turn {
         Profiler.start('Turn.compute.breadth.moves')
         const result = this._computeMovesBreadth(leaves)
         result.maxDepth = maxDepth
+        this.isBreadthTree = true
         Profiler.stop('Turn.compute.breadth.moves')
         Profiler.stop('Turn.compute.breadth')
 
