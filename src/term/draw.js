@@ -189,7 +189,7 @@ class Draw {
         function writePieceRow(depth, points, cubePartIndex, sectionOwner) {
             wr(Chars.sep)
             points.forEach((point, i) => {
-                const slot = board.slots[board.pointOrigin(persp, point)]
+                const slot = board.slots[board.analyzer.pointOrigin(persp, point)]
                 wr(slotRow(slot, depth))
                 if (i == 5) {
                     wr(grey(Chars.sp, Chars.dblSep))
@@ -234,7 +234,7 @@ class Draw {
         function writeOverflowRow(points) {
             wr(Chars.sep)
             points.forEach((point, i) => {
-                const slot = board.slots[board.pointOrigin(persp, point)]
+                const slot = board.slots[board.analyzer.pointOrigin(persp, point)]
                 const n = slot.length > 6 ? slot.length : Chars.empty
                 wr(grey(n.toString().padStart(PadFixed, Chars.sp)))
                 if (i == 5) {

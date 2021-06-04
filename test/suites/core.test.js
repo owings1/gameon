@@ -860,7 +860,7 @@ describe('Board', () => {
 
         expCases.forEach(({input, exp}) => {
             it('should return ' + exp + ' for ' + input.join(), () => {
-                const result = board.originPoint(...input)
+                const result = board.analyzer.originPoint(...input)
                 expect(result).to.equal(exp)
             })
         })
@@ -1276,17 +1276,17 @@ describe('Board', () => {
     describe('#pointOrigin', () => {
 
         it('should return 18 for White 6 point', () => {
-            const result = board.pointOrigin(White, 6)
+            const result = board.analyzer.pointOrigin(White, 6)
             expect(result).to.equal(18)
         })
 
         it('should return 5 for Red 6 point', () => {
-            const result = board.pointOrigin(Red, 6)
+            const result = board.analyzer.pointOrigin(Red, 6)
             expect(result).to.equal(5)
         })
 
         it('should return -1 for Red -1', () => {
-            const result = board.pointOrigin(Red, -1)
+            const result = board.analyzer.pointOrigin(Red, -1)
             expect(result).to.equal(-1)
         })
     })

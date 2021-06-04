@@ -188,12 +188,12 @@ describe('#runGame', () => {
         const board = game.board
         board.setStateString(States.Either65Win)
         players.White.moves = [
-            [board.pointOrigin(White, 6), 2],
-            [board.pointOrigin(White, 5), 1]
+            [board.analyzer.pointOrigin(White, 6), 2],
+            [board.analyzer.pointOrigin(White, 5), 1]
         ]
         players.Red.moves = [
-            [board.pointOrigin(Red, 6), 6],
-            [board.pointOrigin(Red, 5), 5]
+            [board.analyzer.pointOrigin(Red, 6), 6],
+            [board.analyzer.pointOrigin(Red, 5), 5]
         ]
         await coordinator.runGame(players, game)
         expect(game.getWinner()).to.equal(Red)
@@ -204,8 +204,8 @@ describe('#runGame', () => {
         const board = game.board
         board.setStateString(States.Either65Win)
         players.White.moves = [
-            [board.pointOrigin(White, 6), 2],
-            [board.pointOrigin(White, 5), 1]
+            [board.analyzer.pointOrigin(White, 6), 2],
+            [board.analyzer.pointOrigin(White, 5), 1]
         ]
         players.Red.turnOption = turn => turn.setDoubleOffered()
         players.White.decideDouble = turn => turn.setDoubleDeclined()
@@ -219,12 +219,12 @@ describe('#runGame', () => {
         const board = game.board
         board.setStateString(States.Either65Win)
         players.White.moves = [
-            [board.pointOrigin(White, 6), 2],
-            [board.pointOrigin(White, 5), 1]
+            [board.analyzer.pointOrigin(White, 6), 2],
+            [board.analyzer.pointOrigin(White, 5), 1]
         ]
         players.Red.moves = [
-            [board.pointOrigin(Red, 6), 6],
-            [board.pointOrigin(Red, 5), 5]
+            [board.analyzer.pointOrigin(Red, 6), 6],
+            [board.analyzer.pointOrigin(Red, 5), 5]
         ]
         players.Red.turnOption = () => {throw new Error}
         await coordinator.runGame(players, game)
@@ -236,12 +236,12 @@ describe('#runGame', () => {
         const board = game.board
         board.setStateString(States.Either65Win)
         players.White.moves = [
-            [board.pointOrigin(White, 6), 2],
-            [board.pointOrigin(White, 5), 1]
+            [board.analyzer.pointOrigin(White, 6), 2],
+            [board.analyzer.pointOrigin(White, 5), 1]
         ]
         players.Red.moves = [
-            [board.pointOrigin(Red, 6), 6],
-            [board.pointOrigin(Red, 5), 5]
+            [board.analyzer.pointOrigin(Red, 6), 6],
+            [board.analyzer.pointOrigin(Red, 5), 5]
         ]
         players.Red.turnOption = turn => turn.setDoubleOffered()
         await coordinator.runGame(players, game)

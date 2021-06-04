@@ -34,10 +34,11 @@ class FirstTurnRobot extends Base {
         if (!game || game.getTurnCount() > 2 || turn.dice[0] == turn.dice[1]) {
             return rankings
         }
+        // TODO: can we optimize this, not make a copy
         const board = turn.board.copy()
         try {
             this.pointMoves(turn.diceSorted).forEach(({point, face}) => {
-                board.move(turn.color, board.pointOrigin(turn.color, point), face)
+                board.move(turn.color, board.analyzer.pointOrigin(turn.color, point), face)
             })
             rankings[board.stateString()] = 1 / game.getTurnCount()
         } catch (err) {

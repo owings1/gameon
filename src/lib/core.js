@@ -1098,12 +1098,6 @@ class Board {
         }
     }
 
-    static setup() {
-        const board = new Board(true)
-        board.setup()
-        return board
-    }
-
     move(color, origin, face) {
         const move = this.buildMove(color, origin, face)
         move.do()
@@ -1114,7 +1108,7 @@ class Board {
     getPossibleMovesForFace(color, face) {
         Profiler.start('Board.getPossibleMovesForFace')
         const moves = []
-        if (this.bars[color].length) {
+        if (this.analyzer.hasBar(color)) {
             Profiler.start('Board.getPossibleMovesForFace.1')
             var {check, build} = this.checkMove(color, -1, face)
             if (check === true) {
@@ -1123,16 +1117,17 @@ class Board {
             Profiler.stop('Board.getPossibleMovesForFace.1')
         } else {
             Profiler.start('Board.getPossibleMovesForFace.2')
-            
-            const unavailable = this.analyzer.originsHeldMap(Opponent[color])
-            const origins = this.analyzer.originsOccupied(color)
-            const mayBearoff = this.analyzer.mayBearoff(color)
+
+            const {analyzer} = this
+            const unavailable = analyzer.originsHeldMap(Opponent[color])
+            const origins = analyzer.originsOccupied(color)
+            const mayBearoff = analyzer.mayBearoff(color)
 
             if (mayBearoff) {
                 if (color == White) {
-                    var minOriginOccupied = this.analyzer.minOriginOccupied(color)
+                    var minOriginOccupied = analyzer.minOriginOccupied(color)
                 } else {
-                    var maxOriginOccupied = this.analyzer.maxOriginOccupied(color)
+                    var maxOriginOccupied = analyzer.maxOriginOccupied(color)
                 }
             }
 
@@ -1179,7 +1174,9 @@ class Board {
             }
             Profiler.stop('Board.getPossibleMovesForFace.3')
         }
+
         Profiler.stop('Board.getPossibleMovesForFace')
+
         return moves
     }
 
@@ -1260,8 +1257,6 @@ class Board {
         return false
     }
 
-
-
     clear() {
         this.slots = intRange(0, 23).map(i => [])
         this.bars  = {Red: [], White: []}
@@ -1286,8 +1281,6 @@ class Board {
         return board
     }
 
-
-
     setup() {
         this.clear()
         this.slots[0]  = Piece.make(2, White)
@@ -1298,23 +1291,6 @@ class Board {
         this.slots[16] = Piece.make(3, White)
         this.slots[18] = Piece.make(5, White)
         this.slots[23] = Piece.make(2, Red)
-        this.markChange()
-    }
-
-    setStateString(str) {
-        const locs = str.split('|')
-        this.bars = {
-            White : Piece.make(locs[0], White)
-          , Red   : Piece.make(locs[1], Red)
-        }
-        this.slots = []
-        for (var i = 0; i < 24; ++i) {
-            this.slots[i] = Piece.make(...locs[i + 2].split(':'))
-        }
-        this.homes = {
-            White : Piece.make(locs[26], White)
-          , Red   : Piece.make(locs[27], Red)
-        }
         this.markChange()
     }
 
@@ -1338,41 +1314,40 @@ class Board {
         return this.cache[key]
     }
 
-    // Red point 1 is origin 0
-    // White point 1 is origin 23
-    pointOrigin(color, point) {
-        return PointOrigins[color][point]
-    }
-
-    // Red origin 0 is point 1
-    // White origin 0 is point 24
-    originPoint(color, origin) {
-        return OriginPoints[color][origin]
-    }
-
-    toString() {
-        return this.stateString()
+    setStateString(str) {
+        const locs = str.split('|')
+        this.bars = {
+            White : Piece.make(locs[0], White)
+          , Red   : Piece.make(locs[1], Red)
+        }
+        this.slots = []
+        for (var i = 0; i < 24; ++i) {
+            this.slots[i] = Piece.make(...locs[i + 2].split(':'))
+        }
+        this.homes = {
+            White : Piece.make(locs[26], White)
+          , Red   : Piece.make(locs[27], Red)
+        }
+        this.markChange()
     }
 
     inverted() {
-        const board = new Board
-        board.bars.White = Piece.make(this.bars.Red.length, White)
-        board.bars.Red = Piece.make(this.bars.White.length, Red)
-        board.homes.White = Piece.make(this.homes.Red.length, White)
-        board.homes.Red = Piece.make(this.homes.White.length, Red)
-        this.slots.forEach((slot, i) => {
-            if (slot.length > 0) {
-                const j = 23 - i
-                board.slots[j] = Piece.make(slot.length, Opponent[slot[0].color])
-            }
-        })
+        const board = new Board(true)
+        board.bars = {
+            White : Piece.make(this.bars.Red.length, White)
+          , Red   : Piece.make(this.bars.White.length, Red)
+        }
+        board.homes = {
+            White : Piece.make(this.homes.Red.length, White)
+          , Red   : Piece.make(this.homes.White.length, Red)
+        }
+        board.slots = []
+        for (var i = 0; i < 24; ++i) {
+            var slot = this.slots[i]
+            board.slots[23 - i] = slot[0] ? Piece.make(slot.length, Opponent[slot[0].color]) : []
+        }
         board.markChange()
         return board
-    }
-
-    markChange() {
-        this.cache = {}
-        this.analyzer.cache = {}
     }
 
     // NB: the push*/pop* methods perform no checks, and are for use by Move instances
@@ -1413,6 +1388,21 @@ class Board {
         const piece = (pieceOrColor instanceof Piece) ? pieceOrColor : new Piece(pieceOrColor)
         this.slots[origin].push(piece)
         this.markChange()
+    }
+
+    markChange() {
+        this.cache = {}
+        this.analyzer.cache = {}
+    }
+
+    toString() {
+        return this.stateString()
+    }
+
+    static setup() {
+        const board = new Board(true)
+        board.setup()
+        return board
     }
 
     static fromStateString(str) {
@@ -1519,7 +1509,7 @@ class BoardAnalyzer {
 
     // @cache
     mayBearoff(color) {
-        Profiler.start('Board.mayBearoff')
+        Profiler.start('BoardAnalyzer.mayBearoff')
         const key = CacheKeys.mayBearoff[color]
         if (!(key in this.cache)) {
             Profiler.inc('board.mayBearoff.cache.miss')
@@ -1538,7 +1528,7 @@ class BoardAnalyzer {
         } else {
             Profiler.inc('board.mayBearoff.cache.hit')
         }
-        Profiler.stop('Board.mayBearoff')
+        Profiler.stop('BoardAnalyzer.mayBearoff')
         return this.cache[key]
     }
 
@@ -1826,6 +1816,18 @@ class BoardAnalyzer {
         }
         //Profiler.stop('BoardAnalyzer.primes')
         return primes
+    }
+
+    // Red point 1 is origin 0
+    // White point 1 is origin 23
+    pointOrigin(color, point) {
+        return PointOrigins[color][point]
+    }
+
+    // Red origin 0 is point 1
+    // White origin 0 is point 24
+    originPoint(color, origin) {
+        return OriginPoints[color][origin]
     }
 }
 
@@ -2320,6 +2322,9 @@ class BearoffMove extends Move {
         }
         // get distance to home
         const homeDistance = Direction[color] == 1 ? 24 - origin : origin + 1
+        if (homeDistance != OriginPoints[color][origin]) {
+            throw new Error('neq')
+        }
         // make sure no piece is behind if we are taking more than the face
         if (face > homeDistance && board.analyzer.hasPieceBehind(color, origin)) {
             return {class: IllegalBareoffError, message: ['cannot bear off with a piece behind']}

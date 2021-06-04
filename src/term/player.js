@@ -215,12 +215,12 @@ class TermPlayer extends Base {
         const chalkMe = str => chalk.bold[me.toLowerCase()](str)
         const chalkThem = str => chalk.bold[them.toLowerCase()](str)
         const mine = {
-            origin : chalkMe(move.isComeIn ? 'bar' : board.originPoint(me, move.origin))
-          , dest   : chalkMe(move.isBearoff ? 'home' : board.originPoint(me, move.dest))
+            origin : chalkMe(move.isComeIn ? 'bar' : board.analyzer.originPoint(me, move.origin))
+          , dest   : chalkMe(move.isBearoff ? 'home' : board.analyzer.originPoint(me, move.dest))
         }
         const theirs = {
-            origin : move.isComeIn ? chalkMe('bar') : chalkThem(board.originPoint(them, move.origin))
-          , dest   : move.isBearoff ? chalkMe('home') : chalkThem(board.originPoint(them, move.dest))
+            origin : move.isComeIn ? chalkMe('bar') : chalkThem(board.analyzer.originPoint(them, move.origin))
+          , dest   : move.isBearoff ? chalkMe('home') : chalkThem(board.analyzer.originPoint(them, move.dest))
         }
         const whites = me == White ? mine : theirs
         const persp = this.isRobot ? whites : (me == this.color ? mine : theirs)
@@ -278,7 +278,7 @@ class TermPlayer extends Base {
     }
 
     async promptOrigin(turn, origins, canUndo) {
-        const points = Util.uniqueInts(origins).map(origin => turn.board.originPoint(turn.color, origin))
+        const points = Util.uniqueInts(origins).map(origin => turn.board.analyzer.originPoint(turn.color, origin))
         points.sort(Util.sortNumericAsc)
         const choices = points.map(p => p.toString())
         var message = 'Origin '
@@ -315,7 +315,7 @@ class TermPlayer extends Base {
         } else if (origin == 'b') {
             return -1
         }
-        return turn.board.pointOrigin(turn.color, +origin)
+        return turn.board.analyzer.pointOrigin(turn.color, +origin)
     }
 
     async promptFace(turn, faces) {
