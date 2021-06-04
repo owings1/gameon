@@ -99,6 +99,7 @@ function populateCacheKeys(keys) {
 
     const atomicKeys = [
         'isDisengaged'
+      , 'state28'
       , 'stateString'
     ]
 
@@ -409,7 +410,7 @@ class Game {
             this.isFinished = true
         }
         if (this.isFinished) {
-            this.endState = this.board.stateString()
+            this.endState = this.board.state28()
             this.turnHistory.push(this.thisTurn.meta())
             // We can't clear the turn because the net server expects it to be there
             // for the second player request
@@ -426,7 +427,7 @@ class Game {
         return {
             uuid       : this.uuid
           , opts       : this.opts
-          , board      : this.board.stateString()
+          , board      : this.board.state28()
           , winner     : this.getWinner()
           , loser      : this.getLoser()
           , finalValue : this.finalValue
@@ -470,7 +471,7 @@ class Game {
         if (data.thisTurn) {
             game.thisTurn = Turn.unserialize(data.thisTurn, game.board)
         }
-        game.board.setStateString(data.board)
+        game.board.setState28(data.board)
 
         return game
     }
@@ -483,7 +484,7 @@ class Turn {
         this.board      = board
         this.color      = color
         this.opponent   = Opponent[color]
-        this.startState = board.stateString()
+        this.startState = board.state28()
 
         this.dice             = null
         this.diceSorted       = null
@@ -672,7 +673,7 @@ class Turn {
                 }
             }
         }
-        this.endState = this.board.stateString()
+        this.endState = this.board.state28()
         this.isFinished = true
         this.boardCache = {}
         return this
@@ -697,11 +698,11 @@ class Turn {
     }
 
     // Fetch cached. Cache is cleared on turn finish.
-    fetchBoard(stateString) {
-        if (!this.boardCache[stateString]) {
-            this.boardCache[stateString] = Board.fromStateString(stateString)
+    fetchBoard(state28) {
+        if (!this.boardCache[state28]) {
+            this.boardCache[state28] = Board.fromState28(state28)
         }
-        return this.boardCache[stateString]
+        return this.boardCache[state28]
     }
 
     meta() {
@@ -738,7 +739,7 @@ class Turn {
 
     static unserialize(data, board) {
 
-        board = board || Board.fromStateString(data.startState)
+        board = board || Board.fromState28(data.startState)
 
         const turn = new Turn(board, data.color, data.opts)
 
@@ -803,7 +804,7 @@ class Turn {
         const allowedEndStates  = []
         // Map of {moveHash: {move, index: {...}}}
         const allowedMoveIndex  = {}
-        // Map of stateString to move coords
+        // Map of state28 to move coords
         const endStatesToSeries = {}
 
         const storeCheck = store => store.hasWinner || (store.maxDepth == maxDepth && store.highestFace == highestFace)
@@ -867,7 +868,7 @@ class Turn {
 
                     Profiler.inc('store.check.endState')
 
-                    var endState = board.stateString()
+                    var endState = board.state28()
 
                     if (endStatesToSeries[endState]) {
 
@@ -912,7 +913,7 @@ class Turn {
                     continue
                 }
                 
-                var endState = board.stateString()
+                var endState = board.state28()
 
                 if (endStatesToSeries[endState]) {
                     // de-dupe
@@ -965,7 +966,7 @@ class Turn {
         const allowedEndStates  = []
         // Map of {moveHash: {move, index: {...}}}
         const allowedMoveIndex  = {}
-        // Map of stateString to move coords
+        // Map of state28 to move coords
         const endStatesToSeries = {}
 
         // the max number of faces determine the faces allowed, though not always required.
@@ -983,7 +984,7 @@ class Turn {
                 maxExample = movesMade
             }
 
-            var endState = board.stateString()
+            var endState = board.state28()
 
             var seriesCoords = []
             var currentIndex = allowedMoveIndex
@@ -1280,8 +1281,8 @@ class Board {
 
     // Optimized for performance
     stateString() {
-        const key = CacheKeys.stateString
         Profiler.start('Board.stateString')
+        const key = CacheKeys.stateString
         if (!this.cache[key]) {
             Profiler.inc('board.stateString.cache.miss')
             // <White bar count>|<Red bar count>|<slot count>:<Red/White/empty>|...|<White home count>|<Red home count>
@@ -1296,6 +1297,47 @@ class Board {
         }
         Profiler.stop('Board.stateString')
         return this.cache[key]
+    }
+
+    // experimental
+    state28() {
+        Profiler.start('Board.state28')
+        const key = CacheKeys.state28
+        if (!this.cache[key]) {
+            Profiler.inc('board.state28.cache.miss')
+            const arr = [
+                64 | this.bars.White.length
+              , 64 | this.bars.Red.length
+            ]
+            for (var i = 0; i < 24; ++i) {
+                var slot = this.slots[i]
+                arr.push(64 | slot.length | (slot[0] && slot[0].color == White) << 4)
+            }
+            arr.push(64 | this.homes.White.length)
+            arr.push(64 | this.homes.Red.length)
+            this.cache[key] = Buffer.from(arr).toString()
+        } else {
+            Profiler.inc('board.state28.cache.hit')
+        }
+        Profiler.stop('Board.state28')
+        return this.cache[key]
+    }
+
+    setState28(input) {
+        const arr = Buffer.from(input)
+        this.bars = {
+            White : Piece.make(~64 & arr[0], White)
+          , Red   : Piece.make(~64 & arr[1], Red)
+        }
+        this.slots = []
+        for (var i = 2; i < 26; ++i) {
+            this.slots[i - 2] = Piece.make(~64 & arr[i] & ~16, (arr[i] & 16) == 16 ? White : Red)
+        }
+        this.homes = {
+            White :  Piece.make(~64 & arr[26], White)
+          , Red   :  Piece.make(~64 & arr[27], Red)
+        }
+        this.markChange()
     }
 
     setStateString(str) {
@@ -1380,7 +1422,7 @@ class Board {
     }
 
     toString() {
-        return this.stateString()
+        return this.state28()
     }
 
     static setup() {
@@ -1392,6 +1434,12 @@ class Board {
     static fromStateString(str) {
         const board = new Board(true)
         board.setStateString(str)
+        return board
+    }
+
+    static fromState28(input) {
+        const board = new Board(true)
+        board.setState28(input)
         return board
     }
 }
@@ -1978,7 +2026,7 @@ class SequenceTree {
             move.do()
 
             // careful about loop and closure references
-            var store = this.newStore(move, depth, face, index, parentStore)
+            var store = new TreeStore(move, depth, face, index, parentStore)
 
             if (!this.depthIndex[depth]) {
                 this.depthIndex[depth] = []
@@ -1994,107 +2042,6 @@ class SequenceTree {
             // recurse
             this._buildDepth(move.board, nextFaces, store.index, store, depth)
         }
-    }
-
-    newStore(move, depth, face, index, parentStore) {
-
-        Profiler.start('SequenceTree.newStore')
-        Profiler.inc('store.create')
-
-        var highestFace = face
-        var moveSeriesFlag = move.flag
-
-        if (parentStore) {
-            if (parentStore.moveSeriesFlag != moveSeriesFlag) {
-                moveSeriesFlag = -1
-            }
-            if (parentStore.face > face) {
-                // progagate down the parent's face
-                highestFace = parentStore.face
-            }
-        }
-
-        const store = {
-
-            move
-          , depth
-          , face
-          , highestFace
-          , moveSeriesFlag
-
-          , maxDepth : depth
-          , index    : {}
-
-          , parent   : () => parentStore
-
-          , moveSeries : () => {
-                // profiling shows caching unnecessary (never hit)
-                const moveSeries = [move.coords]
-                for (var parent = parentStore; parent; parent = parent.parent()) {
-                    moveSeries.unshift(parent.move.coords)
-                }
-                return moveSeries
-            }
-
-          // propagate up maxDepth, hasWinner, highestFace
-
-          , setMaxDepth: depth => {
-                Profiler.inc('store.propagate')
-                Profiler.inc('store.propagate.setMaxDepth')
-                store.maxDepth = depth
-                if (parentStore && parentStore.maxDepth < depth) {
-                    parentStore.setMaxDepth(depth)
-                }
-            }
-          , setWinner: () => {
-                Profiler.inc('store.propagate')
-                Profiler.inc('store.propagate.setWinner')
-                store.hasWinner = true
-                if (parentStore && !parentStore.hasWinner) {
-                    parentStore.setWinner()
-                }
-            }
-          , setHighFace: face => {
-                Profiler.inc('store.propagate')
-                Profiler.inc('store.propagate.setHighFace')
-                store.highestFace = face
-                if (parentStore && parentStore.highestFace < face) {
-                    parentStore.setHighFace(face)
-                }
-            }
-            // profiling shows caching not needed - never hit
-          , flagKey: () => {
-
-                var flagKey = null
-
-                // only do for doubles
-                if (moveSeriesFlag == 8 && depth == 4) {
-
-                    Profiler.start('store.flagKey')
-
-                    const flagOrigins = [move.origin]
-                    for (var parent = parentStore; parent; parent = parent.parent()) {
-                        flagOrigins.push(parent.move.origin)
-                    }
-                    flagOrigins.sort(Util.sortNumericAsc)
-                    flagKey = moveSeriesFlag + '/' + depth + '-'
-                    for (var i = 0, ilen = flagOrigins.length; i < ilen; ++i) {
-                        if (i > 0) {
-                            flagKey += ','
-                        }
-                        flagKey += flagOrigins[i]
-                    }
-
-                    Profiler.stop('store.flagKey')
-                }
-
-                return flagKey
-            }
-        }
-
-        Profiler.stop('SequenceTree.newStore')
-
-        return store
     }
 
     _buildBreadth() {
@@ -2199,11 +2146,111 @@ class SequenceTree {
                 if (k == 'move') {
                     cleaned[hash][k] = index[hash][k].coords
                 } else if (k == 'index') {
+                    // recurse
                     cleaned[hash][k] = SequenceTree.serializeIndex(index[hash][k])
                 }
             }
         }
         return cleaned
+    }
+}
+
+class TreeStore {
+
+    constructor(move, depth, face, index, parentStore) {
+
+        Profiler.start('TreeStore.create')
+        var highestFace = face
+        var moveSeriesFlag = move.flag
+
+        if (parentStore) {
+            if (parentStore.moveSeriesFlag != moveSeriesFlag) {
+                moveSeriesFlag = -1
+            }
+            if (parentStore.face > face) {
+                // progagate down the parent's face
+                highestFace = parentStore.face
+            }
+        }
+        this.move           = move
+        this.depth          = depth
+        this.face           = face
+        this.highestFace    = highestFace
+        this.moveSeriesFlag = moveSeriesFlag
+        this.parentStore    = parentStore
+        this.maxDepth       = depth
+        this.index          = {}
+
+        Profiler.stop('TreeStore.create')
+    }
+
+    parent() {
+        return this.parentStore
+    }
+
+    moveSeries() {
+        // profiling shows caching unnecessary (never hit)
+        const moveSeries = [this.move.coords]
+        for (var parent = this.parentStore; parent; parent = parent.parent()) {
+            moveSeries.unshift(parent.move.coords)
+        }
+        return moveSeries
+    }
+
+    // propagate up maxDepth, hasWinner, highestFace
+
+    setMaxDepth(depth) {
+        Profiler.inc('TreeStore.propagate')
+        Profiler.inc('TreeStore.propagate.setMaxDepth')
+        this.maxDepth = depth
+        if (this.parentStore && this.parentStore.maxDepth < depth) {
+            this.parentStore.setMaxDepth(depth)
+        }
+    }
+
+    setWinner() {
+        Profiler.inc('TreeStore.propagate')
+        Profiler.inc('TreeStore.propagate.setWinner')
+        this.hasWinner = true
+        if (this.parentStore && !this.parentStore.hasWinner) {
+            this.parentStore.setWinner()
+        }
+    }
+
+    setHighFace(face) {
+        Profiler.inc('TreeStore.propagate')
+        Profiler.inc('TreeStore.propagate.setHighFace')
+        this.highestFace = face
+        if (this.parentStore && this.parentStore.highestFace < face) {
+            this.parentStore.setHighFace(face)
+        }
+    }
+
+    // profiling shows caching not needed - never hit
+    flagKey() {
+
+        var flagKey = null
+
+        // only do for doubles
+        if (this.moveSeriesFlag == 8 && this.depth == 4) {
+
+            Profiler.start('TreeStore.flagKey')
+
+            const origins = [this.move.origin]
+            for (var parent = this.parentStore; parent; parent = parent.parent()) {
+                origins.push(parent.move.origin)
+            }
+            origins.sort(Util.sortNumericAsc)
+
+            flagKey = '8/4-' + origins[0]
+            for (var i = 1; i < 4; ++i) {
+                flagKey += ',' + origins[i]
+            }
+
+            Profiler.stop('TreeStore.flagKey')
+        }
+
+        return flagKey
     }
 }
 

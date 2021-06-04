@@ -816,12 +816,15 @@ describe('Turn', () => {
 
             const result = turn.endStatesToSeries
             const statesActual = Object.keys(result).sort()
-            const statesExp = [b1.stateString(), b2.stateString()].sort()
+            const statesExp = [b1.state28(), b2.state28()].sort()
+            //const statesExp = [b1.stateString(), b2.stateString()].sort()
             expect(JSON.stringify(statesActual)).to.equal(JSON.stringify(statesExp))
 
-            const b1MovesActual = result[b1.stateString()]
+            const b1MovesActual = result[b1.state28()]
+            //const b1MovesActual = result[b1.stateString()]
             const b1MovesExp = [{origin: 0, face: 2}, {origin: 0, face: 1}] // could be 0:1|0:2
-            const b2MovesAcutal = result[b2.stateString()]
+            const b2MovesAcutal = result[b2.state28()]
+            //const b2MovesAcutal = result[b2.stateString()]
             const b2MovesExp = [{origin: 0, face: 2}, {origin: 2, face: 1}] // could be 0:1|1:2
             expect(JSON.stringify(b1MovesActual)).to.equal(JSON.stringify(b1MovesExp))
             expect(JSON.stringify(b2MovesAcutal)).to.equal(JSON.stringify(b2MovesExp))
@@ -1313,10 +1316,19 @@ describe('Board', () => {
         })
     })
 
+    describe('#state28', () => {
+        it('should convert back and from from InitialState', () => {
+            board.setup()
+            expect(board.stateString()).to.equal(States.Initial)
+            board.setState28(board.state28())
+            expect(board.stateString()).to.equal(States.Initial)
+        })
+    })
+
 	describe('#toString', () => {
 
-		it('should return state string', () => {
-			expect(board.toString()).to.equal(board.stateString())
+		it('should return state28 string', () => {
+			expect(board.toString()).to.equal(board.state28())
 		})
 	})
 })
@@ -1806,7 +1818,7 @@ describe('SequenceTree', () => {
                     playTurns(t1, t2)
                 })
 
-                Util.intRange(2, 63).forEach(i => {
+                Util.intRange(2, 60).forEach(i => {
                     it('should be equivalent at turn ' + i + ' for roll ' + Rolls.rolls[i].join(','), () => {
                         const turns = [game1.nextTurn().roll(), game2.nextTurn().roll()]
                         checkEquivalence(...turns)
@@ -1814,13 +1826,13 @@ describe('SequenceTree', () => {
                     })
                 })
 
-                it('games should be finished and White should win', () => {
+                it('games should be finished and Red should win', () => {
                     game1.checkFinished()
                     game2.checkFinished()
                     expect(game1.isFinished).to.equal(true)
                     expect(game2.isFinished).to.equal(true)
                     expect(game1.getWinner()).to.equal(game2.getWinner())
-                    expect(game1.getWinner()).to.equal(White)
+                    expect(game1.getWinner()).to.equal(Red)
                 })
             })
         })

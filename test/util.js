@@ -8,6 +8,10 @@ const tmp = require('tmp')
 const States = require('./states')
 const Rolls = require('./rolls')
 
+const States28 = {}
+for (var k in States) {
+    States28[k] = Core.Board.fromStateString(States[k]).state28()
+}
 const Structures = {
     Initial : [0, 0, 2, 0, 0, 0, 0, -5, 0, -3, 0, 0, 0, 5, -5, 0, 0, 0, 3, 0, 5, 0, 0, 0, 0, -2, 0, 0]
 }
@@ -191,5 +195,6 @@ module.exports = {
     MockPrompter,
     Rolls,
     States,
+    States28,
     Structures
 }

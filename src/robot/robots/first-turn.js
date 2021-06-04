@@ -40,7 +40,7 @@ class FirstTurnRobot extends Base {
             this.pointMoves(turn.diceSorted).forEach(({point, face}) => {
                 board.move(turn.color, board.analyzer.pointOrigin(turn.color, point), face)
             })
-            rankings[board.stateString()] = 1 / game.getTurnCount()
+            rankings[board.state28()] = 1 / game.getTurnCount()
         } catch (err) {
             if (turn.isFirstTurn || !err.isIllegalMoveError) {
                 throw err

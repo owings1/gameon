@@ -7,7 +7,8 @@ const {
     randomElement,
     requireSrc,
     normState,
-    States
+    States,
+    States28
 } = Test
 
 const Coordinator = requireSrc('lib/coordinator')
@@ -184,7 +185,7 @@ describe('BearoffRobot', () => {
             turn.setRoll([5, 3])
             const result = await robot.getRankings(turn, game)
             const maxRank = Math.max(...Object.values(result))
-            expect(result[States.Bearoff1Best]).to.equal(maxRank)
+            expect(result[States28.Bearoff1Best]).to.equal(maxRank)
         })
 
         it('should rank only one best for Bearoff1Start with 5,3', async () => {
@@ -203,7 +204,7 @@ describe('BearoffRobot', () => {
             turn.setRoll([1, 3])
             const result = await robot.getRankings(turn, game)
             const maxRank = Math.max(...Object.values(result))
-            expect(result[States.Bearoff2Best]).to.equal(maxRank)
+            expect(result[States28.Bearoff2Best]).to.equal(maxRank)
         })
 
         it('should rank only one best for Bearoff2Start with 1,3', async () => {
@@ -221,7 +222,7 @@ describe('BearoffRobot', () => {
             const turn = game.nextTurn().setRoll(4, 1)
             const result = await robot.getRankings(turn, game)
             
-            expect(result[normState(States.Bearoff3End1)]).to.equal(result[normState(States.Bearoff3End2)])
+            expect(result[States28.Bearoff3End1]).to.equal(result[States28.Bearoff3End2])
         })
 
         it('should take one home for Bearoff4Start even though may not yet bear off with 6,4', async () => {
@@ -229,8 +230,8 @@ describe('BearoffRobot', () => {
             const turn = game.nextTurn().setRoll(6, 4)
             const result = await robot.getRankings(turn, game)
             const maxRank = Math.max(...Object.values(result))
-            expect(result[normState(States.Bearoff4Best)]).to.equal(maxRank)
-            expect(result[normState(States.Bearoff4Best)]).to.be.greaterThan(result[normState(States.Bearoff4Bad)])
+            expect(result[States28.Bearoff4Best]).to.equal(maxRank)
+            expect(result[States28.Bearoff4Best]).to.be.greaterThan(result[States28.Bearoff4Bad])
         })
     })
 })
@@ -336,7 +337,7 @@ describe('HittingRobot', () => {
             turn.setRoll([2, 1])
             const result = await robot.getRankings(turn, game)
             const maxRank = Math.max(...Object.values(result))
-            expect(result[States.HittingCase1Best]).to.equal(maxRank)
+            expect(result[States28.HittingCase1Best]).to.equal(maxRank)
         })
 
         it('should rank only one best for HittingCase1Start for 2,1 roll', async () => {
@@ -354,7 +355,7 @@ describe('HittingRobot', () => {
             const turn = game.nextTurn()
             turn.setRoll([2, 1])
             const result = await robot.getRankings(turn, game)
-            expect(result[States.HittingCase1Bad]).to.equal(0)
+            expect(result[States28.HittingCase1Bad]).to.equal(0)
         })
 
         it('should rank HittingCase1Med > 0 and < 1 for HittingCase1Start for 2,1 roll', async () => {
@@ -362,8 +363,8 @@ describe('HittingRobot', () => {
             const turn = game.nextTurn()
             turn.setRoll([2, 1])
             const result = await robot.getRankings(turn, game)
-            expect(result[States.HittingCase1Med]).to.be.greaterThan(0)
-            expect(result[States.HittingCase1Med]).to.be.lessThan(1)
+            expect(result[States28.HittingCase1Med]).to.be.greaterThan(0)
+            expect(result[States28.HittingCase1Med]).to.be.lessThan(1)
         })
     })
 })
@@ -383,7 +384,7 @@ describe('OccupyRobot', () => {
             turn.setRoll([2, 1])
             const result = await robot.getRankings(turn, game)
             const maxRank = Math.max(...Object.values(result))
-            expect(result[States.OccupyCase1Best]).to.equal(maxRank)
+            expect(result[States28.OccupyCase1Best]).to.equal(maxRank)
         })
 
         it('should rank OccupyCase1Best value 1 for OccupyCase1Start for 2,1 roll', async () => {
@@ -391,7 +392,7 @@ describe('OccupyRobot', () => {
             const turn = game.nextTurn()
             turn.setRoll([2, 1])
             const result = await robot.getRankings(turn, game)
-            expect(result[States.OccupyCase1Best]).to.equal(1)
+            expect(result[States28.OccupyCase1Best]).to.equal(1)
         })
 
         it('should rank OccupyCase1Bad value 0 for OccupyCase1Start for 2,1 roll', async () => {
@@ -399,7 +400,7 @@ describe('OccupyRobot', () => {
             const turn = game.nextTurn()
             turn.setRoll([2, 1])
             const result = await robot.getRankings(turn, game)
-            expect(result[States.OccupyCase1Bad]).to.equal(0)
+            expect(result[States28.OccupyCase1Bad]).to.equal(0)
         })
     })
 })
@@ -419,7 +420,7 @@ describe('PrimeRobot', () => {
             turn.setRoll([2, 1])
             const result = await robot.getRankings(turn, game)
             const maxRank = Math.max(...Object.values(result))
-            expect(result[States.PrimeCase1Best]).to.equal(maxRank)
+            expect(result[States28.PrimeCase1Best]).to.equal(maxRank)
         })
 
         it('should rank only one best for PrimeCase1Start for 2,1 roll', async () => {
@@ -437,7 +438,7 @@ describe('PrimeRobot', () => {
             const turn = game.nextTurn()
             turn.setRoll([2, 1])
             const result = await robot.getRankings(turn, game)
-            expect(result[States.PrimeCase1Bad]).to.equal(0)
+            expect(result[States28.PrimeCase1Bad]).to.equal(0)
         })
 
         it('should rank PrimeCase1Med > 0 and < 1 for PrimeCase1Start for 2,1 roll', async () => {
@@ -445,8 +446,8 @@ describe('PrimeRobot', () => {
             const turn = game.nextTurn()
             turn.setRoll([2, 1])
             const result = await robot.getRankings(turn, game)
-            expect(result[States.PrimeCase1Med]).to.be.greaterThan(0)
-            expect(result[States.PrimeCase1Med]).to.be.lessThan(1)
+            expect(result[States28.PrimeCase1Med]).to.be.greaterThan(0)
+            expect(result[States28.PrimeCase1Med]).to.be.lessThan(1)
         })
     })
 })
@@ -466,7 +467,7 @@ describe('SafetyRobot', () => {
             turn.setRoll([2, 1])
             const result = await robot.getRankings(turn, game)
             const maxRank = Math.max(...Object.values(result))
-            expect(result[States.SafetyCase1Best]).to.equal(maxRank)
+            expect(result[States28.SafetyCase1Best]).to.equal(maxRank)
         })
 
         it('should rank only one best for SafetyCase1Start for 2,1 roll', async () => {
@@ -484,7 +485,7 @@ describe('SafetyRobot', () => {
             const turn = game.nextTurn()
             turn.setRoll([2, 1])
             const result = await robot.getRankings(turn, game)
-            expect(result[States.SafetyCase1Bad]).to.equal(0)
+            expect(result[States28.SafetyCase1Bad]).to.equal(0)
         })
 
         it('should rank SafetyCase1Med > 0 and < 1 for SafetyCase1Start for 2,1 roll', async () => {
@@ -492,8 +493,8 @@ describe('SafetyRobot', () => {
             const turn = game.nextTurn()
             turn.setRoll([2, 1])
             const result = await robot.getRankings(turn, game)
-            expect(result[States.SafetyCase1Med]).to.be.greaterThan(0)
-            expect(result[States.SafetyCase1Med]).to.be.lessThan(1)
+            expect(result[States28.SafetyCase1Med]).to.be.greaterThan(0)
+            expect(result[States28.SafetyCase1Med]).to.be.lessThan(1)
         })
     })
 })

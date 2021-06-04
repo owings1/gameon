@@ -305,7 +305,7 @@ class RobotDelegator extends Robot {
                 throw new HasNotRolledError('Turn is not rolled')
             }
             Profiler.start('RobotDelegator.getMoves.1')
-            const startState = turn.board.stateString()
+            const startState = turn.board.state28()
             // [{robot, moveWeight, doubleWeight, rankings}]
             const delegates = []
             for (var delegate of this.delegates) {
