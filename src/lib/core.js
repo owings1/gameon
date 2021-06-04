@@ -732,7 +732,7 @@ class Turn {
             allowedMoveCount   : turn.allowedMoveCount
           , allowedEndStates   : turn.allowedEndStates
           , allowedFaces       : turn.allowedFaces
-          , allowedMoveIndex   : SequenceTree.serializeIndex(turn.allowedMoveIndex) // circular with move objects (board/analyzer)
+          , allowedMoveIndex   : SequenceTree.serializeIndex(turn.allowedMoveIndex)
           , endStatesToSeries  : turn.endStatesToSeries
         })
     }
@@ -799,7 +799,8 @@ class Turn {
 
     // Construct the move series, end states
     _computeMovesDepth(trees, maxDepth, highestFace) {
-        
+
+        // TODO: test a case where max depth is 1, but only high face should win.
         // State strings
         const allowedEndStates  = []
         // Map of {moveHash: {move, index: {...}}}
@@ -807,22 +808,7 @@ class Turn {
         // Map of state28 to move coords
         const endStatesToSeries = {}
 
-        const storeCheck = store => store.hasWinner || (store.maxDepth == maxDepth && store.highestFace == highestFace)
-
-        const seriesFlagKeys = {}
-
-        const pruneRecursive = index => {
-            const hashes = Object.keys(index) // copy for modifying in place
-            for (var i = 0, ilen = hashes.length; i < ilen; ++i) {
-                var store = index[hashes[i]]
-                if (!storeCheck(store)) {
-                    Profiler.inc('store.prune')
-                    delete index[hashes[i]]
-                } else {
-                    pruneRecursive(store.index)
-                }
-            }
-        }
+        const flagKeys = {}
 
         // the max number of faces determine the faces allowed, though not always required.
         var maxExample
@@ -830,14 +816,13 @@ class Turn {
         for (var i = 0, ilen = trees.length; i < ilen && maxDepth > 0; ++i) {
 
             var tree = trees[i]
-            if (!storeCheck(tree)) {
-                Profiler.inc('tree.discard')
+
+            if (!tree.checkPasses(maxDepth, highestFace)) {
+                Profiler.inc('tree.check.discard')
                 continue
             }
 
-            Profiler.start('Turn.compute.depth.moves.prune')
-            pruneRecursive(tree.index)
-            Profiler.stop('Turn.compute.depth.moves.prune')
+            SequenceTree.pruneIndexRecursive(tree.index, maxDepth, highestFace)
 
             for (var hash in tree.index) {
                 allowedMoveIndex[hash] = tree.index[hash]
@@ -854,16 +839,21 @@ class Turn {
                     var store = leaves[j]
                     var {board} = store.move
 
+                    // sanity check
+                    if (store.deleted) {
+                        throw new Error('store was deleted')
+                    }
+
                     var flagKey = store.flagKey()
 
                     if (flagKey) {
                         Profiler.inc('store.check.flagKey')
-                        if (seriesFlagKeys[flagKey]) {
+                        if (flagKeys[flagKey]) {
                             Profiler.inc('store.discard.leaf')
                             Profiler.inc('store.discard.leaf.flagKey')
                             continue
                         }
-                        seriesFlagKeys[flagKey] = true
+                        flagKeys[flagKey] = true
                     }
 
                     Profiler.inc('store.check.endState')
@@ -1958,7 +1948,7 @@ class SequenceTree {
 
         Profiler.start('SequenceTree.buildDepth')
 
-        this.depth       = 0
+        //this.depth       = 0
         this.index       = {}
         this.winners     = []
         this.depthIndex  = {}
@@ -1967,6 +1957,21 @@ class SequenceTree {
         this._buildDepth(this.board, this.sequence, this.index)
 
         Profiler.stop('SequenceTree.buildDepth')
+    }
+
+    checkPasses(maxDepth, highestFace) {
+        if (this.hasWinner) {
+            return true
+        }
+        if (this.maxDepth < maxDepth) {
+            Profiler.inc('SequenceTree.check.fail.maxDepth')
+            return false
+        }
+        if (this.highestFace < highestFace) {
+            Profiler.inc('SequenceTree.check.fail.highestFace')
+            return false
+        }
+        return true
     }
 
     _buildDepth(board, faces, index, parentStore, depth = 0) {
@@ -1989,6 +1994,7 @@ class SequenceTree {
         const moves = board.getPossibleMovesForFace(this.color, face)
 
         if (!moves.length) {
+            Profiler.inc('tree.build.no.moves')
             // terminal case - no available moves
             // this happens too infrequently to warrant trying to remove it from the tree.
             return
@@ -2131,6 +2137,28 @@ class SequenceTree {
         return tree
     }
 
+    static pruneIndexRecursive(index, maxDepth, highestFace) {
+        const hashes = Object.keys(index) // copy for modifying in place
+        for (var i = 0, ilen = hashes.length; i < ilen; ++i) {
+            Profiler.inc('SequenceTree.pruneIndexRecursive.check')
+            var hash = hashes[i]
+            var store = index[hash]
+            if (store.hasWinner) {
+                continue
+            }
+            if (store.maxDepth < maxDepth) {
+                Profiler.inc('SequenceTree.pruneIndexRecursive.delete.maxDepth')
+                store.deleted = true
+                delete index[hash]
+            } else if (store.highestFace < highestFace) {
+                Profiler.inc('SequenceTree.pruneIndexRecursive.delete.highestFace')
+                store.deleted = true
+                delete index[hash]
+            }
+        }
+    }
+
+    // circular with move objects (board/analyzer)
     static serializeIndex(index, isSort) {
         if (!index) {
             return index
@@ -2223,6 +2251,26 @@ class TreeStore {
         this.highestFace = face
         if (this.parentStore && this.parentStore.highestFace < face) {
             this.parentStore.setHighFace(face)
+        }
+    }
+
+    prune(maxDepth, highestFace) {
+        const hashes = Object.keys(this.index)
+        for (var i = 0, ilen = hashes.length; i < ilen; ++i) {
+            var hash = hashes[i]
+            var store = this.index[hash]
+            if (store.hasWinner) {
+                continue
+            }
+            if (store.maxDepth < maxDepth) {
+                Profiler.inc('TreeStore.prune.discard.maxDepth')
+                delete store[hash]
+                continue
+            }
+            if (store.highestFace < highestFace) {
+                Profiler.inc('TreeStore.prune.discard.highestFace')
+                delete store[hash]
+            }
         }
     }
 
