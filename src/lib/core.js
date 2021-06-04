@@ -1461,7 +1461,7 @@ class Board {
             var str = this.bars.White.length + '|' + this.bars.Red.length + '|'
             for (var i = 0; i < 24; ++i) {
                 var slot = this.slots[i]
-                str += slot.length + ':' + (slot.length ? slot[0].color : '') + '|'
+                str += slot.length + ':' + (slot.length ? slot[0].c : '') + '|'
             }
             this.cache[key] = str + this.homes.White.length + '|' + this.homes.Red.length
         } else {

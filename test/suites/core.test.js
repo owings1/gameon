@@ -1161,34 +1161,34 @@ describe('Board', () => {
         })
 
         it('should bear off white from 6 point with all other pieces on 5 point', () => {
-            board.setStateString('0|0|0:|0:|0:|0:|0:|5:Red|0:|3:Red|0:|0:|0:|0:|5:Red|0:|0:|0:|0:|0:|5:White|10:White|0:|0:|0:|2:Red|0|0')
+            board.setStateString('0|0|0:|0:|0:|0:|0:|5:R|0:|3:R|0:|0:|0:|0:|5:R|0:|0:|0:|0:|0:|5:W|10:W|0:|0:|0:|2:R|0|0')
             board.move(White, 18, 6)
             expect(board.piecesOnOrigin(White, 18)).to.equal(4)
             expect(board.analyzer.piecesHome(White)).to.equal(1)
         })
 
         it('should bear off white from 5 point on face=5 with other pieces on 6 point', () => {
-            board.setStateString('0|0|0:|0:|0:|0:|0:|5:Red|0:|3:Red|0:|0:|0:|0:|5:Red|0:|0:|0:|0:|0:|5:White|10:White|0:|0:|0:|2:Red|0|0')
+            board.setStateString('0|0|0:|0:|0:|0:|0:|5:R|0:|3:R|0:|0:|0:|0:|5:R|0:|0:|0:|0:|0:|5:W|10:W|0:|0:|0:|2:R|0|0')
             board.move(White, 19, 5)
             expect(board.piecesOnOrigin(White, 19)).to.equal(9)
             expect(board.analyzer.piecesHome(White)).to.equal(1)
         })
 
         it('should bear off red from 5 point on face=5 with other pieces on 6 point', () => {
-            board.setStateString('0|0|2:White|0:|0:|0:|10:Red|5:Red|0:|0:|0:|0:|0:|5:White|0:|0:|0:|0:|3:White|0:|5:White|0:|0:|0:|0:|0:|0|0')
+            board.setStateString('0|0|2:W|0:|0:|0:|10:R|5:R|0:|0:|0:|0:|0:|5:W|0:|0:|0:|0:|3:W|0:|5:W|0:|0:|0:|0:|0:|0|0')
             board.move(Red, 4, 5)
             expect(board.piecesOnOrigin(Red, 4)).to.equal(9)
             expect(board.analyzer.piecesHome(Red)).to.equal(1)
         })
 
         it('should not bear off white with face=6 from 5 point with piece behind as IllegalBareoffError', () => {
-            board.setStateString('0|0|0:|0:|0:|0:|0:|5:Red|0:|3:Red|0:|0:|0:|0:|5:Red|0:|0:|0:|0:|0:|5:White|10:White|0:|0:|0:|2:Red|0|0')
+            board.setStateString('0|0|0:|0:|0:|0:|0:|5:R|0:|3:R|0:|0:|0:|0:|5:R|0:|0:|0:|0:|0:|5:W|10:W|0:|0:|0:|2:R|0|0')
             const err = getError(() => board.move(White, 19, 6))
             expect(err.name).to.equal('IllegalBareoffError')
         })
 
         it('should not bear off red with face=6 from 5 point with piece behind as IllegalBareoffError', () => {
-            board.setStateString('0|0|2:White|0:|0:|0:|10:Red|5:Red|0:|0:|0:|0:|0:|5:White|0:|0:|0:|0:|3:White|0:|5:White|0:|0:|0:|0:|0:|0|0')
+            board.setStateString('0|0|2:W|0:|0:|0:|10:R|5:R|0:|0:|0:|0:|0:|5:W|0:|0:|0:|0:|3:W|0:|5:W|0:|0:|0:|0:|0:|0|0')
             const err = getError(() => board.move(Red, 4, 6))
             expect(err.name).to.equal('IllegalBareoffError')
         })
