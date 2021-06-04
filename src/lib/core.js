@@ -714,7 +714,7 @@ class Turn {
             allowedMoveCount   : turn.allowedMoveCount
           , allowedEndStates   : turn.allowedEndStates
           , allowedFaces       : turn.allowedFaces
-          //, allowedMoveIndex   : turn.allowedMoveIndex // TODO: circular with move objects
+          , allowedMoveIndex   : SequenceTree.serializeIndex(turn.allowedMoveIndex) // circular with move objects (board/analyzer)
           , endStatesToSeries  : turn.endStatesToSeries
         })
     }
@@ -2108,6 +2108,28 @@ class SequenceTree {
         const tree = new SequenceTree(board, color, sequence)
         tree.buildDepth()
         return tree
+    }
+
+    static serializeIndex(index, isSort) {
+        if (!index) {
+            return index
+        }
+        const cleaned = {}
+        const hashes = Object.keys(index)
+        if (isSort) {
+            hashes.sort(typeof isSort == 'function' ? isSort : undefined)
+        }
+        for (var hash of hashes) {
+            cleaned[hash] = {}
+            for (var k in index[hash]) {
+                if (k == 'move') {
+                    cleaned[hash][k] = index[hash][k].coords
+                } else if (k == 'index') {
+                    cleaned[hash][k] = SequenceTree.serializeIndex(index[hash][k])
+                }
+            }
+        }
+        return cleaned
     }
 }
 

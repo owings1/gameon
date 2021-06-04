@@ -671,6 +671,34 @@ describe('Turn', () => {
 		})
 	})
 
+    describe('#serialize', () => {
+
+        it('should convert to json', () => {
+            const game = new Game
+            const t1 = makeRandomMoves(game.firstTurn(), true)
+            expect(t1.isDepthTree).to.equal(true)
+            const res = t1.serialize()
+            JSON.stringify(res)
+        })
+
+        it('should convert to json with breadth', () => {
+            const game = new Game({breadthTrees: true})
+            const t1 = makeRandomMoves(game.firstTurn(), true)
+            expect(t1.isBreadthTree).to.equal(true)
+            const res = t1.serialize()
+            JSON.stringify(res)
+        })
+
+        it('allowed move index should have same keys', () => {
+            const game = new Game
+            const t1 = makeRandomMoves(game.firstTurn(), true)
+            const exp1 = Object.keys(t1.allowedMoveIndex).sort()
+            const res = t1.serialize()
+            const exp2 = Object.keys(res.allowedMoveIndex).sort()
+            expect(JSON.stringify(exp1)).to.equal(JSON.stringify(exp2))
+        })
+    })
+
     describe('#setDoubleDeclined', () => {
 
         it('should throw HasNotDoubledError if double has not been offered', () => {
