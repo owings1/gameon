@@ -92,6 +92,7 @@ const DefaultSortDirections = {
   , 'match'   : 'desc'
   , 'turn'    : 'desc'
 }
+
 class Helper {
 
     static sortableColumns() {
@@ -103,8 +104,12 @@ class Helper {
             outDir       : null
           , matchTotal   : 1
           , numMatches   : 500
-          , sortBy       : 'name'
+          , sortBy       : 'elapsed,count,name'
+          , innerBorders : false
           , breadthTrees : false
+          , colorHead    : 'green'
+          , colorOdd     : 'white'
+          , colorEven    : 'cyan'
           , indent       : 4
           , rollsFile    : null
           , columns      : [
@@ -142,6 +147,18 @@ class Helper {
             this.sortColumns.push(column)
             this.sortDirs.push(dir == 'asc' ? 1 : -1)
         })
+
+        for (var opt of ['colorHead', 'colorOdd', 'colorEven']) {
+            try {
+                chalk[this.opts[opt]]('')
+            } catch (err) {
+                if (err.name == 'TypeError' && err.message.indexOf('not a function')) {
+                    throw new Error("Unsupported chalk color '" + this.opts[opt] + "' for option " + opt)
+                }
+                throw err
+            }
+        }
+
         this.logger = new Logger
         this.coordinator = new Coordinator
         this.roller = null
@@ -274,6 +291,7 @@ class Helper {
     logData(data, summary) {
 
         const {columns} = this
+        const {innerBorders, colorOdd, colorEven, colorHead} = this.opts
 
         const titles = {
             // optional
@@ -286,25 +304,36 @@ class Helper {
           , turn    : 'Turn (avg)'
         }
 
+        const round =  value => Math.round(value).toLocaleString()
         const format = {
             // optional, but should return string
-            round   : value => Math.round(value).toLocaleString()
-          , elapsed : value => value == null ? '' : value.toLocaleString() + ' ms'
+            elapsed : value => value == null ? '' : value.toLocaleString() + ' ms'
           , average : value => value == null ? '' : value.toFixed(4) + ' ms'
-          , count   : value => format.round(value)
-          , match   : value => format.round(value)
-          , game    : value => format.round(value)
-          , turn    : value => format.round(value)
+          , count   : round
+          , match   : round
+          , game    : round
+          , turn    : round
         }
 
-        const footerLines = [
-            ['Total Elapsed :', format.elapsed(summary.elapsed)]
-          , ['Total Matches :', summary.matchCount.toLocaleString()]
-          , ['Total Games   :', summary.gameCount.toLocaleString()]
-          , ['Total Turns   :', summary.turnCount.toLocaleString()]
-          , ['Games / Match :', format.round(summary.gameCount / summary.matchCount)]
-          , ['Turns / Game  :', format.round(summary.turnCount / summary.gameCount)]
-        ].map(arr => arr.join(' '))
+        const footerInfo = [
+            ['Total Elapsed', format.elapsed(summary.elapsed)]
+          , ['Total Matches', summary.matchCount.toLocaleString()]
+          , ['Total Games',   summary.gameCount.toLocaleString()]
+          , ['Total Turns',   summary.turnCount.toLocaleString()]
+          , ['Games / Match', round(summary.gameCount / summary.matchCount)]
+          , ['Turns / Game',  round(summary.turnCount / summary.gameCount)]
+        ]
+        const footerTitleWidth = Math.max(...footerInfo.map(it => it[0].length))
+        const footerValueWidth = Math.max(...footerInfo.map(it => it[1].length))
+
+        const footerLines = footerInfo.map(([title, value]) => {
+            title = title.padEnd(footerTitleWidth, ' ')
+            if (value.indexOf(' ms') < 0) {
+                value += '   '
+            }
+            value = value.padStart(footerValueWidth, ' ')
+            return [title, value].join(' : ')
+        })
 
         const colors = {
             border: 'grey'
@@ -369,15 +398,19 @@ class Helper {
 
         // build header
         const headerInnerStr = columns.map(key =>
-            titles[key][aligns[key]](widths[key], ' ')).join(border.pipeSpaced)
+            chalk[colorHead](titles[key][aligns[key]](widths[key], ' '))).join(border.pipeSpaced)
         const headerStr = [
             border.pipe, headerInnerStr.padEnd(rowWidth, ' '), border.pipe
         ].join(' ')
 
         // build body
-        const bodyStrs = data.map(row => {
+        const alt = (str, i) => {
+            const method = i % 2 ? colorEven : colorOdd
+            return chalk[method](str)
+        }
+        const bodyStrs = data.map((row, i) => {
             const innerStr = columns.map(key =>
-                format[key](row[key])[aligns[key]](widths[key], ' ')
+                alt(format[key](row[key])[aligns[key]](widths[key], ' '), i)
             ).join(border.pipeSpaced)
             return [border.pipe, innerStr.padEnd(rowWidth, ' '), border.pipe].join(' ')
         })
@@ -393,7 +426,12 @@ class Helper {
         this.println(headerStr)
         this.println(border.middle)
 
-        bodyStrs.forEach(rowStr => this.println(rowStr))
+        bodyStrs.forEach((rowStr, i) => {
+            if (innerBorders && i > 0) {
+                this.println(border.middle)
+            }
+            this.println(rowStr)
+        })
 
         this.println(border.bottom)
         footerStrs.forEach(footerStr => this.println(footerStr))

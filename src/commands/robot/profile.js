@@ -40,6 +40,10 @@ class RobotProfileCommand extends Command {
           , sortBy       : this.flags.sortby.toLowerCase()
           , breadthTrees : this.flags.breadth
           , rollsFile    : this.flags.rollsfile
+          , innerBorders : this.flags.inner
+          , colorHead    : this.flags.colorhead
+          , colorOdd     : this.flags.colorodd
+          , colorEven    : this.flags.coloreven
         }
         this.helper = this.helper || new Helper(this.opts)
     }
@@ -79,6 +83,22 @@ RobotProfileCommand.flags = {
         char        : 's'
       , description : 'sort by a column (' + Helper.sortableColumns().join(', ') + ')'
       , default     : defaults.sortBy
+    })
+  , inner: flags.boolean({
+        char        : 'i'
+      , description : 'add inner borders'
+    })
+  , colorhead: flags.string({
+        description : 'header color'
+      , default     : defaults.colorHead
+    })
+  , colorodd: flags.string({
+        description : 'odd row color'
+      , default     : defaults.colorOdd
+    })
+  , coloreven: flags.string({
+        description : 'even row color'
+      , default     : defaults.colorEven
     })
 }
 
