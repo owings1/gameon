@@ -34,7 +34,7 @@ class BearoffRobot extends Base {
         var hasBearoff = false
         turn.allowedEndStates.forEach(endState => {
             const {analyzer} = turn.fetchBoard(endState)
-            if (!analyzer.board.mayBearoff(turn.color)) {
+            if (!analyzer.mayBearoff(turn.color)) {
                 scores[endState] = 0
                 return
             }

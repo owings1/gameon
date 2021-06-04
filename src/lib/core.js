@@ -1125,14 +1125,14 @@ class Board {
             Profiler.start('Board.getPossibleMovesForFace.2')
             
             const unavailable = this.analyzer.originsHeldMap(Opponent[color])
-            const origins = this.originsOccupied(color)
-            const mayBearoff = this.mayBearoff(color)
+            const origins = this.analyzer.originsOccupied(color)
+            const mayBearoff = this.analyzer.mayBearoff(color)
 
             if (mayBearoff) {
                 if (color == White) {
-                    var minOriginOccupied = this.minOriginOccupied(color)
+                    var minOriginOccupied = this.analyzer.minOriginOccupied(color)
                 } else {
-                    var maxOriginOccupied = this.maxOriginOccupied(color)
+                    var maxOriginOccupied = this.analyzer.maxOriginOccupied(color)
                 }
             }
 
@@ -1167,7 +1167,7 @@ class Board {
                                 continue
                             }
                         }
-                        //if (this.hasPieceBehind(color, origin)) {
+                        //if (this.analyzer.hasPieceBehind(color, origin)) {
                         //    continue
                         //}
                     }
@@ -1209,7 +1209,7 @@ class Board {
                 build = {class: ComeInMove, args: [this, color, face, check === true]}
                 return {check, build}
             }
-            if (this.hasBar(color)) {
+            if (this.analyzer.hasBar(color)) {
                 check = {class: PieceOnBarError, message: [color, 'has a piece on the bar']}
             } else {
                 const slot = this.slots[origin]
@@ -1233,29 +1233,15 @@ class Board {
         }
     }
 
-    occupiesOrigin(color, origin) {
-        const slot = this.slots[origin]
-        return slot[0] && slot[0].color == color
-    }
-
-    canOccupyOrigin(color, origin) {
-        const slot = this.slots[origin]
-        return slot.length < 2 || slot[0].color == color
-    }
-
-    piecesOnOrigin(color, origin) {
-        return this.occupiesOrigin(color, origin) ? this.slots[origin].length : 0
-    }
-
     hasWinner() {
         return this.getWinner() != null
     }
 
     getWinner() {
-        if (this.isAllHome(Red)) {
+        if (this.analyzer.isAllHome(Red)) {
             return Red
         }
-        if (this.isAllHome(White)) {
+        if (this.analyzer.isAllHome(White)) {
             return White
         }
         return null
@@ -1274,69 +1260,7 @@ class Board {
         return false
     }
 
-    // One or more pieces
-    // @cache
-    originsOccupied(color) {
-        const key = CacheKeys.originsOccupied[color]
-        if (!this.cache[key]) {
-            Profiler.inc('board.originsOccupied.cache.miss')
-            const origins = []
-            var minOrigin = Infinity
-            var maxOrigin = -Infinity
-            const minKey = CacheKeys.minOriginOccupied[color]
-            const maxKey = CacheKeys.maxOriginOccupied[color]
-            for (var i = 0; i < 24; ++i) {
-                if (this.slots[i][0] && this.slots[i][0].color == color) {
-                    origins.push(i)
-                    if (i < minOrigin) {
-                        minOrigin = i
-                    } else if (i > maxOrigin) {
-                        maxOrigin = i
-                    }
-                }
-            }
-            this.cache[key] = origins
-            this.cache[minKey] = minOrigin
-            this.cache[maxKey] = maxOrigin
-        } else {
-            Profiler.inc('board.originsOccupied.cache.hit')
-        }
-        return this.cache[key]
-    }
 
-    blotOrigins(color) {
-        const key = CacheKeys.blotOrigins[color]
-        if (!this.cache[key]) {
-            const origins = this.originsOccupied(color)
-            const blotOrigins = []
-            for (var i = 0, ilen = origins.length; i < ilen; ++i) {
-                var origin = origins[i]
-                if (this.slots[origin].length == 1) {
-                    blotOrigins.push(origin)
-                }
-            }
-            this.cache[key] = blotOrigins
-        }
-        return this.cache[key]
-    }
-
-    maxOriginOccupied(color) {
-        const key = CacheKeys.maxOriginOccupied[color]
-        if (!(key in this.cache)) {
-            // will populate
-            this.originsOccupied(color)
-        }
-        return this.cache[key]
-    }
-
-    minOriginOccupied(color) {
-        const key = CacheKeys.minOriginOccupied[color]
-        if (!(key in this.cache)) {
-            // will populate
-            this.originsOccupied(color)
-        }
-        return this.cache[key]
-    }
 
     clear() {
         this.slots = intRange(0, 23).map(i => [])
@@ -1362,64 +1286,7 @@ class Board {
         return board
     }
 
-    hasBar(color) {
-        return this.bars[color].length > 0
-    }
 
-    // @cache
-    mayBearoff(color) {
-        Profiler.start('Board.mayBearoff')
-        const key = CacheKeys.mayBearoff[color]
-        if (!(key in this.cache)) {
-            Profiler.inc('board.mayBearoff.cache.miss')
-            var isAble = !this.hasBar(color)
-            if (isAble) {
-                //isAble = !this.hasPieceBehind(color, PointOrigins[color][6])
-                for (var origin of OutsideOrigins[color]) {
-                    var slot = this.slots[origin]
-                    if (slot[0] && slot[0].color == color) {
-                        isAble = false
-                        break
-                    }
-                }
-            }
-            this.cache[key] = isAble
-        } else {
-            Profiler.inc('board.mayBearoff.cache.hit')
-        }
-        Profiler.stop('Board.mayBearoff')
-        return this.cache[key]
-    }
-
-    isAllHome(color) {
-        return this.homes[color].length == 15
-    }
-
-    // To check for bearing off for less than a face value
-    // No cache
-    hasPieceBehind(color, origin) {
-        if (Direction[color] == 1) {
-            var start = 0
-            var end   = origin - 1
-        } else {
-            var start = origin + 1
-            var end   = 23
-        }
-        for (var i = start; i <= end; ++i) {
-            if (this.slots[i][0] && this.slots[i][0].color == color) {
-                return true
-            }
-        }
-        return false
-        /*
-        if (color == White) {
-            // for white, point 1 is origin 23, so we are looking for the min
-            return this.minOriginOccupied(color) < origin
-        }
-        // for red point 1 is origin 0, so we are looking for the max
-        return this.maxOriginOccupied(color) > origin
-        */
-    }
 
     setup() {
         this.clear()
@@ -1564,7 +1431,149 @@ class BoardAnalyzer {
         this.cache = {}
     }
 
-    // One or more checkers
+    occupiesOrigin(color, origin) {
+        const slot = this.board.slots[origin]
+        return slot[0] && slot[0].color == color
+    }
+
+    canOccupyOrigin(color, origin) {
+        const slot = this.board.slots[origin]
+        return slot.length < 2 || slot[0].color == color
+    }
+
+    // One or more pieces
+    // @cache
+    originsOccupied(color) {
+        const key = CacheKeys.originsOccupied[color]
+        if (!this.cache[key]) {
+            Profiler.inc('board.originsOccupied.cache.miss')
+            const origins = []
+            var minOrigin = Infinity
+            var maxOrigin = -Infinity
+            const minKey = CacheKeys.minOriginOccupied[color]
+            const maxKey = CacheKeys.maxOriginOccupied[color]
+            for (var i = 0; i < 24; ++i) {
+                if (this.board.slots[i][0] && this.board.slots[i][0].color == color) {
+                    origins.push(i)
+                    if (i < minOrigin) {
+                        minOrigin = i
+                    } else if (i > maxOrigin) {
+                        maxOrigin = i
+                    }
+                }
+            }
+            this.cache[key] = origins
+            this.cache[minKey] = minOrigin
+            this.cache[maxKey] = maxOrigin
+        } else {
+            Profiler.inc('board.originsOccupied.cache.hit')
+        }
+        return this.cache[key]
+    }
+
+    // @cache
+    blotOrigins(color) {
+        const key = CacheKeys.blotOrigins[color]
+        if (!this.cache[key]) {
+            const origins = this.originsOccupied(color)
+            const blotOrigins = []
+            for (var i = 0, ilen = origins.length; i < ilen; ++i) {
+                var origin = origins[i]
+                if (this.board.slots[origin].length == 1) {
+                    blotOrigins.push(origin)
+                }
+            }
+            this.cache[key] = blotOrigins
+        }
+        return this.cache[key]
+    }
+
+    // @cache
+    maxOriginOccupied(color) {
+        const key = CacheKeys.maxOriginOccupied[color]
+        if (!(key in this.cache)) {
+            // will populate
+            this.originsOccupied(color)
+        }
+        return this.cache[key]
+    }
+
+    // @cache
+    minOriginOccupied(color) {
+        const key = CacheKeys.minOriginOccupied[color]
+        if (!(key in this.cache)) {
+            // will populate
+            this.originsOccupied(color)
+        }
+        return this.cache[key]
+    }
+
+    piecesOnOrigin(color, origin) {
+        return this.occupiesOrigin(color, origin) ? this.board.slots[origin].length : 0
+    }
+
+
+    hasBar(color) {
+        return this.board.bars[color].length > 0
+    }
+
+    // @cache
+    mayBearoff(color) {
+        Profiler.start('Board.mayBearoff')
+        const key = CacheKeys.mayBearoff[color]
+        if (!(key in this.cache)) {
+            Profiler.inc('board.mayBearoff.cache.miss')
+            var isAble = !this.hasBar(color)
+            if (isAble) {
+                //isAble = !this.hasPieceBehind(color, PointOrigins[color][6])
+                for (var origin of OutsideOrigins[color]) {
+                    var slot = this.board.slots[origin]
+                    if (slot[0] && slot[0].color == color) {
+                        isAble = false
+                        break
+                    }
+                }
+            }
+            this.cache[key] = isAble
+        } else {
+            Profiler.inc('board.mayBearoff.cache.hit')
+        }
+        Profiler.stop('Board.mayBearoff')
+        return this.cache[key]
+    }
+
+    isAllHome(color) {
+        return this.board.homes[color].length == 15
+    }
+
+    // To check for bearing off for less than a face value
+    // No cache
+    hasPieceBehind(color, origin) {
+
+        if (Direction[color] == 1) {
+            var start = 0
+            var end   = origin - 1
+        } else {
+            var start = origin + 1
+            var end   = 23
+        }
+        for (var i = start; i <= end; ++i) {
+            if (this.board.slots[i][0] && this.board.slots[i][0].color == color) {
+                return true
+            }
+        }
+        return false
+        /*
+        if (color == White) {
+            // for white, point 1 is origin 23, so we are looking for the min
+            return this.minOriginOccupied(color) < origin
+        }
+        // for red point 1 is origin 0, so we are looking for the max
+        return this.maxOriginOccupied(color) > origin
+        */
+    }
+
+    // One or more pieces
     // @cache
     pointsOccupied(color) {
         //Profiler.start('BoardAnalyzer.pointsOccupied')
@@ -1572,7 +1581,7 @@ class BoardAnalyzer {
         if (!this.cache[key]) {
             //Profiler.start('BoardAnalyzer.pointsOccupied.1')
             const points = []
-            const origins = this.board.originsOccupied(color)
+            const origins = this.originsOccupied(color)
             for (var i = 0, ilen = origins.length; i < ilen; ++i) {
                 // create pre-sorted
                 if (color == Red) {
@@ -1590,7 +1599,7 @@ class BoardAnalyzer {
         return this.cache[key]
     }
 
-    // Two or more checkers
+    // Two or more pieces
     // @cache
     originsHeld(color) {
         //Profiler.start('BoardAnalyzer.originsHeld')
@@ -1623,7 +1632,7 @@ class BoardAnalyzer {
         return this.cache[key]
     }
 
-    // Two or more checkers
+    // Two or more pieces
     // @cache
     pointsHeld(color) {
         const key = CacheKeys.pointsHeld[color]
@@ -1687,14 +1696,14 @@ class BoardAnalyzer {
         try {
             const blots = []
 
-            const blotOrigins = this.board.blotOrigins(color)
+            const blotOrigins = this.blotOrigins(color)
 
             if (blotOrigins.length == 0) {
                 return blots
             }
 
-            const opponentOrigins = this.board.originsOccupied(Opponent[color])
-            const opponentHasBar = this.board.bars[Opponent[color]].length > 0
+            const opponentOrigins = this.originsOccupied(Opponent[color])
+            const opponentHasBar = this.hasBar(Opponent[color])
 
             for (var i = 0, ilen = blotOrigins.length; i < ilen; ++i) {
 
@@ -1778,11 +1787,11 @@ class BoardAnalyzer {
         if (!(key in this.cache)) {
             if (this.board.hasWinner()) {
                 var isDisengaged = true
-            } else if (this.board.hasBar(White) || this.board.hasBar(Red)) {
+            } else if (this.hasBar(White) || this.hasBar(Red)) {
                 var isDisengaged = false
             } else {
-                const originsRed = this.board.originsOccupied(Red)
-                const originsWhite = this.board.originsOccupied(White)
+                const originsRed = this.originsOccupied(Red)
+                const originsWhite = this.originsOccupied(White)
                 const backmostRed = originsRed.length ? originsRed[originsRed.length - 1] : -Infinity
                 const backmostWhite = originsWhite.length ? originsWhite[0] : Infinity
                 var isDisengaged = backmostWhite > backmostRed
@@ -2196,11 +2205,11 @@ class ComeInMove extends Move {
 
     // Returns true or error object
     static check(board, color, face) {
-        if (!board.hasBar(color)) {
+        if (!board.analyzer.hasBar(color)) {
             return {class: NoPieceOnBarError, message: [color, 'does not have a piece on the bar']}
         }
         const {dest} = ComeInMove.getDestInfo(board, color, face)
-        if (!board.canOccupyOrigin(color, dest)) {
+        if (!board.analyzer.canOccupyOrigin(color, dest)) {
             return {class: OccupiedSlotError, message: [color, 'cannot come in on space', dest + 1]}
         }
         return true
@@ -2242,7 +2251,7 @@ class ComeInMove extends Move {
 
     static getDestInfo(board, color, face) {
         const dest = Direction[color] == 1 ? face - 1 : 24 - face
-        const isHit = board.piecesOnOrigin(Opponent[color], dest) == 1
+        const isHit = board.analyzer.piecesOnOrigin(Opponent[color], dest) == 1
         return {dest, isHit}
     }
 }
@@ -2252,7 +2261,7 @@ class RegularMove extends Move {
     // Returns true or error object
     static check(board, color, origin, face) {
         const {dest} = RegularMove.getDestInfo(board, color, origin, face)
-        if (!board.canOccupyOrigin(color, dest)) {
+        if (!board.analyzer.canOccupyOrigin(color, dest)) {
             return {class: OccupiedSlotError, message: [color, 'may not occupy space', dest + 1]}
         }
         return true
@@ -2297,7 +2306,7 @@ class RegularMove extends Move {
 
     static getDestInfo(board, color, origin, face) {
         const dest = origin + face * Direction[color]
-        const isHit = board.piecesOnOrigin(Opponent[color], dest) == 1
+        const isHit = board.analyzer.piecesOnOrigin(Opponent[color], dest) == 1
         return {dest, isHit}
     }
 }
@@ -2306,13 +2315,13 @@ class BearoffMove extends Move {
 
     // Returns true or error object
     static check(board, color, origin, face) {
-        if (!board.mayBearoff(color)) {
+        if (!board.analyzer.mayBearoff(color)) {
             return {class: MayNotBearoffError, message: [color, 'may not bare off']}
         }
         // get distance to home
         const homeDistance = Direction[color] == 1 ? 24 - origin : origin + 1
         // make sure no piece is behind if we are taking more than the face
-        if (face > homeDistance && board.hasPieceBehind(color, origin)) {
+        if (face > homeDistance && board.analyzer.hasPieceBehind(color, origin)) {
             return {class: IllegalBareoffError, message: ['cannot bear off with a piece behind']}
         }
         return true

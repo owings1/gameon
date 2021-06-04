@@ -780,7 +780,7 @@ describe('Turn', () => {
             turn.unmove()
             turn.move(7, 3)
             turn.finish()
-            expect(turn.board.piecesOnOrigin(Red, 4)).to.equal(2)
+            expect(turn.board.analyzer.piecesOnOrigin(Red, 4)).to.equal(2)
         })
 
         it('should undo both moves to end up with 5 point for red for 3,1', () => {
@@ -793,7 +793,7 @@ describe('Turn', () => {
             turn.move(5, 1)
             turn.move(7, 3)
             turn.finish()
-            expect(turn.board.piecesOnOrigin(Red, 4)).to.equal(2)
+            expect(turn.board.analyzer.piecesOnOrigin(Red, 4)).to.equal(2)
         })
     })
 
@@ -871,9 +871,9 @@ describe('Board', () => {
         it('should have two pieces on slot 0 copying setup board, but slot arrays non-identical', () => {
             board.setup()
             const copy = board.copy()
-            expect(copy.piecesOnOrigin(White, 0)).to.equal(2)
+            expect(copy.analyzer.piecesOnOrigin(White, 0)).to.equal(2)
             board.popOrigin(0)
-            expect(copy.piecesOnOrigin(White, 0)).to.equal(2)
+            expect(copy.analyzer.piecesOnOrigin(White, 0)).to.equal(2)
         })
     })
 
@@ -959,7 +959,7 @@ describe('Board', () => {
 
         it('should return true for white with one on bar', () => {
             board.pushBar(White)
-            const result = board.hasBar(White)
+            const result = board.analyzer.hasBar(White)
             expect(result).to.equal(true)
         })
     })
@@ -1004,7 +1004,7 @@ describe('Board', () => {
             for (var i = 0; i < 15; i++) {
                 board.pushHome(Red)
             }
-            const result = board.isAllHome(Red)
+            const result = board.analyzer.isAllHome(Red)
             expect(result).to.equal(true)
         })
     })
@@ -1067,7 +1067,7 @@ describe('Board', () => {
 
 		it('should return [5,7,12,23] for red on setup', () => {
 			board.setup()
-			const result = board.originsOccupied(Red)
+			const result = board.analyzer.originsOccupied(Red)
 			const exp = [5, 7, 12, 23]
 			expect(JSON.stringify(result)).to.equal(JSON.stringify(exp))
 		})
@@ -1077,7 +1077,7 @@ describe('Board', () => {
 
         it('should return false for white with one on bar', () => {
             board.pushBar(White)
-            const result = board.mayBearoff(White)
+            const result = board.analyzer.mayBearoff(White)
             expect(result).to.equal(false)
         })
 
@@ -1085,7 +1085,7 @@ describe('Board', () => {
             for (var i = 0; i < 15; ++i) {
                 board.pushOrigin(0, Red)
             }
-            const result = board.mayBearoff(Red)
+            const result = board.analyzer.mayBearoff(Red)
             expect(result).to.equal(true)
         })
 
@@ -1094,7 +1094,7 @@ describe('Board', () => {
                 board.pushOrigin(23, Red)
             }
             board.pushOrigin(0, Red)
-            const result = board.mayBearoff(Red)
+            const result = board.analyzer.mayBearoff(Red)
             expect(result).to.equal(false)
         })
     })
@@ -1124,13 +1124,13 @@ describe('Board', () => {
         it('should comein to face=1 for white with bar', () => {
             board.pushBar(White, board.popOrigin(0))
             board.move(White, -1, 1)
-            expect(board.piecesOnOrigin(White, 0)).to.equal(2)
+            expect(board.analyzer.piecesOnOrigin(White, 0)).to.equal(2)
         })
 
         it('should comein to face=1 for red with bar', () => {
             board.pushBar(Red, board.popOrigin(23))
             board.move(Red, -1, 1)
-            expect(board.piecesOnOrigin(Red, 23)).to.equal(2)
+            expect(board.analyzer.piecesOnOrigin(Red, 23)).to.equal(2)
         })
 
         it('should not comein to face=6 for white with bar as OccupiedSlotError', () => {
@@ -1163,21 +1163,21 @@ describe('Board', () => {
         it('should bear off white from 6 point with all other pieces on 5 point', () => {
             board.setStateString('0|0|0:|0:|0:|0:|0:|5:R|0:|3:R|0:|0:|0:|0:|5:R|0:|0:|0:|0:|0:|5:W|10:W|0:|0:|0:|2:R|0|0')
             board.move(White, 18, 6)
-            expect(board.piecesOnOrigin(White, 18)).to.equal(4)
+            expect(board.analyzer.piecesOnOrigin(White, 18)).to.equal(4)
             expect(board.analyzer.piecesHome(White)).to.equal(1)
         })
 
         it('should bear off white from 5 point on face=5 with other pieces on 6 point', () => {
             board.setStateString('0|0|0:|0:|0:|0:|0:|5:R|0:|3:R|0:|0:|0:|0:|5:R|0:|0:|0:|0:|0:|5:W|10:W|0:|0:|0:|2:R|0|0')
             board.move(White, 19, 5)
-            expect(board.piecesOnOrigin(White, 19)).to.equal(9)
+            expect(board.analyzer.piecesOnOrigin(White, 19)).to.equal(9)
             expect(board.analyzer.piecesHome(White)).to.equal(1)
         })
 
         it('should bear off red from 5 point on face=5 with other pieces on 6 point', () => {
             board.setStateString('0|0|2:W|0:|0:|0:|10:R|5:R|0:|0:|0:|0:|0:|5:W|0:|0:|0:|0:|3:W|0:|5:W|0:|0:|0:|0:|0:|0|0')
             board.move(Red, 4, 5)
-            expect(board.piecesOnOrigin(Red, 4)).to.equal(9)
+            expect(board.analyzer.piecesOnOrigin(Red, 4)).to.equal(9)
             expect(board.analyzer.piecesHome(Red)).to.equal(1)
         })
 
@@ -1195,8 +1195,8 @@ describe('Board', () => {
 
         it('should advance white from 0 to 1', () => {
             board.move(White, 0, 1)
-            expect(board.piecesOnOrigin(White, 0)).to.equal(1)
-            expect(board.piecesOnOrigin(White, 1)).to.equal(1)
+            expect(board.analyzer.piecesOnOrigin(White, 0)).to.equal(1)
+            expect(board.analyzer.piecesOnOrigin(White, 1)).to.equal(1)
         })
 
         it('should not advance white from 0 to 5 as OccupiedSlotError', () => {
@@ -1207,7 +1207,7 @@ describe('Board', () => {
         it('should move white to bar when red hits on 1', () => {
             board.move(White, 0, 1)
             board.move(Red, 5, 4)
-            expect(board.piecesOnOrigin(Red, 1)).to.equal(1)
+            expect(board.analyzer.piecesOnOrigin(Red, 1)).to.equal(1)
             expect(board.analyzer.piecesOnBar(White)).to.equal(1)
         })
 
@@ -1237,10 +1237,10 @@ describe('Board', () => {
             board.pushOrigin(22, White)
             board.pushOrigin(22, White)
             const move = board.move(White, 22, 3)
-            expect(board.piecesOnOrigin(White, 22)).to.equal(1)
+            expect(board.analyzer.piecesOnOrigin(White, 22)).to.equal(1)
             expect(board.analyzer.piecesHome(White)).to.equal(1)
             move.undo()
-            expect(board.piecesOnOrigin(White, 22)).to.equal(2)
+            expect(board.analyzer.piecesOnOrigin(White, 22)).to.equal(2)
             expect(board.analyzer.piecesHome(White)).to.equal(0)
         })
 
@@ -1249,17 +1249,17 @@ describe('Board', () => {
             board.pushBar(White)
             const move = board.move(White, -1, 2)
             expect(board.analyzer.piecesOnBar(White)).to.equal(0)
-            expect(board.piecesOnOrigin(White, 1)).to.equal(1)
+            expect(board.analyzer.piecesOnOrigin(White, 1)).to.equal(1)
             move.undo()
             expect(board.analyzer.piecesOnBar(White)).to.equal(1)
-            expect(board.piecesOnOrigin(White, 1)).to.equal(0)
+            expect(board.analyzer.piecesOnOrigin(White, 1)).to.equal(0)
         })
 
         it('should hit for red come in with 3 with RedHitComeIn3', () => {
             board.setStateString(States.RedHitComeIn3)
             const move = board.move(Red, -1, 3)
             expect(board.analyzer.piecesOnBar(Red)).to.equal(0)
-            expect(board.piecesOnOrigin(Red, 21)).to.equal(1)
+            expect(board.analyzer.piecesOnOrigin(Red, 21)).to.equal(1)
             expect(board.analyzer.piecesOnBar(White)).to.equal(1)
         })
 
@@ -1268,7 +1268,7 @@ describe('Board', () => {
             const move = board.move(Red, -1, 3)
             move.undo()
             expect(board.analyzer.piecesOnBar(Red)).to.equal(1)
-            expect(board.piecesOnOrigin(White,21)).to.equal(1)
+            expect(board.analyzer.piecesOnOrigin(White,21)).to.equal(1)
             expect(board.analyzer.piecesOnBar(White)).to.equal(0)
         })
     })
