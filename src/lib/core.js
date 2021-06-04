@@ -1934,9 +1934,6 @@ class SequenceTree {
             }
         }
 
-        // lazy getter
-        var flagKey = undefined
-
         const store = {
 
             move
@@ -1985,32 +1982,30 @@ class SequenceTree {
                     parentStore.setHighFace(face)
                 }
             }
+            // profiling shows caching not needed - never hit
           , flagKey: () => {
 
-                if (flagKey === undefined) {
+                var flagKey = null
 
-                    flagKey = null
+                // only do for doubles
+                if (moveSeriesFlag == 8 && depth == 4) {
 
-                    // only do for doubles
-                    if (moveSeriesFlag == 8 && depth == 4) {
+                    Profiler.start('store.flagKey')
 
-                        Profiler.start('store.flagKey')
-
-                        const flagOrigins = [move.origin]
-                        for (var parent = parentStore; parent; parent = parent.parent()) {
-                            flagOrigins.push(parent.move.origin)
-                        }
-                        flagOrigins.sort(Util.sortNumericAsc)
-                        flagKey = moveSeriesFlag + '/' + depth + '-'
-                        for (var i = 0, ilen = flagOrigins.length; i < ilen; ++i) {
-                            if (i > 0) {
-                                flagKey += ','
-                            }
-                            flagKey += flagOrigins[i]
-                        }
-
-                        Profiler.stop('store.flagKey')
+                    const flagOrigins = [move.origin]
+                    for (var parent = parentStore; parent; parent = parent.parent()) {
+                        flagOrigins.push(parent.move.origin)
                     }
+                    flagOrigins.sort(Util.sortNumericAsc)
+                    flagKey = moveSeriesFlag + '/' + depth + '-'
+                    for (var i = 0, ilen = flagOrigins.length; i < ilen; ++i) {
+                        if (i > 0) {
+                            flagKey += ','
+                        }
+                        flagKey += flagOrigins[i]
+                    }
+
+                    Profiler.stop('store.flagKey')
                 }
 
                 return flagKey
