@@ -1431,6 +1431,26 @@ class BoardAnalyzer {
         return slot.length < 2 || slot[0].color == color
     }
 
+    originOccupier(origin) {
+        const slot = this.board.slots[origin]
+        if (slot[0]) {
+            return slot[0].color
+        }
+    }
+
+    statOrigin(origin) {
+        const slot = this.board.slots[origin]
+        const stat = {count: slot.length}
+        if (slot[0]) {
+            stat.color = slot[0].color
+        }
+        return stat
+    }
+
+    statPoint(color, point) {
+        return this.statOrigin(PointOrigins[color][point])
+    }
+
     // One or more pieces
     // @cache
     originsOccupied(color) {
@@ -1501,7 +1521,6 @@ class BoardAnalyzer {
     piecesOnOrigin(color, origin) {
         return this.occupiesOrigin(color, origin) ? this.board.slots[origin].length : 0
     }
-
 
     hasBar(color) {
         return this.board.bars[color].length > 0
@@ -1816,6 +1835,14 @@ class BoardAnalyzer {
         }
         //Profiler.stop('BoardAnalyzer.primes')
         return primes
+    }
+
+    // get the color of the nth piece on the given origin, if any
+    nthPieceOnOrigin(origin, n) {
+        const piece = this.board.slots[origin][n]
+        if (piece) {
+            return piece.color
+        }
     }
 
     // Red point 1 is origin 0

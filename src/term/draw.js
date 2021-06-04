@@ -36,6 +36,11 @@ const Shorts = {
   , W     : chalk.bold.white('W')
 }
 
+const ChalkColorFor = {
+    Red   : 'red'
+ ,  White : 'white'
+}
+
 const Chars = {
     topLeft      : '\u250f'
   , topMid       : '\u2533'
@@ -80,22 +85,20 @@ function grey(...args) {
     return chalk.grey(...args)
 }
 
-function slotRow(slot, d) {
-    const short = slot[d] ? slot[d].c : ''
-    var str = short.padStart(PadFixed, Chars.sp)
-    if (short == ColorAbbr.Red) {
-        str = chalk.bold.red(str)
-    } else if (short == ColorAbbr.White) {
-        str = chalk.bold.white(str)
+// the string for the piece color, if any
+function pieceStr(color) {
+    const c = ColorAbbr[color] || ''
+    var str = c.padStart(PadFixed, Chars.sp)
+    if (color) {
+        str = chalk.bold[ChalkColorFor[color]](str)
     }
     return str
 }
 
-function barRow(bar) {
-    var color = bar[0] && bar[0].color
+function barRowStr(color, count) {
     var str = Chars.sep.padEnd(6 * PadFixed + 1, Chars.sp)
-    if (color) {
-        str += sp(Chars.sp, Shorts[color], grey(bar.length))
+    if (count) {
+        str += sp(Chars.sp, Shorts[color], grey(count))
     } else {
         str += grey(Chars.sp, Chars.dblSep + Chars.sp)
     }
@@ -103,12 +106,17 @@ function barRow(bar) {
     return str
 }
 
-function homie(home) {
+function homeCountStr(color, count) {
     var str = '  '
-    if (home.length) {
-        const color = home[0].color
-        str += sp(Shorts[color], grey(home.length))
+    if (count) {
+        str += sp(Shorts[color], grey(count))
     }
+    return str
+}
+
+function overflowStr(count) {
+    var str = count > 6 ? '' + count : Chars.empty
+    str = grey(str.padStart(PadFixed, Chars.sp))
     return str
 }
 
@@ -116,7 +124,7 @@ function nchars(n, char) {
     return Chars.empty.padEnd(n, char)
 }
 
-function cubePart(partIndex, cubeValue, isCrawford) {
+function cubePartStr(partIndex, cubeValue, isCrawford) {
     var cubeStr = ''
     switch (partIndex) {
         case 0:
@@ -132,11 +140,15 @@ function cubePart(partIndex, cubeValue, isCrawford) {
     if (cubeStr && isCrawford) {
         cubeStr = grey(cubeStr)
     }
-    return cubeStr
+    return cat(Chars.sp, cubeStr)
 }
 
-function pipCount(count) {
+function pipCountStr(count) {
     return cat(Chars.sp, chalk.bold.grey(count), Chars.sp, grey(Chars.pip))
+}
+
+function matchScoreStr(score, total) {
+    return cat(Chars.sp, score, Chars.slash, total, Chars.pts)
 }
 
 function numbers(points) {
@@ -167,19 +179,24 @@ class Draw {
         const opersp = Opponent[persp]
 
         const {board, cubeOwner, cubeValue} = game
-        const pipCounts = board.analyzer.pipCounts()
+        const {analyzer} = board
+        const pipCounts = analyzer.pipCounts()
         const {isCrawford} = game.opts
+        const pointStats = {}
+        intRange(1, 24).forEach(point =>
+            pointStats[point] = analyzer.statPoint(persp, point)
+        )
 
         const builder = []
 
-        var li = 18
+        var logIndex = 18
 
         function wr(...args) {
             builder.push(sp(...args))
         }
 
         function sideLog(pad) {
-            const n = li--
+            const n = logIndex--
             if (!logsRev[n]) {
                 return Chars.empty
             }
@@ -187,46 +204,44 @@ class Draw {
         }
 
         function writePieceRow(depth, points, cubePartIndex, sectionOwner) {
+
+            function afterRowString() {
+                switch (depth) {
+                    case 0:
+                        // Home
+                        return homeCountStr(sectionOwner, analyzer.piecesHome(sectionOwner))
+                    case 1:
+                        // PIP
+                        return pipCountStr(pipCounts[sectionOwner])
+                    case 2:
+                        // Match score
+                        if (match) {
+                            return matchScoreStr(match.scores[sectionOwner], match.total)
+                        }
+                        return ''
+                    default:
+                        // Cube part
+                        if (cubeValue && cubeOwner == sectionOwner) {
+                            return cubePartStr(cubePartIndex, cubeValue, isCrawford)
+                        }
+                        return ''
+                }
+            }
+
             wr(Chars.sep)
-            points.forEach((point, i) => {
-                const slot = board.slots[board.analyzer.pointOrigin(persp, point)]
-                wr(slotRow(slot, depth))
+            points.forEach((point, i) => {                
+                const {color, count} = pointStats[point]
+                wr(pieceStr(count > depth && color))
                 if (i == 5) {
                     wr(grey(Chars.sp, Chars.dblSep))
                 }
             })
             wr(cat(Chars.sp, Chars.sep))
-            var pad = RightFixed
-            switch (depth) {
-                case 0:
-                    // Home
-                    const homeStr = homie(board.homes[sectionOwner])
-                    pad -= len(homeStr)
-                    wr(homeStr)
-                    break
-                case 1:
-                    // PIP
-                    const pipStr = pipCount(pipCounts[sectionOwner])
-                    pad -= len(pipStr)
-                    wr(pipStr)
-                    break
-                case 2:
-                    // Match score
-                    if (match) {
-                        const scoreStr = cat(Chars.sp, match.scores[sectionOwner], Chars.slash, match.total, Chars.pts)
-                        pad -= len(scoreStr)
-                        wr(scoreStr)
-                    }
-                    break
-                default:
-                    // Cube part
-                    if (cubeValue && cubeOwner == sectionOwner) {
-                        const cubeStr = cat(Chars.sp, cubePart(cubePartIndex, cubeValue, isCrawford))
-                        pad -= len(cubeStr)
-                        wr(cubeStr)
-                    }
-                    break
-            }
+
+            const afterStr = afterRowString()
+            var pad = RightFixed - len(afterStr)
+            wr(afterStr)
+
             wr(sideLog(pad))
             wr(Chars.br)
         }
@@ -234,9 +249,8 @@ class Draw {
         function writeOverflowRow(points) {
             wr(Chars.sep)
             points.forEach((point, i) => {
-                const slot = board.slots[board.analyzer.pointOrigin(persp, point)]
-                const n = slot.length > 6 ? slot.length : Chars.empty
-                wr(grey(n.toString().padStart(PadFixed, Chars.sp)))
+                const {count} = pointStats[point]
+                wr(overflowStr(count))
                 if (i == 5) {
                     wr(grey(Chars.sp, Chars.dblSep))
                 }
@@ -252,7 +266,7 @@ class Draw {
             wr(nchars(6 * PadFixed + 1, Chars.sp) + Chars.sep)
             var pad = RightFixed
             if (cubeValue && !cubeOwner) {
-                const cubeStr = cat(Chars.sp, cubePart(1, cubeValue, isCrawford))
+                const cubeStr = cubePartStr(1, cubeValue, isCrawford)
                 pad -= len(cubeStr)
                 wr(cubeStr)
             }
@@ -267,10 +281,11 @@ class Draw {
         }
 
         function writeBarRow(color, cubePartIndex) {
-            wr(barRow(board.bars[color]))
+            const count = analyzer.piecesOnBar(color)
+            wr(barRowStr(color, count))
             var pad = RightFixed
             if (cubeValue && !cubeOwner) {
-                const cubeStr = cat(Chars.sp, cubePart(cubePartIndex, cubeValue, isCrawford))
+                const cubeStr = cubePartStr(cubePartIndex, cubeValue, isCrawford)
                 pad -= len(cubeStr)
                 wr(cubeStr)
             }
