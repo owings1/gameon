@@ -1121,15 +1121,14 @@ class Board {
             Profiler.start('Board.getPossibleMovesForFace.2')
 
             const {analyzer} = this
-            const unavailable = analyzer.originsHeldMap(Opponent[color])
             const origins = analyzer.originsOccupied(color)
             const mayBearoff = analyzer.mayBearoff(color)
 
             if (mayBearoff) {
                 if (color == White) {
-                    var minOriginOccupied = analyzer.minOriginOccupied(color)
+                    var maxPoint = OriginPoints[color][analyzer.minOriginOccupied(color)]
                 } else {
-                    var maxOriginOccupied = analyzer.maxOriginOccupied(color)
+                    var maxPoint = OriginPoints[color][analyzer.maxOriginOccupied(color)]
                 }
             }
 
@@ -1139,37 +1138,25 @@ class Board {
             for (var i = 0, ilen = origins.length; i < ilen; ++i) {
 
                 var origin = origins[i]
+                var point = OriginPoints[color][origin]
 
                 // Apply quick filters for performance
 
-                // filter opponent points held
-                var dest = origin + face * Direction[color]
-                if (unavailable[dest]) {
-                    continue
-                }
-
                 // filter bearoff moves
-                var distanceToHome = Direction[color] == 1 ? 24 - origin : origin + 1
-                if (distanceToHome <= face) {
+                if (point <= face) {
                     if (!mayBearoff) {
                         continue
                     }
-                    if (distanceToHome < face) {
-                        if (color == White) {
-                            if (minOriginOccupied < origin) {
-                                continue
-                            }
-                        } else {
-                            if (maxOriginOccupied > origin) {
-                                continue
-                            }
-                        }
-                        //if (this.analyzer.hasPieceBehind(color, origin)) {
-                        //    continue
-                        //}
+                    if (point < face && point < maxPoint) {
+                        continue
                     }
                     moves.push(new BearoffMove(this, color, origin, face, true))
                 } else {
+                    // filter opponent points held
+                    var dest = origin + face * Direction[color]
+                    if (this.slots[dest] && this.slots[dest].length > 1 && this.slots[dest][0].color != color) {
+                        continue
+                    }
                     moves.push(new RegularMove(this, color, origin, face, true))
                 }
                 // We already filtered all the invalid moves, so we don't need to call checkMove
@@ -1545,7 +1532,8 @@ class BoardAnalyzer {
                     origins.push(i)
                     if (i < minOrigin) {
                         minOrigin = i
-                    } else if (i > maxOrigin) {
+                    }
+                    if (i > maxOrigin) {
                         maxOrigin = i
                     }
                 }
@@ -1873,6 +1861,7 @@ class BoardAnalyzer {
         return this.cache[key]
     }
 
+    /*
     // @cache
     maxPointOccupied(color) {
         const key = CacheKeys.maxPointOccupied[color]
@@ -1892,6 +1881,7 @@ class BoardAnalyzer {
         }
         return this.cache[key]
     }
+    */
 
     piecesOnOrigin(color, origin) {
         return this.occupiesOrigin(color, origin) ? this.board.slots[origin].length : 0
