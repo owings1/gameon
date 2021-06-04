@@ -83,6 +83,15 @@ const AvailableColumns = [
 
 const SortableColumns = AvailableColumns
 
+const DefaultSortDirections = {
+    'name'    : 'asc'
+  , 'elapsed' : 'desc'
+  , 'average' : 'desc'
+  , 'count'   : 'desc'
+  , 'game'    : 'desc'
+  , 'match'   : 'desc'
+  , 'turn'    : 'desc'
+}
 class Helper {
 
     static sortableColumns() {
@@ -112,9 +121,27 @@ class Helper {
 
     constructor(opts) {
         this.opts = Util.defaults(Helper.defaults(), opts)
-        if (SortableColumns.indexOf(this.opts.sortBy) < 0) {
-            throw new Error('Invalid sort column: ' + this.opts.sortBy)
-        }
+        this.columns = this.opts.columns.toLowerCase().split(',')
+        
+        this.columns.forEach(column => {
+            if (AvailableColumns.indexOf(column) < 0) {
+                throw new Error('Invalid column: ' + column)
+            }
+        })
+        this.sortColumns = []
+        this.sortDirs = []
+        this.opts.sortBy.toLowerCase().split(',').forEach(sortBy => {
+            var [column, dir] = sortBy.split(':')
+            if (SortableColumns.indexOf(column) < 0) {
+                throw new Error('Invalid sort column: ' + column)
+            }
+            dir = dir || DefaultSortDirections[column]
+            if (dir != 'asc' && dir != 'desc') {
+                throw new Error("Invalid sort direction '" + dir + "' for column " + column)
+            }
+            this.sortColumns.push(column)
+            this.sortDirs.push(dir == 'asc' ? 1 : -1)
+        })
         this.logger = new Logger
         this.coordinator = new Coordinator
         this.roller = null
@@ -168,8 +195,7 @@ class Helper {
 
     buildData(profiler, summary) {
 
-        const {sortBy} = this.opts
-        const columns = this.opts.columns.split(',')
+        const {columns, sortColumns, sortDirs} = this
 
         const timerGetters = {
             name    : timer => timer.name
@@ -191,16 +217,24 @@ class Helper {
           , turn    : counter => counter.value / summary.turnCount
         }
 
+        const numCmp = (a, b) => {
+            if (a == null && b != null) {
+                return -1
+            }
+            if (b == null && a != null) {
+                return 1
+            }
+            return a - b
+        }
+
         const sorters = {
-            // ascending
             name    : (a, b) => (a.name + '').localeCompare(b.name + '')
-            // descending
-          , elapsed : (a, b) => b.elapsed - a.elapsed
-          , average : (a, b) => b.average - a.average
-          , count   : (a, b) => b.count - a.count
-          , match   : (a, b) => b.match - a.match
-          , game    : (a, b) => b.game - a.game
-          , turn    : (a, b) => b.turn - a.turn
+          , elapsed : (a, b) => numCmp(a.elapsed, b.elapsed)
+          , average : (a, b) => numCmp(a.average, b.average)
+          , count   : (a, b) => numCmp(a.count, b.count)
+          , match   : (a, b) => numCmp(a.match, b.match)
+          , game    : (a, b) => numCmp(a.game, b.game)
+          , turn    : (a, b) => numCmp(a.turn, b.turn)
         }
 
         const data = []
@@ -221,18 +255,25 @@ class Helper {
             data.push(row)
         })
 
-        const cmp = sorters[sortBy]
-
-        if (cmp) {
-            data.sort((a, b) => cmp(a, b) || sorters.name(a, b))
-        }
+        data.sort((a, b) => {
+            var res = 0
+            for (var i = 0; i < sortColumns.length; ++i) {
+                var column = sortColumns[i]
+                var dir = sortDirs[i]
+                res = sorters[column](a, b) * dir
+                if (res) {
+                    break
+                }
+            }
+            return res
+        })
 
         return data
     }
 
     logData(data, summary) {
 
-        const columns = this.opts.columns.split(',')
+        const {columns} = this
 
         const titles = {
             // optional
@@ -247,9 +288,10 @@ class Helper {
 
         const format = {
             // optional, but should return string
-            round   : value => Math.round(value).toString()
-          , elapsed : value => value == null ? '' : value + ' ms'
+            round   : value => Math.round(value).toLocaleString()
+          , elapsed : value => value == null ? '' : value.toLocaleString() + ' ms'
           , average : value => value == null ? '' : value.toFixed(4) + ' ms'
+          , count   : value => format.round(value)
           , match   : value => format.round(value)
           , game    : value => format.round(value)
           , turn    : value => format.round(value)
@@ -257,9 +299,9 @@ class Helper {
 
         const footerLines = [
             ['Total Elapsed :', format.elapsed(summary.elapsed)]
-          , ['Total Matches :', summary.matchCount.toString()]
-          , ['Total Games   :', summary.gameCount.toString()]
-          , ['Total Turns   :', summary.turnCount.toString()]
+          , ['Total Matches :', summary.matchCount.toLocaleString()]
+          , ['Total Games   :', summary.gameCount.toLocaleString()]
+          , ['Total Turns   :', summary.turnCount.toLocaleString()]
           , ['Games / Match :', format.round(summary.gameCount / summary.matchCount)]
           , ['Turns / Game  :', format.round(summary.turnCount / summary.gameCount)]
         ].map(arr => arr.join(' '))
