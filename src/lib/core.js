@@ -1779,44 +1779,46 @@ class BoardAnalyzer {
             const opponentOrigins = this.originsOccupied(Opponent[color])
             const opponentHasBar = this.hasBar(Opponent[color])
 
+            const checkOrigin = PointOrigins[Opponent[color]][this.maxPointOccupied(Opponent[color])]
+            const minPointWithOpponent = OriginPoints[color][checkOrigin]
+
             for (var i = 0, ilen = blotOrigins.length; i < ilen; ++i) {
 
                 var origin = blotOrigins[i]
 
                 var point = OriginPoints[color][origin]
 
-                // Not currently used
-                //const attackerPoints = []
-                //const attackerDistances = []
-
                 var minDistance = Infinity
                 var directCount = 0
                 var indirectCount = 0
 
+                Profiler.start('BoardAnalyzer.blots.process.inner')
                 // TODO: can we avoid a loop within a loop?
-                for (var j = 0, jlen = opponentOrigins.length; j < jlen; ++j) {
+                if (point > minPointWithOpponent) {
+                    for (var j = 0, jlen = opponentOrigins.length; j < jlen; ++j) {
 
-                    // the opponent point is relative to this color, not the opponent's color
-                    var p = OriginPoints[color][opponentOrigins[j]]
+                        // the opponent point is relative to this color, not the opponent's color
+                        var p = OriginPoints[color][opponentOrigins[j]]
 
-                    if (p < point) {
+                        if (p < point) {
 
-                        var distance = point - p
+                            var distance = point - p
 
-                        if (distance < minDistance) {
-                            minDistance = distance
+                            if (distance < minDistance) {
+                                minDistance = distance
+                            }
+                            if (distance < 7) {
+                                directCount += 1
+                            } else if (distance < 12) {
+                                indirectCount += 1
+                            }
+                        } else {
+                            Profiler.inc('blots.opponent.point.irrelevant')
                         }
-                        if (distance < 7) {
-                            directCount += 1
-                        }
-                        if (distance > 6 && distance < 12) {
-                            indirectCount += 1
-                        }
-
-                        //attackerPoints.push(p)
-                        //attackerDistances.push(distance)
                     }
                 }
+
+                Profiler.stop('BoardAnalyzer.blots.process.inner')
 
                 if (opponentHasBar) {
 
@@ -1825,14 +1827,10 @@ class BoardAnalyzer {
                     }
                     if (point < 7) {
                         directCount += 1
-                    }
-                    if (point > 6 && point < 12) {
+                    } else if (point < 12) {
                         indirectCount += 1
                     }
-                    //attackerDistances.push(point)
                 }
-
-                // TODO: risk factor?
 
                 blots.push({
                     point
@@ -1840,12 +1838,10 @@ class BoardAnalyzer {
                   , minDistance
                   , directCount
                   , indirectCount
-                  //, attackerDistances
-                  //, attackerPoints
-                  //, opponentHasBar
                 })
             }
 
+            Profiler.inc('blots.found', blots.length)
             return blots
 
         } finally {
