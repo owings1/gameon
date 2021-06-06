@@ -1335,7 +1335,7 @@ describe('Board', () => {
 
 describe('BoardAnalyzer', () => {
 
-    describe.only('#blots', () => {
+    describe('#blots', () => {
 
         it('should return empty for initial setup', () => {
             const {analyzer} = Board.setup()
@@ -1776,6 +1776,65 @@ describe('BoardAnalyzer', () => {
             expect(result).to.have.length(2)
             expect(result[0].size).to.equal(3)
             expect(result[1].size).to.equal(3)
+        })
+    })
+
+    describe('#maxOriginOccupied', () => {
+        it('should return -Infinity on empty board', () => {
+            const board = new Board
+            const result = board.analyzer.maxOriginOccupied(White)
+            expect(result).to.equal(-Infinity)
+        })
+    })
+
+    describe('#maxPointOccupied', () => {
+        it('should return -Infinity on empty board', () => {
+            const board = new Board
+            const result = board.analyzer.maxPointOccupied(White)
+            expect(result).to.equal(-Infinity)
+        })
+    })
+
+    describe('#minOriginOccupied', () => {
+        it('should return Infinity on empty board', () => {
+            const board = new Board
+            const result = board.analyzer.minOriginOccupied(White)
+            expect(result).to.equal(Infinity)
+        })
+    })
+
+    describe('#minPointOccupied', () => {
+        it('should return Infinity on empty board', () => {
+            const board = new Board
+            const result = board.analyzer.minPointOccupied(White)
+            expect(result).to.equal(Infinity)
+        })
+    })
+
+    describe('#validateLegalBoard', () => {
+        const legals = [
+            'Initial',
+            'Bearoff1Start',
+            'RedHasWon'
+        ]
+        const illegals = [
+            'Blank',
+            'WhiteCornerCase16',
+            'BothHaveWon',
+            'BothAllOnBar'
+        ]
+        legals.forEach(name => {
+            it('should validate ' + name, () => {
+                Board.fromStateString(States[name]).analyzer.validateLegalBoard()
+            })
+        })
+        illegals.forEach(name => {
+            it('should invalidate ' + name + ' with illegal state error', () => {
+                const err = getError(() =>
+                    Board.fromStateString(States[name]).analyzer.validateLegalBoard()
+                )
+                expect(err.isIllegalStateError).to.equal(true)
+            })
         })
     })
 })
