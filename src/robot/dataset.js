@@ -22,6 +22,7 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
+const Constants   = require('../lib/constants')
 const Coordinator = require('../lib/coordinator')
 const Core        = require('../lib/core')
 const Logger      = require('../lib/logger')
@@ -34,7 +35,7 @@ const path = require('path')
 
 const {resolve} = path
 
-const {Game, Board, Colors, Direction} = Core
+const {Game, Board, Colors, Direction} = Constants
 const {White, Red} = Colors
 
 class Helper {

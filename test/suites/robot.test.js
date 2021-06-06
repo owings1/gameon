@@ -11,6 +11,7 @@ const {
     States28
 } = Test
 
+const Constants   = requireSrc('lib/constants')
 const Coordinator = requireSrc('lib/coordinator')
 const Core  = requireSrc('lib/core')
 const Robot = requireSrc('robot/player')
@@ -18,7 +19,8 @@ const Util  = requireSrc('lib/util')
 
 const {ConfidenceRobot} = Robot
 
-const {White, Red, Game, Match, Dice} = Core
+const {White, Red} = Constants
+const {Game, Match, Dice} = Core
 
 var game
 var robot

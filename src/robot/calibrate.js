@@ -23,6 +23,7 @@
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 const Coordinator = require('../lib/coordinator')
+const Constants   = require('../lib/constants')
 const Core        = require('../lib/core')
 const Logger      = require('../lib/logger')
 const Robot       = require('./player')
@@ -35,7 +36,7 @@ const sp   = Util.joinSpace
 
 const {resolve} = path
 
-const {Match, Board, Colors} = Core
+const {Match, Board, Colors} = Constants
 const {White, Red} = Colors
 
 const {ConfidenceRobot} = Robot

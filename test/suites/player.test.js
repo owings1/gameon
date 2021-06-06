@@ -7,10 +7,12 @@ const {
     requireSrc
 } = TestUtil
 
+const Constants = requireSrc('lib/constants')
 const Core   = requireSrc('lib/core')
 const Player = requireSrc('lib/player')
 
-const {White, Red, Match, Game} = Core
+const {White, Red} = Constants
+const {Match, Game} = Core
 
 const players = {}
 

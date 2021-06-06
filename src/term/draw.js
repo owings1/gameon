@@ -22,7 +22,7 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-const {Red, White, Opponent, ColorAbbr} = require('../lib/core')
+const {Red, White, Opponent, ColorAbbr} = require('../lib/constants')
 
 const chalk      = require('chalk')
 const Util       = require('../lib/util')

@@ -14,11 +14,13 @@ const fse = require('fs-extra')
 const fs = require('fs')
 const {resolve} = require('path')
 
+const Constants   = requireSrc('lib/constants')
 const Core        = requireSrc('lib/core')
 const Coordinator = requireSrc('lib/coordinator')
 const Player      = requireSrc('lib/player')
 
-const {White, Red, Match, Game, Dice} = Core
+const {White, Red} = Constants
+const {Match, Game, Dice} = Core
 
 class MockPlayer extends Player {
 

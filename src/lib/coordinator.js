@@ -22,15 +22,15 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-const Core   = require('../lib/core')
-const Logger = require('../lib/logger')
-const Util   = require('../lib/util')
+const Constants = require('./constants')
+const Logger    = require('./logger')
+const Util      = require('./util')
 
 const fse   = require('fs-extra')
 const merge = require('merge')
 const path  = require('path')
 
-const {White, Red, Opponent} = Core
+const {White, Red, Opponent} = Constants
 
 class Coordinator {
 

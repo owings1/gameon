@@ -22,10 +22,11 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-const Core   = require('../lib/core')
-const Base   = require('../lib/player')
-const Errors = require('../lib/errors')
-const Util   = require('../lib/util')
+const Constants = require('../lib/constants')
+const Core      = require('../lib/core')
+const Base      = require('../lib/player')
+const Errors    = require('../lib/errors')
+const Util      = require('../lib/util')
 
 const {Board, Profiler} = Core
 const {HasNotRolledError} = Errors

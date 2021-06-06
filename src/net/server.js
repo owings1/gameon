@@ -24,6 +24,7 @@
  */
 const Api             = require('./api')
 const Auth            = require('./auth')
+const Constants       = require('../lib/constants')
 const Core            = require('../lib/core')
 const Logger          = require('../lib/logger')
 const Util            = require('../lib/util')
@@ -36,7 +37,9 @@ const crypto     = require('crypto')
 const express    = require('express')
 const prom       = require('prom-client')
 
-const {White, Red, Match, Opponent, Dice} = Core
+const {White, Red} = Constants
+
+const {Match, Opponent, Dice} = Core
 
 const {merge} = Util
 

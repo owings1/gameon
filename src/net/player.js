@@ -22,12 +22,13 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-const Base   = require('../lib/player')
-const Core   = require('../lib/core')
-const Logger = require('../lib/logger')
-const Util   = require('../lib/util')
+const Base      = require('../lib/player')
+const Constants = require('../lib/constants')
+const Core      = require('../lib/core')
+const Logger    = require('../lib/logger')
+const Util      = require('../lib/util')
 
-const {White, Red} = Core
+const {White, Red} = Constants
 
 class NetPlayer extends Base {
     

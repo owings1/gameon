@@ -11,6 +11,7 @@ const {
     States
 } = Test
 
+const Constants = requireSrc('lib/core')
 const Core   = requireSrc('lib/core')
 const Server = requireSrc('net/server')
 const Client = requireSrc('net/client')
@@ -20,7 +21,8 @@ const Auth  = requireSrc('net/auth')
 
 const Coordinator = requireSrc('lib/coordinator')
 
-const {White, Red, Match, Dice} = Core
+const {White, Red} = Constants
+const {Match, Dice} = Core
 
 const AWS = require('aws-sdk')
 const fetch = require('node-fetch')

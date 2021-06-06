@@ -22,6 +22,7 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
+const Constants       = require('../lib/constants')
 const Core            = require('../lib/core')
 const Logger          = require('../lib/logger')
 const Util            = require('../lib/util')
@@ -32,8 +33,8 @@ const {merge} = Util
 const crypto = require('crypto')
 const fetch  = require('node-fetch')
 
-const {White, Red, Match} = Core
-
+const {White, Red} = Constants
+const {Match} = Core
 class Client {
 
     constructor(serverUrl, username, password) {

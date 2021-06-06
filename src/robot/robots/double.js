@@ -22,10 +22,10 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-const Core = require('../../lib/core')
-const Base = require('../player').ConfidenceRobot
+const Base      = require('../player').ConfidenceRobot
+const Constants = require('../../lib/constants')
 
-const {Opponent} = Core
+const {Opponent} = Constants
 
 const {ZERO_RANKINGS} = Base
 

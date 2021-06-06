@@ -21,13 +21,15 @@ const Menu        = requireSrc('term/menu')
 const Draw        = requireSrc('term/draw')
 const TermPlayer  = requireSrc('term/player')
 
+const Constants   = requireSrc('lib/constants')
 const Core        = requireSrc('lib/core')
 const Coordinator = requireSrc('lib/coordinator')
 const Robot       = requireSrc('robot/player')
 const Client      = requireSrc('net/client')
 const Server      = requireSrc('net/server')
 
-const {White, Red, Match, Game, Board, Turn, Dice} = Core
+const {White, Red} = Constants
+const {Match, Game, Board, Turn, Dice} = Core
 
 const {RandomRobot} = Robot
 

@@ -22,9 +22,10 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-const Core   = require('../lib/core')
-const Logger = require('../lib/logger')
-const Util   = require('../lib/util')
+const Constants  = require('../lib/constants')
+const Core       = require('../lib/core')
+const Logger     = require('../lib/logger')
+const Util       = require('../lib/util')
 
 const Coordinator = require('../lib/coordinator')
 const Client      = require('../net/client')
@@ -35,7 +36,8 @@ const Robot       = require('../robot/player')
 const {ConfidenceRobot} = Robot
 const {RobotDelegator}  = Robot
 
-const {White, Red, Match, Board, Dice} = Core
+const {White, Red} = Constants
+const {Match, Board, Dice} = Core
 
 const assert   = require('assert')
 const chalk    = require('chalk')

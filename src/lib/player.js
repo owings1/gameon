@@ -22,12 +22,13 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-const Core   = require('./core')
-const Logger = require('./logger')
+const Constants = require('./constants')
+const Core      = require('./core')
+const Logger    = require('./logger')
 
 const {EventEmitter} = require('events')
 
-const {White, Red, Opponent} = Core
+const {White, Red, Opponent} = Constants
 
 class Player extends EventEmitter {
 

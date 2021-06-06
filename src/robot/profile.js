@@ -22,6 +22,7 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
+const Constants   = require('../lib/constants')
 const Coordinator = require('../lib/coordinator')
 const Core        = require('../lib/core')
 const Logger      = require('../lib/logger')
@@ -36,8 +37,10 @@ const path  = require('path')
 const {intRange, Timer} = Util
 const {resolve} = path
 
-const {Match, Colors, Profiler} = Core
+const {Match, Colors} = Constants
 const {White, Red} = Colors
+
+const {Profiler} = Core
 
 const {RobotDelegator} = Robot
 

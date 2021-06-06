@@ -12,11 +12,13 @@ const {
     Structures
 } = TestUtil
 
+const Constants = requireSrc('lib/constants')
 const Core = requireSrc('lib/core')
 const Util = requireSrc('lib/util')
 const {SequenceTree} = requireSrc('lib/trees')
 
-const {White, Red, Match, Game, Board, Turn, Piece, Dice} = Core
+const {White, Red} = Constants
+const {Match, Game, Board, Turn, Piece, Dice} = Core
 
 
 describe('Match', () => {

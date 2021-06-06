@@ -22,8 +22,9 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-const Core = require('./core')
-const Errors = require('./errors')
+const Constants = require('./constants')
+const Core      = require('./core')
+const Errors    = require('./errors')
 
 const {
     Direction
@@ -31,11 +32,12 @@ const {
   , OriginPoints
   , OutsideOrigins
   , PointOrigins
-  , Profiler
-} = Core
+} = Constants
 
-const {Red, White} = Core.Colors
+const {Red, White} = Constants.Colors
 const {IllegalStateError} = Errors
+
+const {Profiler} = Core
 
 const CacheKeys = {}
 
