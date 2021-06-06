@@ -175,8 +175,7 @@ describe('BearoffRobot', () => {
         it('should return 0 rankings when cannot bear off', async () => {
             const turn = game.nextTurn().roll()
             const result = await robot.getRankings(turn, game)
-            const maxWeight = Math.max(...Object.values(result))
-            expect(maxWeight).to.equal(0)
+            expect(result).to.equal(robot.constructor.ZERO_RANKINGS)
         })
 
         it('should rank Bearoff1Best best for Bearoff1Start with 5,3', async () => {
@@ -283,9 +282,7 @@ describe('FirstTurnRobot', () => {
             const turn = game.nextTurn()
             turn.roll()
             const result = await robot.getRankings(turn, game)
-            const keysActual = Object.keys(result).sort()
-            const keysExp = turn.allowedEndStates.slice(0).sort()
-            expect(JSON.stringify(keysActual)).to.equal(JSON.stringify(keysExp))
+            expect(result).to.equal(robot.constructor.ZERO_RANKINGS)
         })
 
         // implementation has changed

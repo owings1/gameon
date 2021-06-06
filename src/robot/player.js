@@ -30,6 +30,8 @@ const {Board, Profiler} = Core
 const {HasNotRolledError} = Core.Errors
 const {merge} = Util
 
+const ZERO_RANKINGS = 'ZERO_RANKINGS'
+
 class Robot extends Base {
 
     constructor(...args) {
@@ -203,10 +205,6 @@ class ConfidenceRobot extends Robot {
     static getDefaultInstance(name, ...args) {
         const theClass = ConfidenceRobot.getClassDefault(name)
         return new theClass(...args)
-        /*
-        const {defaults} = ConfidenceRobot.getClassMeta(name)
-        return ConfidenceRobot.getVersionInstance(name, defaults.version, ...args)
-        */
     }
 
     constructor(...args) {
@@ -258,15 +256,22 @@ class ConfidenceRobot extends Robot {
     }
 
     zeroRankings(turn) {
-        const rankings = {}
-        turn.allowedEndStates.forEach(endState => rankings[endState] = 0)
-        return rankings
+        return ConfidenceRobot.zeroRankings(turn)
     }
 
     spreadRanking(...args) {
         return Util.spreadRanking(...args)
     }
+
+    static zeroRankings(turn) {
+        Profiler.inc('ConfidenceRobot.zeroRankings')
+        const rankings = {}
+        turn.allowedEndStates.forEach(endState => rankings[endState] = 0)
+        return rankings
+    }
 }
+
+ConfidenceRobot.ZERO_RANKINGS = ZERO_RANKINGS
 
 class RobotDelegator extends Robot {
 
@@ -315,20 +320,29 @@ class RobotDelegator extends Robot {
             if (turn.isCantMove) {
                 return []
             }
+            if (turn.isForceMove) {
+                return turn.endStatesToSeries[turn.allowedEndStates[0]]
+            }
             if (!turn.isRolled) {
                 throw new HasNotRolledError('Turn is not rolled')
             }
             Profiler.start('RobotDelegator.getMoves.1')
-            const startState = turn.board.state28()
+            const {startState} = turn
             // [{robot, moveWeight, doubleWeight, rankings}]
             const delegates = []
+            const zeroRankings = ConfidenceRobot.zeroRankings(turn)
             for (var delegate of this.delegates) {
                 var timerName = 'getRankings.' + delegate.robot.constructor.name
                 Profiler.start(timerName)
-                delegates.push({
-                    ...delegate
-                  , rankings: await delegate.robot.getRankings(turn, game, match)
-                })
+                if (delegate.moveWeight == 0) {
+                    var delegateRankings = zeroRankings
+                } else {
+                    var delegateRankings = await delegate.robot.getRankings(turn, game, match)
+                    if (delegateRankings === ZERO_RANKINGS) {
+                        delegateRankings = zeroRankings
+                    }
+                }
+                delegates.push({...delegate, rankings: delegateRankings})
                 Profiler.stop(timerName)
             }
             Profiler.stop('RobotDelegator.getMoves.1')
@@ -376,6 +390,7 @@ class RobotDelegator extends Robot {
         if (this.delegates.length == 0) {
             throw new NoDelegatesError('No delegates to consult')
         }
+        Profiler.start('RobotDelegator.getDoubleConfidence')
         // sum(response_n * weight_n for each n) / sum(weight_n for each n)
         var weightedSum = 0
         var weightsSum = 0
@@ -384,6 +399,7 @@ class RobotDelegator extends Robot {
             weightedSum += response * delegate.doubleWeight
             weightsSum += delegate.doubleWeight
         }
+        Profiler.stop('RobotDelegator.getDoubleConfidence')
         if (weightsSum == 0) {
             // don't divide by zero
             return 0
@@ -456,4 +472,5 @@ module.exports = {
   , RobotDelegator
   , UndecidedMoveError
   , InvalidRobotError
+  , ZERO_RANKINGS
 }

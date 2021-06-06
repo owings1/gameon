@@ -24,6 +24,8 @@
  */
 const Base = require('../player').ConfidenceRobot
 
+const {ZERO_RANKINGS} = Base
+
 class BearoffRobot extends Base {
 
     async getRankings(turn, game, match) {
@@ -46,7 +48,7 @@ class BearoffRobot extends Base {
                 scores[endState] += pointsCovered
             }
         })
-        return hasBearoff ? this.spreadRanking(scores) : this.zeroRankings(turn)
+        return hasBearoff ? this.spreadRanking(scores) : ZERO_RANKINGS
     }
 }
 

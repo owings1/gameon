@@ -24,6 +24,7 @@
  */
 const Base = require('../player').ConfidenceRobot
 
+const {ZERO_RANKINGS} = Base
 const {intRange} = require('../../lib/util')
 
 function quadrantMultiplier(point) {
@@ -43,7 +44,7 @@ class SafetyRobot extends Base {
     async getRankings(turn, game, match) {
 
         if (turn.board.analyzer.isDisengaged()) {
-            return this.zeroRankings(turn)
+            return ZERO_RANKINGS
         }
 
         const scores = {}

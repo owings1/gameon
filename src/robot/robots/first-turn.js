@@ -28,6 +28,7 @@ const Base  = Robot.ConfidenceRobot
 
 const {intRange} = require('../../lib/util')
 const {Colors, Board} = Core
+const {ZERO_RANKINGS} = Base
 
 const {UndecidedMoveError} = Robot
 
@@ -81,12 +82,12 @@ class FirstTurnRobot extends Base {
 
     async getRankings(turn, game, match) {
         // initialize rankings
-        const rankings = this.zeroRankings(turn)
         const turnCount = game.getTurnCount()
         // skip non-game, greater than second turn, and doubles
         if (!game || turnCount > 2 || turn.dice[0] == turn.dice[1]) {
-            return rankings
+            return ZERO_RANKINGS
         }
+        const rankings = this.zeroRankings(turn)
         const diceHash = turn.diceSorted.join(',')
         // we only have one potential move series
         const {moveHashes, firstMoveEndState} = MoveIndex[turn.color][diceHash]

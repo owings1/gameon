@@ -27,10 +27,12 @@ const Base = require('../player').ConfidenceRobot
 
 const {Opponent} = Core
 
+const {ZERO_RANKINGS} = Base
+
 class DoubleRobot extends Base {
 
     async getRankings(turn, game, match) {
-        return this.zeroRankings(turn)
+        return ZERO_RANKINGS
     }
 
     async getDoubleConfidence(turn, game, match) {
