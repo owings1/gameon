@@ -1335,7 +1335,7 @@ describe('Board', () => {
 
 describe('BoardAnalyzer', () => {
 
-    describe('#blots', () => {
+    describe.only('#blots', () => {
 
         it('should return empty for initial setup', () => {
             const {analyzer} = Board.setup()
@@ -1421,26 +1421,26 @@ describe('BoardAnalyzer', () => {
             })
         })
 
-        describe.skip('BlotsDisengaged', () => {
+        describe('BlotsDisengaged', () => {
             var board
             var blots
             beforeEach(() => {
                 board = Board.fromStateString(States.BlotsDisengaged)
-                blots = board.analyzer.blots(White)
+                blots = board.analyzer.blots(White, false)
             })
-            it('should be empty?', () => {
+            it('should be empty', () => {
                 expect(blots).to.have.length(0)
             })
         })
 
-        describe.skip('BlotsOutOfRange', () => {
+        describe('BlotsOutOfRange', () => {
             var board
             var blots
             beforeEach(() => {
                 board = Board.fromStateString(States.BlotsOutOfRange)
-                blots = board.analyzer.blots(White)
+                blots = board.analyzer.blots(White, false)
             })
-            it('should be empty?', () => {
+            it('should be empty', () => {
                 expect(blots).to.have.length(0)
             })
         })
@@ -1514,6 +1514,147 @@ describe('BoardAnalyzer', () => {
                     expect(blot.indirectCount).to.equal(2)
                     expect(blot.minDistance).to.equal(5)
                 })
+            })
+        })
+
+        describe('BlotsMinSkip1', () => {
+            var board
+            beforeEach(() => {
+                board = Board.fromStateString(States.BlotsMinSkip1)
+            })
+
+            it('Red should have 0 blots for isIncludeAll=false', () => {
+                const blots = board.analyzer.blots(Red, false)
+                blots.sort((a, b) => a.point - b.point)
+                expect(blots).to.have.length(0)
+            })
+
+            it('Red should have 1 blot on point 3 for isIncludeAll=true', () => {
+                const blots = board.analyzer.blots(Red, true)
+                blots.sort((a, b) => a.point - b.point)
+                expect(blots).to.have.length(1)
+                expect(blots[0].point).to.equal(3)
+            })
+
+            it('White should have 4 blots on points 9, 11, 12, 16 with isIncludeAll=true', () => {
+                const blots = board.analyzer.blots(White, true)
+                blots.sort((a, b) => a.point - b.point)
+                expect(blots).to.have.length(4)
+                expect(blots[0].point).to.equal(9)
+                expect(blots[1].point).to.equal(11)
+                expect(blots[2].point).to.equal(12)
+                expect(blots[3].point).to.equal(16)
+            })
+
+            it('White should have no blots when isIncludeAll=false', () => {
+                const blots = board.analyzer.blots(White, false)
+                expect(blots).to.have.length(0)
+            })
+        })
+
+        describe('BlotsMinSkip2', () => {
+            var board
+            beforeEach(() => {
+                board = Board.fromStateString(States.BlotsMinSkip2)
+            })
+
+            it('White should have 7 blots on points 7, 9, 11, 12, 16, 17, 21 with isIncludeAll=true', () => {
+                const blots = board.analyzer.blots(White, true)
+                blots.sort((a, b) => a.point - b.point)
+                expect(blots).to.have.length(7)
+                expect(blots[0].point).to.equal(7)
+                expect(blots[1].point).to.equal(9)
+                expect(blots[2].point).to.equal(11)
+                expect(blots[3].point).to.equal(12)
+                expect(blots[4].point).to.equal(16)
+                expect(blots[5].point).to.equal(17)
+                expect(blots[6].point).to.equal(21)
+            })
+
+            it('White should have 1 blot on point 21 with isIncludeAll=false', () => {
+                const blots = board.analyzer.blots(White, false)
+                expect(blots).to.have.length(1)
+                expect(blots[0].point).to.equal(21)
+            })
+        })
+
+        describe('BlotsMinSkip3', () => {
+            var board
+
+            beforeEach(() => {
+                board = Board.fromStateString(States.BlotsMinSkip3)
+            })
+
+            it('Red should have 5 blots on points 2, 3, 7, 12, 13 with isIncludeAll=true', () => {
+                const blots = board.analyzer.blots(Red, true)
+                blots.sort((a, b) => a.point - b.point)
+                expect(blots).to.have.length(5)
+                expect(blots[0].point).to.equal(2)
+                expect(blots[1].point).to.equal(3)
+                expect(blots[2].point).to.equal(7)
+                expect(blots[3].point).to.equal(12)
+                expect(blots[4].point).to.equal(13)
+            })
+
+            it('Red should have 4 blots on points 2, 3, 7, 12 with isIncludeAll=false', () => {
+                const blots = board.analyzer.blots(Red, false)
+                blots.sort((a, b) => a.point - b.point)
+                expect(blots).to.have.length(4)
+                expect(blots[0].point).to.equal(2)
+                expect(blots[1].point).to.equal(3)
+                expect(blots[2].point).to.equal(7)
+                expect(blots[3].point).to.equal(12)
+            })
+        })
+
+        describe('BlotsMaxSkip1', () => {
+            var board
+
+            beforeEach(() => {
+                board = Board.fromStateString(States.BlotsMaxSkip1)
+            })
+
+            it('White whould have 3 blots on points 12, 13, 22 with isIncludeAll=true', () => {
+                const blots = board.analyzer.blots(White, true)
+                blots.sort((a, b) => a.point - b.point)
+                expect(blots).to.have.length(3)
+                expect(blots[0].point).to.equal(12)
+                expect(blots[1].point).to.equal(13)
+                expect(blots[2].point).to.equal(22)
+            })
+
+            it('White should have 1 blot on point 22 with minDistance 1 with isIncludAll=false', () => {
+                const blots = board.analyzer.blots(White, false)
+                expect(blots).to.have.length(1)
+                expect(blots[0].point).to.equal(22)
+                expect(blots[0].minDistance).to.equal(1)
+            })
+        })
+
+        describe('BlotsMaxSkip2', () => {
+            var board
+
+            beforeEach(() => {
+                board = Board.fromStateString(States.BlotsMaxSkip2)
+            })
+
+            it('White whould have 4 blots on points 7, 13, 15, 16 with isIncludeAll=true', () => {
+                const blots = board.analyzer.blots(White, true)
+                blots.sort((a, b) => a.point - b.point)
+                expect(blots).to.have.length(4)
+                expect(blots[0].point).to.equal(7)
+                expect(blots[1].point).to.equal(13)
+                expect(blots[2].point).to.equal(15)
+                expect(blots[3].point).to.equal(16)
+            })
+
+            it('White should have 1 blot on point 7 with minDistance 6, directCount 1 and indirectCount 1 with isIncludAll=false', () => {
+                const blots = board.analyzer.blots(White, false)
+                expect(blots).to.have.length(1)
+                expect(blots[0].point).to.equal(7)
+                expect(blots[0].minDistance).to.equal(6)
+                expect(blots[0].directCount).to.equal(1)
+                expect(blots[0].indirectCount).to.equal(1)
             })
         })
     })

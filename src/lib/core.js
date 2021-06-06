@@ -1762,8 +1762,179 @@ class BoardAnalyzer {
         }
     }
 
+    blots2(color, isIncludeAll = true) {
+
+        Profiler.start('BoardAnalyzer.blots')
+
+        try {
+            const blots = []
+
+            const blotOrigins = this.blotOrigins(color)
+            const ilen = blotOrigins.length
+
+            if (ilen == 0) {
+                return blots
+            }
+
+            Profiler.start('BoardAnalyzer.blots.prep')
+            const blotPoints = []
+            // opponent points are relative to this color, not the opponent's color
+            const pointsWithOpponent = []
+            const opponentOrigins = this.originsOccupied(Opponent[color])
+
+            // create pre-sorted
+            if (color == Red) {
+                for (var i = ilen - 1; i >= 0; --i) {
+                    blotPoints.push(OriginPoints[color][blotOrigins[i]])
+                }
+                for (var p = opponentOrigins.length - 1; p >= 0; --p) {
+                    pointsWithOpponent.push(OriginPoints[color][opponentOrigins[p]])
+                }
+            } else {
+                for (var i = 0; i < ilen; ++i) {
+                    blotPoints.push(OriginPoints[color][blotOrigins[i]])
+                }
+                for (var p = 0, plen = opponentOrigins.length; p < plen; ++p) {
+                    pointsWithOpponent.push(OriginPoints[color][opponentOrigins[p]])
+                }
+            }
+            if (this.hasBar(Opponent[color])) {
+                pointsWithOpponent.push(0)
+            }
+            const jlen = pointsWithOpponent.length
+            const minPointWithOpponent = pointsWithOpponent[jlen - 1]
+            var maxPointWithOpponent = pointsWithOpponent[0]
+            Profiler.stop('BoardAnalyzer.blots.prep')
+            if (jlen == 0 && !isIncludeAll) {
+                // this shouldn't happen in a real game
+                return blots
+            }
+
+            var minJ = 0
+            Profiler.start('BoardAnalyzer.blots.process')
+
+            //console.log({blotPoints, pointsWithOpponent, minPointWithOpponent, maxPointWithOpponent})
+
+            var isMinContinue = false
+            var isMinDistanceContinue = false
+            var isMaxDistanceContinue = false
+            for (var i = 0; i < ilen; ++i) {
+
+                var point = blotPoints[i]
+                //console.log('  ', {point})
+
+                if (!isIncludeAll) {
+                    if (point < minPointWithOpponent) {
+                        //console.log('    ', 'continue', {minPointWithOpponent})
+                        isMinContinue = point
+                        break
+                    }
+                    var distanceToMax = point - maxPointWithOpponent
+                    //console.log('    ', {distanceToMax})
+                    if (distanceToMax > 11) {
+                        isMaxDistanceContinue = point
+                        //console.log('    ', 'continue', {distanceToMax})
+                        continue
+                    }
+                    var distanceToMin = point - minPointWithOpponent
+                    //console.log('    ', {distanceToMin})
+                    if (distanceToMin < 0) {
+                        //console.log('    ', 'continue', {distanceToMin})
+                        isMinDistanceContinue = point
+                        continue
+                    }
+                }
+
+                var origin = PointOrigins[color][point]
+
+                var minDistance = Infinity
+                var directCount = 0
+                var indirectCount = 0
+
+                var attackerFound = false
+
+                Profiler.start('BoardAnalyzer.blots.process.inner')
+
+                if (minJ > 0 && minJ < jlen) {
+                    //console.log('minJ > 0', {minJ})
+                    Profiler.inc('blots.opponent.point.skipped.minJ')
+                }
+
+                // calculate attacker distance, direct/indirect shots
+                for (var j = minJ; j < jlen; ++j) {
+
+                    var p = pointsWithOpponent[j]
+
+                    if (p > point) {
+                        //console.log('      ','irrelevant', 'p > point', {p, j, minJ})
+                        minJ = j + 1
+                        if (minJ < jlen) {
+                            maxPointWithOpponent = pointsWithOpponent[minJ]
+                        }
+                        //console.log('      ','irrelevant', 'p > point', {p, j, minJ, maxPointWithOpponent})
+                        Profiler.inc('blots.opponent.point.disengaged')
+                        continue
+                    }
+
+                    var distance = point - p
+
+                    if (distance < minDistance) {
+                        minDistance = distance
+                    }
+                    if (distance < 7) {
+                        directCount += 1
+                        attackerFound = true
+                    } else if (distance < 12) {
+                        indirectCount += 1
+                        attackerFound = true
+                    } else {
+                        //console.log('      ', 'break', {distance, p, j})
+                        break
+                    }
+                    
+                    //console.log('      ','relevant', {p, j, minDistance})
+                }
+            
+                Profiler.stop('BoardAnalyzer.blots.process.inner')
+
+                if (!attackerFound) {
+                    Profiler.inc('blots.no.point.attacker.found')
+                    if (!isIncludeAll) {
+                        //console.log({color, state: this.board.state28()})
+                        continue
+                        //throw new Error('no attacker found but isIncludeAll=false')
+                    }
+                }
+
+                blots.push({
+                    point
+                  , origin
+                  , minDistance
+                  , directCount
+                  , indirectCount
+                })
+            }
+
+            Profiler.stop('BoardAnalyzer.blots.process')
+            Profiler.inc('blots.found', blots.length)
+
+            //if (isMaxDistanceContinue) {
+            //    console.log({
+            //        isMaxDistanceContinue,
+            //        color,
+            //        board: this.board.state28(),
+            //        blotPoints, pointsWithOpponent
+            //    })
+            //}
+            return blots
+
+        } finally {
+            Profiler.stop('BoardAnalyzer.blots')
+        }
+    }
+
     // Not cached, since it is currently only called once by SafetyRobot
-    blots(color) {
+    blots(color, isIncludeAll = true) {
 
         Profiler.start('BoardAnalyzer.blots')
 
@@ -1832,6 +2003,10 @@ class BoardAnalyzer {
                     }
                 }
 
+                if (!isIncludeAll && minDistance > 11) {
+                    continue
+                }
+
                 blots.push({
                     point
                   , origin
@@ -1842,6 +2017,7 @@ class BoardAnalyzer {
             }
 
             Profiler.inc('blots.found', blots.length)
+
             return blots
 
         } finally {
