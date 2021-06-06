@@ -68,4 +68,12 @@ module.exports = {
   , Bearoff4Start     : '0|0|15:R|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|1:W|1:W|0:|0:|0:|0:|13:W|0|0'
   , Bearoff4Best      : '0|0|15:R|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|1:W|0:|13:W|1|0'
   , Bearoff4Bad       : '0|0|15:R|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|1:W|14:W|0|0'
+    // one blot, indirect shot from bar, everyone else home
+  , BlotsIndBar1      : '0|1|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|1:W|0:|0:|0:|0:|0:|0:|14|14'
+    // each has three blots at various positions
+  , BlotsMany1        : '0|0|1:W|0:|1:W|0:|0:|5:R|0:|3:R|1:R|0:|0:|4:W|4:R|0:|1:W|0:|3:W|1:R|5:W|0:|0:|0:|0:|1:R|0|0'
+    // there are single pieces but disengaged
+  , BlotsDisengaged   : '0|0|1:R|1:R|1:W|1:W|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|13|13'
+    // there are blots, but all greater than 11 distance
+  , BlotsOutOfRange   : '0|0|1:W|1:W|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|1:R|1:R|13|13'
 }
