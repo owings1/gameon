@@ -308,7 +308,7 @@ class RobotDelegator extends Robot {
         }
         this.validateWeight(moveWeight)
         this.validateWeight(doubleWeight)
-        this.delegates.push({robot, moveWeight, doubleWeight})
+        this.delegates.push({robot, moveWeight, doubleWeight, rankTimerName: 'getRankings.' + robot.name})
     }
 
     async getMoves(turn, game, match) {
@@ -326,51 +326,26 @@ class RobotDelegator extends Robot {
             if (!turn.isRolled) {
                 throw new HasNotRolledError('Turn is not rolled')
             }
-            Profiler.start('RobotDelegator.getMoves.1')
-            const {startState} = turn
-            // [{robot, moveWeight, doubleWeight, rankings}]
-            const delegates = []
-            const zeroRankings = ConfidenceRobot.zeroRankings(turn)
-            for (var delegate of this.delegates) {
-                var timerName = 'getRankings.' + delegate.robot.constructor.name
-                Profiler.start(timerName)
-                if (delegate.moveWeight == 0) {
-                    var delegateRankings = zeroRankings
-                } else {
-                    var delegateRankings = await delegate.robot.getRankings(turn, game, match)
-                    if (delegateRankings === ZERO_RANKINGS) {
-                        delegateRankings = zeroRankings
-                    }
-                }
-                delegates.push({...delegate, rankings: delegateRankings})
-                Profiler.stop(timerName)
-            }
+
+            Profiler.start('RobotDelegator.getMoves.1')            
+            const results = await this._getDelegatesResults(turn, game, match)
             Profiler.stop('RobotDelegator.getMoves.1')
+
             Profiler.start('RobotDelegator.getMoves.2')
-            const rankings = {}
-            delegates.forEach(delegate => {
-                Object.entries(delegate.rankings).forEach(([endState, localWeight]) => {
-                    if (!(endState in rankings)) {
-                        rankings[endState] = 0
-                    }
-                    if (localWeight > 1 || localWeight < 0) {
-                        this.logger.warn(delegate.robot.name, 'gave weight', localWeight)
-                    }
-                    //this.logger.debug({localWeight, robot: delegate.robot.name})
-                    rankings[endState] += localWeight * delegate.moveWeight
-                })
-            })
-            const maxWeight = Math.max(...Object.values(rankings))
-            //this.logger.debug({rankings, maxWeight})
-            const endState = turn.allowedEndStates.find(endState => rankings[endState] == maxWeight)
-            const moves = turn.endStatesToSeries[endState]
+            const {rankings, maxWeight, selectedEndState} = this._computeRankings(results)
             Profiler.stop('RobotDelegator.getMoves.2')
+
+            Profiler.start('RobotDelegator.getMoves.3')
+            const moves = turn.endStatesToSeries[selectedEndState]
             if (!moves) {
-                this.logger.error({maxWeight, rankings, endState, allowedEndStates: turn.allowedEndStates})
+                this.logger.error({maxWeight, rankings, selectedEndState, allowedEndStates: turn.allowedEndStates})
                 throw new UndecidedMoveError('Cannot find moves among delegates')
             }
-            this.emit('turnData', turn, {startState, endState, rankings, moves})
+            this.emit('turnData', turn, {startState: turn.startState, endState: selectedEndState, rankings, moves})
+            Profiler.stop('RobotDelegator.getMoves.3')
+
             return moves
+
         } finally {
             Profiler.stop('RobotDelegator.getMoves')
         }
@@ -435,7 +410,9 @@ class RobotDelegator extends Robot {
 
     meta() {
         return merge(super.meta(), {
-            delegates : this.delegates.map(({robot, weight}) => merge({weight}, robot.meta()))
+            delegates : this.delegates.map(({robot, moveWeight, doubleWeight}) =>
+                merge({moveWeight, doubleWeight}, robot.meta())
+            )
         })
     }
 
@@ -448,6 +425,71 @@ class RobotDelegator extends Robot {
             throw new InvalidWeightError('Invalid weight for delegate')
         }
     }
+
+   /**
+    * Get rankings from each delegate.
+    *
+    * Returns a list of delegate rankings, in this.delegates order
+    *
+    *   [
+    *       {endState: ranking}
+    *   ]
+    */
+   async _getDelegatesResults(turn, game, match) {
+       const results = []
+       const zeroRankings = ConfidenceRobot.zeroRankings(turn)
+       for (var i = 0, ilen = this.delegates.length; i < ilen; ++i) {
+           var delegate = this.delegates[i]
+           Profiler.start(delegate.rankTimerName)
+           if (delegate.moveWeight == 0) {
+               var rankings = zeroRankings
+           } else {
+               var rankings = await delegate.robot.getRankings(turn, game, match)
+               if (rankings === ZERO_RANKINGS) {
+                   rankings = zeroRankings
+               }
+           }
+           results.push(rankings)
+           Profiler.stop(delegate.rankTimerName)
+       }
+       return results
+   }
+
+   /**
+    * Reduce the results. Assumes results are in this.delegates order.
+    *
+    * Returns a result object:
+    *
+    *    rankings: {endState: ranking}
+    *    maxWeight
+    *    selectedEndState
+    */
+   _computeRankings(results) {
+       const rankings = {}
+       // Don't assume delegates will give good rankings >= 0. Instead log a warning,
+       // but still allow selecting the moves with the max ranking.
+       var maxWeight = -Infinity
+       var selectedEndState
+       for (var i = 0, ilen = results.length; i < ilen; ++i) {
+           var result = results[i]
+           var delegate = this.delegates[i]
+           for (var endState in result) {
+               if (!(endState in rankings)) {
+                   rankings[endState] = 0
+               }
+               var instanceRank = result[endState]
+               if (instanceRank > 1 || instanceRank < 0) {
+                   this.logger.warn(delegate.robot.name, 'gave rank', instanceRank)
+               }
+               rankings[endState] += instanceRank * delegate.moveWeight
+               if (rankings[endState] > maxWeight) {
+                   maxWeight = rankings[endState]
+                   selectedEndState = endState
+               }
+           }
+       }
+       return {rankings, maxWeight, selectedEndState}
+   }
 }
 
 class RobotError extends Error {

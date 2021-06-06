@@ -569,6 +569,7 @@ describe('RobotDelegator', () => {
             const turn = game.nextTurn()
             turn.roll()
             const result = await robot.getMoves(turn, game)
+            expect(msg).to.equal('RandomRobot gave rank -1')
             expect(msg).to.have.length.greaterThan(0)
         })
 
