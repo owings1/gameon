@@ -23,6 +23,7 @@
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 const Core = require('./core')
+const Errors = require('./errors')
 
 const {
     Direction
@@ -34,7 +35,7 @@ const {
 } = Core
 
 const {Red, White} = Core.Colors
-const {IllegalStateError} = Core.Errors
+const {IllegalStateError} = Errors
 
 const CacheKeys = {}
 

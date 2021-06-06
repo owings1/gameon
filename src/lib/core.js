@@ -22,6 +22,7 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
+const Errors = require('./errors')
 const Util   = require('./util')
 
 const {intRange} = Util
@@ -90,15 +91,6 @@ const Opponent = {
   , Red   : White
 }
 
-// Must manually enable
-const Profiler = Util.Profiler.createDisabled()
-
-const CacheKeys = {
-    state28     : 'state28'
-  , stateString : 'stateString'
-}
-
-
 const MoveHashes = {}
 const MoveCoords = {}
 
@@ -115,6 +107,14 @@ function populateMoveHashesCoords(hashes, coords) {
 }
 
 populateMoveHashesCoords(MoveHashes, MoveCoords)
+
+const CacheKeys = {
+    state28     : 'state28'
+  , stateString : 'stateString'
+}
+
+// Must manually enable
+const Profiler = Util.Profiler.createDisabled()
 
 class Match {
 
@@ -266,7 +266,6 @@ class Game {
         }
 
         this.uuid  = Util.uuid()
-        this.board = this.opts.startState ? Board.fromStateString(this.opts.startState) : Board.setup()
 
         this.cubeOwner  = null
         this.cubeValue  = 1
@@ -278,6 +277,12 @@ class Game {
 
         this.turnHistory = []
         this.thisTurn = null
+
+        if (this.opts.startState) {
+            this.board = Board.fromStateString(this.opts.startState)
+        } else {
+            this.board = Board.setup()
+        }
     }
 
     canDouble(color) {
@@ -1673,67 +1678,33 @@ class Dice {
     }
 }
 
-class GameError extends Error {
+const {
+    AlreadyRolledError
+  , ArgumentError
+  , DoubleNotAllowedError
+  , GameAlreadyStartedError
+  , GameFinishedError
+  , GameNotFinishedError
+  , GameNotStartedError
+  , HasNotDoubledError
+  , HasNotRolledError
+  , IllegalBareoffError
+  , IllegalMoveError
+  , InvalidRollError
+  , MatchFinishedError
+  , MayNotBearoffError
+  , MovesRemainingError
+  , NoMovesMadeError
+  , NoMovesRemainingError
+  , NoPieceOnBarError
+  , NoPieceOnSlotError
+  , NotImplementedError
+  , OccupiedSlotError
+  , PieceOnBarError
+  , TurnAlreadyFinishedError
+  , TurnNotFinishedError
+} = Errors
 
-    constructor(message, ...args) {
-        if (Array.isArray(message)) {
-            message = Util.joinSpace(...message)
-        }
-        super(message, ...args)
-        this.name = this.constructor.name
-        this.isGameError = true
-    }
-}
-
-class NotImplementedError extends GameError {}
-class IllegalStateError extends GameError {
-    constructor(...args) {
-        super(...args)
-        this.isIllegalStateError = true
-    }
-}
-
-class IllegalMoveError extends GameError {
-
-    constructor(...args) {
-        super(...args)
-        this.isIllegalMoveError = true
-    }
-}
-
-class ArgumentError     extends GameError {}
-class InvalidRollError  extends GameError {}
-
-class MaxDepthExceededError extends ArgumentError {}
-
-class AlreadyRolledError        extends IllegalStateError {}
-class DoubleNotAllowedError     extends IllegalStateError {}
-class HasNotDoubledError        extends IllegalStateError {}
-class HasNotRolledError         extends IllegalStateError {}
-class GameAlreadyStartedError   extends IllegalStateError {}
-class GameFinishedError         extends IllegalStateError {}
-class GameNotFinishedError      extends IllegalStateError {}
-class GameNotStartedError       extends IllegalStateError {}
-class MatchFinishedError        extends IllegalStateError {}
-class TurnAlreadyFinishedError  extends IllegalStateError {}
-class TurnNotFinishedError      extends IllegalStateError {}
-
-class IllegalBareoffError    extends IllegalMoveError {}
-class MayNotBearoffError     extends IllegalMoveError {}
-class MovesRemainingError    extends IllegalMoveError {}
-class NoMovesMadeError       extends IllegalMoveError {}
-class NoMovesRemainingError  extends IllegalMoveError {}
-class NoPieceOnBarError      extends IllegalMoveError {}
-class NoPieceOnSlotError     extends IllegalMoveError {}
-class OccupiedSlotError      extends IllegalMoveError {}
-class PieceOnBarError        extends IllegalMoveError {}
-
-// as needed
-const Errors = {
-    HasNotRolledError
-  , IllegalStateError
-  , MaxDepthExceededError
-}
 
 module.exports = {
     Colors
@@ -1749,7 +1720,6 @@ module.exports = {
   , Red
   , Opponent
   , Profiler
-  , Errors
   , OriginPoints
   , OutsideOrigins
   , PointOrigins
