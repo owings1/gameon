@@ -23,7 +23,9 @@
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 const Base = require('../player').ConfidenceRobot
+const Core = require('../../lib/core')
 
+const {Profiler} = Core
 const {ZERO_RANKINGS} = Base
 const {intRange} = require('../../lib/util')
 
@@ -40,7 +42,18 @@ intRange(1, 24).forEach(point =>
 
 class SafetyRobot extends Base {
 
-    // minimum number of blots left
+    static getClassVersions() {
+        return {
+            v1 : this
+          , v2 : SafetyRobot_v2
+        }
+    }
+
+    constructor(...args) {
+        super(...args)
+        this.isIncludeAllBlots = true
+    }
+
     async getRankings(turn, game, match) {
 
         if (turn.board.analyzer.isDisengaged()) {
@@ -52,9 +65,11 @@ class SafetyRobot extends Base {
 
         for (var i = 0, ilen = turn.allowedEndStates.length; i < ilen; ++i) {
             var endState = turn.allowedEndStates[i]
-            var {score, directCount} = this._scoreBlots(
-                turn.fetchBoard(endState).analyzer.blots(turn.color)
-            )            
+            var {analyzer} = turn.fetchBoard(endState)
+            
+            var blots = this._fetchBlots(analyzer, turn.color)
+            var {score, directCount} = this._scoreBlots(blots)
+
             scores[endState] = score
             if (directCount == 0) {
                 zeros.push(endState)
@@ -67,18 +82,73 @@ class SafetyRobot extends Base {
         return rankings
     }
 
+    _fetchBlots(analyzer, color) {
+        return analyzer.blots(color, this.isIncludeAllBlots)
+    }
+
     _scoreBlots(blots) {
         var score = 0
         var directCount = 0
         for (var i = 0, ilen = blots.length; i < ilen; ++i) {
             var blot = blots[i]
             directCount += blot.directCount
-            score += blot.directCount * 4
-            score += blot.indirectCount
-            score *= QuadrantMultipliers[blot.point]
+            score += (blot.directCount * 4 + blot.indirectCount) * QuadrantMultipliers[blot.point]
         }
         return {score, directCount}
     }
 }
 
+class SafetyRobot_v2 extends SafetyRobot {
+
+    constructor(...args) {
+        super(...args)
+        this.isIncludeAllBlots = false
+    }
+}
+
 module.exports = SafetyRobot
+
+// interesting idea, but not so quick
+/*
+        //const quickCache = {}
+            Profiler.start('blots.safetyRobot.quickHash')
+            var quickHash = this._quickHash(analyzer, turn)
+            Profiler.stop('blots.safetyRobot.quickHash')
+            if (!quickCache[quickHash]) {
+                Profiler.inc('blots.safetyRobot.cache.miss')
+                var blots = this._fetchBlots(analyzer, turn.color)
+                quickCache[quickHash] = this._scoreBlots(blots)
+                //quickCache[quickHash].blots = blots
+                //quickCache[quickHash].endState = endState
+            } else {
+                Profiler.inc('blots.safetyRobot.cache.hit')
+    
+            }
+            // validate
+            /*
+            var blotsCheck = this._fetchBlots(analyzer, turn.color)
+            if (JSON.stringify(blotsCheck) != JSON.stringify(quickCache[quickHash].blots)) {
+                console.log(turn.color, turn.dice, turn.startState)
+                console.log(endState, blotsCheck)
+                console.log(quickCache[quickHash].endState, quickCache[quickHash].blots)
+                throw new Error('fail')
+            }
+            var {score, directCount} = quickCache[quickHash]
+*/
+/*
+    _quickHash(analyzer, turn) {
+        const o1 = analyzer.blotOrigins(turn.color)
+        const o2 = analyzer.originsOccupied(turn.opponent)
+        const b1 = analyzer.hasBar(turn.color)
+        const b2 = analyzer.hasBar(turn.opponent)
+        return this._quickHashNumber(o1, b1) + '/' + this._quickHashNumber(o2, b2)
+    }
+
+    _quickHashNumber(origins, hasBar) {
+        var n = +hasBar
+        for (var i = 0, ilen = origins.length; i < ilen; ++i) {
+            n = n | (1 << (origins[i] + 2))
+        }
+        return n
+    }
+*/
