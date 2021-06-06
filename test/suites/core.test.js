@@ -14,8 +14,9 @@ const {
 
 const Core = requireSrc('lib/core')
 const Util = requireSrc('lib/util')
+const {SequenceTree} = requireSrc('lib/trees')
 
-const {White, Red, Match, Game, Board, Turn, Piece, Dice, SequenceTree} = Core
+const {White, Red, Match, Game, Board, Turn, Piece, Dice} = Core
 
 
 describe('Match', () => {
