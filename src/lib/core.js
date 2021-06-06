@@ -155,6 +155,7 @@ class Match {
           , isJacoby     : false
           , breadthTrees : false
           , roller       : null
+          , startState   : null
         }
     }
 
@@ -284,6 +285,7 @@ class Game {
           , isJacoby     : false
           , breadthTrees : false
           , roller       : null
+          , startState   : null
         }
     }
 
@@ -295,7 +297,7 @@ class Game {
         }
 
         this.uuid  = Util.uuid()
-        this.board = Board.setup()
+        this.board = this.opts.startState ? Board.fromStateString(this.opts.startState) : Board.setup()
 
         this.cubeOwner  = null
         this.cubeValue  = 1
@@ -1326,6 +1328,10 @@ class Board {
     }
 
     setStateString(str) {
+        if (str.length == 28) {
+            this.setState28(str)
+            return
+        }
         const locs = str.split('|')
         this.bars = {
             White : Piece.make(locs[0], White)
@@ -1470,6 +1476,7 @@ class BoardAnalyzer {
 
     // @cache
     originsOccupied(color) {
+        Profiler.start('BoardAnalyzer.originsOccupied')
         const key = CacheKeys.originsOccupied[color]
         if (!this.cache[key]) {
             Profiler.inc('board.originsOccupied.cache.miss')
@@ -1495,11 +1502,13 @@ class BoardAnalyzer {
         } else {
             Profiler.inc('board.originsOccupied.cache.hit')
         }
+        Profiler.stop('BoardAnalyzer.originsOccupied')
         return this.cache[key]
     }
 
     // @cache
     blotOrigins(color) {
+        Profiler.start('BoardAnalyzer.blotOrigins')
         const key = CacheKeys.blotOrigins[color]
         if (!this.cache[key]) {
             const origins = this.originsOccupied(color)
@@ -1512,9 +1521,11 @@ class BoardAnalyzer {
             }
             this.cache[key] = blotOrigins
         }
+        Profiler.stop('BoardAnalyzer.blotOrigins')
         return this.cache[key]
     }
 
+    // TODO: test with Infinities
     // @cache
     maxOriginOccupied(color) {
         const key = CacheKeys.maxOriginOccupied[color]
@@ -1525,6 +1536,7 @@ class BoardAnalyzer {
         return this.cache[key]
     }
 
+    // TODO: test with Infinities
     // @cache
     minOriginOccupied(color) {
         const key = CacheKeys.minOriginOccupied[color]
@@ -1535,6 +1547,7 @@ class BoardAnalyzer {
         return this.cache[key]
     }
 
+    // TODO: test with Infinities
     // @cache
     maxPointOccupied(color) {
         const key = CacheKeys.maxPointOccupied[color]
@@ -1549,6 +1562,7 @@ class BoardAnalyzer {
         return this.cache[key]
     }
 
+    // TODO: test with Infinities
     // @cache
     minPointOccupied(color) {
         const key = CacheKeys.minPointOccupied[color]

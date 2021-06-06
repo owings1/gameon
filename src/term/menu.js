@@ -35,7 +35,7 @@ const Robot       = require('../robot/player')
 const {ConfidenceRobot} = Robot
 const {RobotDelegator}  = Robot
 
-const {White, Red, Match} = Core
+const {White, Red, Match, Board, Dice} = Core
 
 const assert   = require('assert')
 const chalk    = require('chalk')
@@ -150,9 +150,11 @@ class Menu extends Logger {
             message = 'Local Match'
         }
 
+        var advancedOpts
+
         while (true) {
 
-            var matchChoices = this.getMatchChoices(opts, isOnline, isRobot, isRobots)
+            var matchChoices = this.getMatchChoices(opts, isOnline)
 
             var answers = await this.prompt({
                 name     : 'matchChoice'
@@ -168,15 +170,20 @@ class Menu extends Logger {
                 break
             }
 
+            if (matchChoice == 'advanced') {
+                advancedOpts = await this.getMatchAdvancedOpts(advancedOpts)
+                continue
+            }
+
             if (matchChoice == 'start') {
                 if (isOnline) {
                     await this.startOnlineMatch(opts)
                 } else if (isRobot) {
-                    await this.playRobot(opts)
+                    await this.playRobot(opts, advancedOpts)
                 } else if (isRobots) {
-                    await this.playRobots(opts)
+                    await this.playRobots(opts, advancedOpts)
                 } else {
-                    await this.playLocalMatch(opts)
+                    await this.playLocalMatch(opts, advancedOpts)
                 }
                 continue
             }
@@ -190,6 +197,12 @@ class Menu extends Logger {
 
             await this.saveOpts()
         }
+    }
+
+    async getMatchAdvancedOpts(advancedOpts) {
+        const questions = this.getMatchAdvancedQuestions(advancedOpts)
+        const answers = await this.prompt(questions)
+        return answers
     }
 
     async accountMenu() {
@@ -491,8 +504,9 @@ class Menu extends Logger {
         await this.joinOnlineMatch(opts)
     }
 
-    async playLocalMatch(opts) {
-        const match = new Match(opts.total, opts)
+    async playLocalMatch(opts, advancedOpts) {
+        const matchOpts = this.getMatchOpts(opts, advancedOpts)
+        const match = new Match(opts.total, matchOpts)
         const players = {
             White : new TermPlayer(White, opts)
           , Red   : new TermPlayer(Red, opts)
@@ -508,8 +522,9 @@ class Menu extends Logger {
         await this.runOnlineMatch(opts, false)
     }
 
-    async playRobot(opts) {
-        const match = new Match(opts.total, opts)
+    async playRobot(opts, advancedOpts) {
+        const matchOpts = this.getMatchOpts(opts, advancedOpts)
+        const match = new Match(opts.total, matchOpts)
         const players = {
             White : new TermPlayer(White, opts)
           , Red   : new TermPlayer.Robot(this.newRobot(Red), opts)
@@ -517,8 +532,9 @@ class Menu extends Logger {
         await this.runMatch(match, players, opts)
     }
 
-    async playRobots(opts) {
-        const match = new Match(opts.total, opts)
+    async playRobots(opts, advancedOpts) {
+        const matchOpts = this.getMatchOpts(opts, advancedOpts)
+        const match = new Match(opts.total, matchOpts)
         const players = {
             White : new TermPlayer.Robot(this.newDefaultRobot(White), opts)
           , Red   : new TermPlayer.Robot(this.newRobot(Red), opts)
@@ -557,6 +573,27 @@ class Menu extends Logger {
         } finally {
             await this.destroyAll(players)
         }
+    }
+
+    getMatchOpts(opts, advancedOpts = {}) {
+        const matchOpts = {...opts}
+        if (advancedOpts.startState) {
+            this.info('Setting initial state')
+            matchOpts.startState = advancedOpts.startState
+        }
+        if (advancedOpts.rollsFile) {
+            this.info('Using custom rolls file')
+            const {rolls} = JSON.parse(fs.readFileSync(advancedOpts.rollsFile))
+            var rollIndex = 0
+            var maxIndex = rolls.length - 1
+            matchOpts.roller = () => {
+                if (rollIndex > maxIndex) {
+                    rollIndex = 0
+                }
+                return rolls[rollIndex++]
+            }
+        }
+        return matchOpts
     }
 
     async destroyAll(players) {
@@ -628,8 +665,24 @@ class Menu extends Logger {
         ])
     }
 
-    getMatchChoices(opts, isOnline, isRobot, isRobots) {
-        return Menu.formatChoices([
+    getMatchChoices(opts, isOnline) {
+        const choices = this.getBasicMatchInitialChoices(opts)
+        // only show advanced for local matches
+        if (!isOnline) {
+            choices.push({
+                value : 'advanced'
+              , name  : 'Advanced'
+            })
+        }
+        choices.push({
+            value : 'quit'
+          , name  : 'Back'
+        })
+        return Menu.formatChoices(choices)
+    }
+
+    getBasicMatchInitialChoices(opts) {
+        return [
             {
                 value : 'start'
               , name  : 'Start Match'
@@ -668,11 +721,7 @@ class Menu extends Logger {
                   , default : () => opts.isJacoby
                 }
             }
-          , {
-                value : 'quit'
-              , name  : 'Back'
-            }
-        ])
+        ]
     }
 
     getJoinQuestions(opts) {
@@ -682,6 +731,69 @@ class Menu extends Logger {
               , message  : 'Match ID'
               , type     : 'input'
               , validate : value => !value || value.length == 8 || 'Invalid match ID format'
+            }
+        ]
+    }
+
+    getMatchAdvancedQuestions(advancedOpts) {
+        advancedOpts = advancedOpts || {}
+        return [
+            {
+                name     : 'startState'
+              , message  : 'Start State'
+              , type     : 'input'
+              , default  : () => advancedOpts.startState
+              , validate : value => {
+                    if (!value.length) {
+                        return true
+                    }
+                    try {
+                        Board.fromStateString(value)
+                    } catch (err) {
+                        return err.message
+                    }
+                    return true
+                }
+            }
+          , {
+                name    : 'rollsFile'
+              , message : 'Rolls File'
+              , type    : 'input'
+              , default  : () => advancedOpts.rollsFile
+              , validate : value => {
+                    if (!value.length) {
+                        return true
+                    }
+                    var data
+                    try {
+                        data = JSON.parse(fs.readFileSync(value))
+                    } catch (err) {
+                        return err.message
+                    }
+                    if (!Array.isArray(data.rolls)) {
+                        return 'Invalid rolls data, expects rolls key to be an array'
+                    }
+                    if (!data.rolls.length) {
+                        return 'Rolls cannot be empty'
+                    }
+                    // check for at least one valid first roll
+                    var isUniqueFound = false
+                    for (var i = 0; i < data.rolls.length; ++i) {
+                        var dice = data.rolls[i]
+                        try {
+                            Dice.checkTwo(dice)
+                        } catch (err) {
+                            return 'Invalid roll found at index ' + i + ': ' + err.message
+                        }
+                        if (dice[0] != dice[1]) {
+                            isUniqueFound = true
+                        }
+                    }
+                    if (!isUniqueFound) {
+                        return 'Cannot find one unique roll'
+                    }
+                    return true
+                }
             }
         ]
     }

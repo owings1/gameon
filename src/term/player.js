@@ -254,12 +254,16 @@ class TermPlayer extends Base {
           , message  : sp(this.cchalk(turn.color, turn.color + "'s"), 'turn to (r)oll or (d)ouble')
           , default  : () => 'r'
           , type     : 'input'
-          , validate : value => choices.indexOf(value.toLowerCase()) > -1 || sp('Please enter one of', choices.join())
+          , validate : value => choices.indexOf(value.toLowerCase()) > -1 || value == '_' || sp('Please enter one of', choices.join())
         }
         while (true) {
             var {action} = await this.prompt(question)
             if (action.toLowerCase() == 'q') {
                 await this.checkQuit()
+                continue
+            }
+            if (action == '_') {
+                this.printDebugTurn(turn)
                 continue
             }
             break
@@ -297,7 +301,7 @@ class TermPlayer extends Base {
             name     : 'origin'
           , type     : 'input'
           , message
-          , validate : value => (choices.indexOf(value) > -1) || 'Please enter one of ' + choices.join()
+          , validate : value => (choices.indexOf(value) > -1 || value == '_') || 'Please enter one of ' + choices.join()
         }
         if (points.length == 1) {
             question.default = choices[0]
@@ -308,6 +312,10 @@ class TermPlayer extends Base {
                 await this.checkQuit()
                 continue
             }
+            if (origin == '_') {
+                this.printDebugTurn(turn)
+                continue
+            }
             break
         }
         if (origin == 'u') {
@@ -316,6 +324,18 @@ class TermPlayer extends Base {
             return -1
         }
         return turn.board.analyzer.pointOrigin(turn.color, +origin)
+    }
+
+    printDebugTurn(turn) {
+        const {board} = turn
+        const info = {
+            //turn: turn.meta()
+            board : {
+                state28     : board.state28()
+              , stateString : board.stateString()
+            }
+        }
+        this.logger.console.log(info)
     }
 
     async promptFace(turn, faces) {
@@ -361,6 +381,7 @@ class TermPlayer extends Base {
         this._prompt = inquirer.prompt(Util.castToArray(questions))
         return this._prompt
     }
+
 }
 
 class TermRobot extends TermPlayer {
