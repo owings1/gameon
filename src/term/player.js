@@ -49,6 +49,7 @@ class TermPlayer extends Base {
 
     constructor(color, opts) {
         super(color)
+        this.persp = this.isRobot ? White : this.color
         this.logs = []
         this.opts = Util.defaults(TermPlayer.defaults(), opts)
         this.isTerm = true
@@ -74,7 +75,10 @@ class TermPlayer extends Base {
         })
         this.on('turnStart', turn => {
             this.info(this.cchalk(turn.color, '---', turn.color + "'s"), "turn")
-            this.drawBoard(true, true)
+            this.logger.info('turnStart')
+            if (turn.color == this.color || !this.isDualTerm) {
+                this.drawBoard()
+            }
         })
         this.on('beforeOption', turn => {
             if (turn.color != this.color && this.opponent.isNet) {
@@ -93,14 +97,15 @@ class TermPlayer extends Base {
                     turn.moves.forEach(move => this.info(this.describeMove(move)))
                 }
             }
-            this.drawBoard(true)
         })
         this.on('doubleOffered', (turn, game) => {
             if (turn.color == this.color) {
                 this.logger.info('Offering double to', game.cubeValue * 2, 'points')
             }
             this.info(this.ccolor(turn.color), 'doubles')
-            this.drawBoard(true)
+            if (turn.color != this.color || !this.isDualTerm) {
+                this.drawBoard()
+            }
             if (turn.color != this.color) {
                 this.logger.info(this.ccolor(turn.color), 'wants to double to', game.cubeValue * 2, 'points')
             }
@@ -124,7 +129,9 @@ class TermPlayer extends Base {
             this.info(chalk.grey('-----------'))
             this.info(this.ccolor(winner), chalk.cyan('wins the match', chalk.bold(match.scores[winner]), 'to', match.scores[loser]))
             this.info(chalk.grey('-----------'))
-            this.drawBoard(true)
+            if (turn.color == this.color || !this.isDualTerm) {
+                this.drawBoard()
+            }
         })
     }
 
@@ -161,10 +168,9 @@ class TermPlayer extends Base {
                     index = Object.values(index)[0].index
                 }
 
-                //this.drawBoard()
                 break
             }
-            this.drawBoard(false, true)
+            this.drawBoard()
             if (!this.isRobot) {
                 this.logger.info(this.ccolor(this.color), 'rolled', turn.diceSorted.join(), 'with', turn.remainingFaces.join(), 'remaining')
             }
@@ -183,11 +189,10 @@ class TermPlayer extends Base {
             this.info(this.describeMove(move))
             if (turn.getNextAvailableMoves().length == 0) {
                 if (!this.isRobot) {
-                    this.drawBoard(false, true)
+                    this.drawBoard()
                 }
                 var isFinish = await this.promptFinish()
                 if (isFinish) {
-                    //this.drawBoard()
                     break
                 }
                 turn.unmove()
@@ -233,15 +238,18 @@ class TermPlayer extends Base {
         return sp(...sargs)
     }
 
-    drawBoard(isOnce, isPersp) {
+    drawBoard(isOnce, isPersp, persp) {
 
-        if (isOnce && this.isDualTerm && this.color == Red) {
-            return
-        }
+        //if (isOnce && this.isDualTerm && this.color == Red) {
+        //    return
+        //}
 
-        var persp = this.isRobot ? White : this.color
-        if (isPersp && !this.isRobot && this.color == Red) {
-            persp = Red
+        if (!persp) {
+            persp = this.persp
+            //persp = this.isRobot ? White : this.color
+            //if (isPersp && !this.isRobot && this.color == Red) {
+            //    persp = Red
+            //}
         }
 
         this.logger.writeStdout(Draw.drawBoard(this.thisGame, this.thisMatch, persp, this.logs))
@@ -254,7 +262,7 @@ class TermPlayer extends Base {
           , message  : sp(this.cchalk(turn.color, turn.color + "'s"), 'turn to (r)oll or (d)ouble')
           , default  : () => 'r'
           , type     : 'input'
-          , validate : value => choices.indexOf(value.toLowerCase()) > -1 || value == '_' || sp('Please enter one of', choices.join())
+          , validate : value => choices.indexOf(value.toLowerCase()) > -1 || value[0] == '_' || sp('Please enter one of', choices.join())
         }
         while (true) {
             var {action} = await this.prompt(question)
@@ -262,8 +270,8 @@ class TermPlayer extends Base {
                 await this.checkQuit()
                 continue
             }
-            if (action == '_') {
-                this.printDebugTurn(turn)
+            if (action[0] == '_') {
+                this.doHiddenAction(action, turn)
                 continue
             }
             break
@@ -301,7 +309,7 @@ class TermPlayer extends Base {
             name     : 'origin'
           , type     : 'input'
           , message
-          , validate : value => (choices.indexOf(value) > -1 || value == '_') || 'Please enter one of ' + choices.join()
+          , validate : value => (choices.indexOf(value) > -1 || value[0] == '_') || 'Please enter one of ' + choices.join()
         }
         if (points.length == 1) {
             question.default = choices[0]
@@ -312,8 +320,8 @@ class TermPlayer extends Base {
                 await this.checkQuit()
                 continue
             }
-            if (origin == '_') {
-                this.printDebugTurn(turn)
+            if (origin[0] == '_') {
+                this.doHiddenAction(origin, turn)
                 continue
             }
             break
@@ -326,16 +334,19 @@ class TermPlayer extends Base {
         return turn.board.analyzer.pointOrigin(turn.color, +origin)
     }
 
-    printDebugTurn(turn) {
+    doHiddenAction(action, turn) {
         const {board} = turn
-        const info = {
-            //turn: turn.meta()
-            board : {
-                state28     : board.state28()
-              , stateString : board.stateString()
-            }
+        if (action == '_') {
+            this.logger.console.log({
+                board : {
+                    state28     : board.state28()
+                  , stateString : board.stateString()
+                }
+            })
+        } else if (action == '_f') {
+            this.persp = Opponent[this.persp]
+            this.drawBoard()
         }
-        this.logger.console.log(info)
     }
 
     async promptFace(turn, faces) {
