@@ -129,7 +129,7 @@ class TermPlayer extends Base {
             this.info(chalk.grey('-----------'))
             this.info(this.ccolor(winner), chalk.cyan('wins the match', chalk.bold(match.scores[winner]), 'to', match.scores[loser]))
             this.info(chalk.grey('-----------'))
-            if (turn.color == this.color || !this.isDualTerm) {
+            if (winner == this.color || !this.isDualTerm) {
                 this.drawBoard()
             }
         })

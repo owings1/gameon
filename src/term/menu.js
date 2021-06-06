@@ -748,7 +748,7 @@ class Menu extends Logger {
                         return true
                     }
                     try {
-                        Board.fromStateString(value)
+                        Board.fromStateString(value).analyzer.validateLegalBoard()
                     } catch (err) {
                         return err.message
                     }
