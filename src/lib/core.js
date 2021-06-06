@@ -1486,7 +1486,8 @@ class BoardAnalyzer {
             var minOrigin = Infinity
             var maxOrigin = -Infinity
             for (var i = 0; i < 24; ++i) {
-                if (this.board.slots[i][0] && this.board.slots[i][0].color == color) {
+                var slot = this.board.slots[i]
+                if (slot[0] && slot[0].color == color) {
                     origins.push(i)
                     if (i < minOrigin) {
                         minOrigin = i
@@ -1507,26 +1508,6 @@ class BoardAnalyzer {
     }
 
     // @cache
-    blotOrigins(color) {
-        Profiler.start('BoardAnalyzer.blotOrigins')
-        const key = CacheKeys.blotOrigins[color]
-        if (!this.cache[key]) {
-            const origins = this.originsOccupied(color)
-            const blotOrigins = []
-            for (var i = 0, ilen = origins.length; i < ilen; ++i) {
-                var origin = origins[i]
-                if (this.board.slots[origin].length == 1) {
-                    blotOrigins.push(origin)
-                }
-            }
-            this.cache[key] = blotOrigins
-        }
-        Profiler.stop('BoardAnalyzer.blotOrigins')
-        return this.cache[key]
-    }
-
-    // TODO: test with Infinities
-    // @cache
     maxOriginOccupied(color) {
         const key = CacheKeys.maxOriginOccupied[color]
         if (!(key in this.cache)) {
@@ -1536,7 +1517,6 @@ class BoardAnalyzer {
         return this.cache[key]
     }
 
-    // TODO: test with Infinities
     // @cache
     minOriginOccupied(color) {
         const key = CacheKeys.minOriginOccupied[color]
@@ -1547,32 +1527,48 @@ class BoardAnalyzer {
         return this.cache[key]
     }
 
-    // TODO: test with Infinities
     // @cache
     maxPointOccupied(color) {
         const key = CacheKeys.maxPointOccupied[color]
         if (!(key in this.cache)) {
             if (color == White) {
                 var origin = this.minOriginOccupied(color)
+                if (origin == Infinity) {
+                    this.cache[key] = -Infinity
+                } else {
+                    this.cache[key] = OriginPoints[color][origin]
+                }
             } else {
                 var origin = this.maxOriginOccupied(color)
+                if (origin == -Infinity) {
+                    this.cache[key] = -Infinity
+                } else {
+                    this.cache[key] = OriginPoints[color][origin]
+                }
             }
-            this.cache[key] = origin == null ? -Infinity : OriginPoints[color][origin]
         }
         return this.cache[key]
     }
 
-    // TODO: test with Infinities
     // @cache
     minPointOccupied(color) {
         const key = CacheKeys.minPointOccupied[color]
         if (!(key in this.cache)) {
             if (color == White) {
                 var origin = this.maxOriginOccupied(color)
+                if (origin == -Infinity) {
+                    this.cache[key] = Infinity
+                } else {
+                    this.cache[key] = OriginPoints[color][origin]
+                }
             } else {
                 var origin = this.minOriginOccupied(color)
+                if (origin == Infinity) {
+                    this.cache[key] = Infinity
+                } else {
+                    this.cache[key] = OriginPoints[color][origin]
+                }
             }
-            this.cache[key] = origin == null ? Infinity : OriginPoints[color][origin]
         }
         return this.cache[key]
     }
@@ -1599,9 +1595,9 @@ class BoardAnalyzer {
                     isAble = this.cache[maxKey] < 7
                 } else {
                     Profiler.inc('board.mayBearoff.cache.maxPoint.miss')
-                    for (var origin of OutsideOrigins[color]) {
-                        var slot = this.board.slots[origin]
-                        if (slot[0] && slot[0].color == color) {
+                    for (var i = 0; i < 18; ++i) {
+                        var piece = this.board.slots[OutsideOrigins[color][i]][0]
+                        if (piece && piece.color == color) {
                             isAble = false
                             break
                         }
@@ -1762,7 +1758,27 @@ class BoardAnalyzer {
         }
     }
 
-    blots2(color, isIncludeAll = true) {
+    // @cache
+    blotOrigins(color) {
+        Profiler.start('BoardAnalyzer.blotOrigins')
+        const key = CacheKeys.blotOrigins[color]
+        if (!this.cache[key]) {
+            const origins = this.originsOccupied(color)
+            const blotOrigins = []
+            for (var i = 0, ilen = origins.length; i < ilen; ++i) {
+                var origin = origins[i]
+                if (this.board.slots[origin].length == 1) {
+                    blotOrigins.push(origin)
+                }
+            }
+            this.cache[key] = blotOrigins
+        }
+        Profiler.stop('BoardAnalyzer.blotOrigins')
+        return this.cache[key]
+    }
+
+    // Not cached, since it is currently only called once by SafetyRobot
+    blots(color, isIncludeAll = true) {
 
         Profiler.start('BoardAnalyzer.blots')
 
@@ -1770,77 +1786,41 @@ class BoardAnalyzer {
             const blots = []
 
             const blotOrigins = this.blotOrigins(color)
-            const ilen = blotOrigins.length
+            const blotPointCount = blotOrigins.length
 
-            if (ilen == 0) {
+            if (blotPointCount == 0) {
                 return blots
             }
 
             Profiler.start('BoardAnalyzer.blots.prep')
-            const blotPoints = []
-            // opponent points are relative to this color, not the opponent's color
-            const pointsWithOpponent = []
-            const opponentOrigins = this.originsOccupied(Opponent[color])
-
-            // create pre-sorted
-            if (color == Red) {
-                for (var i = ilen - 1; i >= 0; --i) {
-                    blotPoints.push(OriginPoints[color][blotOrigins[i]])
-                }
-                for (var p = opponentOrigins.length - 1; p >= 0; --p) {
-                    pointsWithOpponent.push(OriginPoints[color][opponentOrigins[p]])
-                }
-            } else {
-                for (var i = 0; i < ilen; ++i) {
-                    blotPoints.push(OriginPoints[color][blotOrigins[i]])
-                }
-                for (var p = 0, plen = opponentOrigins.length; p < plen; ++p) {
-                    pointsWithOpponent.push(OriginPoints[color][opponentOrigins[p]])
-                }
-            }
-            if (this.hasBar(Opponent[color])) {
-                pointsWithOpponent.push(0)
-            }
-            const jlen = pointsWithOpponent.length
-            const minPointWithOpponent = pointsWithOpponent[jlen - 1]
+            const {blotPoints, pointsWithOpponent} = this._blotsPrep(color, blotOrigins)
+            const opponentCount = pointsWithOpponent.length
+            const minPointWithOpponent = pointsWithOpponent[opponentCount - 1]
             var maxPointWithOpponent = pointsWithOpponent[0]
             Profiler.stop('BoardAnalyzer.blots.prep')
-            if (jlen == 0 && !isIncludeAll) {
+
+            if (opponentCount == 0 && !isIncludeAll) {
                 // this shouldn't happen in a real game
                 return blots
             }
 
-            var minJ = 0
+            var minOpponentIndex = 0
             Profiler.start('BoardAnalyzer.blots.process')
 
-            //console.log({blotPoints, pointsWithOpponent, minPointWithOpponent, maxPointWithOpponent})
-
-            var isMinContinue = false
-            var isMinDistanceContinue = false
-            var isMaxDistanceContinue = false
-            for (var i = 0; i < ilen; ++i) {
+            for (var i = 0; i < blotPointCount; ++i) {
 
                 var point = blotPoints[i]
-                //console.log('  ', {point})
 
                 if (!isIncludeAll) {
                     if (point < minPointWithOpponent) {
-                        //console.log('    ', 'continue', {minPointWithOpponent})
-                        isMinContinue = point
                         break
                     }
-                    var distanceToMax = point - maxPointWithOpponent
-                    //console.log('    ', {distanceToMax})
-                    if (distanceToMax > 11) {
-                        isMaxDistanceContinue = point
-                        //console.log('    ', 'continue', {distanceToMax})
+                    // distanceToMax
+                    if (point - maxPointWithOpponent > 11) {
                         continue
                     }
-                    var distanceToMin = point - minPointWithOpponent
-                    //console.log('    ', {distanceToMin})
-                    if (distanceToMin < 0) {
-                        //console.log('    ', 'continue', {distanceToMin})
-                        isMinDistanceContinue = point
+                    // distanceToMin
+                    if (point - minPointWithOpponent < 0) {
                         continue
                     }
                 }
@@ -1850,60 +1830,50 @@ class BoardAnalyzer {
                 var minDistance = Infinity
                 var directCount = 0
                 var indirectCount = 0
+                
+                if (point > minPointWithOpponent) {
+                    // calculate attacker distance, direct/indirect shots
+                    Profiler.start('BoardAnalyzer.blots.process.inner')
+                    if (minOpponentIndex > 0 && minOpponentIndex < opponentCount) {
+                        Profiler.inc('blots.opponent.point.skipped.minIndex', minOpponentIndex)
+                    }
 
-                var attackerFound = false
+                    for (var j = minOpponentIndex; j < opponentCount; ++j) {
 
-                Profiler.start('BoardAnalyzer.blots.process.inner')
+                        Profiler.inc('blots.opponent.point.process')
 
-                if (minJ > 0 && minJ < jlen) {
-                    //console.log('minJ > 0', {minJ})
-                    Profiler.inc('blots.opponent.point.skipped.minJ')
-                }
+                        var opposer = pointsWithOpponent[j]
 
-                // calculate attacker distance, direct/indirect shots
-                for (var j = minJ; j < jlen; ++j) {
-
-                    var p = pointsWithOpponent[j]
-
-                    if (p > point) {
-                        //console.log('      ','irrelevant', 'p > point', {p, j, minJ})
-                        minJ = j + 1
-                        if (minJ < jlen) {
-                            maxPointWithOpponent = pointsWithOpponent[minJ]
+                        if (opposer > point) {
+                            minOpponentIndex = j + 1
+                            if (minOpponentIndex < opponentCount) {
+                                maxPointWithOpponent = pointsWithOpponent[minOpponentIndex]
+                            }
+                            Profiler.inc('blots.opponent.point.disengaged')
+                            continue
                         }
-                        //console.log('      ','irrelevant', 'p > point', {p, j, minJ, maxPointWithOpponent})
-                        Profiler.inc('blots.opponent.point.disengaged')
-                        continue
-                    }
 
-                    var distance = point - p
+                        var distance = point - opposer
 
-                    if (distance < minDistance) {
-                        minDistance = distance
+                        if (distance < minDistance) {
+                            minDistance = distance
+                        }
+                        if (distance < 7) {
+                            directCount += 1
+                        } else if (distance < 12) {
+                            indirectCount += 1
+                        } else {
+                            break
+                        }
                     }
-                    if (distance < 7) {
-                        directCount += 1
-                        attackerFound = true
-                    } else if (distance < 12) {
-                        indirectCount += 1
-                        attackerFound = true
-                    } else {
-                        //console.log('      ', 'break', {distance, p, j})
-                        break
-                    }
-                    
-                    //console.log('      ','relevant', {p, j, minDistance})
+                    Profiler.stop('BoardAnalyzer.blots.process.inner')
+                } else {
+                    Profiler.inc('blots.point.disengaged')
                 }
-            
-                Profiler.stop('BoardAnalyzer.blots.process.inner')
 
-                if (!attackerFound) {
-                    Profiler.inc('blots.no.point.attacker.found')
-                    if (!isIncludeAll) {
-                        //console.log({color, state: this.board.state28()})
-                        continue
-                        //throw new Error('no attacker found but isIncludeAll=false')
-                    }
+                if (!isIncludeAll && minDistance > 11) {
+                    Profiler.inc('blots.point.attacker.notFound')
+                    continue
                 }
 
                 blots.push({
@@ -1918,14 +1888,6 @@ class BoardAnalyzer {
             Profiler.stop('BoardAnalyzer.blots.process')
             Profiler.inc('blots.found', blots.length)
 
-            //if (isMaxDistanceContinue) {
-            //    console.log({
-            //        isMaxDistanceContinue,
-            //        color,
-            //        board: this.board.state28(),
-            //        blotPoints, pointsWithOpponent
-            //    })
-            //}
             return blots
 
         } finally {
@@ -1933,96 +1895,34 @@ class BoardAnalyzer {
         }
     }
 
-    // Not cached, since it is currently only called once by SafetyRobot
-    blots(color, isIncludeAll = true) {
+    _blotsPrep(color, blotOrigins) {
+        const blotPoints = []
+        const blotOriginCount = blotOrigins.length
+        // opponent points are relative to this color, not the opponent's color
+        const pointsWithOpponent = []
+        const opponentOrigins = this.originsOccupied(Opponent[color])
+        const opponentCount = opponentOrigins.length
 
-        Profiler.start('BoardAnalyzer.blots')
-
-        try {
-            const blots = []
-
-            const blotOrigins = this.blotOrigins(color)
-
-            if (blotOrigins.length == 0) {
-                return blots
+        // create pre-sorted
+        if (color == Red) {
+            for (var i = blotOriginCount - 1; i >= 0; --i) {
+                blotPoints.push(OriginPoints[color][blotOrigins[i]])
             }
-
-            const opponentOrigins = this.originsOccupied(Opponent[color])
-            const opponentHasBar = this.hasBar(Opponent[color])
-
-            const checkOrigin = PointOrigins[Opponent[color]][this.maxPointOccupied(Opponent[color])]
-            const minPointWithOpponent = OriginPoints[color][checkOrigin]
-
-            for (var i = 0, ilen = blotOrigins.length; i < ilen; ++i) {
-
-                var origin = blotOrigins[i]
-
-                var point = OriginPoints[color][origin]
-
-                var minDistance = Infinity
-                var directCount = 0
-                var indirectCount = 0
-
-                Profiler.start('BoardAnalyzer.blots.process.inner')
-                // TODO: can we avoid a loop within a loop?
-                if (point > minPointWithOpponent) {
-                    for (var j = 0, jlen = opponentOrigins.length; j < jlen; ++j) {
-
-                        // the opponent point is relative to this color, not the opponent's color
-                        var p = OriginPoints[color][opponentOrigins[j]]
-
-                        if (p < point) {
-
-                            var distance = point - p
-
-                            if (distance < minDistance) {
-                                minDistance = distance
-                            }
-                            if (distance < 7) {
-                                directCount += 1
-                            } else if (distance < 12) {
-                                indirectCount += 1
-                            }
-                        } else {
-                            Profiler.inc('blots.opponent.point.irrelevant')
-                        }
-                    }
-                }
-
-                Profiler.stop('BoardAnalyzer.blots.process.inner')
-
-                if (opponentHasBar) {
-
-                    if (point < minDistance) {
-                        minDistance = point
-                    }
-                    if (point < 7) {
-                        directCount += 1
-                    } else if (point < 12) {
-                        indirectCount += 1
-                    }
-                }
-
-                if (!isIncludeAll && minDistance > 11) {
-                    continue
-                }
-
-                blots.push({
-                    point
-                  , origin
-                  , minDistance
-                  , directCount
-                  , indirectCount
-                })
+            for (var p = opponentCount - 1; p >= 0; --p) {
+                pointsWithOpponent.push(OriginPoints[color][opponentOrigins[p]])
             }
-
-            Profiler.inc('blots.found', blots.length)
-
-            return blots
-
-        } finally {
-            Profiler.stop('BoardAnalyzer.blots')
+        } else {
+            for (var i = 0; i < blotOriginCount; ++i) {
+                blotPoints.push(OriginPoints[color][blotOrigins[i]])
+            }
+            for (var p = 0, plen = opponentCount; p < plen; ++p) {
+                pointsWithOpponent.push(OriginPoints[color][opponentOrigins[p]])
+            }
         }
+        if (this.hasBar(Opponent[color])) {
+            pointsWithOpponent.push(0)
+        }
+        return {blotPoints, pointsWithOpponent}
     }
 
     // This function is relatively fast, but we cache since several robots use it.
@@ -2074,7 +1974,8 @@ class BoardAnalyzer {
         return primes
     }
 
-    // get the color of the nth piece on the given origin, if any
+    // get the color of the nth piece on the given origin, if any.
+    // used in terminal drawing.
     nthPieceOnOrigin(origin, n) {
         const piece = this.board.slots[origin][n]
         if (piece) {
@@ -2092,6 +1993,60 @@ class BoardAnalyzer {
     // White origin 0 is point 24
     originPoint(color, origin) {
         return OriginPoints[color][origin]
+    }
+
+    validateLegalBoard() {
+        BoardAnalyzer.validateLegalBoard(this)
+    }
+
+    validateLegalBoard(board) {
+        if (board.slots.length != 24) {
+            throw new IllegalStateError('Board has ' + board.slots.length + ' slots')
+        }
+        const counts = {
+            Red   : 0
+          , White : 0
+        }
+        for (var i = 0; i < 24; ++i) {
+            var slot = board.slots[i]
+            var slotColor = null
+            for (var p = 0; p < slot.length; ++p) {
+                var piece = slot[p]
+                if (slotColor && slotColor != piece.color) {
+                    throw new IllegalStateError('Different colors on origin ' + i)
+                }
+                if (!(piece.color in counts)) {
+                    throw new IllegalStateError('Invalid piece color: ' + piece.color)
+                }
+                slotColor = piece.color
+                counts[piece.color] += 1
+            }
+        }
+        for (var color in counts) {
+            for (var p = 0; p < board.homes[color].length; ++p) {
+                var piece = board.homes[color][p]
+                if (piece.color != color) {
+                    throw new IllegalStateError(color + ' home has ' + piece.color + ' piece')
+                }
+                counts[color] += 1
+            }
+            for (var p = 0; p < board.bars[color].length; ++p) {
+                var piece = board.bars[color][p]
+                if (piece.color != color) {
+                    throw new IllegalStateError(color + ' bar has ' + piece.color + ' piece')
+                }
+                counts[color] += 1
+            }
+            if (counts[color] != 15) {
+                throw new IllegalStateError(color + ' has ' + counts[color] + ' pieces on the board')
+            }
+        }
+        if (board.homes.Red.length == 15 && board.homes.White.length == 15) {
+            throw new IllegalStateError('both colors have 15 on home')
+        }
+        if (board.bars.Red.length == 15 && board.bars.White.length == 15) {
+            throw new IllegalStateError('both colors have 15 on the bar')
+        }
     }
 }
 
