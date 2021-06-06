@@ -40,6 +40,7 @@ class RobotProfileCommand extends Command {
           , sortBy       : this.flags.sortby.toLowerCase()
           , breadthTrees : this.flags.breadth
           , rollsFile    : this.flags.rollsfile
+          , gaugeRegex   : this.flags.filter
           , innerBorders : this.flags.inner
           , colorHead    : this.flags.colorhead
           , colorOdd     : this.flags.colorodd
@@ -83,6 +84,9 @@ RobotProfileCommand.flags = {
         char        : 's'
       , description : 'sort by a column (' + Helper.sortableColumns().join(', ') + ')'
       , default     : defaults.sortBy
+    })
+  , filter: flags.string({
+        description : 'apply a regex filter to gauge names, e.g. /tree/i'
     })
   , inner: flags.boolean({
         char        : 'i'

@@ -107,6 +107,7 @@ class Helper {
           , sortBy       : 'elapsed,count,name'
           , innerBorders : false
           , breadthTrees : false
+          , gaugeRegex   : null
           , colorHead    : 'green'
           , colorOdd     : 'white'
           , colorEven    : 'cyan'
@@ -159,6 +160,21 @@ class Helper {
             }
         }
 
+        if (this.opts.gaugeRegex) {
+            if (typeof this.opts.gaugeRegex == 'string') {
+                if (this.opts.gaugeRegex[0] == '/') {
+                    var [str, flags] = this.opts.gaugeRegex.substring(1).split('/')
+                } else {
+                    var str = Util.escapeRegex(this.opts.gaugeRegex)
+                    var flags = undefined
+                }
+                this.opts.gaugeRegex = new RegExp(str, flags)
+            }
+            if (!(this.opts.gaugeRegex instanceof RegExp)) {
+                throw new Error('gauge regex must be a RegExp')
+            }
+            
+        }
         this.logger = new Logger
         this.coordinator = new Coordinator
         this.roller = null
@@ -171,6 +187,11 @@ class Helper {
         if (this.opts.rollsFile) {
             this.logger.info('Loading rolls file', path.basename(this.opts.rollsFile))
             await this.loadRollsFile(this.opts.rollsFile)
+        }
+        const filters = []
+        if (this.opts.gaugeRegex) {
+            this.logger.info('Using regex filter', this.opts.gaugeRegex.toString())
+            filters.push(gauge => this.opts.gaugeRegex.test(gauge.name))
         }
         Profiler.enabled = true
         Profiler.resetAll()
@@ -201,7 +222,7 @@ class Helper {
               , gameCount
               , turnCount
             }
-            const data = this.buildData(Profiler, summary)
+            const data = this.buildData(Profiler, summary, filters)
             this.logData(data, summary)
         } finally {
             white.destroy()
@@ -210,7 +231,7 @@ class Helper {
         }
     }
 
-    buildData(profiler, summary) {
+    buildData(profiler, summary, filters) {
 
         const {columns, sortColumns, sortDirs} = this
 
@@ -254,9 +275,14 @@ class Helper {
           , turn    : (a, b) => numCmp(a.turn, b.turn)
         }
 
+        const filter = gauge => !filters.find(filter => !filter(gauge))
+
         const data = []
 
         Object.values(profiler.timers).forEach(timer => {
+            if (!filter(timer)) {
+                return
+            }
             const row = {}
             columns.forEach(key => {
                 row[key] = timerGetters[key](timer)
@@ -265,6 +291,9 @@ class Helper {
         })
 
         Object.values(profiler.counters).forEach(counter => {
+            if (!filter(counter)) {
+                return
+            }
             const row = {}
             columns.forEach(key => {
                 row[key] = counterGetters[key](counter)
