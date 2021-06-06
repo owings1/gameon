@@ -818,7 +818,7 @@ class Turn {
             var tree = trees[i]
 
             if (!tree.checkPasses(maxDepth, highestFace)) {
-                Profiler.inc('tree.check.discard')
+                //Profiler.inc('tree.check.discard')
                 continue
             }
 
@@ -837,40 +837,35 @@ class Turn {
                 for (var j = 0, jlen = leaves.length; j < jlen; ++j) {
 
                     var store = leaves[j]
-                    var {board} = store.move
-
-                    // sanity check
-                    if (store.deleted) {
-                        throw new Error('store was deleted')
-                    }
 
                     var flagKey = store.flagKey()
 
                     if (flagKey) {
-                        Profiler.inc('store.check.flagKey')
+                        //Profiler.inc('store.check.flagKey')
                         if (flagKeys[flagKey]) {
-                            Profiler.inc('store.discard.leaf')
-                            Profiler.inc('store.discard.leaf.flagKey')
+                            //Profiler.inc('store.discard.leaf')
+                            //Profiler.inc('store.discard.leaf.flagKey')
                             continue
                         }
                         flagKeys[flagKey] = true
                     }
 
-                    Profiler.inc('store.check.endState')
+                    //Profiler.inc('store.check.endState')
 
-                    var endState = board.state28()
+                    //var {board} = store.move
+                    var endState = store.move.board.state28()
 
                     if (endStatesToSeries[endState]) {
 
-                        Profiler.inc('store.discard.leaf')
-                        Profiler.inc('store.discard.leaf.endState')
+                        //Profiler.inc('store.discard.leaf')
+                        //Profiler.inc('store.discard.leaf.endState')
 
                         continue
                     }
 
                     // only about 25% of leaves are kept, flag key gets about twice
                     /// as many as endState
-                    Profiler.inc('store.keep.leaf')
+                    //Profiler.inc('store.keep.leaf')
 
                     endStatesToSeries[endState] = store.moveSeries()
                     allowedEndStates.push(endState)
@@ -880,7 +875,7 @@ class Turn {
                     }
                     
                     // populate board cache
-                    this.boardCache[endState] = board
+                    this.boardCache[endState] = store.move.board
                 }
             }
 
@@ -896,13 +891,13 @@ class Turn {
             for (var j = 0, jlen = winners.length; j < jlen; ++j) {
 
                 var store = winners[j]
-                var {board} = store.move
 
                 if (store.depth == maxDepth) {
                     // already covered in leaves
                     continue
                 }
-                
+
+                var {board} = store.move
                 var endState = board.state28()
 
                 if (endStatesToSeries[endState]) {
@@ -2228,8 +2223,8 @@ class TreeStore {
     // propagate up maxDepth, hasWinner, highestFace
 
     setMaxDepth(depth) {
-        Profiler.inc('TreeStore.propagate')
-        Profiler.inc('TreeStore.propagate.setMaxDepth')
+        //Profiler.inc('TreeStore.propagate')
+        //Profiler.inc('TreeStore.propagate.setMaxDepth')
         this.maxDepth = depth
         if (this.parentStore && this.parentStore.maxDepth < depth) {
             this.parentStore.setMaxDepth(depth)
@@ -2237,8 +2232,8 @@ class TreeStore {
     }
 
     setWinner() {
-        Profiler.inc('TreeStore.propagate')
-        Profiler.inc('TreeStore.propagate.setWinner')
+        //Profiler.inc('TreeStore.propagate')
+        //Profiler.inc('TreeStore.propagate.setWinner')
         this.hasWinner = true
         if (this.parentStore && !this.parentStore.hasWinner) {
             this.parentStore.setWinner()
@@ -2246,8 +2241,8 @@ class TreeStore {
     }
 
     setHighFace(face) {
-        Profiler.inc('TreeStore.propagate')
-        Profiler.inc('TreeStore.propagate.setHighFace')
+        //Profiler.inc('TreeStore.propagate')
+        //Profiler.inc('TreeStore.propagate.setHighFace')
         this.highestFace = face
         if (this.parentStore && this.parentStore.highestFace < face) {
             this.parentStore.setHighFace(face)
