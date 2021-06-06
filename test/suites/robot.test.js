@@ -260,6 +260,17 @@ describe('FirstTurnRobot', () => {
         robot = getRobot('FirstTurnRobot', White)
     })
 
+    describe('MoveIndex', () => {
+        it('should have move index for both red and white', () => {
+            const FirstTurnRobot = ConfidenceRobot.getClassDefault('FirstTurnRobot')
+            const moveIndex = FirstTurnRobot.getFirstTurnMoveIndex()
+            const keys = Object.keys(moveIndex)
+            expect(keys).to.contain(Red)
+            expect(keys).to.contain(White)
+            //console.log(moveIndex.White)
+            //console.log(moveIndex.Red)
+        })
+    })
     describe('#getRankings', () => {
 
         it('should return all end states for 4th turn', async () => {
@@ -277,7 +288,8 @@ describe('FirstTurnRobot', () => {
             expect(JSON.stringify(keysActual)).to.equal(JSON.stringify(keysExp))
         })
 
-        it('should throw non illegal move error on second turn', async () => {
+        // implementation has changed
+        it.skip('should throw non illegal move error on second turn', async () => {
             const e = new Error
             rolls = [[1, 2]]
             makeRandomMoves(game.firstTurn(), true)
@@ -288,7 +300,7 @@ describe('FirstTurnRobot', () => {
             expect(err).to.equal(e)
         })
 
-        it('should catch illegal move error on second turn and return all 0 rankings', async () => {
+        it('should not try an illegal move on second turn and return all 0 rankings', async () => {
             rolls = [[1, 6]]
             const firstTurn = game.firstTurn()
             firstTurn.move(12, 6)
@@ -313,7 +325,8 @@ describe('FirstTurnRobot', () => {
         })
     })
 
-    describe('#pointMoves', () => {
+    // obsolete
+    describe.skip('#pointMoves', () => {
 
         it('should throw UndecidedMoveError for doubles', async () => {
             const err = await getErrorAsync(() => robot.pointMoves([2, 2]))

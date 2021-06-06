@@ -181,18 +181,32 @@ class ConfidenceRobot extends Robot {
         return classMeta
     }
 
-    static getVersionInstance(name, version, ...args) {
+    static getClassVersion(name, version) {
         const classMeta = ConfidenceRobot.getClassMeta(name)
         const theClass = classMeta.versions[version]
         if (!theClass) {
             throw new InvalidRobotVersionError("Unknown version for " + name + ": " + version)
         }
+        return theClass
+    }
+
+    static getClassDefault(name) {
+        const {defaults} = ConfidenceRobot.getClassMeta(name)
+        return ConfidenceRobot.getClassVersion(name, defaults.version)
+    }
+
+    static getVersionInstance(name, version, ...args) {
+        const theClass = ConfidenceRobot.getClassVersion(name, version)
         return new theClass(...args)
     }
 
     static getDefaultInstance(name, ...args) {
+        const theClass = ConfidenceRobot.getClassDefault(name)
+        return new theClass(...args)
+        /*
         const {defaults} = ConfidenceRobot.getClassMeta(name)
         return ConfidenceRobot.getVersionInstance(name, defaults.version, ...args)
+        */
     }
 
     constructor(...args) {
