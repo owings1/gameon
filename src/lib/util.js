@@ -86,6 +86,11 @@ class Util {
         return Util.propsFrom(Util.merge({}, defaults, ...opts), defaults)
     }
 
+    static escapeRegex(str) {
+        // from: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Guide/Regular_Expressions#Using_Special_Characters
+        return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+    }
+
     static intRange(a, b) {
         const range = []
         for (var i = a; i <= b; i++) {
