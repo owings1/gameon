@@ -49,25 +49,35 @@ class SafetyRobot extends Base {
 
         const scores = {}
         const zeros = []
-        turn.allowedEndStates.forEach(endState => {
-            const {analyzer} = turn.fetchBoard(endState)
-            const blots = analyzer.blots(turn.color)
-            var score = 0
-            var directCount = 0
-            blots.forEach(blot => {
-                directCount += blot.directCount
-                score += blot.directCount * 4
-                score += blot.indirectCount
-                score *= QuadrantMultipliers[blot.point]
-            })
+
+        for (var i = 0, ilen = turn.allowedEndStates.length; i < ilen; ++i) {
+            var endState = turn.allowedEndStates[i]
+            var {score, directCount} = this._scoreBlots(
+                turn.fetchBoard(endState).analyzer.blots(turn.color)
+            )            
             scores[endState] = score
             if (directCount == 0) {
                 zeros.push(endState)
             }
-        })
+        }
         const rankings = this.spreadRanking(scores, true)
-        zeros.forEach(endState => rankings[endState] = 1)
+        for (var i = 0, ilen = zeros.length; i < ilen; ++i) {
+            rankings[zeros[i]] = 1
+        }
         return rankings
+    }
+
+    _scoreBlots(blots) {
+        var score = 0
+        var directCount = 0
+        for (var i = 0, ilen = blots.length; i < ilen; ++i) {
+            var blot = blots[i]
+            directCount += blot.directCount
+            score += blot.directCount * 4
+            score += blot.indirectCount
+            score *= QuadrantMultipliers[blot.point]
+        }
+        return {score, directCount}
     }
 }
 
