@@ -525,31 +525,31 @@ class BlotHelper {
         const blots = []
 
         const origins = analyzer.blotOrigins(color)
-        const blotPointCount = origins.length
 
-        if (blotPointCount == 0) {
+        if (!origins.length) {
             return blots
         }
 
         Profiler.start('BlotHelper.prep')
         const {points, opposers} = BlotHelper._prep(analyzer, color, origins)
-        const opponentCount = opposers.length
-        const minOpposer = opposers[opponentCount - 1]
         Profiler.stop('BlotHelper.prep')
 
-        if (opponentCount == 0 && !isIncludeAll) {
+        if (!opposers.length && !isIncludeAll) {
             // this shouldn't happen in a real game
             return blots
         }
 
-        var maxOpposer = opposers[0]
-        var minOpposerIndex = 0
+        const opposerCount = opposers.length
+        const minOpposer = opposers[opposerCount - 1]
 
         Profiler.start('BlotHelper.process')
 
-        for (var i = 0; i < blotPointCount; ++i) {
+        var maxOpposerMinIndex = 0
+
+        for (var i = 0, ilen = points.length; i < ilen; ++i) {
 
             var point = points[i]
+            var maxOpposer = opposers[maxOpposerMinIndex]
 
             if (!isIncludeAll) {
                 // distanceToMin
@@ -570,18 +570,15 @@ class BlotHelper {
                 // calculate attacker distance, direct/indirect shots
                 Profiler.start('BlotHelper.process.inner')
 
-                for (var j = minOpposerIndex; j < opponentCount; ++j) {
+                for (var j = maxOpposerMinIndex; j < opposerCount; ++j) {
 
                     Profiler.inc('blots.opponent.point.process')
 
                     var opposer = opposers[j]
 
                     if (opposer > point) {
-                        // update minOpposerIndex
-                        minOpposerIndex = j + 1
-                        if (minOpposerIndex < opponentCount) {
-                            maxOpposer = opposers[minOpposerIndex]
-                        }
+                        // update maxOpposerMinIndex
+                        maxOpposerMinIndex = j + 1
                         Profiler.inc('blots.opponent.point.disengaged')
                         continue
                     }
@@ -604,7 +601,7 @@ class BlotHelper {
                 Profiler.inc('blots.point.disengaged')
             }
 
-            if (!isIncludeAll && minDistance > 11) {
+            if (minDistance > 11 && !isIncludeAll) {
                 Profiler.inc('blots.point.attacker.notFound')
                 continue
             }
@@ -626,26 +623,23 @@ class BlotHelper {
 
     static _prep(analyzer, color, origins) {
 
-        const points = []
-        const originCount = origins.length
         // opponent points are relative to this color, not the opponent's color
         const opposers = []
         const opponentOrigins = analyzer.originsOccupied(Opponent[color])
-        const opponentCount = opponentOrigins.length
-
+        const points = []
         // create pre-sorted
         if (color == Red) {
-            for (var i = originCount - 1; i >= 0; --i) {
+            for (var i = origins.length - 1; i >= 0; --i) {
                 points.push(OriginPoints[color][origins[i]])
             }
-            for (var p = opponentCount - 1; p >= 0; --p) {
+            for (var p = opponentOrigins.length - 1; p >= 0; --p) {
                 opposers.push(OriginPoints[color][opponentOrigins[p]])
             }
         } else {
-            for (var i = 0; i < originCount; ++i) {
+            for (var i = 0; i < origins.length; ++i) {
                 points.push(OriginPoints[color][origins[i]])
             }
-            for (var p = 0, plen = opponentCount; p < plen; ++p) {
+            for (var p = 0, plen = opponentOrigins.length; p < plen; ++p) {
                 opposers.push(OriginPoints[color][opponentOrigins[p]])
             }
         }
