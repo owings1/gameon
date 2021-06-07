@@ -1,3 +1,7 @@
+describe('BoardAnalyzer', () => {
+    require('./suites/board-analyzer.test')
+})
+
 describe('Coordinator', () => {
     require('./suites/coordinator.test')
 })
