@@ -34,7 +34,7 @@ class GameError extends Error {
     }
 }
 
-class NotImplementedError extends GameError {}
+
 class IllegalStateError extends GameError {
     constructor(...args) {
         super(...args)
@@ -50,8 +50,10 @@ class IllegalMoveError extends GameError {
     }
 }
 
-class ArgumentError     extends GameError {}
-class InvalidRollError  extends GameError {}
+class ArgumentError       extends GameError {}
+class InvalidRollError    extends GameError {}
+class MatchCanceledError  extends GameError {}
+class NotImplementedError extends GameError {}
 
 class MaxDepthExceededError extends ArgumentError {}
 
@@ -92,6 +94,7 @@ module.exports = {
   , IllegalMoveError
   , IllegalStateError
   , InvalidRollError
+  , MatchCanceledError
   , MatchFinishedError
   , MaxDepthExceededError
   , MayNotBearoffError

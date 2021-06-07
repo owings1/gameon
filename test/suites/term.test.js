@@ -925,7 +925,7 @@ describe('Coordinator', () => {
                 {origin: '13'},
                 {origin: '8'},
                 {finish: 'f'},
-                {accept: false}
+                {accept: 'n'}
             ])
             t2.prompt = MockPrompter([
                 // red's turn
@@ -946,7 +946,7 @@ describe('Coordinator', () => {
                 {face: '6'},
                 {origin: '8'},
                 {finish: 'f'},
-                {accept: true}
+                {accept: 'y'}
             ])
             t2.prompt = MockPrompter([
                 // red's turn
@@ -978,7 +978,7 @@ describe('Coordinator', () => {
                 {origin: '8'},
                 {finish: 'f'},
                 // accept
-                {accept: true},
+                {accept: 'y'},
                 // white's turn
                 {action: 'r'},
                 {origin: '24'},
@@ -1151,14 +1151,14 @@ describe('TermPlayer', () => {
             turn = game.nextTurn()
         })
 
-        it('should return true for true', async () => {
-            player.prompt = MockPrompter({accept: true})
+        it('should return true for y', async () => {
+            player.prompt = MockPrompter({accept: 'y'})
             const result = await player.promptDecideDouble(turn)
             expect(result).to.equal(true)
         })
 
-        it('should return false for false', async () => {
-            player.prompt = MockPrompter({accept: false})
+        it('should return false for n', async () => {
+            player.prompt = MockPrompter({accept: 'n'})
             const result = await player.promptDecideDouble(turn)
             expect(result).to.equal(false)
         })

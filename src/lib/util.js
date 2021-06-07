@@ -118,6 +118,14 @@ class Util {
         return merge(...args)
     }
 
+    static nmap(n, cb) {
+        const arr = []
+        for (var i = 0; i < n; ++i) {
+            arr.push(cb(i))
+        }
+        return arr
+    }
+
     static propsFrom(obj, keys) {
         keys = Array.isArray(keys) ? keys : Object.keys(keys)
         obj = obj || {}

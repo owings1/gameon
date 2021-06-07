@@ -22,19 +22,20 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-const Base       = require('../lib/player')
+const Base      = require('../lib/player')
 const Constants = require('../lib/constants')
-const Core       = require('../lib/core')
-const Draw       = require('./draw')
-const Util       = require('../lib/util')
+const Draw      = require('./draw')
+const Errors    = require('../lib/errors')
+const Util      = require('../lib/util')
 
 const chalk    = require('chalk')
 const inquirer = require('inquirer')
 
-const {White, Red, Opponent} = Constants
+const {White, Red, Opponent, OriginPoints, PointOrigins} = Constants
+const {MatchCanceledError} = Errors
 
-const {merge}      = Util
-const sp           = Util.joinSpace
+const {merge} = Util
+const sp      = Util.joinSpace
 
 const Chars = {
     rarrow : '->'
@@ -50,11 +51,11 @@ class TermPlayer extends Base {
 
     constructor(color, opts) {
         super(color)
-        this.persp = this.isRobot ? White : this.color
+        this.isTerm = true
         this.logs = []
         this.opts = Util.defaults(TermPlayer.defaults(), opts)
-        this.isTerm = true
         this.on('gameStart', (game, match, players) => {
+            this.persp = this.isRobot ? White : this.color
             this.isDualTerm = this.opponent.isTerm
             this.isDualRobot = this.isRobot && this.opponent.isRobot
             this.info(chalk.cyan('Starting game', match ? chalk.bold(match.games.length) : ''))
@@ -76,7 +77,6 @@ class TermPlayer extends Base {
         })
         this.on('turnStart', turn => {
             this.info(this.cchalk(turn.color, '---', turn.color + "'s"), "turn")
-            this.logger.info('turnStart')
             if (turn.color == this.color || !this.isDualTerm) {
                 this.drawBoard()
             }
@@ -154,27 +154,27 @@ class TermPlayer extends Base {
 
     // @implement
     async playRoll(turn, game, match) {
+
         if (turn.isCantMove) {
             return
         }
-        while (true) {
-            if (this.opts.fastForced && turn.allowedEndStates.length == 1) {
-                this.info(chalk.bold.yellow('Forced move'), 'for', this.ccolor(turn.color), 'with', turn.diceSorted.join())
 
-                // TODO: implement better forced move routine
-                var index = turn.allowedMoveIndex
-                var keys = Object.keys(index)
-                while (Object.keys(index).length) {
-                    turn.move(Object.values(index)[0].move)
-                    index = Object.values(index)[0].index
-                }
-
-                break
-            }
+        if (turn.isForceMove && this.opts.fastForced) {
+            this.info(chalk.bold.yellow('Forced move'), 'for', this.ccolor(turn.color), 'with', turn.diceSorted.join())
             this.drawBoard()
+            await this.makeForcedMoves(turn)
+            this.drawBoard()
+            return
+        }
+
+        while (true) {
+
+            this.drawBoard()
+
             if (!this.isRobot) {
                 this.logger.info(this.ccolor(this.color), 'rolled', turn.diceSorted.join(), 'with', turn.remainingFaces.join(), 'remaining')
             }
+
             var moves = turn.getNextAvailableMoves()
             var origins = moves.map(move => move.origin)
             var canUndo = turn.moves.length > 0
@@ -184,10 +184,12 @@ class TermPlayer extends Base {
                 this.logs.pop()
                 continue
             }
+
             var faces = moves.filter(move => move.origin == origin).map(move => move.face)
             var face = await this.promptFace(turn, faces)
             var move = turn.move(origin, face)
             this.info(this.describeMove(move))
+
             if (turn.getNextAvailableMoves().length == 0) {
                 if (!this.isRobot) {
                     this.drawBoard()
@@ -221,39 +223,20 @@ class TermPlayer extends Base {
         const chalkMe = str => chalk.bold[me.toLowerCase()](str)
         const chalkThem = str => chalk.bold[them.toLowerCase()](str)
         const mine = {
-            origin : chalkMe(move.isComeIn ? 'bar' : board.analyzer.originPoint(me, move.origin))
-          , dest   : chalkMe(move.isBearoff ? 'home' : board.analyzer.originPoint(me, move.dest))
+            origin : chalkMe(move.isComeIn ? 'bar' : this.originPoint(move.origin, me))
+          , dest   : chalkMe(move.isBearoff ? 'home' : this.originPoint(move.dest, me))
         }
         const theirs = {
-            origin : move.isComeIn ? chalkMe('bar') : chalkThem(board.analyzer.originPoint(them, move.origin))
-          , dest   : move.isBearoff ? chalkMe('home') : chalkThem(board.analyzer.originPoint(them, move.dest))
+            origin : move.isComeIn ? chalkMe('bar') : chalkThem(this.originPoint(move.origin, them))
+          , dest   : move.isBearoff ? chalkMe('home') : chalkThem(this.originPoint(move.dest, them))
         }
         const whites = me == White ? mine : theirs
         const persp = this.isRobot ? whites : (me == this.color ? mine : theirs)
-        //const sargs = [chalkMe(me), 'moves', mine.origin, Chars.rarrow, mine.dest, '/', theirs.origin, Chars.rarrow, theirs.dest]
         const sargs = [chalkMe(me), 'moves', persp.origin, Chars.rarrow, persp.dest]
         if (move.isHit) {
             sargs.push(chalk.bold.yellow('HIT'))
         }
-        
         return sp(...sargs)
-    }
-
-    drawBoard(isOnce, isPersp, persp) {
-
-        //if (isOnce && this.isDualTerm && this.color == Red) {
-        //    return
-        //}
-
-        if (!persp) {
-            persp = this.persp
-            //persp = this.isRobot ? White : this.color
-            //if (isPersp && !this.isRobot && this.color == Red) {
-            //    persp = Red
-            //}
-        }
-
-        this.logger.writeStdout(Draw.drawBoard(this.thisGame, this.thisMatch, persp, this.logs))
     }
 
     async promptTurnOption(turn) {
@@ -272,7 +255,7 @@ class TermPlayer extends Base {
                 continue
             }
             if (action[0] == '_') {
-                this.doHiddenAction(action, turn)
+                await this.doHiddenAction(action, turn)
                 continue
             }
             break
@@ -281,40 +264,18 @@ class TermPlayer extends Base {
     }
 
     async promptDecideDouble() {
+        const choices = ['y', 'n']
         const answers = await this.prompt({
-            name    : 'accept'
-          , type    : 'confirm'
-          , message : sp('Does', this.ccolor(this.color), 'accept the double?')
-          , default : null
+            name     : 'accept'
+          , type     : 'input'
+          , message  : sp('Does', this.ccolor(this.color), 'accept the double?', chalk.grey('(y/n)'))
+          , validate : value => choices.indexOf(value.toLowerCase()) > -1 || sp('Please enter one of', choices.join())
         })
-        return answers.accept
+        return answers.accept.toLowerCase() == 'y'
     }
 
     async promptOrigin(turn, origins, canUndo) {
-        const points = Util.uniqueInts(origins).map(origin => turn.board.analyzer.originPoint(turn.color, origin))
-        points.sort(Util.sortNumericAsc)
-        const choices = points.map(p => p.toString())
-        var message = 'Origin '
-        if (points[0] == -1) {
-            message += ' [(b)ar]'
-            choices[0] = 'b'
-        } else {
-            message += '[' + choices.join() + ']'
-        }
-        if (canUndo) {
-            choices.push('u')
-            message += ' or (u)ndo'
-        }
-        choices.push('q')
-        const question = {
-            name     : 'origin'
-          , type     : 'input'
-          , message
-          , validate : value => (choices.indexOf(value) > -1 || value[0] == '_') || 'Please enter one of ' + choices.join()
-        }
-        if (points.length == 1) {
-            question.default = choices[0]
-        }
+        const question = this.getOriginQuestion(origins, canUndo)
         while (true) {
             var {origin} = await this.prompt(question)
             if (origin == 'q') {
@@ -322,7 +283,7 @@ class TermPlayer extends Base {
                 continue
             }
             if (origin[0] == '_') {
-                this.doHiddenAction(origin, turn)
+                await this.doHiddenAction(origin, turn)
                 continue
             }
             break
@@ -332,22 +293,7 @@ class TermPlayer extends Base {
         } else if (origin == 'b') {
             return -1
         }
-        return turn.board.analyzer.pointOrigin(turn.color, +origin)
-    }
-
-    doHiddenAction(action, turn) {
-        const {board} = turn
-        if (action == '_') {
-            this.logger.console.log({
-                board : {
-                    state28     : board.state28()
-                  , stateString : board.stateString()
-                }
-            })
-        } else if (action == '_f') {
-            this.persp = Opponent[this.persp]
-            this.drawBoard()
-        }
+        return this.pointOrigin(+origin)
     }
 
     async promptFace(turn, faces) {
@@ -377,6 +323,12 @@ class TermPlayer extends Base {
         return answers.finish.toLowerCase() == 'f'
     }
 
+    async makeForcedMoves(turn) {
+        for (var moves = turn.getNextAvailableMoves(); moves.length; moves = turn.getNextAvailableMoves()) {
+            turn.move(moves[0])
+        }
+    }
+
     async checkQuit() {
         const answers = await this.prompt({
             name     : 'confirm'
@@ -389,11 +341,68 @@ class TermPlayer extends Base {
         }
     }
 
+    async doHiddenAction(action, turn) {
+        const {board} = turn
+        if (action == '_') {
+            this.logger.console.log({
+                board : {
+                    state28     : board.state28()
+                  , stateString : board.stateString()
+                }
+            })
+        } else if (action == '_f') {
+            this.persp = Opponent[this.persp]
+            this.drawBoard()
+        }
+    }
+
+    getOriginQuestion(origins, canUndo) {
+        const points = Util.uniqueInts(origins).map(origin => this.originPoint(origin))
+        points.sort(Util.sortNumericAsc)
+        const choices = points.map(p => p.toString())
+        var message = 'Origin '
+        if (points[0] == -1) {
+            message += ' [(b)ar]'
+            choices[0] = 'b'
+        } else {
+            message += '[' + choices.join() + ']'
+        }
+        if (canUndo) {
+            choices.push('u')
+            message += ' or (u)ndo'
+        }
+        choices.push('q')
+        const question = {
+            name     : 'origin'
+          , type     : 'input'
+          , message
+          , validate : value => (choices.indexOf(value) > -1 || value[0] == '_') || 'Please enter one of ' + choices.join()
+        }
+        if (points.length == 1) {
+            question.default = choices[0]
+        }
+        return question
+    }
+
+    drawBoard(persp) {
+        persp = persp || this.persp
+        this.logger.writeStdout(Draw.drawBoard(this.thisGame, this.thisMatch, persp, this.logs))
+    }
+
+    originPoint(origin, color) {
+        color = color || this.color
+        return OriginPoints[color][origin]
+    }
+
+    pointOrigin(point, color) {
+        color = color || this.color
+        return PointOrigins[color][point]
+    }
+
     prompt(questions) {
         this._prompt = inquirer.prompt(Util.castToArray(questions))
         return this._prompt
     }
-
 }
 
 class TermRobot extends TermPlayer {
@@ -450,12 +459,6 @@ class TermRobot extends TermPlayer {
     }
 }
 
-class MatchCanceledError extends Error {
-    constructor(...args) {
-        super(...args)
-        this.name = this.constructor.name
-    }
-}
 TermPlayer.Robot = TermRobot
 
 module.exports = TermPlayer

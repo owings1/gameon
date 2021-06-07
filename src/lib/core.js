@@ -26,7 +26,7 @@ const Constants = require('./constants')
 const Errors    = require('./errors')
 const Util      = require('./util')
 
-const {intRange} = Util
+const {nmap} = Util
 
 const CacheKeys = {
     state28     : 'state28'
@@ -1124,7 +1124,7 @@ class Board {
     }
 
     clear() {
-        this.slots = intRange(0, 23).map(i => [])
+        this.slots = nmap(24, () => [])
         this.bars  = {Red: [], White: []}
         this.homes = {Red: [], White: []}
         this.markChange()
@@ -1535,7 +1535,7 @@ class Piece {
     }
 
     static make(n, color) {
-        return intRange(0, +n - 1).map(i => new Piece(color))
+        return nmap(+n, () => new Piece(color))
     }
 }
 
