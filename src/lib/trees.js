@@ -358,16 +358,14 @@ class BreadthTree extends SequenceTree {
     buildSequence(board, sequence, index) {
 
         var lastNodes = [null]
-        var leaves = lastNodes
-
         var parentIndex = null
 
         for (var i = 0, ilen = sequence.length; i < ilen; ++i) {
 
+            var nextNodes = []
+
             var face = sequence[i]
             var depth = i + 1
-
-            var nextNodes = []
 
             for (var j = 0, jlen = lastNodes.length; j < jlen; ++j) {
 
@@ -390,42 +388,46 @@ class BreadthTree extends SequenceTree {
                     move.board = move.board.copy()
                     move.do()
 
-                    var isWinner = move.board.getWinner() == this.color
-
                     var node = new TreeNode(move, depth, face, parentIndex, parentNode)
 
-                    if (isWinner) {
-                        this.hasWinner = true
-                        this.winners.push(node)
-                    }
-                    if (depth > this.maxDepth) {
-                        this.maxDepth = depth
-                    }
-                    if (face > this.highestFace) {
-                        this.highestFace = face
-                    }
-                    if (parentNode) {
-                        if (depth > parentNode.maxDepth) {
-                            parentNode.setMaxDepth(depth)
-                        }
-                        if (face > parentNode.highestFace) {
-                            parentNode.setHighFace(face)
-                        }
-                        if (isWinner) {
-                            parentNode.setWinner()
-                        }
-                    }
-                    index[move.hash] = node
-                    if (!this.depthIndex[depth]) {
-                        this.depthIndex[depth] = []
-                    }
-                    this.depthIndex[depth].push(node)
+                    this.intakeNode(node, index)
                     nextNodes.push(node)
                 }
             }
 
             lastNodes = nextNodes
         }
+    }
+
+    intakeNode(node, index) {
+        const {depth, face, parentNode, move} = node
+        const isWinner = move.board.getWinner() == this.color
+        if (isWinner) {
+            this.hasWinner = true
+            this.winners.push(node)
+            if (parentNode) {
+                parentNode.setWinner()
+            }
+        }
+        if (depth > this.maxDepth) {
+            this.maxDepth = depth
+        }
+        if (face > this.highestFace) {
+            this.highestFace = face
+        }
+        if (parentNode) {
+            if (depth > parentNode.maxDepth) {
+                parentNode.setMaxDepth(depth)
+            }
+            if (face > parentNode.highestFace) {
+                parentNode.setHighFace(face)
+            }
+        }
+        if (!this.depthIndex[depth]) {
+            this.depthIndex[depth] = []
+        }
+        this.depthIndex[depth].push(node)
+        index[move.hash] = node
     }
 }
 
