@@ -477,8 +477,7 @@ class Turn {
 
         Profiler.start('Turn.compute')
         const builder = this.opts.breadthTrees ? new BreadthBuilder(this) : new DepthBuilder(this)
-        builder.compute()
-        const result = builder.getResult()
+        const result = builder.compute()
         Profiler.stop('Turn.compute')
 
         if (this.opts.breadthTrees) {
