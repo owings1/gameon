@@ -7,6 +7,7 @@ const {
 } = TestUtil
 
 const Util = requireSrc('lib/util')
+const {Profiler, Counter, Timer} = Util
 
 describe('#arrayIncrement', () => {
 
@@ -144,6 +145,22 @@ describe('#errMessage', () => {
         const res = Util.errMessage(() => {throw new Error})
         expect(res).to.equal(false)
     })
+})
+
+describe('#escapeRegex', () => {
+
+    const theCases = {
+        '^' : '\\^',
+        'x' : 'x'
+    }
+
+    Object.entries(theCases).forEach(([input, exp]) => {
+        it('should escape ' + input + ' to ' + exp, () => {
+            const result = Util.escapeRegex(input)
+            expect(result).to.equal(exp)
+        })
+    })
+    
 })
 
 describe('#joinSpace', () => {
@@ -354,5 +371,120 @@ describe('#uuid', () => {
     it('should return string of length 36', () => {
         const result = Util.uuid()
         expect(result).to.have.length(36)
+    })
+})
+
+describe('Profiler', () => {
+
+    var profiler
+
+    beforeEach(() => {
+        profiler = Profiler.createEnabled()
+    })
+
+    it('should start/stop and have startCount of 1', () => {
+        profiler.start('test')
+        profiler.stop('test')
+        expect(profiler.timers.test.startCount).to.equal(1)
+    })
+
+    it('should start/stop twice and have startCount of 2', () => {
+        profiler.start('test')
+        profiler.stop('test')
+        profiler.start('test')
+        profiler.stop('test')
+        expect(profiler.timers.test.startCount).to.equal(2)
+    })
+
+    it('should reset startCount to 0', () => {
+        profiler.start('test')
+        profiler.stop('test')
+        profiler.reset('test')
+        expect(profiler.timers.test.startCount).to.equal(0)
+    })
+
+    it('should inc by 1', () => {
+        profiler.inc('test')
+        expect(profiler.counters.test.value).to.equal(1)
+    })
+
+    it('should inc by 1 twice', () => {
+        profiler.inc('test')
+        profiler.inc('test')
+        expect(profiler.counters.test.value).to.equal(2)
+    })
+
+    it('should zero counter', () => {
+        profiler.inc('test')
+        profiler.zero('test')
+        expect(profiler.counters.test.value).to.equal(0)
+    })
+
+    it('should not zero when disabled', () => {
+        profiler.inc('test')
+        profiler.enabled = false
+        profiler.zero('test')
+        expect(profiler.counters.test.value).to.equal(1)
+    })
+
+    it('should resetAll', () => {
+        profiler.start('test1')
+        profiler.stop('test1')
+        profiler.start('test2')
+        profiler.stop('test2')
+        profiler.inc('test3')
+        profiler.resetAll()
+        expect(profiler.timers.test1.startCount).to.equal(0)
+        expect(profiler.timers.test2.startCount).to.equal(0)
+        expect(profiler.counters.test3.value).to.equal(0)
+    })
+
+    it('should not resetAll when disabled', () => {
+        profiler.start('test1')
+        profiler.stop('test1')
+        profiler.enabled = false
+        profiler.resetAll()
+        expect(profiler.timers.test1.startCount).to.equal(1)
+    })
+
+    it('should not reset when disabled', () => {
+        profiler.start('test1')
+        profiler.stop('test1')
+        profiler.enabled = false
+        profiler.reset('test1')
+        expect(profiler.timers.test1.startCount).to.equal(1)
+    })
+
+    it('should not zero when disabled', () => {
+        profiler.inc('test')
+        profiler.enabled = false
+        profiler.zero('test')
+        expect(profiler.counters.test.value).to.equal(1)
+    })
+
+    it('should throw IllegalStateError on double start', () => {
+        profiler.start('test1')
+        const err = getError(() => profiler.start('test1'))
+        expect(err.name).to.equal('IllegalStateError')
+    })
+})
+
+describe('Counter', () => {
+
+    it('should give a default name', () => {
+        const counter = new Counter
+        expect(counter.name).to.have.length.greaterThan(0)
+    })
+})
+
+describe('Timer', () => {
+
+    var timer
+
+    beforeEach(() => timer = new Timer)
+
+    it('should throw IllegalStateError on stop unstarted', () => {
+        const err = getError(() => timer.stop())
+        expect(err.name).to.equal('IllegalStateError')
     })
 })
