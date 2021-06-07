@@ -68,8 +68,7 @@ class TurnBuilder {
         const {turn} = this
         const sequences = Dice.sequencesForFaces(turn.faces)
         for (var i = 0, ilen = sequences.length; i < ilen; ++i) {
-            var sequence = sequences[i]
-            var tree = this.buildTree(turn.board, turn.color, sequence)
+            var tree = this.buildTree(turn.board, turn.color, sequences[i])
             if (tree.maxDepth > this.maxDepth) {
                 this.maxDepth = tree.maxDepth
             }
