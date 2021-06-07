@@ -89,7 +89,7 @@ class SequenceTree {
         return true
     }
 
-    _buildDepth(board, faces, index, parentStore, depth = 0) {
+    _buildDepth(board, faces, index, parentNode, depth = 0) {
 
         if (depth > 4) {
             throw new MaxDepthExceededError
@@ -98,9 +98,9 @@ class SequenceTree {
         if (board.getWinner() == this.color) {
             // terminal case - winner
             this.hasWinner = true
-            if (parentStore) {
-                parentStore.setWinner()
-                this.winners.push(parentStore)
+            if (parentNode) {
+                parentNode.setWinner()
+                this.winners.push(parentNode)
             }
             return
         }
@@ -126,14 +126,14 @@ class SequenceTree {
             this.highestFace = face
         }
 
-        if (parentStore) {
-            if (depth > parentStore.maxDepth) {
+        if (parentNode) {
+            if (depth > parentNode.maxDepth) {
                 // propagate up the max depth
-                parentStore.setMaxDepth(depth)
+                parentNode.setMaxDepth(depth)
             }
-            if (face > parentStore.highestFace) {
+            if (face > parentNode.highestFace) {
                 // propagate up highest face
-                parentStore.setHighFace(face)
+                parentNode.setHighFace(face)
             }
         }
 
@@ -147,21 +147,21 @@ class SequenceTree {
             move.do()
 
             // careful about loop and closure references
-            var store = new TreeStore(move, depth, face, index, parentStore)
+            var node = new TreeNode(move, depth, face, index, parentNode)
 
             if (!this.depthIndex[depth]) {
                 this.depthIndex[depth] = []
             }
-            this.depthIndex[depth].push(store)
+            this.depthIndex[depth].push(node)
 
-            index[move.hash] = store
+            index[move.hash] = node
 
             if (!nextFaces.length) {
                 continue
             }
 
             // recurse
-            this._buildDepth(move.board, nextFaces, store.index, store, depth)
+            this._buildDepth(move.board, nextFaces, node.index, node, depth)
         }
     }
 
@@ -257,17 +257,17 @@ class SequenceTree {
         for (var i = 0, ilen = hashes.length; i < ilen; ++i) {
             Profiler.inc('SequenceTree.pruneIndexRecursive.check')
             var hash = hashes[i]
-            var store = index[hash]
-            if (store.hasWinner) {
+            var node = index[hash]
+            if (node.hasWinner) {
                 continue
             }
-            if (store.maxDepth < maxDepth) {
+            if (node.maxDepth < maxDepth) {
                 Profiler.inc('SequenceTree.pruneIndexRecursive.delete.maxDepth')
-                store.deleted = true
+                node.deleted = true
                 delete index[hash]
-            } else if (store.highestFace < highestFace) {
+            } else if (node.highestFace < highestFace) {
                 Profiler.inc('SequenceTree.pruneIndexRecursive.delete.highestFace')
-                store.deleted = true
+                node.deleted = true
                 delete index[hash]
             }
         }
@@ -298,21 +298,21 @@ class SequenceTree {
     }
 }
 
-class TreeStore {
+class TreeNode {
 
-    constructor(move, depth, face, index, parentStore) {
+    constructor(move, depth, face, index, parentNode) {
 
-        Profiler.start('TreeStore.create')
+        Profiler.start('TreeNode.create')
         var highestFace = face
         var moveSeriesFlag = move.flag
 
-        if (parentStore) {
-            if (parentStore.moveSeriesFlag != moveSeriesFlag) {
+        if (parentNode) {
+            if (parentNode.moveSeriesFlag != moveSeriesFlag) {
                 moveSeriesFlag = -1
             }
-            if (parentStore.face > face) {
+            if (parentNode.face > face) {
                 // progagate down the parent's face
-                highestFace = parentStore.face
+                highestFace = parentNode.face
             }
         }
         this.move           = move
@@ -320,21 +320,21 @@ class TreeStore {
         this.face           = face
         this.highestFace    = highestFace
         this.moveSeriesFlag = moveSeriesFlag
-        this.parentStore    = parentStore
+        this.parentNode     = parentNode
         this.maxDepth       = depth
         this.index          = {}
 
-        Profiler.stop('TreeStore.create')
+        Profiler.stop('TreeNode.create')
     }
 
     parent() {
-        return this.parentStore
+        return this.parentNode
     }
 
     moveSeries() {
         // profiling shows caching unnecessary (never hit)
         const moveSeries = [this.move.coords]
-        for (var parent = this.parentStore; parent; parent = parent.parent()) {
+        for (var parent = this.parentNode; parent; parent = parent.parent()) {
             moveSeries.unshift(parent.move.coords)
         }
         return moveSeries
@@ -343,29 +343,23 @@ class TreeStore {
     // propagate up maxDepth, hasWinner, highestFace
 
     setMaxDepth(depth) {
-        //Profiler.inc('TreeStore.propagate')
-        //Profiler.inc('TreeStore.propagate.setMaxDepth')
         this.maxDepth = depth
-        if (this.parentStore && this.parentStore.maxDepth < depth) {
-            this.parentStore.setMaxDepth(depth)
+        if (this.parentNode && this.parentNode.maxDepth < depth) {
+            this.parentNode.setMaxDepth(depth)
         }
     }
 
     setWinner() {
-        //Profiler.inc('TreeStore.propagate')
-        //Profiler.inc('TreeStore.propagate.setWinner')
         this.hasWinner = true
-        if (this.parentStore && !this.parentStore.hasWinner) {
-            this.parentStore.setWinner()
+        if (this.parentNode && !this.parentNode.hasWinner) {
+            this.parentNode.setWinner()
         }
     }
 
     setHighFace(face) {
-        //Profiler.inc('TreeStore.propagate')
-        //Profiler.inc('TreeStore.propagate.setHighFace')
         this.highestFace = face
-        if (this.parentStore && this.parentStore.highestFace < face) {
-            this.parentStore.setHighFace(face)
+        if (this.parentNode && this.parentNode.highestFace < face) {
+            this.parentNode.setHighFace(face)
         }
     }
 
@@ -373,18 +367,18 @@ class TreeStore {
         const hashes = Object.keys(this.index)
         for (var i = 0, ilen = hashes.length; i < ilen; ++i) {
             var hash = hashes[i]
-            var store = this.index[hash]
-            if (store.hasWinner) {
+            var node = this.index[hash]
+            if (node.hasWinner) {
                 continue
             }
-            if (store.maxDepth < maxDepth) {
-                //Profiler.inc('TreeStore.prune.discard.maxDepth')
-                delete store[hash]
+            if (node.maxDepth < maxDepth) {
+                //Profiler.inc('TreeNode.prune.discard.maxDepth')
+                delete node[hash]
                 continue
             }
-            if (store.highestFace < highestFace) {
-                //Profiler.inc('TreeStore.prune.discard.highestFace')
-                delete store[hash]
+            if (node.highestFace < highestFace) {
+                //Profiler.inc('TreeNode.prune.discard.highestFace')
+                delete node[hash]
             }
         }
     }
@@ -397,10 +391,10 @@ class TreeStore {
         // only do for doubles
         if (this.moveSeriesFlag == 8 && this.depth == 4) {
 
-            Profiler.start('TreeStore.flagKey')
+            Profiler.start('TreeNode.flagKey')
 
             const origins = [this.move.origin]
-            for (var parent = this.parentStore; parent; parent = parent.parent()) {
+            for (var parent = this.parentNode; parent; parent = parent.parent()) {
                 origins.push(parent.move.origin)
             }
             origins.sort(Util.sortNumericAsc)
@@ -410,7 +404,7 @@ class TreeStore {
                 flagKey += ',' + origins[i]
             }
 
-            Profiler.stop('TreeStore.flagKey')
+            Profiler.stop('TreeNode.flagKey')
         }
 
         return flagKey
