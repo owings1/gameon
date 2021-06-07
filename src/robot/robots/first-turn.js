@@ -28,7 +28,7 @@ const Constants = require('../../lib/constants')
 const Core      = require('../../lib/core')
 
 const {intRange} = require('../../lib/util')
-const {Colors} = Constants
+const {Colors, PointOrigins} = Constants
 const {Board} = Core
 const {ZERO_RANKINGS} = Base
 
@@ -64,7 +64,7 @@ function populateMoveIndex(moveIndex, pointMoves) {
         for (var diceHash in pointMoves) {
             board.setup()
             var moveHashes = pointMoves[diceHash].map(({point, face}) =>
-                board.move(color, board.analyzer.pointOrigin(color, point), face).hash
+                board.move(color, PointOrigins[color][point], face).hash
             )
             moveIndex[color][diceHash] = {
                 moveHashes

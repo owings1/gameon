@@ -574,7 +574,8 @@ describe('BoardAnalyzer', () => {
         })
     })
 
-    describe('#originPoint', () => {
+    // obsolete
+    describe.skip('#originPoint', () => {
 
         const expCases = [
             {input: [Red, 5], exp: 6},
@@ -634,7 +635,8 @@ describe('BoardAnalyzer', () => {
         })
     })
 
-    describe('#pointOrigin', () => {
+    // obsolete
+    describe.skip('#pointOrigin', () => {
 
         it('should return 18 for White 6 point', () => {
             const result = board.analyzer.pointOrigin(White, 6)

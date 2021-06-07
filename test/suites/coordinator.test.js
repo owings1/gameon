@@ -19,7 +19,7 @@ const Core        = requireSrc('lib/core')
 const Coordinator = requireSrc('lib/coordinator')
 const Player      = requireSrc('lib/player')
 
-const {White, Red} = Constants
+const {White, Red, PointOrigins} = Constants
 const {Match, Game, Dice} = Core
 
 class MockPlayer extends Player {
@@ -190,12 +190,12 @@ describe('#runGame', () => {
         const board = game.board
         board.setStateString(States.Either65Win)
         players.White.moves = [
-            [board.analyzer.pointOrigin(White, 6), 2],
-            [board.analyzer.pointOrigin(White, 5), 1]
+            [PointOrigins[White][6], 2],
+            [PointOrigins[White][5], 1]
         ]
         players.Red.moves = [
-            [board.analyzer.pointOrigin(Red, 6), 6],
-            [board.analyzer.pointOrigin(Red, 5), 5]
+            [PointOrigins[Red][6], 6],
+            [PointOrigins[Red][5], 5]
         ]
         await coordinator.runGame(players, game)
         expect(game.getWinner()).to.equal(Red)
@@ -206,8 +206,8 @@ describe('#runGame', () => {
         const board = game.board
         board.setStateString(States.Either65Win)
         players.White.moves = [
-            [board.analyzer.pointOrigin(White, 6), 2],
-            [board.analyzer.pointOrigin(White, 5), 1]
+            [PointOrigins[White][6], 2],
+            [PointOrigins[White][5], 1]
         ]
         players.Red.turnOption = turn => turn.setDoubleOffered()
         players.White.decideDouble = turn => turn.setDoubleDeclined()
@@ -221,12 +221,12 @@ describe('#runGame', () => {
         const board = game.board
         board.setStateString(States.Either65Win)
         players.White.moves = [
-            [board.analyzer.pointOrigin(White, 6), 2],
-            [board.analyzer.pointOrigin(White, 5), 1]
+            [PointOrigins[White][6], 2],
+            [PointOrigins[White][5], 1]
         ]
         players.Red.moves = [
-            [board.analyzer.pointOrigin(Red, 6), 6],
-            [board.analyzer.pointOrigin(Red, 5), 5]
+            [PointOrigins[Red][6], 6],
+            [PointOrigins[Red][5], 5]
         ]
         players.Red.turnOption = () => {throw new Error}
         await coordinator.runGame(players, game)
@@ -238,12 +238,12 @@ describe('#runGame', () => {
         const board = game.board
         board.setStateString(States.Either65Win)
         players.White.moves = [
-            [board.analyzer.pointOrigin(White, 6), 2],
-            [board.analyzer.pointOrigin(White, 5), 1]
+            [PointOrigins[White][6], 2],
+            [PointOrigins[White][5], 1]
         ]
         players.Red.moves = [
-            [board.analyzer.pointOrigin(Red, 6), 6],
-            [board.analyzer.pointOrigin(Red, 5), 5]
+            [PointOrigins[Red][6], 6],
+            [PointOrigins[Red][5], 5]
         ]
         players.Red.turnOption = turn => turn.setDoubleOffered()
         await coordinator.runGame(players, game)
