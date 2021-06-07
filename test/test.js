@@ -10,6 +10,10 @@ describe('Logger', () => {
     require('./suites/logger.test')
 })
 
+describe('Moves', () => {
+    require('./suites/move.test')
+})
+
 describe('Net', () => {
     require('./suites/net.test')
 })

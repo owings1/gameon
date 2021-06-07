@@ -1944,7 +1944,22 @@ describe('Move', () => {
 
 describe('Piece', () => {
 
+    describe('#constructor', () => {
+
+        it('should accept piece instance as argument', () => {
+            const piece = new Piece(White)
+            const result = new Piece(piece)
+            expect(result.color).to.equal(White)
+        })
+    })
+
     describe('#make', () => {
+
+        it('should return empty array for 0', () => {
+            const result = Piece.make(0)
+            expect(result).to.have.length(0)
+        })
+
         it('should return array of 2 white pieces for 2,White', () => {
             const result = Piece.make(2, White)
             expect(result).to.have.length(2)

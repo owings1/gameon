@@ -71,6 +71,7 @@ class TurnNotFinishedError      extends IllegalStateError {}
 
 class IllegalBareoffError    extends IllegalMoveError {}
 class MayNotBearoffError     extends IllegalMoveError {}
+class MoveOutOfRangeError    extends IllegalMoveError {}
 class MovesRemainingError    extends IllegalMoveError {}
 class NoMovesMadeError       extends IllegalMoveError {}
 class NoMovesRemainingError  extends IllegalMoveError {}
@@ -98,6 +99,7 @@ module.exports = {
   , MatchFinishedError
   , MaxDepthExceededError
   , MayNotBearoffError
+  , MoveOutOfRangeError
   , MovesRemainingError
   , NoMovesMadeError
   , NoMovesRemainingError

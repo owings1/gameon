@@ -178,9 +178,15 @@ class RegularMove extends Move {
 
     // Returns true or error object
     static check(board, color, origin, face) {
-        const {dest} = RegularMove.getDestInfo(board, color, origin, face)
+        const dest = origin + face * Direction[color]
+        if (dest < 0 || dest > 23) {
+            return {class: MoveOutOfRangeError, message: ['invalid destination', dest]}
+        }
+        if (!board.analyzer.occupiesOrigin(color, origin)) {
+            return {class: NoPieceOnSlotError, message: [color, 'does not have a piece on origin', origin]}
+        }
         if (!board.analyzer.canOccupyOrigin(color, dest)) {
-            return {class: OccupiedSlotError, message: [color, 'may not occupy space', dest + 1]}
+            return {class: OccupiedSlotError, message: [color, 'may not occupy occupy', dest]}
         }
         return true
     }
@@ -237,10 +243,7 @@ class BearoffMove extends Move {
             return {class: MayNotBearoffError, message: [color, 'may not bare off']}
         }
         // get distance to home
-        const homeDistance = Direction[color] == 1 ? 24 - origin : origin + 1
-        if (homeDistance != OriginPoints[color][origin]) {
-            throw new Error('neq')
-        }
+        const homeDistance = OriginPoints[color][origin]
         // make sure no piece is behind if we are taking more than the face
         if (face > homeDistance && board.analyzer.hasPieceBehind(color, origin)) {
             return {class: IllegalBareoffError, message: ['cannot bear off with a piece behind']}
@@ -272,6 +275,7 @@ class BearoffMove extends Move {
 const {
     IllegalBareoffError
   , MayNotBearoffError
+  , MoveOutOfRangeError
   , NoPieceOnBarError
   , NoPieceOnSlotError
   , NotImplementedError
