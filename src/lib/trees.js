@@ -83,27 +83,23 @@ class TurnBuilder {
 
     processTrees(trees) {
 
-        const {result} = this
+        const {result, maxDepth, highestFace} = this
 
-        for (var i = 0, ilen = trees.length; i < ilen && this.maxDepth > 0; ++i) {
+        for (var i = 0, ilen = trees.length; i < ilen && maxDepth > 0; ++i) {
 
             var tree = trees[i]
 
-            if (!tree.checkPasses(this.maxDepth, this.highestFace)) {
+            if (!tree.checkPasses(maxDepth, highestFace)) {
                 continue
             }
 
-            SequenceTree.pruneIndexRecursive(tree.index, this.maxDepth, this.highestFace)
+            SequenceTree.pruneIndexRecursive(tree.index, maxDepth, highestFace)
 
             for (var hash in tree.index) {
                 result.allowedMoveIndex[hash] = tree.index[hash]
             }
 
-            var leaves = tree.depthIndex[this.maxDepth]
-
-            if (leaves) {
-                this.processLeaves(leaves)
-            }
+            this.processLeaves(tree.depthIndex[maxDepth])
 
             this.processWinners(tree.winners)
         }
@@ -111,7 +107,11 @@ class TurnBuilder {
 
     processLeaves(leaves) {
 
-        const {result} = this
+        if (!leaves) {
+            return
+        }
+
+        const {result, flagKeys, turn} = this
 
         for (var j = 0, jlen = leaves.length; j < jlen; ++j) {
 
@@ -120,10 +120,10 @@ class TurnBuilder {
             var flagKey = node.flagKey()
 
             if (flagKey) {
-                if (this.flagKeys[flagKey]) {
+                if (flagKeys[flagKey]) {
                     continue
                 }
-                this.flagKeys[flagKey] = true
+                flagKeys[flagKey] = true
             }
 
             var endState = node.move.board.state28()
@@ -142,7 +142,7 @@ class TurnBuilder {
                 this.maxExample = result.endStatesToSeries[endState]
             }
             // populate turn board cache
-            this.turn.boardCache[endState] = node.move.board
+            turn.boardCache[endState] = node.move.board
         }
     }
 
