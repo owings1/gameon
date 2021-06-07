@@ -57,7 +57,7 @@ function populateCacheKeys(keys) {
       , 'minOriginOccupied'
       , 'minPointOccupied'
       , 'originsHeld'
-      , 'originsHeldMap'
+      //, 'originsHeldMap'
       , 'originsOccupied'
       , 'pipCount'
       , 'pointsHeld'
@@ -122,23 +122,20 @@ class BoardAnalyzer {
             const minKey = CacheKeys.minOriginOccupied[color]
             const maxKey = CacheKeys.maxOriginOccupied[color]
             const origins = []
-            var minOrigin = Infinity
-            var maxOrigin = -Infinity
             for (var i = 0; i < 24; ++i) {
                 var slot = this.board.slots[i]
                 if (slot[0] && slot[0].color == color) {
                     origins.push(i)
-                    if (i < minOrigin) {
-                        minOrigin = i
-                    }
-                    if (i > maxOrigin) {
-                        maxOrigin = i
-                    }
                 }
             }
             this.cache[key] = origins
-            this.cache[minKey] = minOrigin
-            this.cache[maxKey] = maxOrigin
+            if (origins.length) {
+                this.cache[minKey] = origins[0]
+                this.cache[maxKey] = origins[origins.length - 1]
+            } else {
+                this.cache[minKey] = Infinity
+                this.cache[maxKey] = -Infinity
+            }
         } else {
             Profiler.inc('board.originsOccupied.cache.hit')
         }
@@ -328,6 +325,7 @@ class BoardAnalyzer {
     }
 
     // @cache
+    /*
     originsHeldMap(color) {
         const key = CacheKeys.originsHeldMap[color]
         if (!this.cache[key]) {
@@ -340,6 +338,7 @@ class BoardAnalyzer {
         }
         return this.cache[key]
     }
+    */
 
     // Two or more pieces
     // @cache
@@ -348,14 +347,14 @@ class BoardAnalyzer {
         if (!this.cache[key]) {
             const points = []
             const origins = this.originsHeld(color)
-            for (var i = 0, ilen = origins.length; i < ilen; ++i) {
-                // create pre-sorted
-                if (color == Red) {
-                    // Origin 0 is Red point 1
+            // create pre-sorted
+            if (color == Red) {
+                for (var i = 0, ilen = origins.length; i < ilen; ++i) {
                     points.push(OriginPoints[color][origins[i]])
-                } else {
-                    // Origin 0 is White point 24
-                    points.unshift(OriginPoints[color][origins[i]])
+                }
+            } else {
+                for (var i = origins.length - 1; i >= 0; --i) {
+                    points.push(OriginPoints[color][origins[i]])
                 }
             }
             this.cache[key] = points
@@ -372,8 +371,7 @@ class BoardAnalyzer {
     }
 
     piecesOnPoint(color, point) {
-        const slot = this.board.slots[PointOrigins[color][point]]
-        return (slot[0] && slot[0].color == color) ? slot.length : 0
+        return this.piecesOnOrigin(color, PointOrigins[color][point])
     }
 
     // @cache

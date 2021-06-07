@@ -26,6 +26,17 @@ describe('BoardAnalyzer', () => {
 
     beforeEach(() => board = new Board)
 
+    describe('#blotOrigins', () => {
+        it('should return empty on initial with identical list on cache', () => {
+            const {analyzer} = Board.setup()
+            const r1 = analyzer.blotOrigins(White)
+            const r2 = analyzer.blotOrigins(White)
+            expect(Array.isArray(r1)).to.equal(true)
+            expect(r1).to.have.length(0)
+            expect(r1).to.equal(r2)
+        })
+    })
+
     describe('#blots', () => {
 
         it('should return empty for initial setup', () => {
@@ -348,6 +359,15 @@ describe('BoardAnalyzer', () => {
                 expect(blots[0].indirectCount).to.equal(1)
             })
         })
+
+        describe('CornerCase', () => {
+            it('should not barf on a sparse board with isIncludeAll=false', () => {
+                const {analyzer} = Board.fromStateString(States.OneWhitePiece)
+                const result = analyzer.blots(White, false)
+                expect(Array.isArray(result)).to.equal(true)
+                expect(result).to.have.length(0)
+            })
+        })
     })
 
     describe('#hasBar', () => {
@@ -409,13 +429,28 @@ describe('BoardAnalyzer', () => {
             const result = board.analyzer.maxOriginOccupied(White)
             expect(result).to.equal(-Infinity)
         })
+
+        it('should return 18 for White on initial', () => {
+            const {analyzer} = Board.setup()
+            const result = analyzer.maxOriginOccupied(White)
+            expect(result).to.equal(18)
+        })
+
+        it('should return 23 for Red on initial', () => {
+            const {analyzer} = Board.setup()
+            const result = analyzer.maxOriginOccupied(Red)
+            expect(result).to.equal(23)
+        })
     })
 
     describe('#maxPointOccupied', () => {
-        it('should return -Infinity on empty board', () => {
-            const board = new Board
-            const result = board.analyzer.maxPointOccupied(White)
-            expect(result).to.equal(-Infinity)
+
+        it('should return -Infinity on empty board for each color', () => {
+            const {analyzer} = new Board
+            const r1 = analyzer.maxPointOccupied(White)
+            const r2 = analyzer.maxPointOccupied(Red)
+            expect(r1).to.equal(-Infinity)
+            expect(r2).to.equal(-Infinity)
         })
     })
 
@@ -443,21 +478,99 @@ describe('BoardAnalyzer', () => {
             const result = board.analyzer.mayBearoff(Red)
             expect(result).to.equal(false)
         })
+
+        it('should hit maxPoint cache (coverage)', () => {
+            const {analyzer} = Board.setup()
+            analyzer.cache['maxPointOccupied.White'] = 6
+            const result = analyzer.mayBearoff(White)
+            expect(result).to.equal(true)
+        })
     })
 
     describe('#minOriginOccupied', () => {
+
         it('should return Infinity on empty board', () => {
             const board = new Board
             const result = board.analyzer.minOriginOccupied(White)
             expect(result).to.equal(Infinity)
         })
+        it('should return 0 for White on initial', () => {
+            const {analyzer} = Board.setup()
+            const result = analyzer.minOriginOccupied(White)
+            expect(result).to.equal(0)
+        })
+        it('should return 5 for Red on initial', () => {
+            const {analyzer} = Board.setup()
+            const result = analyzer.minOriginOccupied(Red)
+            expect(result).to.equal(5)
+        })
     })
 
     describe('#minPointOccupied', () => {
-        it('should return Infinity on empty board', () => {
-            const board = new Board
-            const result = board.analyzer.minPointOccupied(White)
-            expect(result).to.equal(Infinity)
+
+        it('should return Infinity on empty board for each color', () => {
+            const {analyzer} = new Board
+            const r1 = analyzer.minPointOccupied(White)
+            const r2 = analyzer.minPointOccupied(Red)
+            expect(r1).to.equal(Infinity)
+            expect(r2).to.equal(Infinity)
+        })
+
+        it('should return 6 on initial for each color', () => {
+            const {analyzer} = Board.setup()
+            const r1 = analyzer.minPointOccupied(White)
+            const r2 = analyzer.minPointOccupied(Red)
+            expect(r1).to.equal(6)
+            expect(r2).to.equal(6)
+        })
+
+        it('should return from cache when populated', () => {
+            const {analyzer} = new Board
+            analyzer.cache['minPointOccupied.White'] = 1
+            const result = analyzer.minPointOccupied(White)
+            expect(result).to.equal(1)
+        })
+    })
+
+    describe('#nthPieceOnOrigin', () => {
+
+        it('should return empty for 2 on initial', () => {
+            const {analyzer} = Board.setup()
+            const result = analyzer.nthPieceOnOrigin(2, 0)
+            expect(!!result).to.equal(false)
+        })
+
+        it('should return White for 0,1 on initial', () => {
+            const {analyzer} = Board.setup()
+            const result = analyzer.nthPieceOnOrigin(0, 1)
+            expect(result).to.equal(White)
+        })
+
+        it('should return empty for 0,2 on initial', () => {
+            const {analyzer} = Board.setup()
+            const result = analyzer.nthPieceOnOrigin(0, 2)
+            expect(!!result).to.equal(false)
+        })
+    })
+
+    describe('#originOccupier', () => {
+
+        it('should return White for 0 on Initial', () => {
+            const {analyzer} = Board.setup()
+            const result = analyzer.originOccupier(0)
+            expect(result).to.equal(White)
+        })
+
+        it('should return Red for 23 on Initial', () => {
+            const {analyzer} = Board.setup()
+            const result = analyzer.originOccupier(23)
+            expect(result).to.equal(Red)
+        })
+
+        it('should return empty for 2 on Initial', () => {
+            const {analyzer} = Board.setup()
+            const result = analyzer.originOccupier(1)
+            expect(!!result).to.equal(false)
         })
     })
 
@@ -539,6 +652,36 @@ describe('BoardAnalyzer', () => {
         })
     })
 
+    describe('#pointsHeld', () => {
+
+        it('should return expected at initial state for each color, sorted in point order', () => {
+            const exp = [6, 8, 13, 24]
+            const {analyzer} = Board.setup()
+            const r1 = analyzer.pointsHeld(White)
+            const r2 = analyzer.pointsHeld(Red)
+            expect(JSON.stringify(r1)).to.equal(JSON.stringify(exp))
+            expect(JSON.stringify(r2)).to.equal(JSON.stringify(exp))
+        })
+
+        it('should return empty list on empty board', () => {
+            const {analyzer} = new Board
+            const result = analyzer.pointsHeld(White)
+            expect(Array.isArray(result)).to.equal(true)
+            expect(result).to.have.length(0)
+        })
+
+        it('should return expected from new cache after White 0:1', () => {
+            const exp = [6, 8, 13]
+            const {analyzer} = Board.setup()
+            analyzer.pointsHeld(White)
+            analyzer.board.move(White, 0, 1)
+            const r1 = analyzer.pointsHeld(White)
+            const r2 = analyzer.pointsHeld(White)
+            expect(JSON.stringify(r1)).to.equal(JSON.stringify(exp))
+            expect(r1).to.equal(r2)
+        })
+    })
+
     describe('#pointsOccupied', () => {
 
         it('should be sorted and return expected for White at initial state', () => {
@@ -575,29 +718,65 @@ describe('BoardAnalyzer', () => {
     })
 
     describe('#validateLegalBoard', () => {
-        const legals = [
+        const legalsKeys = [
             'Initial',
             'Bearoff1Start',
             'RedHasWon'
         ]
-        const illegals = [
+        const illegalsKeys = [
             'Blank',
             'WhiteCornerCase16',
             'BothHaveWon',
             'BothAllOnBar'
         ]
-        legals.forEach(name => {
+        legalsKeys.forEach(name => {
             it('should validate ' + name, () => {
                 Board.fromStateString(States[name]).analyzer.validateLegalBoard()
             })
         })
-        illegals.forEach(name => {
+        illegalsKeys.forEach(name => {
             it('should invalidate ' + name + ' with illegal state error', () => {
                 const err = getError(() =>
                     Board.fromStateString(States[name]).analyzer.validateLegalBoard()
                 )
                 expect(err.isIllegalStateError).to.equal(true)
             })
+        })
+
+        it('should throw when board has extra slot', () => {
+            const {analyzer} = new Board
+            analyzer.board.slots.push([])
+            const err = getError(() => analyzer.validateLegalBoard())
+            expect(err.isIllegalStateError).to.equal(true)
+        })
+
+        it('should throw with different colors on origin', () => {
+            const {analyzer} = new Board
+            analyzer.board.pushOrigin(0, White)
+            analyzer.board.pushOrigin(0, Red)
+            const err = getError(() => analyzer.validateLegalBoard())
+            expect(err.isIllegalStateError).to.equal(true)
+        })
+
+        it('should throw with invalid object on origin', () => {
+            const {analyzer} = new Board
+            analyzer.board.slots[0].push({color: 'foo'})
+            const err = getError(() => analyzer.validateLegalBoard())
+            expect(err.isIllegalStateError).to.equal(true)
+        })
+
+        it('should throw when a white piece is on the red home', () => {
+            const {analyzer} = new Board
+            analyzer.board.pushHome(Red, new Piece(White))
+            const err = getError(() => analyzer.validateLegalBoard())
+            expect(err.isIllegalStateError).to.equal(true)
+        })
+
+        it('should throw when a white piece is on the red bar', () => {
+            const {analyzer} = new Board
+            analyzer.board.pushBar(Red, new Piece(White))
+            const err = getError(() => analyzer.validateLegalBoard())
+            expect(err.isIllegalStateError).to.equal(true)
         })
     })
 })

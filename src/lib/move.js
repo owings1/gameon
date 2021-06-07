@@ -60,7 +60,7 @@ class Move {
                 check = {class: PieceOnBarError, message: [color, 'has a piece on the bar']}
             } else {
                 if (!board.analyzer.occupiesOrigin(color, origin)) {
-                    check = {class: NoPieceOnSlotError, message: [color, 'does not have a piece on slot', origin + 1]}
+                    check = {class: NoPieceOnSlotError, message: [color, 'does not have a piece on origin', origin]}
                 } else {
                     const dest = origin + face * Direction[color]
                     const isBearoff = dest < 0 || dest > 23
