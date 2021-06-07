@@ -9,6 +9,7 @@ const {
     requireSrc,
     Rolls,
     States,
+    States28,
     Structures
 } = TestUtil
 
@@ -190,6 +191,13 @@ describe('Game', () => {
 
     beforeEach(() => {
         game = new Game
+    })
+
+    describe('opts.startState', () => {
+        it('should set board to startState in opts', () => {
+            const game = new Game({startState: States.BlotsMinSkip1})
+            expect(game.board.stateString()).to.equal(States.BlotsMinSkip1)
+        })
     })
 
     describe('#canDouble', () => {
@@ -465,6 +473,16 @@ describe('Game', () => {
             expect(turn.color).to.equal(expColor)
         })
     })
+
+    describe('#serialize', () => {
+
+        it('should have thisTurn when exists with same dice', () => {
+            const firstTurn = game.firstTurn()
+            const result = game.serialize()
+            expect(!!result.thisTurn).to.equal(true)
+            expect(JSON.stringify(result.thisTurn.dice)).to.equal(JSON.stringify(firstTurn.dice))
+        })
+    })
 })
 
 describe('Turn', () => {
@@ -498,6 +516,23 @@ describe('Turn', () => {
         })
     })
 
+    describe('#fetchBoard', () => {
+
+        it('should get new board if not in cache', () => {
+            const turn = new Turn(Board.setup(), White)
+            const b1 = turn.fetchBoard(States28.BlotsMinSkip1)
+            expect(b1.state28()).to.equal(States28.BlotsMinSkip1)
+        })
+
+        it('should get self-same board if after second call', () => {
+            const turn = new Turn(Board.setup(), White)
+            const b1 = turn.fetchBoard(States28.BlotsMinSkip1)
+            const b2 = turn.fetchBoard(States28.BlotsMinSkip1)
+            expect(b2.state28()).to.equal(States28.BlotsMinSkip1)
+            expect(b1).to.equal(b1)
+        })
+    })
+
     describe('#finish', () => {
 
         it('should allow after setRoll 6,6 for white on bar with setup board', () => {
@@ -516,6 +551,15 @@ describe('Turn', () => {
             turn.move(23, 2)
             const err = getError(() => turn.finish())
             expect(err.name).to.equal('MovesRemainingError')
+        })
+
+        it('should clear board cache', () => {
+            const turn = new Turn(Board.setup(), White)
+            turn.roll()
+            turn.fetchBoard(States28.BlotsMinSkip1)
+            makeRandomMoves(turn)
+            turn.finish()
+            expect(Object.keys(turn.boardCache)).to.have.length(0)
         })
     })
 
@@ -954,6 +998,17 @@ describe('Board', () => {
         })
     })
 
+    describe('#setStateString', () => {
+
+        it('should accept stateString and state28', () => {
+            const b1 = new Board
+            const b2 = new Board
+            b1.setStateString(States.RedHasWon)
+            b2.setStateString(States28.RedHasWon)
+            expect(b1.stateString()).to.equal(b2.stateString())
+        })
+    })
+
     describe('#hasBar', () => {
 
         it('should return true for white with one on bar', () => {
@@ -1309,6 +1364,12 @@ describe('Board', () => {
             board.setup()
             const result = board.stateString()
             expect(result).to.equal(States.Initial)
+        })
+
+        it('should retrieve from cache second call (observed through coverage)', () => {
+            const result = board.stateString()
+            expect(board.cache.stateString).to.equal(result)
+            board.stateString()
         })
     })
 
