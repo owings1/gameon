@@ -297,7 +297,7 @@ class Timer {
 
     start() {
         if (this.isRunning) {
-            throw new Error('Timer already started')
+            throw new IllegalStateError('Timer already started')
         }
         this.startTime = +new Date
         this.isRunning = true
@@ -306,7 +306,7 @@ class Timer {
 
     stop() {
         if (!this.isRunning) {
-            throw new Error('Timer not started')
+            throw new IllegalStateError('Timer not started')
         }
         this.elapsed += +new Date - this.startTime
         this.isRunning = false
@@ -406,6 +406,21 @@ class Profiler {
     }
 }
 
+class UtilError extends Error {
+    constructor(...args) {
+        super(...args)
+        this.name = this.constructor.name
+    }
+}
+
+class IllegalStateError extends UtilError {
+    constructor(...args) {
+        super(...args)
+        this.isIllegalStateError = true
+    }
+}
+
+Util.Counter = Counter
 Util.Timer = Timer
 Util.Profiler = Profiler
 

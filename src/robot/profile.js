@@ -34,13 +34,13 @@ const fs    = require('fs')
 const fse   = require('fs-extra')
 const path  = require('path')
 
-const {intRange, Timer} = Util
+const {intRange, nmap, Timer} = Util
 const {resolve} = path
 
-const {Match, Colors} = Constants
+const {Colors} = Constants
 const {White, Red} = Colors
 
-const {Profiler} = Core
+const {Match, Profiler} = Core
 
 const {RobotDelegator} = Robot
 
@@ -71,7 +71,7 @@ function getTableChars(color) {
 }
 
 function repeat(str, n) {
-    return intRange(0, n - 1).map(() => str).join('')
+    return nmap(n, () => str).join('')
 }
 
 const AvailableColumns = [

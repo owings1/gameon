@@ -378,12 +378,12 @@ class TreeStore {
                 continue
             }
             if (store.maxDepth < maxDepth) {
-                Profiler.inc('TreeStore.prune.discard.maxDepth')
+                //Profiler.inc('TreeStore.prune.discard.maxDepth')
                 delete store[hash]
                 continue
             }
             if (store.highestFace < highestFace) {
-                Profiler.inc('TreeStore.prune.discard.highestFace')
+                //Profiler.inc('TreeStore.prune.discard.highestFace')
                 delete store[hash]
             }
         }
