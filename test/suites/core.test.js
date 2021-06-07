@@ -1584,6 +1584,32 @@ describe('SequenceTree', () => {
 
             expect(leafStates).to.contain(exp)
         })
+
+        describe('wip - TreeNode', () => {
+
+            function indexJson(index) {
+                return JSON.stringify(SequenceTree.serializeIndex(index), null, 2)
+            }
+
+            it('wip allowedMoveIndex2', () => {
+                const t1 = new Turn(Board.setup(), White, {breadthTrees: true})
+                const t2 = new Turn(Board.setup(), White)
+                t1.setRoll(1, 2)
+                t2.setRoll(1, 2)
+                
+            })
+
+            it('sequence tree index equivalence with depth for basic example', () => {
+                const board = new Board
+                for (var i = 0; i < 4; ++i) {
+                    board.pushOrigin(4, White)
+                }
+                const tree1 = SequenceTree.buildBreadth(board, White, [5, 2])
+                const tree2 = SequenceTree.buildDepth(board, White, [5, 2])
+
+                expect(indexJson(tree1.index)).to.equal(indexJson(tree2.index))
+            })
+        })
     })
 
     describe('tree equivalence', () => {

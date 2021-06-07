@@ -180,6 +180,7 @@ class DepthBuilder extends TurnBuilder {
 class BreadthBuilder extends TurnBuilder {
 
     compute() {
+        this.allowedMoveIndex2 = {}
         this.trees = []
         this.maxFaces = 0
         this.highestFace = 0
@@ -299,7 +300,8 @@ class SequenceTree {
         this.color     = color
         this.sequence  = sequence
         this.hasWinner = false
-        this.maxDepth  = 0        
+        this.maxDepth  = 0
+        this.index     = {}
     }
 
     // build breadth first, flat node list structure
@@ -326,8 +328,7 @@ class SequenceTree {
 
         Profiler.start('SequenceTree.buildDepth')
 
-        //this.depth       = 0
-        this.index       = {}
+        
         this.winners     = []
         this.depthIndex  = {}
         this.highestFace = 0
@@ -431,6 +432,9 @@ class SequenceTree {
     _buildBreadth() {
 
         const root = {board: this.board, depth: 0, parent: null, movesMade: [], highestFace: -Infinity}
+
+        root.treeNode = this
+
         Profiler.inc('node.create')
 
         var hasWinner = false
@@ -439,7 +443,6 @@ class SequenceTree {
 
         var lastNodes = [root]
         var leaves = lastNodes
-
 
         for (var i = 0, ilen = this.sequence.length; i < ilen; ++i) {
 
@@ -469,13 +472,40 @@ class SequenceTree {
                     Profiler.stop('SequenceTree.buildBreadth.3')
 
                     Profiler.start('SequenceTree.buildBreadth.4')
+                    var isWinner = move.board.getWinner() == this.color
                     var child = {
                         board       : move.board
                       , depth
-                      , isWinner    : move.board.getWinner() == this.color
+                      , isWinner
                       , movesMade   : parent.movesMade.slice(0)
                       , highestFace : face > parent.highestFace ? face : parent.highestFace
                     }
+
+                    if (depth > this.maxDepth) {
+                        this.maxDepth = depth
+                    }
+                    if (face > this.highestFace) {
+                        this.highestFace = face
+                    }
+                    if (depth > 1) {
+                        var parentTreeNode = parent.treeNode
+                        var parentIndex = parentTreeNode.index
+                        var index = parentIndex
+                        var treeNode = new TreeNode(move, depth, face, parentIndex, parentTreeNode)
+                        if (depth > parentTreeNode.maxDepth) {
+                            parentTreeNode.setMaxDepth(depth)
+                        }
+                        if (face > parentTreeNode.highestFace) {
+                            parentTreeNode.setHighFace(face)
+                        }
+                    } else {
+                        var index = this.index
+                        var treeNode = new TreeNode(move, depth, face)
+                    }
+                    index[move.hash] = treeNode
+                    child.treeNode = treeNode
+
+
                     Profiler.inc('node.create')
 
                     nodeCount += 1
