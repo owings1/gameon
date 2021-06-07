@@ -524,18 +524,17 @@ class BlotHelper {
 
         const blots = []
 
-        const blotOrigins = analyzer.blotOrigins(color)
-        const blotPointCount = blotOrigins.length
+        const origins = analyzer.blotOrigins(color)
+        const blotPointCount = origins.length
 
         if (blotPointCount == 0) {
             return blots
         }
 
         Profiler.start('BlotHelper.prep')
-        const {blotPoints, pointsWithOpponent} = BlotHelper._prep(analyzer, color, blotOrigins)
-        const opponentCount = pointsWithOpponent.length
-        const minPointWithOpponent = pointsWithOpponent[opponentCount - 1]
-        var maxPointWithOpponent = pointsWithOpponent[0]
+        const {points, opposers} = BlotHelper._prep(analyzer, color, origins)
+        const opponentCount = opposers.length
+        const minOpposer = opposers[opponentCount - 1]
         Profiler.stop('BlotHelper.prep')
 
         if (opponentCount == 0 && !isIncludeAll) {
@@ -543,50 +542,45 @@ class BlotHelper {
             return blots
         }
 
-        var minOpponentIndex = 0
+        var maxOpposer = opposers[0]
+        var minOpposerIndex = 0
+
         Profiler.start('BlotHelper.process')
 
         for (var i = 0; i < blotPointCount; ++i) {
 
-            var point = blotPoints[i]
+            var point = points[i]
 
             if (!isIncludeAll) {
-                if (point < minPointWithOpponent) {
+                // distanceToMin
+                if (point < minOpposer) {
                     break
                 }
                 // distanceToMax
-                if (point - maxPointWithOpponent > 11) {
-                    continue
-                }
-                // distanceToMin
-                if (point - minPointWithOpponent < 0) {
+                if (point - maxOpposer > 11) {
                     continue
                 }
             }
-
-            var origin = PointOrigins[color][point]
 
             var minDistance = Infinity
             var directCount = 0
             var indirectCount = 0
             
-            if (point > minPointWithOpponent) {
+            if (point > minOpposer) {
                 // calculate attacker distance, direct/indirect shots
                 Profiler.start('BlotHelper.process.inner')
-                if (minOpponentIndex > 0 && minOpponentIndex < opponentCount) {
-                    Profiler.inc('blots.opponent.point.skipped.minIndex', minOpponentIndex)
-                }
 
-                for (var j = minOpponentIndex; j < opponentCount; ++j) {
+                for (var j = minOpposerIndex; j < opponentCount; ++j) {
 
                     Profiler.inc('blots.opponent.point.process')
 
-                    var opposer = pointsWithOpponent[j]
+                    var opposer = opposers[j]
 
                     if (opposer > point) {
-                        minOpponentIndex = j + 1
-                        if (minOpponentIndex < opponentCount) {
-                            maxPointWithOpponent = pointsWithOpponent[minOpponentIndex]
+                        // update minOpposerIndex
+                        minOpposerIndex = j + 1
+                        if (minOpposerIndex < opponentCount) {
+                            maxOpposer = opposers[minOpposerIndex]
                         }
                         Profiler.inc('blots.opponent.point.disengaged')
                         continue
@@ -616,8 +610,8 @@ class BlotHelper {
             }
 
             blots.push({
-                point
-              , origin
+                origin : PointOrigins[color][point]
+              , point
               , minDistance
               , directCount
               , indirectCount
@@ -630,35 +624,35 @@ class BlotHelper {
         return blots
     }
 
-    static _prep(analyzer, color, blotOrigins) {
+    static _prep(analyzer, color, origins) {
 
-        const blotPoints = []
-        const blotOriginCount = blotOrigins.length
+        const points = []
+        const originCount = origins.length
         // opponent points are relative to this color, not the opponent's color
-        const pointsWithOpponent = []
+        const opposers = []
         const opponentOrigins = analyzer.originsOccupied(Opponent[color])
         const opponentCount = opponentOrigins.length
 
         // create pre-sorted
         if (color == Red) {
-            for (var i = blotOriginCount - 1; i >= 0; --i) {
-                blotPoints.push(OriginPoints[color][blotOrigins[i]])
+            for (var i = originCount - 1; i >= 0; --i) {
+                points.push(OriginPoints[color][origins[i]])
             }
             for (var p = opponentCount - 1; p >= 0; --p) {
-                pointsWithOpponent.push(OriginPoints[color][opponentOrigins[p]])
+                opposers.push(OriginPoints[color][opponentOrigins[p]])
             }
         } else {
-            for (var i = 0; i < blotOriginCount; ++i) {
-                blotPoints.push(OriginPoints[color][blotOrigins[i]])
+            for (var i = 0; i < originCount; ++i) {
+                points.push(OriginPoints[color][origins[i]])
             }
             for (var p = 0, plen = opponentCount; p < plen; ++p) {
-                pointsWithOpponent.push(OriginPoints[color][opponentOrigins[p]])
+                opposers.push(OriginPoints[color][opponentOrigins[p]])
             }
         }
         if (analyzer.hasBar(Opponent[color])) {
-            pointsWithOpponent.push(0)
+            opposers.push(0)
         }
-        return {blotPoints, pointsWithOpponent}
+        return {points, opposers}
     }
 }
 
