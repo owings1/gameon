@@ -11,7 +11,7 @@ const {
     States
 } = Test
 
-const Constants = requireSrc('lib/core')
+const Constants = requireSrc('lib/constants')
 const Core   = requireSrc('lib/core')
 const Server = requireSrc('net/server')
 const Client = requireSrc('net/client')

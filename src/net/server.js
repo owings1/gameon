@@ -37,9 +37,9 @@ const crypto     = require('crypto')
 const express    = require('express')
 const prom       = require('prom-client')
 
-const {White, Red} = Constants
+const {White, Red, Opponent} = Constants
 
-const {Match, Opponent, Dice} = Core
+const {Match, Dice} = Core
 
 const {merge} = Util
 
@@ -567,7 +567,7 @@ class Server {
 
     static validateColor(color) {
         if (color != White && color != Red) {
-            throw new RequestError('invalid color')
+            throw new RequestError('invalid color: ' + color)
         }
     }
 

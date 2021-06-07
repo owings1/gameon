@@ -1407,22 +1407,22 @@ const {
 
 
 module.exports = {
-    Colors
-  , ColorAbbr
-  , Direction
-  , Match
+    Match
   , Game
+  , Turn
   , Board
   , Piece
   , Dice
-  , Turn
-  , White
-  , Red
-  , Opponent
   , Profiler
-  , OriginPoints
-  , OutsideOrigins
-  , PointOrigins
+  //  Colors
+  //, ColorAbbr
+  //, Direction
+  //, White
+  //, Red
+  //, Opponent
+  //, OriginPoints
+  //, OutsideOrigins
+  //, PointOrigins
 }
 
 const BoardAnalyzer = require('./analyzer')
