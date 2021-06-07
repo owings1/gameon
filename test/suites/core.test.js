@@ -922,13 +922,6 @@ describe('Board', () => {
 			expect(result).to.have.length(0)
 		})
 
-        // no longer applicable
-		it.skip('should throw when non IllegalMoveError is thrown', () => {
-			board.setup()
-			board.checkMove = () => { throw new Error }
-			const err = getError(() => board.getPossibleMovesForFace(White, 1))
-			expect(err instanceof Error).to.equal(true)
-		})
 	})
 
     describe('#getWinner', () => {

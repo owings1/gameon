@@ -90,7 +90,7 @@ class Match {
         if (this.thisGame) {
             this.thisGame.checkFinished()
         }
-        for (var color of Object.keys(this.scores)) {
+        for (var color in Colors) {
             this.scores[color] = Util.sumArray(
                 this.games.filter(
                     game => game.getWinner() == color
@@ -115,8 +115,12 @@ class Match {
     }
 
     getWinner() {
-        const winner = Object.keys(this.scores).find(color => this.scores[color] >= this.total)
-        return winner || null
+        for (var color in Colors) {
+            if (this.scores[color] >= this.total) {
+                return color
+            }
+        }
+        return null
     }
 
     getLoser() {
@@ -990,13 +994,21 @@ class Board {
         return move
     }
 
+    buildMove(color, origin, face) {
+        const {check, build} = Move.check(this, color, origin, face)
+        if (check !== true) {
+            throw new check.class(check.message)
+        }
+        return new build.class(...build.args)
+    }
+
     // Performance optimized
     getPossibleMovesForFace(color, face) {
         Profiler.start('Board.getPossibleMovesForFace')
         const moves = []
         if (this.analyzer.hasBar(color)) {
             Profiler.start('Board.getPossibleMovesForFace.1')
-            var {check, build} = this.checkMove(color, -1, face)
+            var {check, build} = Move.check(this, color, -1, face)
             if (check === true) {
                 moves.push(new build.class(...build.args))
             }
@@ -1046,56 +1058,6 @@ class Board {
         return moves
     }
 
-    buildMove(color, origin, face) {
-        const {check, build} = this.checkMove(color, origin, face)
-        if (check !== true) {
-            throw new check.class(check.message)
-        }
-        return new build.class(...build.args)
-    }
-
-    // Returns an object with two keys:
-    //
-    //    check: true iff the move is valid, else an error object {class, message}
-    //    build: an object for constructing the move {class, args}
-    //
-    // The caller must test whether check === true, else construct and throw the
-    // error. The build object may still populated even if there is an error.
-    checkMove(color, origin, face) {
-        Profiler.start('Board.checkMove')
-        try {
-            Dice.checkOne(face)
-            var check
-            var build
-            if (origin == -1) {
-                check = ComeInMove.check(this, color, face)
-                build = {class: ComeInMove, args: [this, color, face, check === true]}
-                return {check, build}
-            }
-            if (this.analyzer.hasBar(color)) {
-                check = {class: PieceOnBarError, message: [color, 'has a piece on the bar']}
-            } else {
-                const slot = this.slots[origin]
-                if (slot.length < 1 || slot[0].color != color) {
-                    check = {class: NoPieceOnSlotError, message: [color, 'does not have a piece on slot', origin + 1]}
-                } else {
-                    const dest = origin + face * Direction[color]
-                    const isBearoff = dest < 0 || dest > 23
-                    if (isBearoff) {
-                        check = BearoffMove.check(this, color, origin, face)
-                        build = {class: BearoffMove, args: [this, color, origin, face, check === true]}
-                    } else {
-                        check = RegularMove.check(this, color, origin, face)
-                        build = {class: RegularMove, args: [this, color, origin, face, check === true]}
-                    }
-                }
-            }
-            return {check, build}
-        } finally {
-            Profiler.stop('Board.checkMove')
-        }
-    }
-
     hasWinner() {
         return this.getWinner() != null
     }
@@ -1133,7 +1095,7 @@ class Board {
     copy() {
         Profiler.start('Board.copy')
         const board = new Board(true)
-        board.slots = this.slots.map(it => it.slice(0))
+        board.slots = this.slots.map(slot => slot.slice(0))
         board.bars = {
             Red   : this.bars.Red.slice(0)
           , White : this.bars.White.slice(0)
@@ -1160,27 +1122,7 @@ class Board {
         this.markChange()
     }
 
-    // Optimized for performance
-    stateString() {
-        Profiler.start('Board.stateString')
-        const key = CacheKeys.stateString
-        if (!this.cache[key]) {
-            Profiler.inc('board.stateString.cache.miss')
-            // <White bar count>|<Red bar count>|<slot count>:<Red/White/empty>|...|<White home count>|<Red home count>
-            var str = this.bars.White.length + '|' + this.bars.Red.length + '|'
-            for (var i = 0; i < 24; ++i) {
-                var slot = this.slots[i]
-                str += slot.length + ':' + (slot.length ? slot[0].c : '') + '|'
-            }
-            this.cache[key] = str + this.homes.White.length + '|' + this.homes.Red.length
-        } else {
-            Profiler.inc('board.stateString.cache.hit')
-        }
-        Profiler.stop('Board.stateString')
-        return this.cache[key]
-    }
-
-    // experimental
+    // @cache
     state28() {
         Profiler.start('Board.state28')
         const key = CacheKeys.state28
@@ -1219,6 +1161,26 @@ class Board {
           , Red   :  Piece.make(~64 & arr[27], Red)
         }
         this.markChange()
+    }
+
+    // @cache
+    stateString() {
+        Profiler.start('Board.stateString')
+        const key = CacheKeys.stateString
+        if (!this.cache[key]) {
+            Profiler.inc('board.stateString.cache.miss')
+            // <White bar count>|<Red bar count>|<slot count>:<Red/White/empty>|...|<White home count>|<Red home count>
+            var str = this.bars.White.length + '|' + this.bars.Red.length + '|'
+            for (var i = 0; i < 24; ++i) {
+                var slot = this.slots[i]
+                str += slot.length + ':' + (slot.length ? slot[0].c : '') + '|'
+            }
+            this.cache[key] = str + this.homes.White.length + '|' + this.homes.Red.length
+        } else {
+            Profiler.inc('board.stateString.cache.hit')
+        }
+        Profiler.stop('Board.stateString')
+        return this.cache[key]
     }
 
     setStateString(str) {
@@ -1330,6 +1292,48 @@ class Board {
 }
 
 class Move {
+
+    // Returns an object with two keys:
+    //
+    //    check: true iff the move is valid, else an error object {class, message}
+    //    build: an object for constructing the move {class, args}
+    //
+    // The caller must test whether check === true, else construct and throw the
+    // error. The build object may still populated even if there is an error.
+    static check(board, color, origin, face) {
+        Profiler.start('Move.check')
+        try {
+            Dice.checkOne(face)
+            var check
+            var build
+            if (origin == -1) {
+                check = ComeInMove.check(board, color, face)
+                build = {class: ComeInMove, args: [board, color, face, check === true]}
+                return {check, build}
+            }
+            if (board.analyzer.hasBar(color)) {
+                check = {class: PieceOnBarError, message: [color, 'has a piece on the bar']}
+            } else {
+                if (!board.analyzer.occupiesOrigin(color, origin)) {
+                    check = {class: NoPieceOnSlotError, message: [color, 'does not have a piece on slot', origin + 1]}
+                } else {
+                    const dest = origin + face * Direction[color]
+                    const isBearoff = dest < 0 || dest > 23
+                    if (isBearoff) {
+                        check = BearoffMove.check(board, color, origin, face)
+                        build = {class: BearoffMove, args: [board, color, origin, face, check === true]}
+                    } else {
+                        check = RegularMove.check(board, color, origin, face)
+                        build = {class: RegularMove, args: [board, color, origin, face, check === true]}
+                    }
+                }
+            }
+            return {check, build}
+        } finally {
+            Profiler.stop('Move.check')
+        }
+        
+    }
 
     constructor(board, color, origin, face) {
         this.board = board
