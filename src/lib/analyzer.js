@@ -288,6 +288,7 @@ class BoardAnalyzer {
         if (slot[0]) {
             return slot[0].color
         }
+        return null
     }
 
     // Two or more pieces
