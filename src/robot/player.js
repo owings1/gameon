@@ -28,7 +28,7 @@ const Base      = require('../lib/player')
 const Errors    = require('../lib/errors')
 const Util      = require('../lib/util')
 
-const {Board, Profiler} = Core
+const {Profiler} = Core
 const {HasNotRolledError} = Errors
 const {merge} = Util
 
@@ -149,7 +149,7 @@ const KnownRobots = {
       , defaults : {
             moveWeight   : 0.5
           , doubleWeight : 0
-          , version      : 'v1'
+          , version      : 'v2'
         }   
     }
   , DoubleRobot    : {
