@@ -494,24 +494,6 @@ class TreeNode {
             this.parentNode.setHighFace(face)
         }
     }
-
-    prune(maxDepth, highestFace) {
-        const hashes = Object.keys(this.index)
-        for (var i = 0, ilen = hashes.length; i < ilen; ++i) {
-            var hash = hashes[i]
-            var node = this.index[hash]
-            if (node.hasWinner) {
-                continue
-            }
-            if (node.maxDepth < maxDepth) {
-                //Profiler.inc('TreeNode.prune.discard.maxDepth')
-                delete node[hash]
-                continue
-            }
-            if (node.highestFace < highestFace) {
-                //Profiler.inc('TreeNode.prune.discard.highestFace')
-                delete node[hash]
-            }
         }
     }
 
