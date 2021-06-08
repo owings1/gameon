@@ -1046,6 +1046,18 @@ class Dice {
         Dice.checkOne(faces[1])
     }
 
+    static checkFaces(faces)  {
+        if (faces.length == 4) {
+            Dice.checkOne(faces[0])
+            if (faces[0] != faces[1] || faces[0] != faces[2] || faces[0] != faces[3]) {
+                throw new InvalidRollError('4 faces must be equal')
+            }
+        } else {
+            Dice.checkOne(faces[0])
+            Dice.checkOne(faces[1])
+        }
+    }
+
     static getWinner(dice) {
         if (dice[0] == dice[1]) {
             return null
@@ -1111,15 +1123,6 @@ module.exports = {
   , Piece
   , Dice
   , Profiler
-  //  Colors
-  //, ColorAbbr
-  //, Direction
-  //, White
-  //, Red
-  //, Opponent
-  //, OriginPoints
-  //, OutsideOrigins
-  //, PointOrigins
 }
 
 const BoardAnalyzer = require('./analyzer')

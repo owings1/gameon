@@ -205,6 +205,7 @@ class SequenceTree {
         this.depthIndex  = {}
         this.index       = {}
         this.winners     = []
+        Dice.checkFaces(sequence)
     }
 
     build() {
@@ -490,11 +491,13 @@ class TreeNode {
 
     setHighFace(face) {
         this.highestFace = face
-        if (this.parentNode && this.parentNode.highestFace < face) {
-            this.parentNode.setHighFace(face)
+        // this condition should never be met, hence Dice.checkFaces in
+        // constructor.
+        /*
+        if (this.parent && this.parent.highestFace < face) {
+            this.parent.setHighFace(face)
         }
-    }
-        }
+        */
     }
 
     // profiling shows caching not needed - never hit

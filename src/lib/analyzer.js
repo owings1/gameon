@@ -520,7 +520,7 @@ class BoardAnalyzer {
 
 class BlotHelper {
 
-    static blots(analyzer, color, isIncludeAll = true) {
+    static blots(analyzer, color, isIncludeAll) {
 
         const blots = []
 
