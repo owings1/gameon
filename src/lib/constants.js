@@ -106,6 +106,9 @@ function populateMoveHashesCoords(hashes, coords) {
 
 populateMoveHashesCoords(MoveHashes, MoveCoords)
 
+const BoardStrings = {
+    Initial: '0|0|2:W|0:|0:|0:|0:|5:R|0:|3:R|0:|0:|0:|5:W|5:R|0:|0:|0:|3:W|0:|5:W|0:|0:|0:|0:|2:R|0|0'
+}
 const Constants = {
     Red
   , White
@@ -120,5 +123,6 @@ const Constants = {
   , OriginPoints
   , MoveHashes
   , MoveCoords
+  , BoardStrings
 }
 module.exports = Constants

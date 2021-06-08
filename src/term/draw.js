@@ -1,5 +1,5 @@
 /**
- * gameon - Terminal Draw class
+ * gameon - Terminal Draw Helper class
  *
  * Copyright (C) 2020-2021 Doug Owings
  *
@@ -22,12 +22,19 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-const {Red, White, Opponent, ColorAbbr} = require('../lib/constants')
+const Constants = require('../lib/constants')
 
 const chalk      = require('chalk')
+const inquirer   = require('inquirer')
+const Core       = require('../lib/core')
+const Logger     = require('../lib/logger')
 const Util       = require('../lib/util')
 const sp         = Util.joinSpace
 const {intRange} = Util
+
+const {Red, White, Opponent, ColorAbbr, ColorNorm, PointOrigins} = Constants
+
+const {Board, Dice, Turn} = Core
 
 const Shorts = {
     Red   : chalk.bold.red('R')
@@ -84,7 +91,9 @@ const BottomPoints = intRange(1, 12).reverse()
 function grey(...args) {
     return chalk.grey(...args)
 }
-
+function ccolor(color) {
+    return chalk.bold[ChalkColorFor[color]](color)
+}
 // the string for the piece color, if any
 function pieceStr(color) {
     const c = ColorAbbr[color] || ''
@@ -170,18 +179,290 @@ function len(str) {
     return Util.stripAnsi(str).length
 }
 
-class Draw {
+class DrawHelper {
 
-    static drawBoard(game, match, persp, logs) {
+    constructor(opts) {
+        opts = opts || {}
+        this.match = opts.match
+        this.game = opts.game
+        this.board = opts.board || (this.game && this.game.board)
+        this.persp = opts.persp
+        this.logs = []
+        this.stateHistory = []
+        this.logger = new Logger
+        if (this.board) {
+            this.stateHistory.push(this.board.state28())
+        }
+    }
+
+    draw(isPrint) {
+        const output = this.constructor.drawBoard(this.game || this.board, this.match, this.persp, this.logs)
+        if (isPrint) {
+            this.logger.writeStdout(output)
+        }
+        return output
+    }
+
+    async interactive() {
+        while (true) {
+            this.draw(true)
+            var answers = await this.prompt({
+                name    : 'input'
+              , message : 'Input'
+              , type    : 'input'
+            })
+            var {input} = answers
+            var inputLc = input.toLowerCase()
+            if (!input) {
+                continue
+            }
+            if (inputLc == 'q') {
+                break
+            }
+            if (inputLc == '?') {
+                this.logger.console.log(this.commandHelp())
+                continue
+            }
+            if (input[0] != '_') {
+                try {
+                    new Board(input).analyzer.validateLegalBoard()
+                } catch (err) {
+                    this.logger.error(err.name, ':', err.message)
+                    continue
+                }
+                this.board.setStateString(input)
+            }
+            switch (inputLc) {
+                case '_':
+                    this.logger.console.log(this.boardInfo())
+                    break
+                case '_f':
+                    this.persp = Opponent[this.persp]
+                    this.logger.info('Perspective changed to', ccolor(this.persp))
+                    break
+                case '_p':
+                    await this.placeCommand()
+                    break
+                case '_u':
+                    await this.undoCommand()
+                    break
+                case '_d':
+                    await this.diceCommand()
+                    break
+                default:
+                    this.logger.warn('Invalid command', input)
+                    this.logger.console.log(this.commandHelp())
+                    break
+            }
+        }
+    }
+
+    commandHelp() {
+        return {
+            '_'  : 'board info'
+          , '_f' : 'flip perspective'
+          , '_p' : 'place piece'
+          , '_u' : 'undo move'
+          , '_d' : 'show moves for dice'
+          , '?'  : 'command help'
+        }
+    }
+
+    boardInfo() {
+        const {board} = this
+        return {
+            state28     : board.state28()
+          , stateString : board.stateString()
+        }
+    }
+
+    async undoCommand() {
+        if (this.stateHistory.length < 2) {
+            this.logger.error('Nothing to undo')
+            return
+        }
+        this.board.setStateString(this.stateHistory.pop())
+    }
+
+    async diceCommand(input) {
+        const parseInput = value => value.split(',').map(it => parseInt(it.trim()))
+        const checkDice = dice => {
+            try {
+                Dice.checkTwo(dice)
+            } catch (err) {
+                return err.message
+            }
+            return true
+        }
+        const answers = await this.prompt({
+            message  : 'Dice'
+          , type     : 'input'
+          , name     : 'dice'
+          , validate : value => checkDice(parseInput(value))
+          , when     : () => !input || checkDice(input) !== true
+        })
+        input = input || answers.dice
+        const dice = parseInput(input)
+
+        const {board} = this
+        const turn = new Turn(board, this.persp).setRoll(dice)
+
+        this.logger.console.log(turn.allowedMoveIndex)
+    }
+
+    async placeCommand(input) {
+        const {board} = this
+        const {analyzer} = board
+        const answers = await this.prompt([
+            {
+                message  : 'From, point, (b)ar, or (h)ome'
+              , name     : 'from'
+              , type     : 'input'
+              , validate : value => {
+                    if (value.toLowerCase() == 'q') {
+                        return true
+                    }
+                    if (value == 'b') {
+                        if (!analyzer.hasBar(White) && !analyzer.hasBar(Red)) {
+                            return 'No pieces on bar'
+                        }
+                        return true
+                    }
+                    if (value == 'h') {
+                        if (!analyzer.piecesHome(White) && !analyzer.piecesHome(Red)) {
+                            return 'No pieces on hom'
+                        }
+                        return true
+                    }
+                    const point = parseInt(value)
+                    if (isNaN(point) || point < 1 || point > 24) {
+                        return 'Invalid point'
+                    }
+                    const origin = PointOrigins[this.persp][point]
+                    return !!analyzer.originOccupier(origin) || sp('No piece on point', point)
+                }
+            }
+          , {
+                message : 'Color, (w)hite or (r)ed'
+              , name    : 'color'
+              , type    : 'input'
+              , when    : answers => {
+                    if (answers.from == 'b') {
+                        return analyzer.hasBar(White) && analyzer.hasBar(Red)
+                    }
+                    if (answers.from == 'h') {
+                        return analyzer.piecesHome(White) && analyzer.piecesHome(Red)
+                    }
+                    return false
+                }
+              , validate : value => {
+                    if (value.toLowerCase() == 'q') {
+                        return true
+                    }
+                    return !!ColorNorm[value.toUpperCase()] || 'Invalid color'
+                } 
+            }
+          , {
+                message  : 'To, point, (b)ar, or (h)ome'
+              , name     : 'dest'
+              , type     : 'input'
+              , when     : answers => answers.from.toLowerCase() != 'q' && (!answers.color || answers.color.toLowerCase() != 'q')
+              , validate : (value, answers) => {
+                    if (value == 'b' || value == 'h' || value.toLowerCase() == 'q') {
+                        return true
+                    }
+                    const point = parseInt(value)
+                    if (isNaN(point) || point < 1 || point > 24) {
+                        return 'Invalid point'
+                    }
+                    const origin = PointOrigins[this.persp][point]
+                    const occupier = analyzer.originOccupier(origin)
+
+                    if (answers.color) {
+                        var color = ColorNorm[answers.color.toUpperCase()]
+                    } else {
+                        const fromPoint = parseInt(answers.from)
+                        const fromOrigin = PointOrigins[this.persp][fromPoint]
+                        var color = analyzer.originOccupier(fromOrigin)
+                    }
+
+                    return !occupier || occupier == color || sp(point, 'occupied by', occupier)
+                }
+            }
+        ])
+
+        if (answers.from.toLowerCase() == 'q') {
+            return
+        }
+        if (answers.color && answers.color.toLowerCase() == 'q') {
+            return
+        }
+        if (answers.dest.toLowerCase() == 'q') {
+            return
+        }
+
+        var piece
+
+        const desc = ['Place']
+
+        if (answers.from == 'b') {
+            if (analyzer.hasBar(White) && analyzer.hasBar(Red)) {
+                var color = ColorNorm[answers.color.toUpperCase()]
+            } else {
+                var color = analyzer.hasBar(White) ? White : Red
+            }
+            piece = board.popBar(color)
+            desc.push(sp(ccolor(piece.color), 'bar'))
+        } else if (answers.from == 'h') {
+            if (analyzer.piecesHome(White) && analyzer.piecesHome(Red)) {
+                var color = ColorNorm[answers.color.toUpperCase()]
+            } else {
+                var color = analyzer.piecesHome(White) ? White : Red
+            }
+            piece = board.popHome(color)
+            desc.push(sp(piece.color, 'home'))
+        } else {
+            var fromPoint = parseInt(answers.from)
+            var fromOrigin = PointOrigins[this.persp][fromPoint]
+            piece = board.popOrigin(fromOrigin)
+            desc.push(sp(piece.color, fromPoint))
+        }
+        desc.push(':')
+        if (answers.dest == 'b') {
+            board.pushBar(piece.color, piece)
+            desc.push('bar')
+        } else if (answers.dest == 'h') {
+            board.pushHome(piece.color, piece)
+            desc.push('home')
+        } else {
+            const destPoint = parseInt(answers.dest)
+            const destOrigin = PointOrigins[this.persp][destPoint]
+            board.pushOrigin(destOrigin, piece)
+            desc.push(destPoint)
+        }
+        this.logs.push(desc.join(' '))
+        this.stateHistory.push(board.state28())
+    }
+
+    static drawBoard(gameOrBoard, match, persp, logs) {
 
         const logsRev = (logs || []).slice(0).reverse()
         persp = persp || White
         const opersp = Opponent[persp]
 
-        const {board, cubeOwner, cubeValue} = game
+        if (gameOrBoard.constructor.name == 'Game') {
+            var game = gameOrBoard
+            var {board, cubeOwner, cubeValue} = game
+            var {isCrawford} = game.opts
+        } else {
+            var game = null
+            var board = gameOrBoard
+            var cubeOwner = null
+            var cubeValue = null
+            var isCrawford = null
+        }
         const {analyzer} = board
         const pipCounts = analyzer.pipCounts()
-        const {isCrawford} = game.opts
         const pointStats = {}
         intRange(1, 24).forEach(point =>
             pointStats[point] = analyzer.statPoint(persp, point)
@@ -341,6 +622,11 @@ class Draw {
 
         return builder.join('')
     }
+
+    prompt(questions) {
+        this._prompt = inquirer.prompt(Util.castToArray(questions))
+        return this._prompt
+    }
 }
 
-module.exports = Draw
+module.exports = DrawHelper
