@@ -600,6 +600,7 @@ describe('Turn', () => {
             const board = Board.setup()
             const turn = new Turn(board, Red)
             turn.setRoll([3, 1])
+            //console.log(SequenceTree.serializeIndex(turn.allowedMoveIndex, true))
             turn.move(7, 3)
             turn.move(5, 1)
             turn.finish()
@@ -1599,7 +1600,49 @@ describe('SequenceTree', () => {
                 t2.setRoll(1, 2)
                 
             })
+            it('wip moveSeries', () => {
+                const t1 = new Turn(Board.setup(), White, {breadthTrees: true})
+                const t2 = new Turn(Board.setup(), White)
+                t1.setRoll(1, 1)
+                t2.setRoll(1, 1)
+                
+            })
 
+            it('wip buildSequence', () => {
+                const board = Board.setup()
+                const t1 = new DepthTree(board, White, [2, 1])
+                t1.buildSequence(t1.board, [2], t1.index)
+                t1.depthIndex[1][0].moveSeries()
+                //console.log(t1.index)
+            })
+
+            it('wip prune', () => {
+                const board = Board.fromStateString(States.WhitePrune1)
+                const t1 = new DepthTree(board, White, [5, 1])
+                const t2 = new DepthTree(board, White, [1, 5])
+                t1.buildSequence(t1.board, [5, 1], t1.index)
+                t2.buildSequence(t2.board, [1, 5], t2.index)
+                //console.log(t2.index)
+                t2.prune(2, 5, true)
+                //console.log(t1)
+                //console.log(t2.index)
+            })
+
+            it('wip prune 2', () => {
+                const board = Board.setup()
+                const tree = new DepthTree(board, Red, [3, 1])
+                tree.buildSequence(board, [3, 1], tree.index)
+                //console.log(SequenceTree.serializeIndex(tree.index, true))
+                //console.log(tree.index['7:3'])
+                tree.prune(tree.maxDepth, tree.highestFace, true)
+                //console.log(SequenceTree.serializeIndex(tree.index, true))
+                //console.log(SequenceTree.serializeIndex(turn.allowedMoveIndex, true))
+
+                //const turn = new Turn(board, Red)
+                //turn.setRoll([3, 1])                
+                //turn.move(7, 3)
+                //turn.move(5, 1)
+            })
             it('sequence tree index equivalence with depth for basic example', () => {
                 const board = new Board
                 for (var i = 0; i < 4; ++i) {
@@ -1655,7 +1698,9 @@ describe('SequenceTree', () => {
 
             describe('all rolls', () => {
 
-                Rolls.allRolls.forEach(roll => {
+                const {allRolls} = Rolls
+                //const allRolls = [[2, 3]]
+                allRolls.forEach(roll => {
 
                     it('should be equivalent for White at initial state for ' + roll.join(','), () => {
                         const t1 = new Turn(Board.setup(), White)
@@ -1670,14 +1715,16 @@ describe('SequenceTree', () => {
 
             describe('fixed game play', () => {
 
+                const rolls = Rolls.rolls
+
                 var game1
                 var game2
 
                 before(() => {
                     var rollIndex1 = 1
                     var rollIndex2 = 1
-                    const roller1 = () => Rolls.rolls[rollIndex1++]
-                    const roller2 = () => Rolls.rolls[rollIndex2++]
+                    const roller1 = () => rolls[rollIndex1++]
+                    const roller2 = () => rolls[rollIndex2++]
                     game1 = new Game({roller: roller1})
                     game2 = new Game({roller: roller2, breadthTrees: true})
                 })
@@ -1705,9 +1752,16 @@ describe('SequenceTree', () => {
                 })
 
                 Util.intRange(2, 60).forEach(i => {
-                    it('should be equivalent at turn ' + i + ' for roll ' + Rolls.rolls[i].join(','), () => {
+                    it('should be equivalent at turn ' + i + ' for roll ' + rolls[i].join(','), () => {
+                        
                         const turns = [game1.nextTurn().roll(), game2.nextTurn().roll()]
                         checkEquivalence(...turns)
+                        if (i == 29) {
+                            //console.log(turns[0].color)
+                            //console.log(turns[0].startState)
+                            //console.log(turns[0].dice)
+                            //console.log(turns[0].allowedMoveIndex)
+                        }
                         playTurns(...turns)
                     })
                 })

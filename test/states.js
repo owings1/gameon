@@ -14,8 +14,6 @@ module.exports = {
   , RedGammon1        : '0|0|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|15:W|0|15'
   , WhiteNoGammon1    : '0|1|12:R|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|1:R|15|1'
   , WhiteRunner2Pips  : '0|0|1:W|0:|1:W|0:|0:|5:R|0:|3:R|0:|0:|0:|5:W|5:R|0:|0:|0:|3:W|0:|5:W|0:|0:|0:|0:|2:R|0|0'
-    // with 2,4 white has to come in on the 4
-  , WhiteCornerCase24 : '1|0|0:|0:|2:R|0:|0:|2:R|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|1:W|0:|0:|0|0'
     // with 2,6 white has to move its rearmost piece(i:14) 2 then 6. it cannot move its middle piece(i:17) 2 first
   , WhiteCornerCase26 : '0|0|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|1:W|0:|0:|1:W|0:|0:|2:R|0:|0:|2:R|0|0'
     // with 1,6 white must take the 6, even though the 6 point is un-occupied
@@ -77,6 +75,9 @@ module.exports = {
   , BlotsIndBar1      : '0|1|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|1:W|0:|0:|0:|0:|0:|0:|14|14'
     // each has three blots at various positions
   , BlotsMany1        : '0|0|1:W|0:|1:W|0:|0:|5:R|0:|3:R|1:R|0:|0:|4:W|4:R|0:|1:W|0:|3:W|1:R|5:W|0:|0:|0:|0:|1:R|0|0'
+
+    // Valid Boards
+
     // there are single pieces but disengaged
   , BlotsDisengaged   : '0|0|1:R|1:R|1:W|1:W|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|13|13'
     // there are blots, but all greater than 11 distance
@@ -89,4 +90,10 @@ module.exports = {
   , BlotsMaxSkip2     : '0|2|0:|0:|0:|0:|2:R|8:R|2:R|0:|1:W|1:W|0:|1:W|0:|0:|0:|0:|0:|1:W|2:W|2:W|2:W|2:W|3:W|1:R|0|0'
     // some known valid cases
   , WhiteOneOnBar     : '1|0|1:W|0:|0:|0:|0:|5:R|0:|3:R|0:|0:|0:|5:W|5:R|0:|0:|0:|3:W|0:|5:W|0:|0:|0:|0:|2:R|0|0'
+    // white rolls 5,1 should not be allowed to move p7:1
+  , WhitePrune1       : '0|0|8:R|3:R|0:|0:|0:|0:|0:|0:|0:|0:|1:R|0:|0:|0:|0:|0:|0:|1:W|8:W|1:R|3:W|3:W|0:|2:R|0|0'
+    // with 2,4 white has to come in on the 4, maxDepth = 1, but highestFace = 4
+  , WhitePruneFace2   : '1|0|0:|0:|2:R|0:|0:|2:R|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|1:W|0:|13|11'
+    // with 2,4 white has to come in on the 4
+  , WhiteCornerCase24 : '1|0|0:|0:|2:R|0:|0:|2:R|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|1:W|0:|0:|13|11'
 }
