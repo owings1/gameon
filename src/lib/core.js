@@ -825,7 +825,11 @@ class Board {
     }
 
     isGammon() {
-        return this.hasWinner() && this.homes[Opponent[this.getWinner()]].length == 0
+        if (!this.hasWinner()) {
+            return false
+        }
+        const loser = Opponent[this.getWinner()]
+        return this.analyzer.piecesHome(loser) == 0
     }
 
     isBackgammon() {
@@ -1198,7 +1202,18 @@ module.exports = {
 }
 
 const BoardAnalyzer = require('./analyzer')
-const {SequenceTree, BreadthBuilder, DepthBuilder} = require('./trees')
-const {Move, BearoffMove, ComeInMove, RegularMove} = require('./move')
+
+const {
+    BreadthBuilder
+  , DepthBuilder
+  , SequenceTree
+} = require('./trees')
+
+const {
+    BearoffMove
+  , ComeInMove
+  , Move
+  , RegularMove
+} = require('./move')
 
 Board.BoardAnalyzer = BoardAnalyzer
