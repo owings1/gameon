@@ -41,7 +41,6 @@ class CalibrateRunCommand extends Command {
     }
 
     async run() {
-        await this.init()
         await this.helper.run()
     }
 }

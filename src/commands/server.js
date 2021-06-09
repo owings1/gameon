@@ -36,7 +36,6 @@ class ServerCommand extends Command {
     }
 
     async run() {
-        await this.init()
         this.helper.listen(this.getHttpPort(), this.getMetricsPort())
     }
 
