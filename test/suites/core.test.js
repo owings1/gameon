@@ -1894,7 +1894,7 @@ describe('SequenceTree', () => {
                 })
             })
 
-            describe.skip('fixed game play', () => {
+            describe('fixed game play', () => {
 
                 const rolls = Rolls.rolls
 
@@ -1928,8 +1928,11 @@ describe('SequenceTree', () => {
                 it('should be equivalent at first turn', () => {
                     const t1 = game1.firstTurn()
                     const t2 = game2.firstTurn()
-                    checkEquivalence(t1, t2)
-                    playTurns(t1, t2)
+                    try {
+                        checkEquivalence(t1, t2)
+                    } finally {
+                        playTurns(t1, t2)
+                    }
                 })
 
                 Util.intRange(2, 60).forEach(i => {
@@ -1938,25 +1941,31 @@ describe('SequenceTree', () => {
                         const turns = [game1.nextTurn().roll(), game2.nextTurn().roll()]
                         
                         if (i == 60) {
-                            console.log(turns[0].color)
-                            console.log(turns[0].startState)
-                            console.log(turns[0].dice)
-                            console.log(turns[0].allowedMoveIndex)
-                            console.log('\n')
-                            console.log(turns[1].allowedMoveIndex)
-                            console.log(JSON.stringify(SequenceTree.serializeIndex(turns[1].allowedMoveIndex), null, 2))
+                            //console.log(turns[0].color)
+                            //console.log(turns[0].startState)
+                            //console.log(turns[0].dice)
+                            //console.log(turns[0].allowedMoveIndex)
+                            //console.log('\n')
+                            //console.log(turns[1].allowedMoveIndex)
+                            //console.log(JSON.stringify(SequenceTree.serializeIndex(turns[1].allowedMoveIndex), null, 2))
                             //console.log(turns[1].builder.trees[0].winners)
                             //console.log(turns[1].builder.trees[1].winners)
-                            for (var node of turns[1].builder.trees[0].winners) {
-                                if (!node.hasWinner) {
-                                    console.log('winner no winner', node)
-                                }
-                            }
-                            for (var node of turns[1].builder.trees[1].winners) {
-                                if (!node.hasWinner) {
-                                    console.log('winner no winner', node)
-                                }
-                            }
+                            //for (var node of turns[1].builder.trees[0].winners) {
+                            //    if (!node.hasWinner) {
+                            //        console.log('winner no winner tree1', JSON.stringify(node.parent.serialize(), null, 2))
+                            //    }
+                            //}
+                            //for (var node of turns[1].builder.trees[1].winners) {
+                            //    if (!node.hasWinner) {
+                            //        console.log('winner no winner tree2', JSON.stringify(node.parent.serialize(), null, 2))
+                            //    }
+                            //}
+                            //for (var node of turns[1].builder.trees[0].depthIndex[2]) {
+                            //    console.log('tree 1 leaf', node)
+                            //}
+                            //for (var node of turns[1].builder.trees[1].depthIndex[2]) {
+                            //    console.log('tree 2 leaf', node)
+                            //}
                         }
                         try {
                             checkEquivalence(...turns)

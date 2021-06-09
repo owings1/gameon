@@ -391,6 +391,7 @@ class DrawHelper {
                 destPoint = 'home'
             }
             parts.push(destPoint)
+            parts.push('[' + move.face + ']')
             return parts.join(':')
         }
         //const series = Object.values(turn.endStatesToSeries)
@@ -409,7 +410,7 @@ class DrawHelper {
         cons.log(info)
         cons.log('  Move Series:')
         series.forEach((moves, i) => cons.log('   ', (i+1) + ':', moves.map(moveDesc)))
-        cons.log(turn.allowedMoveIndex)
+        //cons.log(turn.allowedMoveIndex)
         cons.log(hr)
         
     }

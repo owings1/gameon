@@ -168,9 +168,6 @@ class TurnBuilder {
 
             var node = winners[j]
 
-            if (!node.hasWinner) {
-                console.log('processWinners - nonWinner', node)
-            }
             if (node.depth == this.maxDepth) {
                 // already covered in leaves
                 continue
@@ -243,17 +240,7 @@ class AbstractNode {
         return AbstractNode.serialize(this, sorter)
     }
 
-    //serializeIndex(sorter) {
-    //    return this.constructor.serializeIndex(this.index, sorter)
-    //}
-
     static serialize(node, sorter) {
-        //if (node.hasWinnerCalled) {
-        //    //console.log('hasWinnerCalled')
-        //    if (!node.hasWinner) {
-        //        console.log('but no hasWinner')
-        //    }
-        //}
         return {
             maxDepth    : node.maxDepth
           , highestFace : node.highestFace
@@ -264,7 +251,6 @@ class AbstractNode {
 
     // recursive
     static serializeIndex(index, sorter) {
-        //console.log(index)
         if (!index) {
             return index
         }
@@ -355,17 +341,13 @@ class SequenceTree extends AbstractNode {
     }
 
     static serialize(tree, sorter) {
-        // this.name == 'SequenceTree'
-        // super.name == 'AbstractNode'
         return {
-            // this works too
-            //...AbstractNode.serialize(tree, sorter)
             ...super.serialize(tree, sorter)
           , board     : tree.board.state28()
           , color     : tree.color
           , sequence  : tree.sequence
         }
-    }    
+    }
 }
 
 class DepthTree extends SequenceTree {
@@ -376,17 +358,6 @@ class DepthTree extends SequenceTree {
         if (depth > 4) {
             throw new MaxDepthExceededError
         }
-
-        //if (board.getWinner() == this.color) {
-        //    //console.log('depth winner')
-        //    // terminal case - winner
-        //    this.hasWinner = true
-        //    if (parentNode) {
-        //        parentNode.setWinner()
-        //        //this.winners.push(parentNode)
-        //    }
-        //    return
-        //}
 
         const face = sequence[0]
         const moves = board.getPossibleMovesForFace(this.color, face)
@@ -413,23 +384,17 @@ class DepthTree extends SequenceTree {
             move.board = move.board.copy()
             move.do()
 
-
-
             // careful about loop and closure references
             var node = this.createNode(move, depth, parentNode)
-            
-            if (move.board.getWinner() == this.color) {
-                this.hasWinner = true
-                //node.hasWinner = true
-                node.setWinner()
-                //console.log('!! depth winner', node)
-                this.winners.push(node)
-            }
             this.depthIndex[depth].push(node)
 
             index[move.hash] = node
 
-            
+            if (move.board.getWinner() == this.color) {
+                node.setWinner()
+                this.hasWinner = true
+                this.winners.push(node)
+            }
 
             if (!nextFaces.length) {
                 continue
@@ -451,12 +416,6 @@ class DepthTree extends SequenceTree {
         }
 
         if (parentNode) {
-            //if (this.hasWinner) {
-            //    parentNode.setWinner()
-            //}
-            //if (parentNode.hasWinner) {
-            //    this.hasWinner = true
-            //}
             if (depth > parentNode.maxDepth) {
                 // propagate up the max depth
                 parentNode.setMaxDepth(depth)
@@ -527,11 +486,9 @@ class BreadthTree extends SequenceTree {
         const {face, board} = move
 
         if (board.getWinner() == this.color) {
+            node.setWinner()
             this.hasWinner = true
             this.winners.push(node)
-            if (parent) {
-                parent.setWinner()
-            }
         }
         if (depth > this.maxDepth) {
             this.maxDepth = depth
@@ -571,7 +528,7 @@ class TreeNode extends AbstractNode {
                 this.flag = -1
             }
             if (parent.move.face > this.highestFace) {
-                // progagate down the parent's face
+                // propagate down the parent's face
                 this.highestFace = parent.move.face
             }
         }
@@ -599,7 +556,6 @@ class TreeNode extends AbstractNode {
     }
 
     setWinner() {
-        this.hasWinnerCalled = true
         this.hasWinner = true
         if (this.parent && !this.parent.hasWinner) {
             this.parent.setWinner()
