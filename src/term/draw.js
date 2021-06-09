@@ -28,13 +28,29 @@ const chalk      = require('chalk')
 const inquirer   = require('inquirer')
 const Core       = require('../lib/core')
 const Logger     = require('../lib/logger')
+const Robot      = require('../robot/player')
 const Util       = require('../lib/util')
 const sp         = Util.joinSpace
 const {intRange} = Util
 
-const {Red, White, Opponent, ColorAbbr, ColorNorm, OriginPoints, PointOrigins, BoardStrings} = Constants
+const {
+    BoardStrings
+  , ColorAbbr
+  , ColorNorm
+  , Opponent
+  , OriginPoints
+  , PointOrigins
+  , Red
+  , White
+} = Constants
 
-const {Board, Dice, Turn} = Core
+const {
+    Board
+  , Dice
+  , Turn
+} = Core
+
+const {RobotDelegator} = Robot
 
 const Shorts = {
     Red   : chalk.bold.red('R')
@@ -189,6 +205,7 @@ class DrawHelper {
         this.stateHistory = []
         this.logger = new Logger
         this.opts = opts
+        this.robot = RobotDelegator.forDefaults()
     }
 
     draw(isPrint) {
@@ -307,7 +324,11 @@ class DrawHelper {
           , message  : 'State string'
           , default  : () => board.stateString()
           , validate : value => {
-                if (value.toLowerCase() == 'q' || !value.length) {
+              if (!value) {
+                  return true
+              }
+              const valueLc = value.toLowerCase()
+                if (valueLc == 'q' || valueLc == 'i') {
                     return true
                 }
                 if (getBuiltIn(value)) {
@@ -321,11 +342,13 @@ class DrawHelper {
                 return true
             }
         })
-        if (answers.state.toLowerCase() == 'q' || !answers.state.length) {
+        const valueLc = answers.state.toLowerCase()
+        if (valueLc == 'q' || !answers.state.length) {
             return
         }
-
-        if (getBuiltIn(answers.state)) {
+        if (valueLc == 'i') {
+            var newState = BoardStrings.Initial
+        } else if (getBuiltIn(answers.state)) {
             var newState = getBuiltIn(answers.state)
         } else {
             var newState = answers.state
@@ -396,7 +419,7 @@ class DrawHelper {
             parts.push('[' + move.face + ']')
             return parts.join(':')
         }
-        //const series = Object.values(turn.endStatesToSeries)
+
         const series = turn.builder.leaves.map(node => node.moveSeries())
         const {builder} = turn
         const info = {
@@ -407,11 +430,17 @@ class DrawHelper {
           , hasWinner : builder.result.hasWinner
         }
 
+        const robotMoves = await this.robot.getMoves(turn)
         const hr = nchars(60, '-')
         cons.log(hr)
         cons.log(info)
         cons.log('  Move Series:')
         series.forEach((moves, i) => cons.log('   ', (i+1) + ':', moves.map(moveDesc)))
+        if (robotMoves.length) {
+            cons.log('  Robot Choice:')
+            cons.log('   ', robotMoves.map(moveDesc))
+        }
+
         //cons.log(turn.allowedMoveIndex)
         cons.log(hr)
         
