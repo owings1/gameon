@@ -53,8 +53,8 @@ describe('Client', () => {
 
     var server
 
-    async function startMatch() {
-        const p = client.startMatch({total: 1})
+    async function createMatch() {
+        const p = client.createMatch({total: 1})
         var id
         await new Promise(resolve => setTimeout(() => {
             id = Object.keys(server.matches)[0]
@@ -154,17 +154,48 @@ describe('Client', () => {
 
     describe('#matchRequest', () => {
         it('should pass for nextGame', async () => {
-            const match = await startMatch()
+            const match = await createMatch()
             client2.matchRequest('nextGame')
             await client.matchRequest('nextGame')
         })
     })
 
-    describe('#startMatch', () => {
+    describe('#createMatch', () => {
 
         it('should return match', async () => {
-            const match = await startMatch()
+            const match = await createMatch()
             expect(client.matchId).to.equal(match.id)
+        })
+    })
+
+    describe('#sendAndWaitForResponse', () => {
+
+        it('should throw when waitForResponse throws (coverage)', async () => {
+            const e = new Error
+            client.waitForResponse = () => {throw e}
+            const err = await getErrorAsync(() => client.sendAndWaitForResponse())
+            expect(err).to.equal(e)
+        })
+
+        it('should throw when sendMessage throws (coverage)', async () => {
+            const e = new Error
+            client.waitForResponse = () => {}
+            client.sendMessage = () => {throw e}
+            const err = await getErrorAsync(() => client.sendAndWaitForResponse())
+            expect(err).to.equal(e)
+        })
+    })
+
+    describe('#waitForMessage', () => {
+        it('should reject with MatchCanceledError when conn is lost', async () => {
+            const conn = client.conn
+            client.conn = null
+            try {
+                const err = await getErrorAsync(() => client.waitForMessage())
+                expect(err.name).to.equal('MatchCanceledError')
+            } finally {
+                client.conn = conn
+            }
         })
     })
 
@@ -204,6 +235,7 @@ describe('Server', () => {
 
     var server
     var serverUrl
+    var metricsUrl
     var client
     var client2
 
@@ -212,9 +244,9 @@ describe('Server', () => {
     var authServerUrl
     var authClient
     
-    async function startMatch() {
+    async function createMatch() {
         await Promise.all([client.connect(), client2.connect()])
-        const res = await client.sendAndWait({action: 'startMatch', total: 1})
+        const res = await client.sendAndWait({action: 'createMatch', total: 1})
         const id = res.id
         const p = client.waitForMessage()
         await client2.sendAndWait({action: 'joinMatch', id})
@@ -234,6 +266,7 @@ describe('Server', () => {
         server.logger.loglevel = 1
         await server.listen()
         serverUrl = 'http://localhost:' + server.port
+        metricsUrl = 'http://localhost:' + server.metricsPort
         client = new Client(serverUrl)
         client.logger.loglevel = 1
         client2 = new Client(serverUrl)
@@ -276,10 +309,15 @@ describe('Server', () => {
             await authClient.connect()
         })
 
+        it('should construct with opt webEnabled=false', () => {
+            const s2 = new Server({webEnabled: false})
+            expect(s2.opts.webEnabled).to.equal(false)
+        })
+
         describe('#checkMatchFinished', () => {
 
             it('should delete match from matches when finished', async () => {
-                const match = await startMatch()
+                const match = await createMatch()
                 const game = match.nextGame()
                 game.board.setStateString(States.WhiteWin)
                 makeRandomMoves(game.firstTurn()).finish()
@@ -305,11 +343,12 @@ describe('Server', () => {
 
         describe('#close', () => {
 
-            it('should pass when socketServer and httpServer are null', () => {
+            it('should pass when socketServer, httpServer, and metricsHttpServer are null', () => {
                 // coverage
                 server.close()
                 server.socketServer = null
                 server.httpServer = null
+                server.metricsHttpServer = null
                 server.close()
             })
         })
@@ -362,7 +401,7 @@ describe('Server', () => {
             })
 
             it('should throw HandshakeError for mismatched secret', async () => {
-                const {id} = await startMatch()
+                const {id} = await createMatch()
             
                 const err = getError(() => server.getMatchForRequest({color: White, id, secret: 'badSecret'}))
                 expect(err.name).to.equal('HandshakeError')
@@ -425,11 +464,11 @@ describe('Server', () => {
                 })
             })
 
-            describe('startMatch', () => {
+            describe('createMatch', () => {
 
                 it('should return matchCreated with id of new match with total 1', async () => {
                     await client.connect()
-                    const msg = {action: 'startMatch', total: 1}
+                    const msg = {action: 'createMatch', total: 1}
                     const res = await client.sendAndWait(msg)
                     expect(res.action).to.equal('matchCreated')
                     expect(typeof(res.id)).to.equal('string')
@@ -439,7 +478,7 @@ describe('Server', () => {
                     server.api.logger.loglevel = -1
                     server.logger.loglevel = -1
                     await client.connect()
-                    const msg = {action: 'startMatch', total: -1}
+                    const msg = {action: 'createMatch', total: -1}
                     const res = await client.sendAndWait(msg)
                     expect(res.name).to.equal('ArgumentError')
                 })
@@ -449,7 +488,7 @@ describe('Server', () => {
 
                 it('should return matchJoined and opponentJoind with id of new match with total 1', async () => {
                     await client.connect()
-                    const {id} = await client.sendAndWait({action: 'startMatch', total: 1})
+                    const {id} = await client.sendAndWait({action: 'createMatch', total: 1})
                     var p = client.waitForMessage()
                     await client2.connect()
                     const msg = {action: 'joinMatch', id}
@@ -473,7 +512,7 @@ describe('Server', () => {
                     server.api.logger.loglevel = -1
                     server.logger.loglevel = -1
                     await client.connect()
-                    const {id} = await client.sendAndWait({action: 'startMatch', total: 1})
+                    const {id} = await client.sendAndWait({action: 'createMatch', total: 1})
                     var p = client.waitForMessage()
                     await client2.connect()
                     const msg = {action: 'joinMatch', id}
@@ -493,7 +532,7 @@ describe('Server', () => {
             var roller
 
             beforeEach(async () => {
-                const match = await startMatch()
+                const match = await createMatch()
                 rolls = []
                 match.opts.roller = () => rolls.shift() || Dice.rollTwo()
                 match.total = 3
@@ -870,7 +909,29 @@ describe('Server', () => {
         
     })
 
+    describe('metrics', () => {
+
+        describe('GET /metrics', () => {
+            it('should return 200', async () => {
+                const res = await fetch(metricsUrl + '/metrics')
+                expect(res.status).to.equal(200)
+            })
+            it('should return 500 when fetchMetrics throws', async () => {
+                server.fetchMetrics = () => {throw new Error('test')}
+                const res = await fetch(metricsUrl + '/metrics')
+                expect(res.status).to.equal(500)
+            })
+        })
+    })
+
     describe('web', () => {
+
+        describe('GET /health', () => {
+            it('should return 200', async () => {
+                const res = await fetch(serverUrl + '/health')
+                expect(res.status).to.equal(200)
+            })
+        })
 
         describe('GET /', () => {
 
@@ -1098,7 +1159,7 @@ describe('NetPlayer', () => {
         }
         const coordWest = new Coordinator
         const coordEast = new Coordinator
-        const p = client.startMatch(opts)
+        const p = client.createMatch(opts)
         await new Promise(resolve => setTimeout(resolve, 10))
         const matchEast = await client2.joinMatch(client.matchId)
         const matchWest = await p

@@ -155,13 +155,17 @@ class Server {
         app.get('/metrics', (req, res) => {
             try {
                 res.set('content-type', prom.register.contentType)
-                prom.register.metrics().then(metrics => res.status(200).end(metrics))
+                this.fetchMetrics().then(metrics => res.status(200).end(metrics))
             } catch (err) {
-                res.status(500).end(err)
+                res.status(500).send({status: 500, message: 'Internal Error', error: {name: err.name, message: err.message}})
             }
         })
 
         return app
+    }
+
+    fetchMetrics() {
+        return prom.register.metrics()
     }
 
     getLoggingMiddleware() {
@@ -260,7 +264,6 @@ class Server {
                     break
 
                 case 'createMatch':
-                case 'startMatch': // TODO: remove legacy startMatch
 
                     var id = Server.matchIdFromSecret(secret)
                     var {total, opts} = req

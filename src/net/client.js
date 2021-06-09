@@ -94,11 +94,10 @@ class Client {
         return res
     }
 
-    // TODO: refactor name to createMatch()
-    async startMatch(opts) {
+    async createMatch(opts) {
         const {total} = opts
         await this.connect()
-        const {id} = await this.sendAndWaitForResponse({action: 'startMatch', total, opts}, 'matchCreated')
+        const {id} = await this.sendAndWaitForResponse({action: 'createMatch', total, opts}, 'matchCreated')
         this.logger.info('Started new match', id)
         this.logger.info('Waiting for opponent to join')
         this.matchId = id

@@ -59,6 +59,17 @@ describe('Match', () => {
             match.checkFinished()
             expect(match.isFinished).to.equal(true)
         })
+
+        it('should not throw on thisGame null (deviant)', () => {
+            const match = new Match(1, {isCrawford: false})
+            makeRandomMoves(match.nextGame().firstTurn(), true)
+            match.thisGame.nextTurn().setDoubleOffered().setDoubleDeclined()
+            match.checkFinished()
+            // force properties
+            match.isFinished = false
+            match.thisGame = null
+            match.checkFinished()
+        })
     })
 
     describe('#getLoser', () => {
@@ -1390,6 +1401,19 @@ describe('Piece', () => {
 })
 
 describe('Dice', () => {
+
+    describe('#checkFaces', () => {
+
+        it('should throw on 1,2,3,4', () => {
+            const err = getError(() => Dice.checkFaces([1,2,3,4]))
+            expect(err.name).to.equal('InvalidRollError')
+        })
+
+        it('should throw on 1,2,3', () => {
+            const err = getError(() => Dice.checkFaces([1,2,3]))
+            expect(err.name).to.equal('InvalidRollError')
+        })
+    })
 
     describe('#checkOne', () => {
 

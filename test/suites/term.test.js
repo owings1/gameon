@@ -823,7 +823,7 @@ describe('Menu', () => {
 
         it('should get call runMatch with mock method and mock client', async () => {
             var isCalled = false
-            menu.newClient = () => { return {connect : noop, startMatch: noop, close: noop}}
+            menu.newClient = () => { return {connect : noop, createMatch: noop, close: noop}}
             menu.newCoordinator = () => { return {runMatch: () => isCalled = true}}
             await menu.startOnlineMatch(menu.opts)
             expect(isCalled).to.equal(true)

@@ -548,7 +548,7 @@ class Menu extends Logger {
         const client = this.newClient(opts.serverUrl, opts.username, this.decryptPassword(opts.password))
         try {
             await client.connect()
-            const promise = isStart ? client.startMatch(opts) : client.joinMatch(opts.matchId)
+            const promise = isStart ? client.createMatch(opts) : client.joinMatch(opts.matchId)
             const match = await promise
             const termPlayer = new TermPlayer(isStart ? White : Red, opts)
             const netPlayer  = new NetPlayer(client, isStart ? Red : White)
