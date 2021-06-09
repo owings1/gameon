@@ -1531,6 +1531,24 @@ describe('TurnBuilder', () => {
             expect(err.name).to.equal('NotImplementedError')
         })
     })
+
+    describe('#hasWinner', () => {
+        it('should have winner on RedHasWinner12', () => {
+            const turn1 = new Turn(Board.fromStateString(States.RedHasWinner12), Red, {breadthTrees: true})
+            const turn2 = new Turn(Board.fromStateString(States.RedHasWinner12), Red)
+            turn1.setRoll(1, 2)
+            turn2.setRoll(1, 2)
+            //console.log(turn1.allowedMoveIndex)
+            //console.log('\n')
+            //console.log(turn2.allowedMoveIndex)
+            expect(turn1.builder.result.hasWinner).to.equal(true)
+            expect(turn2.builder.result.hasWinner).to.equal(true)
+            expect(turn1.builder.trees[0].winners.length).to.equal(1)
+            expect(turn2.builder.trees[0].winners.length).to.equal(1)
+            expect(turn1.builder.trees[1].winners.length).to.equal(1)
+            expect(turn2.builder.trees[1].winners.length).to.equal(1)
+        })
+    })
 })
 
 describe('SequenceTree', () => {
@@ -1544,7 +1562,7 @@ describe('SequenceTree', () => {
                 expect(err.name).to.equal('MaxDepthExceededError')
             })
 
-            it('should set isWinner when no parent (coverage)', () => {
+            it.skip('should set isWinner when no parent (coverage)', () => {
                 const board = Board.fromStateString(States.WhiteWin)
                 const tree = new DepthTree(board, White, [1, 2])
                 tree.buildSequence(board)
@@ -1718,6 +1736,21 @@ describe('SequenceTree', () => {
             expect(keys2[0]).to.equal('18:1')
         })
 
+        it('should have color == White, board == initial', () => {
+            const tree = new DepthTree(Board.setup(), White, [1, 2]).build()
+            const result = tree.serialize()
+            //console.log(result)
+            expect(result.color).to.equal(White)
+            expect(result.board).to.equal(tree.board.state28())
+        })
+
+        it('node 0:1 should have move.origin=0', () => {
+            const tree = new DepthTree(Board.setup(), White, [1, 2]).build()
+            const result = tree.serialize()
+            //console.log(result)
+            expect(result.index['0:1'].move.origin).to.equal(0)
+        })
+
         it('index should be recursive', () => {
 
             const tree = new DepthTree(Board.setup(), White, [1, 1, 1, 1]).build()
@@ -1861,7 +1894,7 @@ describe('SequenceTree', () => {
                 })
             })
 
-            describe('fixed game play', () => {
+            describe.skip('fixed game play', () => {
 
                 const rolls = Rolls.rolls
 
@@ -1903,14 +1936,34 @@ describe('SequenceTree', () => {
                     it('should be equivalent at turn ' + i + ' for roll ' + rolls[i].join(','), () => {
                         
                         const turns = [game1.nextTurn().roll(), game2.nextTurn().roll()]
-                        checkEquivalence(...turns)
-                        if (i == 29) {
-                            //console.log(turns[0].color)
-                            //console.log(turns[0].startState)
-                            //console.log(turns[0].dice)
-                            //console.log(turns[0].allowedMoveIndex)
+                        
+                        if (i == 60) {
+                            console.log(turns[0].color)
+                            console.log(turns[0].startState)
+                            console.log(turns[0].dice)
+                            console.log(turns[0].allowedMoveIndex)
+                            console.log('\n')
+                            console.log(turns[1].allowedMoveIndex)
+                            console.log(JSON.stringify(SequenceTree.serializeIndex(turns[1].allowedMoveIndex), null, 2))
+                            //console.log(turns[1].builder.trees[0].winners)
+                            //console.log(turns[1].builder.trees[1].winners)
+                            for (var node of turns[1].builder.trees[0].winners) {
+                                if (!node.hasWinner) {
+                                    console.log('winner no winner', node)
+                                }
+                            }
+                            for (var node of turns[1].builder.trees[1].winners) {
+                                if (!node.hasWinner) {
+                                    console.log('winner no winner', node)
+                                }
+                            }
                         }
-                        playTurns(...turns)
+                        try {
+                            checkEquivalence(...turns)
+                        } finally {
+                            playTurns(...turns)
+                        }
+                        
                     })
                 })
 

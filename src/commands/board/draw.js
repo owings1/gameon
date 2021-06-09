@@ -42,7 +42,7 @@ class BoardDrawCommand extends Command {
         const stateString = await this.getInitialState()//this.flags.board || BoardStrings.Initial
         const board = Board.fromStateString(stateString)
         board.analyzer.validateLegalBoard()
-        const persp = this.flags.persp
+        const persp = await this.getInitialPersp()
         if (!Colors[persp]) {
             throw new InvalidColorError('Invalid color: ' + persp)
         }
@@ -76,29 +76,60 @@ class BoardDrawCommand extends Command {
         this.helper.draw(true)
     }
 
+    async getInitialPersp() {
+        if (this.flags.persp) {
+            return this.flags.persp
+        }
+        const data = await this.fetchLastData()
+        if (data.persp && Colors[data.persp]) {
+            return Colors[data.persp]
+        }
+        return Colors.White
+    }
+
     async getInitialState() {
         if (this.flags.state) {
             return this.flags.state
         }
-        const stateFile = this.getSaveStateFile()
-        if (fs.existsSync(stateFile)) {
+        const data = await this.fetchLastData()
+        if (data.lastState) {
             try {
-                const data = await fse.readJson(stateFile)
                 const board = Board.fromStateString(data.lastState)
                 board.analyzer.validateLegalBoard()
-                this.logger.info('Loaded saved state')
+                this.logger.info('Loaded initial state')
                 return board.state28()
             } catch (err) {
                 this.logger.debug(err)
                 this.logger.warn('Failed to load last board:', err.message)
+                delete this._lastState.lastState
             }
         }
         return BoardStrings.Initial
     }
+    async fetchLastData() {
+        if (!this._lastState) {
+            const stateFile = this.getSaveStateFile()
+            this._lastState = {}
+            if (fs.existsSync(stateFile)) {
+                try {
+                    const data = await fse.readJson(stateFile)
+                    this._lastState = data
+                } catch (err) {
+                    this.logger.debug(err)
+                    this.logger.error('Failed to load saved state:', err.message)
+                }
+            }
+        }
+        return this._lastState
+    }
 
     async saveLastState() {
         const stateFile = this.getSaveStateFile()
-        await fse.writeJson(stateFile, {lastState: this.helper.board.state28()}, {spaces: 2})
+        const data = {
+            lastState : this.helper.board.state28()
+          , persp     : this.helper.persp
+        }
+        await fse.writeJson(stateFile, data, {spaces: 2})
     }
 
     getSaveStateFile() {
@@ -116,7 +147,6 @@ BoardDrawCommand.flags = {
   , persp: flags.string({
         char        : 'p'
       , description : 'perspective'
-      , default     : Colors.White
     })
   , interactive: flags.boolean({
         char        : 'i'

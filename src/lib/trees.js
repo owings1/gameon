@@ -49,6 +49,7 @@ class TurnBuilder {
             // Map of state28 to move coords
           , endStatesToSeries : {}
           , allowedFaces      : []
+          , hasWinner         : false
         }
         const trees = this.buildTrees()
         this.result.maxDepth = this.maxDepth
@@ -108,6 +109,9 @@ class TurnBuilder {
 
             this.processLeaves(tree.depthIndex[maxDepth])
             this.processWinners(tree.winners)
+            if (tree.hasWinner || tree.winners.length) {
+                result.hasWinner = true
+            }
 
             this.trees.push(tree)
         }
@@ -164,6 +168,9 @@ class TurnBuilder {
 
             var node = winners[j]
 
+            if (!node.hasWinner) {
+                console.log('processWinners - nonWinner', node)
+            }
             if (node.depth == this.maxDepth) {
                 // already covered in leaves
                 continue
@@ -222,20 +229,70 @@ class BreadthBuilder extends TurnBuilder {
     }
 }
 
-class SequenceTree {
+class AbstractNode {
+
+    constructor() {
+        this.parent      = null
+        this.hasWinner   = false
+        this.maxDepth    = 0
+        this.highestFace = 0
+        this.index       = {}
+    }
+
+    serialize(sorter) {
+        return AbstractNode.serialize(this, sorter)
+    }
+
+    //serializeIndex(sorter) {
+    //    return this.constructor.serializeIndex(this.index, sorter)
+    //}
+
+    static serialize(node, sorter) {
+        //if (node.hasWinnerCalled) {
+        //    //console.log('hasWinnerCalled')
+        //    if (!node.hasWinner) {
+        //        console.log('but no hasWinner')
+        //    }
+        //}
+        return {
+            maxDepth    : node.maxDepth
+          , highestFace : node.highestFace
+          , hasWinner   : node.hasWinner
+          , index       : this.serializeIndex(node.index, sorter)
+        }
+    }
+
+    // recursive
+    static serializeIndex(index, sorter) {
+        //console.log(index)
+        if (!index) {
+            return index
+        }
+        const cleaned = {}
+        const hashes = Object.keys(index)
+        if (sorter) {
+            hashes.sort(sorter)
+        }
+        for (var i = 0, ilen = hashes.length; i < ilen; ++i) {
+            var hash = hashes[i]
+            var node = index[hash]
+            cleaned[hash] = node.serialize(sorter)
+        }
+        return cleaned
+    } 
+}
+
+class SequenceTree extends AbstractNode {
 
     constructor(board, color, sequence) {
+
+        super()
 
         Dice.checkFaces(sequence)
 
         this.board       = board
         this.color       = color
         this.sequence    = sequence
-
-        this.hasWinner   = false
-        this.maxDepth    = 0
-        this.highestFace = 0
-        this.index       = {}
 
         this.depthIndex  = []
         this.winners     = []
@@ -294,45 +351,21 @@ class SequenceTree {
     }
 
     serialize(sorter) {
-        return this.constructor.serialize(this, sorter)
-    }
-
-    serializeIndex(sorter) {
-        return this.constructor.serializeIndex(this.index, sorter)
+        return SequenceTree.serialize(this, sorter)
     }
 
     static serialize(tree, sorter) {
+        // this.name == 'SequenceTree'
+        // super.name == 'AbstractNode'
         return {
-            board       : tree.board.state28()
-          , color       : tree.color
-          , sequence    : tree.sequence
-          , maxDepth    : tree.maxDepth
-          , highestFace : tree.highestFace
-          , hasWinner   : tree.hasWinner
-          , index       : tree.serializeIndex(sorter)
+            // this works too
+            //...AbstractNode.serialize(tree, sorter)
+            ...super.serialize(tree, sorter)
+          , board     : tree.board.state28()
+          , color     : tree.color
+          , sequence  : tree.sequence
         }
-    }
-
-    // recursive
-    static serializeIndex(index, sorter) {
-        if (!index) {
-            return index
-        }
-        const cleaned = {}
-        const hashes = Object.keys(index)
-        if (sorter) {
-            hashes.sort(sorter)
-        }
-        for (var i = 0, ilen = hashes.length; i < ilen; ++i) {
-            var hash = hashes[i]
-            // node
-            cleaned[hash] = index[hash].serialize()
-            // recurse into node's index
-            // TODO: respect constructor
-            cleaned[hash].index = SequenceTree.serializeIndex(index[hash].index, sorter)
-        }
-        return cleaned
-    }
+    }    
 }
 
 class DepthTree extends SequenceTree {
@@ -344,15 +377,16 @@ class DepthTree extends SequenceTree {
             throw new MaxDepthExceededError
         }
 
-        if (board.getWinner() == this.color) {
-            // terminal case - winner
-            this.hasWinner = true
-            if (parentNode) {
-                parentNode.setWinner()
-                this.winners.push(parentNode)
-            }
-            return
-        }
+        //if (board.getWinner() == this.color) {
+        //    //console.log('depth winner')
+        //    // terminal case - winner
+        //    this.hasWinner = true
+        //    if (parentNode) {
+        //        parentNode.setWinner()
+        //        //this.winners.push(parentNode)
+        //    }
+        //    return
+        //}
 
         const face = sequence[0]
         const moves = board.getPossibleMovesForFace(this.color, face)
@@ -379,12 +413,23 @@ class DepthTree extends SequenceTree {
             move.board = move.board.copy()
             move.do()
 
-            // careful about loop and closure references
-            var node = new TreeNode(move, depth, parentNode)
 
+
+            // careful about loop and closure references
+            var node = this.createNode(move, depth, parentNode)
+            
+            if (move.board.getWinner() == this.color) {
+                this.hasWinner = true
+                //node.hasWinner = true
+                node.setWinner()
+                //console.log('!! depth winner', node)
+                this.winners.push(node)
+            }
             this.depthIndex[depth].push(node)
 
             index[move.hash] = node
+
+            
 
             if (!nextFaces.length) {
                 continue
@@ -406,6 +451,12 @@ class DepthTree extends SequenceTree {
         }
 
         if (parentNode) {
+            //if (this.hasWinner) {
+            //    parentNode.setWinner()
+            //}
+            //if (parentNode.hasWinner) {
+            //    this.hasWinner = true
+            //}
             if (depth > parentNode.maxDepth) {
                 // propagate up the max depth
                 parentNode.setMaxDepth(depth)
@@ -459,7 +510,7 @@ class BreadthTree extends SequenceTree {
                     move.board = move.board.copy()
                     move.do()
 
-                    var node = new TreeNode(move, depth, parent)
+                    var node = this.createNode(move, depth, parent)
 
                     this.intakeNode(node, index)
                     nextNodes.push(node)
@@ -501,19 +552,18 @@ class BreadthTree extends SequenceTree {
     }
 }
 
-class TreeNode {
+class TreeNode extends AbstractNode {
 
     constructor(move, depth, parent) {
 
-        this.move   = move
-        this.depth  = depth
-        this.parent = parent
+        super()
 
-        this.hasWinner   = false
+        this.parent      = parent
         this.maxDepth    = depth
         this.highestFace = move.face
-        this.index       = {}
 
+        this.move   = move
+        this.depth  = depth
         this.flag   = move.flag
 
         if (parent) {
@@ -549,6 +599,7 @@ class TreeNode {
     }
 
     setWinner() {
+        this.hasWinnerCalled = true
         this.hasWinner = true
         if (this.parent && !this.parent.hasWinner) {
             this.parent.setWinner()
@@ -596,18 +647,17 @@ class TreeNode {
         return flagKey
     }
 
-    serialize() {
-        return this.constructor.serialize(this)
+    serialize(sorter) {
+        return TreeNode.serialize(this, sorter)
     }
 
-    static serialize(node) {
+    static serialize(node, sorter) {
         return {
-            move         : node.move.coords
-          , endState     : node.move.board.state28()
-          , flag         : node.flag
-          , highestFace  : node.highestFace
-          , depth        : node.depth
-          , maxDepth     : node.maxDepth
+            ...super.serialize(node, sorter)
+          , move     : node.move.coords
+          , endState : node.move.board.state28()
+          , flag     : node.flag
+          , depth    : node.depth
         }
     }
 }
@@ -615,10 +665,12 @@ class TreeNode {
 const {NotImplementedError} = Errors
 
 module.exports = {
-    BreadthBuilder
-  , DepthBuilder
+    AbstractNode
+  , BreadthBuilder
   , BreadthTree
+  , DepthBuilder
   , DepthTree
   , SequenceTree
+  , TreeNode
   , TurnBuilder
 }

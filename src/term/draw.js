@@ -188,6 +188,7 @@ class DrawHelper {
         this.logs = []
         this.stateHistory = []
         this.logger = new Logger
+        this.opts = opts
     }
 
     draw(isPrint) {
@@ -245,6 +246,11 @@ class DrawHelper {
                     await this.undoCommand()
                     this.draw(true)
                     break
+                case 'x':
+                    this.opts.breadthTrees = !this.opts.breadthTrees
+                    var treeStyle = this.opts.breadthTrees ? 'breadth' : 'depth'
+                    this.logger.info('Using', treeStyle, 'trees')
+                    break
                 default:
                     this.logger.warn('Invalid command', input)
                     this.logger.console.log(this.commandHelp())
@@ -261,6 +267,7 @@ class DrawHelper {
           , 'f' : 'flip perspective'
           , 'p' : 'place piece'
           , 'u' : 'undo move'
+          , 'x' : 'toggler tree mode'
           , '?' : 'command help'
         }
         const arr = [
@@ -363,7 +370,7 @@ class DrawHelper {
         const dice = parseInput(input)
 
         const {board} = this
-        const turn = new Turn(board, this.persp).setRoll(dice)
+        const turn = new Turn(board, this.persp, this.opts).setRoll(dice)
 
         if (turn.isCantMove) {
             cons.log('No moves for', this.persp, 'with', dice.join())
@@ -388,11 +395,13 @@ class DrawHelper {
         }
         //const series = Object.values(turn.endStatesToSeries)
         const series = turn.builder.leaves.map(node => node.moveSeries())
+        const {builder} = turn
         const info = {
             dice      : dice
           , series    : series.length
-          , maxDepth  : turn.builder.maxDepth
-          , highFace  : turn.builder.highestFace
+          , maxDepth  : builder.maxDepth
+          , highFace  : builder.highestFace
+          , hasWinner : builder.result.hasWinner
         }
 
         const hr = nchars(60, '-')
@@ -400,6 +409,7 @@ class DrawHelper {
         cons.log(info)
         cons.log('  Move Series:')
         series.forEach((moves, i) => cons.log('   ', (i+1) + ':', moves.map(moveDesc)))
+        cons.log(turn.allowedMoveIndex)
         cons.log(hr)
         
     }
