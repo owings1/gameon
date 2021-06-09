@@ -54,20 +54,21 @@ class Match {
             throw new ArgumentError('total must be integer > 0')
         }
 
-        this.uuid = Util.uuid()
+        this.uuid  = Util.uuid()
         this.total = total
-        this.opts = Util.defaults(Match.defaults(), opts)
+        this.opts  = Util.defaults(Match.defaults(), opts)
 
-        this.hasCrawforded = false
+        this.scores = {Red: 0, White: 0}
         this.winner = null
         this.isFinished = false
-        this.scores = {Red: 0, White: 0}
+        this.hasCrawforded = false
 
         this.games = []
         this.thisGame = null
     }
 
     nextGame() {
+
         if (this.thisGame && !this.thisGame.checkFinished()) {
             throw new GameNotFinishedError('Current game has not finished')
         }
@@ -77,15 +78,26 @@ class Match {
         if (this.thisGame) {
             this.thisGame.thisTurn = null
         }
-        const isCrawford = this.opts.isCrawford &&
-              !this.hasCrawforded &&
-              undefined != Object.values(this.scores).find(score => score + 1 == this.total)
-        if (isCrawford) {
+
+        var shouldCrawford = this.opts.isCrawford && !this.hasCrawforded
+        if (shouldCrawford) {
+            var isFound = false
+            for (var color in Colors) {
+                var score = this.scores[color]
+                if (score + 1 == this.total) {
+                    isFound = true
+                    break
+                }
+            }
+            shouldCrawford = isFound
+        }
+        if (shouldCrawford) {
             this.hasCrawforded = true
         }
-        const opts = Util.merge({}, this.opts, {isCrawford})
-        this.thisGame = new Game(opts)
+
+        this.thisGame = new Game({...this.opts, isCrawford: shouldCrawford})
         this.games.push(this.thisGame)
+
         return this.thisGame
     }
 
@@ -153,9 +165,10 @@ class Match {
     }
 
     static serialize(match) {
-        return Util.merge(match.meta(), {
-            games: match.games.map(Game.serialize)
-        })
+        return {
+            ...match.meta()
+          , games : match.games.map(Game.serialize)
+        }
     }
 
     static unserialize(data) {
@@ -163,12 +176,13 @@ class Match {
 
         match.uuid = data.uuid
 
-        match.hasCrawforded = data.hasCrawforded
-        match.winner = data.winner
-        match.isFinished = data.isFinished
         match.scores = data.scores
+        match.winner = data.winner
 
-        match.games = data.games.map(Game.unserialize)
+        match.isFinished    = data.isFinished
+        match.hasCrawforded = data.hasCrawforded
+
+        match.games    = data.games.map(Game.unserialize)
         match.thisGame = match.games[match.games.length - 1] || null
 
         return match
@@ -190,6 +204,7 @@ class Game {
     constructor(opts) {
 
         this.opts  = Util.defaults(Game.defaults(), opts)
+
         if (!this.opts.roller) {
             this.opts.roller = Dice.rollTwo
         }
@@ -215,7 +230,13 @@ class Game {
     }
 
     canDouble(color) {
-        return !this.opts.isCrawford && this.cubeValue < 64 && (this.cubeOwner == null || this.cubeOwner == color)
+        if (this.opts.isCrawford) {
+            return false
+        }
+        if (this.cubeValue >= 64) {
+            return false
+        }
+        return this.cubeOwner == null || this.cubeOwner == color
     }
 
     double() {
@@ -235,19 +256,25 @@ class Game {
     }
 
     firstTurn() {
+
         if (this.isFinished) {
             throw new GameFinishedError('The game is already over')
         }
         if (this.thisTurn) {
             throw new GameAlreadyStartedError('The game has already started')
         }
+
         do {
             var dice = this.opts.roller()
         } while (dice[0] == dice[1])
+
         const firstColor = Dice.getWinner(dice)
+
         this.thisTurn = new Turn(this.board, firstColor, this.opts)
+
         this.thisTurn.setRoll(dice)
         this.thisTurn.isFirstTurn = true
+
         return this.thisTurn
     }
 
@@ -264,8 +291,12 @@ class Game {
         if (this.checkFinished()) {
             return null
         }
+
         this.turnHistory.push(this.thisTurn.meta())
-        this.thisTurn = new Turn(this.board, Opponent[this.thisTurn.color], this.opts)
+
+        const color = Opponent[this.thisTurn.color]
+        this.thisTurn = new Turn(this.board, color, this.opts)
+
         return this.thisTurn
     }
 
@@ -376,7 +407,7 @@ class Game {
         if (data.thisTurn) {
             game.thisTurn = Turn.unserialize(data.thisTurn, game.board)
         }
-        game.board.setState28(data.board)
+        game.board.setStateString(data.board)
 
         return game
     }
@@ -424,6 +455,7 @@ class Turn {
         Profiler.inc('double.offered')
 
         this.isDoubleOffered = true
+
         return this
     }
 
@@ -434,6 +466,7 @@ class Turn {
         }
 
         this.assertNotFinished()
+
         if (!this.isDoubleOffered) {
             throw new HasNotDoubledError([this.color, 'has not doubled'])
         }
@@ -443,6 +476,7 @@ class Turn {
         this.isDoubleDeclined = true
 
         this.finish()
+
         return this
     }
 
@@ -467,6 +501,7 @@ class Turn {
         this.assertNotRolled()
 
         this.dice = this.opts.roller()
+
         this.isRolled = true
         this.afterRoll()
 
@@ -493,6 +528,7 @@ class Turn {
             this.isBreadthTree = false
             this.isDepthTree   = true
         }
+
         this.allowedFaces      = result.allowedFaces
         this.allowedEndStates  = result.allowedEndStates
         this.allowedMoveIndex  = result.allowedMoveIndex
@@ -513,8 +549,6 @@ class Turn {
     getNextAvailableMoves() {
 
         this.assertIsRolled()
-
-        //Profiler.start('Turn.getNextAvailableMoves')
         
         var index = this.allowedMoveIndex
 
@@ -529,47 +563,60 @@ class Turn {
             moves.push(index[k].move)
         }
 
-        //Profiler.stop('Turn.getNextAvailableMoves')
-
         return moves
     }
 
     move(origin, face) {
+
         Profiler.start('Turn.move')
+
         this.assertNotFinished()
         this.assertIsRolled()
+
         if (typeof(origin) == 'object') {
             // allow a move or coords to be passed
             face = origin.face
             origin = origin.origin
         }
+
         const nextMoves = this.getNextAvailableMoves()
         if (nextMoves.length == 0) {
             throw new NoMovesRemainingError([this.color, 'has no more moves to do'])
         }
+
         const matchingMove = nextMoves.find(move => move.origin == origin && move.face == face)
         if (!matchingMove) {
             // this will throw a more specific error
             this.board.buildMove(this.color, origin, face)
             throw new IllegalMoveError(['move not available for', this.color])
         }
+
         const move = this.board.move(this.color, origin, face)
         this.moves.push(move)
+
         const faceIdx = this.remainingFaces.indexOf(face)
         this.remainingFaces.splice(faceIdx, 1)
+
         Profiler.stop('Turn.move')
+
         return move
     }
 
     unmove() {
+
         this.assertNotFinished()
+
         if (this.moves.length == 0) {
             throw new NoMovesMadeError([this.color, 'has no moves to undo'])
         }
+
         const move = this.moves.pop()
+
         move.undo()
+
         this.remainingFaces.push(move.face)
         this.remainingFaces.sort(Util.sortNumericDesc)
+
         return move
     }
 
@@ -581,7 +628,7 @@ class Turn {
             this.assertIsRolled()
             const isAllMoved = this.moves.length == this.allowedMoveCount
             if (!isAllMoved) {
-                const isWin = this.board.hasWinner() && this.board.getWinner() == this.color
+                const isWin = this.board.getWinner() == this.color
                 if (!isWin) {
                     throw new MovesRemainingError([this.color, 'has more moves to do'])
                 }
@@ -589,9 +636,19 @@ class Turn {
         }
         this.endState = this.board.state28()
         this.isFinished = true
+
         this.boardCache = {}
         this.builder = null
+
         return this
+    }
+
+    // Fetch cached. Cache is cleared on turn finish.
+    fetchBoard(state28) {
+        if (!this.boardCache[state28]) {
+            this.boardCache[state28] = Board.fromState28(state28)
+        }
+        return this.boardCache[state28]
     }
 
     assertNotFinished() {
@@ -610,14 +667,6 @@ class Turn {
         if (this.isRolled) {
             throw new AlreadyRolledError([this.color, 'has already rolled'])
         }
-    }
-
-    // Fetch cached. Cache is cleared on turn finish.
-    fetchBoard(state28) {
-        if (!this.boardCache[state28]) {
-            this.boardCache[state28] = Board.fromState28(state28)
-        }
-        return this.boardCache[state28]
     }
 
     meta() {
@@ -643,13 +692,14 @@ class Turn {
     }
 
     static serialize(turn) {
-        return Util.merge(turn.meta(), {
-            allowedMoveCount   : turn.allowedMoveCount
+        return {
+            ...turn.meta()
+          , allowedMoveCount   : turn.allowedMoveCount
           , allowedEndStates   : turn.allowedEndStates
           , allowedFaces       : turn.allowedFaces
           , allowedMoveIndex   : SequenceTree.serializeIndex(turn.allowedMoveIndex)
           , endStatesToSeries  : turn.endStatesToSeries
-        })
+        }
     }
 
     static unserialize(data, board) {
@@ -674,12 +724,10 @@ class Turn {
 
         return turn
     }
-
 }
 
 // NB: Do not directly modify slots, bars, or homes unless you call markChange()
 //     afterward. Validated moves can use push/pop methods.
-// NB: Cached methods return a reference, so callers must make a copy if they will modify
 class Board {
 
     constructor(isSkipInit) {
@@ -781,11 +829,25 @@ class Board {
     }
 
     isBackgammon() {
-        if (this.isGammon()) {
-            const winner = this.getWinner()
-            return this.bars[Opponent[winner]].length > 0 ||
-                   undefined != InsideOrigins[winner].find(i => this.slots[i].length)
+
+        if (!this.isGammon()) {
+            return false
         }
+
+        const winner = this.getWinner()
+        const loser  = Opponent[winner]
+
+        if (this.analyzer.piecesOnBar(loser)) {
+            return true
+        }
+
+        const insides = InsideOrigins[winner]
+        for (var i = 0, ilen = insides.length; i < ilen; ++i) {
+            if (this.analyzer.occupiesOrigin(loser, insides[i])) {
+                return true
+            }
+        }
+        
         return false
     }
 

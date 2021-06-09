@@ -183,7 +183,7 @@ class DrawHelper {
 
     constructor(opts) {
         opts = opts || {}
-        this.board = opts.board || (opts.match && opts.match.thisGame && opts.match.thisGame.board) || (opts.game && opts.game.board)
+        this.board = opts.board
         this.persp = opts.persp
         this.logs = []
         this.stateHistory = []
@@ -192,7 +192,7 @@ class DrawHelper {
     }
 
     draw(isPrint) {
-        const output = this.constructor.drawBoard(this.game || this.board, this.match, this.persp, this.logs)
+        const output = this.constructor.drawBoard(this.board, null, this.persp, this.logs)
         if (isPrint) {
             this.logger.writeStdout(output)
         }
@@ -200,7 +200,9 @@ class DrawHelper {
     }
 
     async interactive() {
+
         this.draw(true)
+
         while (true) {
             var answers = await this.prompt({
                 name    : 'input'
