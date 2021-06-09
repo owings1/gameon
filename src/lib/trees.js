@@ -145,10 +145,9 @@ class TurnBuilder {
                 continue
             }
 
-            // only about 25% of leaves are kept, flag key gets about twice
-            /// as many as endState
+            // Only about 25% of leaves are kept, flag key gets about twice
+            // as many as endState.
 
-            
             result.endStatesToSeries[endState] = node.moveSeries()
             result.allowedEndStates.push(endState)
 
@@ -177,7 +176,8 @@ class TurnBuilder {
             var endState = board.state28()
 
             if (result.endStatesToSeries[endState]) {
-                // Ihis condition is never met for legal rolls.
+                // This condition is never met for legal rolls.
+                //
                 //   If the depth = maxDepth, it is de-duped in processLeaves,
                 //   and skipped above.
                 //
