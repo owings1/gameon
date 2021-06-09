@@ -84,10 +84,13 @@ class FirstTurnRobot extends Base {
 
     async getRankings(turn, game, match) {
         // skip non-game, greater than second turn, and doubles
-        if (!game || turnCount > 2 || turn.dice[0] == turn.dice[1]) {
+        if (!game) {
             return ZERO_RANKINGS
         }
         const turnCount = game.getTurnCount()
+        if (turnCount > 2 || turn.dice[0] == turn.dice[1]) {
+            return ZERO_RANKINGS
+        }
         const rankings = this.zeroRankings(turn)
         const diceHash = turn.diceSorted.join(',')
         // we only have one potential move series
