@@ -16,7 +16,7 @@ const {
 const Constants = requireSrc('lib/constants')
 const Core = requireSrc('lib/core')
 const Util = requireSrc('lib/util')
-const {SequenceTree, BreadthTree, DepthTree} = requireSrc('lib/trees')
+const {SequenceTree, BreadthTree, DepthTree, DepthBuilder, TurnBuilder} = requireSrc('lib/trees')
 
 const {White, Red} = Constants
 const {Match, Game, Board, Turn, Piece, Dice} = Core
@@ -1497,60 +1497,48 @@ describe('Dice', () => {
 	})
 })
 
+describe('TurnBuilder', () => {
+
+    describe('#newTree', () => {
+
+        it('should throw NotImplementedError', () => {
+            const builder = new TurnBuilder
+            const err = getError(() => builder.newTree())
+            expect(err.name).to.equal('NotImplementedError')
+        })
+    })
+})
+
 describe('SequenceTree', () => {
 
+    describe('DepthTree', () => {
+
+        describe('#buildSequence', () => {
+            it('should throw MaxDepthExceededError on depth = 5', () => {
+                const tree = new DepthTree(Board.setup(), White, [1, 2])
+                const err = getError(() => tree.buildSequence(tree.board, tree.sequence, tree.index, null, 5))  
+                expect(err.name).to.equal('MaxDepthExceededError')
+            })
+
+            it('should set isWinner when no parent (coverage)', () => {
+                const board = Board.fromStateString(States.WhiteWin)
+                const tree = new DepthTree(board, White, [1, 2])
+                tree.buildSequence(board)
+                expect(tree.hasWinner).to.equal(true)
+            })
+        })
+
+        describe('#beforeMoves', () => {
+            it('should not propagate maxDepth to parent if depth is less (deviant case)', () => {
+                const tree = new DepthTree(Board.setup(), White, [1, 2])
+                const node = tree.createNode({}, 2)
+                tree.beforeMoves(1, 2, node)
+                expect(node.maxDepth).to.equal(2)
+            })
+        })
+    })
+
     describe('BreadthTree', () => {
-
-        it.skip('should return 1 leaf, original state and regular move from origin:0 to dest:1 for sparse board with sequence [1]', () => {
-
-            const board = new Board
-            for (var i = 0; i < 5; ++i) {
-                board.pushOrigin(0, White)
-            }
-
-            const tree = SequenceTree.buildBreadth(board, White, [1])
-            const {leaves} = tree
-            const nodes = leaves
-
-            expect(leaves).to.have.length(1)
-            const leaf = leaves[0]
-
-            expect(leaf.board).to.not.equal(board)
-            expect(leaf.depth).to.equal(1)
-            expect(leaf.movesMade).to.have.length(1)
-
-            const move = leaf.movesMade[0]
-
-            expect(move.face).to.equal(1)
-
-            expect(move.isRegular).to.equal(true)
-            expect(move.origin).to.equal(0)
-            expect(move.face).to.equal(1)
-
-            const expBoard = new Board
-            for (var i = 0; i < 4; ++i) {
-                expBoard.pushOrigin(0, White)
-            }
-            expBoard.pushOrigin(1, White)
-            expect(leaf.board.stateString()).to.equal(expBoard.stateString())
-        })
-
-        it.skip('should have leaf node with winner for 2,1 from EitherOneMoveWin', () => {
-            const board = Board.fromStateString(States.EitherOneMoveWin)
-            const tree = SequenceTree.buildBreadth(board, White, [2, 1])
-            expect(tree.hasWinner).to.equal(true)
-            expect(tree.leaves[0].isWinner).to.equal(true)
-        })
-
-        it.skip('should return one branch for regular move from i:0 to i:1 for sparse board with sequence [5]', () => {
-            const board = new Board
-            for (var i = 0; i < 4; ++i) {
-                board.pushOrigin(4, White)
-            }
-            const tree = SequenceTree.buildBreadth(board, White, [5])
-            expect(tree.nodeCount).to.equal(2)
-            expect(tree.leaves).to.have.length(1)
-        })
 
         it('should have maxDepth 0 with white piece on bar for sequence [6,6,6,6] on setup board', () => {
 
@@ -1573,20 +1561,18 @@ describe('SequenceTree', () => {
             expect(tree.maxDepth).to.equal(2)
         })
 
-        it.skip('should have leaf for taking 5 point for red with sequence [1, 3]', () => {
-
-            const boardExp = Board.setup()
-            boardExp.move(Red, 5, 1)
-            boardExp.move(Red, 7, 3)
-            const exp = boardExp.stateString()
-            
-            const tree = new BreadthTree(Board.setup(), Red, [1, 3]).build()
-
-            const leafStates = tree.leaves.map(node => node.board.stateString())
-
-            expect(leafStates).to.contain(exp)
+        describe('#intakeNode', () => {
+            it('should not set parent winner if no parent (deviant)', () => {
+                const board = Board.fromStateString(States.WhiteWin)
+                const tree = new BreadthTree(board, Red, [1, 2])
+                const move = board.buildMove(Red, 0, 1)
+                move.do()
+                const node = tree.createNode(move, 1)
+                tree.depthIndex[1] = []
+                tree.intakeNode(node, tree.index)
+                expect(tree.hasWinner).to.equal(true)
+            })
         })
-
         describe('wip - TreeNode', () => {
 
             function indexJson(index) {
@@ -1656,6 +1642,95 @@ describe('SequenceTree', () => {
         })
     })
 
+    describe('high face', () => {
+
+        it('should have highest face 4 on WhitePruneFace4', () => {
+            const board = Board.fromStateString(States.WhitePruneFace4)
+            const turn = new Turn(board, White)
+            turn.setRoll(2, 4)
+            expect(turn.builder.highestFace).to.equal(4)
+        })
+    })
+
+    describe('leaf that does not pass', () => {
+
+        it('should allow both the 5 and the 2 for EitherOneMoveWin', () => {
+            const board = Board.fromStateString(States.EitherOneMoveWin)
+            const turn = new Turn(board, White)
+            turn.setRoll(5, 2)
+            expect(turn.allowedMoveIndex).to.contain.key('23:5')
+            expect(turn.allowedMoveIndex).to.contain.key('23:2')
+            //console.log(turn.builder.trees)
+        })
+    })
+
+    it('should allow 1 then 6', () => {
+        const board = Board.fromStateString(States.WhiteAllow16)
+        const turn = new Turn(board, White)
+        turn.setRoll(1, 6)
+        turn.move(18, 1)
+        turn.move(19, 6)
+        //console.log(turn.allowedMoveIndex)
+        expect(turn.allowedMoveIndex).to.contain.key('18:1')
+        expect(turn.allowedMoveIndex['18:1'].index).to.contain.key('19:6')
+    })
+
+    describe('#serialize', () => {
+        it('should be JSONable', () => {
+            const tree = new DepthTree(Board.setup(), White, [1, 2]).build()
+            const result = tree.serialize()
+            JSON.stringify(result)
+        })
+        it('should sort index', () => {
+            const tree = new DepthTree(Board.setup(), White, [1, 2]).build()
+            const result1 = tree.serialize((a, b) => a.localeCompare(b))
+            const result2 = tree.serialize((a, b) => b.localeCompare(a))
+            const keys1 = Object.keys(result1.index)
+            const keys2 = Object.keys(result2.index)
+            expect(keys1[0]).to.equal('0:1')
+            expect(keys2[0]).to.equal('18:1')
+        })
+    })
+    describe('DeviantBuilder', () => {
+        class DeviantBuilder extends DepthBuilder {
+            buildSequences(faces) {
+                return this.deviantSequences
+            }
+            newTree(...args) {
+                return new DeviantTree(...args)
+            }
+            //buildTrees() {
+            //    const trees = super.buildTrees()
+            //    this.initialTreeCount = trees.length
+            //    return trees
+            //}
+        }
+        class DeviantTree extends DepthTree {
+            constructor(board, color, sequence) {
+                super(board, color, [1, 2])
+                this.sequence = sequence
+            }
+        }
+        it('test white win on deviant roll 3, 6, 2', () => {
+            const board = Board.fromStateString(States.WhiteWin362)
+            const turn = new Turn(board, White)
+            const builder = new DeviantBuilder(turn)
+            builder.deviantSequences = [
+                [2, 3, 6],
+                [2, 6, 3],
+                [3, 2, 6],
+                [3, 6, 2],
+                [6, 2, 3],
+                [6, 3, 2]
+            ]
+            builder.compute()
+            expect(builder.maxDepth).to.equal(3)
+            //expect(builder.initialTreeCount).to.equal(6)
+            expect(builder.trees).to.have.length(6)
+            // some will be non-winners
+            
+        })
+    })
     describe('tree equivalence', () => {
 
         describe('depth vs breadth', () => {
@@ -1675,8 +1750,8 @@ describe('SequenceTree', () => {
                 expect(JSON.stringify(states1)).to.equal(JSON.stringify(states2))
 
                 // check deep equivalence of index
-                const ser1 = SequenceTree.serializeIndex(t1.allowedMoveIndex, true)
-                const ser2 = SequenceTree.serializeIndex(t2.allowedMoveIndex, true)
+                const ser1 = SequenceTree.serializeIndex(t1.allowedMoveIndex, (a, b) => b.localeCompare(a))
+                const ser2 = SequenceTree.serializeIndex(t2.allowedMoveIndex, (a, b) => b.localeCompare(a))
                 expect(JSON.stringify(ser1)).to.equal(JSON.stringify(ser2))
 
                 // the series selected for an end state can be different, and often are,

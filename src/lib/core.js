@@ -74,6 +74,9 @@ class Match {
         if (this.hasWinner()) {
             throw new MatchFinishedError('Match is already finished')
         }
+        if (this.thisGame) {
+            this.thisGame.thisTurn = null
+        }
         const isCrawford = this.opts.isCrawford &&
               !this.hasCrawforded &&
               undefined != Object.values(this.scores).find(score => score + 1 == this.total)
@@ -87,9 +90,6 @@ class Match {
     }
 
     updateScore() {
-        if (this.thisGame) {
-            this.thisGame.checkFinished()
-        }
         for (var color in Colors) {
             this.scores[color] = Util.sumArray(
                 this.games.filter(
@@ -107,6 +107,11 @@ class Match {
         }
         this.updateScore()
         this.isFinished = this.hasWinner()
+        if (this.isFinished) {
+            if (this.thisGame && this.thisGame.isFinished) {
+                this.thisGame.thisTurn = null
+            }
+        }
         return this.isFinished
     }
 
@@ -398,6 +403,7 @@ class Turn {
         this.isForceMove      = false
         this.isRolled         = false
 
+        this.builder          = null
         this.isDepthTree      = null
         this.isBreadthTree    = null
 
@@ -476,8 +482,8 @@ class Turn {
         this.faces = Dice.faces(this.diceSorted)
 
         Profiler.start('Turn.compute')
-        const builder = this.opts.breadthTrees ? new BreadthBuilder(this) : new DepthBuilder(this)
-        const result = builder.compute()
+        this.builder = this.opts.breadthTrees ? new BreadthBuilder(this) : new DepthBuilder(this)
+        const result = this.builder.compute()
         Profiler.stop('Turn.compute')
 
         if (this.opts.breadthTrees) {
@@ -584,6 +590,7 @@ class Turn {
         this.endState = this.board.state28()
         this.isFinished = true
         this.boardCache = {}
+        this.builder = null
         return this
     }
 
@@ -1053,6 +1060,9 @@ class Dice {
                 throw new InvalidRollError('4 faces must be equal')
             }
         } else {
+            if (faces.length != 2) {
+                throw new InvalidRollError('faces must be length 2 or 4')
+            }
             Dice.checkOne(faces[0])
             Dice.checkOne(faces[1])
         }

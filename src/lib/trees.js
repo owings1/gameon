@@ -52,6 +52,8 @@ class TurnBuilder {
         }
         const trees = this.buildTrees()
         this.result.maxDepth = this.maxDepth
+        this.trees = []
+        this.leaves = []
         this.processTrees(trees)
         if (this.maxExample) {
             this.result.allowedFaces = this.maxExample.map(move => move.face).sort(Util.sortNumericDesc)
@@ -66,7 +68,7 @@ class TurnBuilder {
     buildTrees() {
         const trees = []
         const {turn} = this
-        const sequences = Dice.sequencesForFaces(turn.faces)
+        const sequences = this.buildSequences(turn.faces)
         for (var i = 0, ilen = sequences.length; i < ilen; ++i) {
             var tree = this.buildTree(turn.board, turn.color, sequences[i])
             if (tree.maxDepth > this.maxDepth) {
@@ -80,6 +82,10 @@ class TurnBuilder {
         return trees
     }
 
+    buildSequences(faces) {
+        return Dice.sequencesForFaces(faces)
+    }
+
     processTrees(trees) {
 
         const {result, maxDepth, highestFace} = this
@@ -88,15 +94,19 @@ class TurnBuilder {
 
             var tree = trees[i]
 
-            if (!tree.checkPasses(maxDepth, highestFace)) {
+            tree.prune(maxDepth, highestFace, true)
+
+            var isEmpty = true
+            for (var hash in tree.index) {
+                result.allowedMoveIndex[hash] = tree.index[hash]
+                isEmpty = false
+            }
+
+            if (isEmpty) {
                 continue
             }
 
-            tree.prune(maxDepth, highestFace, true)
-
-            for (var hash in tree.index) {
-                result.allowedMoveIndex[hash] = tree.index[hash]
-            }
+            this.trees.push(tree)
 
             this.processLeaves(tree.depthIndex[maxDepth])
 
@@ -110,11 +120,12 @@ class TurnBuilder {
             return
         }
 
-        const {result, flagKeys, turn} = this
+        const {result, flagKeys, turn, maxDepth, highestFace} = this
 
         for (var j = 0, jlen = leaves.length; j < jlen; ++j) {
 
             var node = leaves[j]
+            this.leaves.push(node)
 
             var flagKey = node.flagKey()
 
@@ -127,6 +138,7 @@ class TurnBuilder {
 
             var endState = node.move.board.state28()
 
+            
             if (result.endStatesToSeries[endState]) {
                 continue
             }
@@ -134,6 +146,7 @@ class TurnBuilder {
             // only about 25% of leaves are kept, flag key gets about twice
             /// as many as endState
 
+            
             result.endStatesToSeries[endState] = node.moveSeries()
             result.allowedEndStates.push(endState)
 
@@ -162,10 +175,24 @@ class TurnBuilder {
             var endState = board.state28()
 
             if (result.endStatesToSeries[endState]) {
-                // de-dupe
+                // Ihis condition is never met for legal rolls.
+                //   If the depth = maxDepth, it is de-duped in processLeaves,
+                //   and skipped above.
+                //
+                //   For doubles, depth would have to equal maxDepth. Thus if the
+                //   depth < maxDepth, it has to be non-doubles.
+                //
+                //   If both faces are used, then depth would have to equal max depth.
+                //
+                //   If only one face is used, then there is no other tree with the
+                //   same move.
+                //
+                // However, for generality, we leave this here, and have a test case
+                // for it (DeviantBuilder).
                 continue
             }
 
+            this.leaves.push(node)
             result.endStatesToSeries[endState] = node.moveSeries()
             result.allowedEndStates.push(endState)
 
@@ -175,21 +202,25 @@ class TurnBuilder {
     }
 
     buildTree(board, color, sequence) {
-        throw new NotImplemntedError
+        return this.newTree(board, color, sequence).build()
+    }
+
+    newTree(board, color, sequence) {
+        throw new NotImplementedError
     }
 }
 
 class DepthBuilder extends TurnBuilder {
 
-    buildTree(board, color, sequence) {
-        return new DepthTree(board, color, sequence).build()
+    newTree(board, color, sequence) {
+        return new DepthTree(board, color, sequence)
     }
 }
 
 class BreadthBuilder extends TurnBuilder {
 
-    buildTree(board, color, sequence) {
-        return new BreadthTree(board, color, sequence).build()
+    newTree(board, color, sequence) {
+        return new BreadthTree(board, color, sequence)
     }
 }
 
@@ -205,27 +236,12 @@ class SequenceTree {
         this.depthIndex  = []
         this.index       = {}
         this.winners     = []
-        Dice.checkFaces(sequence)
+        Dice.checkFaces(this.sequence)
     }
 
     build() {
         this.buildSequence(this.board, this.sequence, this.index)
         return this
-    }
-
-    checkPasses(maxDepth, highestFace) {
-        if (this.hasWinner) {
-            return true
-        }
-        if (this.maxDepth < maxDepth) {
-            Profiler.inc('SequenceTree.check.fail.maxDepth')
-            return false
-        }
-        if (this.highestFace < highestFace) {
-            Profiler.inc('SequenceTree.check.fail.highestFace')
-            return false
-        }
-        return true
     }
 
     prune(maxDepth, highestFace, isRecursive, index = null) {
@@ -247,46 +263,54 @@ class SequenceTree {
                 node.deleted = true
                 delete index[hash]
             } else if (isRecursive && node.depth < maxDepth - 1) {
-                // Qe don't need to prune all the children if this depth >= maxDepth -1,
+                // We don't need to prune all the children if this depth >= maxDepth -1,
                 // since all the children will have depth == maxDepth. In fact, it is
                 // hard to think of a case where this is necessary. It would have to
                 // be on doubles.
+                //
+                // However, for generality, we leave this here, and have a test case
+                // for it (see DeviantBuilder).
                 this.prune(maxDepth, highestFace, true, index[hash].index)
             }
         }
     }
 
-    serialize(isSort) {
-        return this.constructor.serialize(this, isSort)
+    createNode(move, depth, parent) {
+        return new TreeNode(move, depth, parent)
     }
 
-    serializeIndex(isSort) {
-        return this.constructor.serializeIndex(this.index, isSort)
+    serialize(sorter) {
+        return this.constructor.serialize(this, sorter)
     }
 
-    static serialize(tree, isSort) {
+    serializeIndex(sorter) {
+        return this.constructor.serializeIndex(this.index, sorter)
+    }
+
+    static serialize(tree, sorter) {
         return {
-            board       : this.board.state28()
-          , color       : this.color
-          , sequence    : this.sequence
-          , maxDepth    : this.maxDepth
-          , highestFace : this.highestFace
-          , hasWinner   : this.hasWinner
-          , index       : tree.constructor.serializeIndex(tree.index, isSort)
+            board       : tree.board.state28()
+          , color       : tree.color
+          , sequence    : tree.sequence
+          , maxDepth    : tree.maxDepth
+          , highestFace : tree.highestFace
+          , hasWinner   : tree.hasWinner
+          , index       : tree.serializeIndex(sorter)
         }
     }
 
     // circular with move objects (board/analyzer)
-    static serializeIndex(index, isSort) {
+    static serializeIndex(index, sorter) {
         if (!index) {
             return index
         }
         const cleaned = {}
         const hashes = Object.keys(index)
-        if (isSort) {
-            hashes.sort(typeof isSort == 'function' ? isSort : undefined)
+        if (sorter) {
+            hashes.sort(sorter)
         }
-        for (var hash of hashes) {
+        for (var i = 0, ilen = hashes.length; i < ilen; ++i) {
+            var hash = hashes[i]
             cleaned[hash] = index[hash].serialize()
         }
         return cleaned
@@ -512,15 +536,16 @@ class TreeNode {
 
     setHighFace(face) {
         this.highestFace = face
-        /*
         if (this.parent && this.parent.highestFace < face) {
-            // this condition should never be met in valid rolls, hence Dice.checkFaces
-            // in SequenceTree constructor. For distint dice, we have already checked
+            // This condition should never be met in valid rolls, hence Dice.checkFaces
+            // in SequenceTree constructor. For distintc dice, we have already checked
             // in the constructor whether the parent face is higher. For doubles, all
             // the faces are the same.
+            //
+            // However, for generality, we leave this here, and have a test case
+            // for it (see DeviantBuilder).
             this.parent.setHighFace(face)
         }
-        */
     }
 
     // profiling shows caching not needed - never hit
@@ -574,4 +599,5 @@ module.exports = {
   , BreadthTree
   , DepthTree
   , SequenceTree
+  , TurnBuilder
 }
