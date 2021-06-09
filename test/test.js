@@ -34,6 +34,10 @@ describe('Term', () => {
     require('./suites/term.test')
 })
 
+describe('Trees', () => {
+    require('./suites/trees.test')
+})
+
 describe('Util', () => {
     require('./suites/util.test')
 })

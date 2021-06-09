@@ -33,11 +33,11 @@ class TurnBuilder {
 
     constructor(turn) {
         this.turn        = turn
+        this.result      = null
         this.maxDepth    = 0
         this.highestFace = 0
         this.flagKeys    = {}
         this.maxExample  = null
-        this.result      = null
     }
 
     compute() {
@@ -249,7 +249,7 @@ class AbstractNode {
         }
     }
 
-    // recursive
+    // Recursive
     static serializeIndex(index, sorter) {
         if (!index) {
             return index
@@ -287,6 +287,38 @@ class SequenceTree extends AbstractNode {
     build() {
         this.buildSequence(this.board, this.sequence, this.index)
         return this
+    }
+
+    createNode(move, depth, parent) {
+        return new TreeNode(move, depth, parent)
+    }
+
+    registerNode(node, index) {
+
+        const {depth, parent, move} = node
+        const {face, board} = move
+
+        if (board.getWinner() == this.color) {
+            node.setWinner()
+            this.hasWinner = true
+            this.winners.push(node)
+        }
+        if (depth > this.maxDepth) {
+            this.maxDepth = depth
+        }
+        if (face > this.highestFace) {
+            this.highestFace = face
+        }
+        if (parent) {
+            if (depth > parent.maxDepth) {
+                parent.setMaxDepth(depth)
+            }
+            if (face > parent.highestFace) {
+                parent.setHighFace(face)
+            }
+        }
+        this.depthIndex[depth].push(node)
+        index[move.hash] = node
     }
 
     prune(maxDepth, highestFace, isRecursive, index = null) {
@@ -332,10 +364,6 @@ class SequenceTree extends AbstractNode {
         }
     }
 
-    createNode(move, depth, parent) {
-        return new TreeNode(move, depth, parent)
-    }
-
     serialize(sorter) {
         return SequenceTree.serialize(this, sorter)
     }
@@ -353,7 +381,7 @@ class SequenceTree extends AbstractNode {
 class DepthTree extends SequenceTree {
 
     // Recursive
-    buildSequence(board, sequence, index, parentNode, depth = 0) {
+    buildSequence(board, sequence, index, parent, depth = 0) {
 
         if (depth > 4) {
             throw new MaxDepthExceededError
@@ -363,17 +391,14 @@ class DepthTree extends SequenceTree {
         const moves = board.getPossibleMovesForFace(this.color, face)
 
         if (!moves.length) {
-            Profiler.inc('tree.build.no.moves')
-            // terminal case - no available moves
-            // this happens too infrequently to warrant trying to remove it from the tree.
             return
         }
 
-        // continuation case
-
         depth += 1
 
-        this.beforeMoves(depth, face, parentNode)
+        if (!this.depthIndex[depth]) {
+            this.depthIndex[depth] = []
+        }
 
         const nextFaces = sequence.slice(1)
 
@@ -384,17 +409,8 @@ class DepthTree extends SequenceTree {
             move.board = move.board.copy()
             move.do()
 
-            // careful about loop and closure references
-            var node = this.createNode(move, depth, parentNode)
-            this.depthIndex[depth].push(node)
-
-            index[move.hash] = node
-
-            if (move.board.getWinner() == this.color) {
-                node.setWinner()
-                this.hasWinner = true
-                this.winners.push(node)
-            }
+            var node = this.createNode(move, depth, parent)
+            this.registerNode(node, index)
 
             if (!nextFaces.length) {
                 continue
@@ -402,32 +418,6 @@ class DepthTree extends SequenceTree {
 
             // recurse
             this.buildSequence(move.board, nextFaces, node.index, node, depth)
-        }
-    }
-
-    beforeMoves(depth, face, parentNode) {
-
-        if (depth > this.maxDepth) {
-            this.maxDepth = depth
-        }
-
-        if (face > this.highestFace) {
-            this.highestFace = face
-        }
-
-        if (parentNode) {
-            if (depth > parentNode.maxDepth) {
-                // propagate up the max depth
-                parentNode.setMaxDepth(depth)
-            }
-            if (face > parentNode.highestFace) {
-                // propagate up highest face
-                parentNode.setHighFace(face)
-            }
-        }
-
-        if (!this.depthIndex[depth]) {
-            this.depthIndex[depth] = []
         }
     }
 }
@@ -471,41 +461,13 @@ class BreadthTree extends SequenceTree {
 
                     var node = this.createNode(move, depth, parent)
 
-                    this.intakeNode(node, index)
+                    this.registerNode(node, index)
                     nextNodes.push(node)
                 }
             }
 
             lastNodes = nextNodes
         }
-    }
-
-    intakeNode(node, index) {
-
-        const {depth, parent, move} = node
-        const {face, board} = move
-
-        if (board.getWinner() == this.color) {
-            node.setWinner()
-            this.hasWinner = true
-            this.winners.push(node)
-        }
-        if (depth > this.maxDepth) {
-            this.maxDepth = depth
-        }
-        if (face > this.highestFace) {
-            this.highestFace = face
-        }
-        if (parent) {
-            if (depth > parent.maxDepth) {
-                parent.setMaxDepth(depth)
-            }
-            if (face > parent.highestFace) {
-                parent.setHighFace(face)
-            }
-        }
-        this.depthIndex[depth].push(node)
-        index[move.hash] = node
     }
 }
 
