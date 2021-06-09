@@ -106,11 +106,10 @@ class TurnBuilder {
                 continue
             }
 
-            this.trees.push(tree)
-
             this.processLeaves(tree.depthIndex[maxDepth])
-
             this.processWinners(tree.winners)
+
+            this.trees.push(tree)
         }
     }
 
@@ -137,7 +136,6 @@ class TurnBuilder {
             }
 
             var endState = node.move.board.state28()
-
             
             if (result.endStatesToSeries[endState]) {
                 continue
@@ -227,16 +225,20 @@ class BreadthBuilder extends TurnBuilder {
 class SequenceTree {
 
     constructor(board, color, sequence) {
+
+        Dice.checkFaces(sequence)
+
         this.board       = board
         this.color       = color
         this.sequence    = sequence
-        this.maxDepth    = 0
+
         this.hasWinner   = false
+        this.maxDepth    = 0
         this.highestFace = 0
-        this.depthIndex  = []
         this.index       = {}
+
+        this.depthIndex  = []
         this.winners     = []
-        Dice.checkFaces(this.sequence)
     }
 
     build() {
@@ -245,24 +247,36 @@ class SequenceTree {
     }
 
     prune(maxDepth, highestFace, isRecursive, index = null) {
+
         index = index || this.index
-        const hashes = Object.keys(index) // copy for modifying in place
+
+        // copy the keys for modifying in place
+        const hashes = Object.keys(index)
+
         for (var i = 0, ilen = hashes.length; i < ilen; ++i) {
+
             Profiler.inc('SequenceTree.prune.check')
+
             var hash = hashes[i]
             var node = index[hash]
+
             if (node.hasWinner) {
                 continue
             }
+
             if (node.maxDepth < maxDepth) {
                 Profiler.inc('SequenceTree.prune.delete.maxDepth')
-                node.deleted = true
                 delete index[hash]
-            } else if (node.highestFace < highestFace) {
+                continue
+            }
+
+            if (node.highestFace < highestFace) {
                 Profiler.inc('SequenceTree.prune.delete.highestFace')
-                node.deleted = true
                 delete index[hash]
-            } else if (isRecursive && node.depth < maxDepth - 1) {
+                continue
+            }
+
+            if (isRecursive && node.depth < maxDepth - 1) {
                 // We don't need to prune all the children if this depth >= maxDepth -1,
                 // since all the children will have depth == maxDepth. In fact, it is
                 // hard to think of a case where this is necessary. It would have to
@@ -299,7 +313,7 @@ class SequenceTree {
         }
     }
 
-    // circular with move objects (board/analyzer)
+    // recursive
     static serializeIndex(index, sorter) {
         if (!index) {
             return index
@@ -311,7 +325,11 @@ class SequenceTree {
         }
         for (var i = 0, ilen = hashes.length; i < ilen; ++i) {
             var hash = hashes[i]
+            // node
             cleaned[hash] = index[hash].serialize()
+            // recurse into node's index
+            // TODO: respect constructor
+            cleaned[hash].index = SequenceTree.serializeIndex(index[hash].index, sorter)
         }
         return cleaned
     }
@@ -319,6 +337,7 @@ class SequenceTree {
 
 class DepthTree extends SequenceTree {
 
+    // Recursive
     buildSequence(board, sequence, index, parentNode, depth = 0) {
 
         if (depth > 4) {
@@ -452,10 +471,11 @@ class BreadthTree extends SequenceTree {
     }
 
     intakeNode(node, index) {
+
         const {depth, parent, move} = node
-        const {face} = move
-        const isWinner = move.board.getWinner() == this.color
-        if (isWinner) {
+        const {face, board} = move
+
+        if (board.getWinner() == this.color) {
             this.hasWinner = true
             this.winners.push(node)
             if (parent) {
@@ -485,15 +505,16 @@ class TreeNode {
 
     constructor(move, depth, parent) {
 
-        Profiler.start('TreeNode.create')
+        this.move   = move
+        this.depth  = depth
+        this.parent = parent
 
-        this.flag           = move.flag
-        this.highestFace    = move.face
-        this.move           = move
-        this.depth          = depth
-        this.parent         = parent
-        this.maxDepth       = depth
-        this.index          = {}
+        this.hasWinner   = false
+        this.maxDepth    = depth
+        this.highestFace = move.face
+        this.index       = {}
+
+        this.flag   = move.flag
 
         if (parent) {
             if (parent.flag != this.flag) {
@@ -505,7 +526,7 @@ class TreeNode {
             }
         }
 
-        Profiler.stop('TreeNode.create')
+        Profiler.inc('TreeNode.create')
     }
 
     moveSeries() {

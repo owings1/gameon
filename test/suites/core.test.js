@@ -1653,6 +1653,7 @@ describe('SequenceTree', () => {
                 //turn.move(7, 3)
                 //turn.move(5, 1)
             })
+
             it('sequence tree index equivalence with depth for basic example', () => {
                 const board = new Board
                 for (var i = 0; i < 4; ++i) {
@@ -1700,11 +1701,13 @@ describe('SequenceTree', () => {
     })
 
     describe('#serialize', () => {
+
         it('should be JSONable', () => {
             const tree = new DepthTree(Board.setup(), White, [1, 2]).build()
             const result = tree.serialize()
             JSON.stringify(result)
         })
+
         it('should sort index', () => {
             const tree = new DepthTree(Board.setup(), White, [1, 2]).build()
             const result1 = tree.serialize((a, b) => a.localeCompare(b))
@@ -1714,8 +1717,52 @@ describe('SequenceTree', () => {
             expect(keys1[0]).to.equal('0:1')
             expect(keys2[0]).to.equal('18:1')
         })
+
+        it('index should be recursive', () => {
+
+            const tree = new DepthTree(Board.setup(), White, [1, 1, 1, 1]).build()
+            const sorter = (a, b) => a.localeCompare(b)
+            const result = tree.serialize(sorter)
+
+            const base1_exp = tree.index
+            const keys1_exp = Object.keys(base1_exp).sort(sorter)
+
+            const base1 = result.index
+            const keys1 = Object.keys(base1)
+
+            expect(JSON.stringify(keys1)).to.equal(JSON.stringify(keys1_exp))
+
+
+            const base2_exp = base1_exp[keys1[0]].index
+            const keys2_exp = Object.keys(base2_exp).sort(sorter)
+
+            const base2 = base1[keys1[0]].index
+            const keys2 = Object.keys(base2)
+
+            expect(JSON.stringify(keys2)).to.equal(JSON.stringify(keys2_exp))
+
+
+            const base3_exp = base2_exp[keys2[0]].index
+            const keys3_exp = Object.keys(base3_exp).sort(sorter)
+
+            const base3 = base2[keys2[0]].index
+            const keys3 = Object.keys(base3)
+
+            expect(JSON.stringify(keys3)).to.equal(JSON.stringify(keys3_exp))
+
+
+            const base4_exp = base3_exp[keys3[0]].index
+            const keys4_exp = Object.keys(base4_exp).sort(sorter)
+
+            const base4 = base3[keys3[0]].index
+            const keys4 = Object.keys(base4)
+
+            expect(JSON.stringify(keys4)).to.equal(JSON.stringify(keys4_exp))
+        })
     })
+
     describe('DeviantBuilder', () => {
+
         class DeviantBuilder extends DepthBuilder {
             buildSequences(faces) {
                 return this.deviantSequences
@@ -1729,12 +1776,14 @@ describe('SequenceTree', () => {
             //    return trees
             //}
         }
+
         class DeviantTree extends DepthTree {
             constructor(board, color, sequence) {
                 super(board, color, [1, 2])
                 this.sequence = sequence
             }
         }
+
         it('test white win on deviant roll 3, 6, 2', () => {
             const board = Board.fromStateString(States.WhiteWin362)
             const turn = new Turn(board, White)
@@ -1752,9 +1801,9 @@ describe('SequenceTree', () => {
             //expect(builder.initialTreeCount).to.equal(6)
             expect(builder.trees).to.have.length(6)
             // some will be non-winners
-            
         })
     })
+
     describe('tree equivalence', () => {
 
         describe('depth vs breadth', () => {
