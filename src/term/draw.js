@@ -32,7 +32,7 @@ const Util       = require('../lib/util')
 const sp         = Util.joinSpace
 const {intRange} = Util
 
-const {Red, White, Opponent, ColorAbbr, ColorNorm, PointOrigins} = Constants
+const {Red, White, Opponent, ColorAbbr, ColorNorm, OriginPoints, PointOrigins, BoardStrings} = Constants
 
 const {Board, Dice, Turn} = Core
 
@@ -183,16 +183,11 @@ class DrawHelper {
 
     constructor(opts) {
         opts = opts || {}
-        this.match = opts.match
-        this.game = opts.game
-        this.board = opts.board || (this.game && this.game.board)
+        this.board = opts.board || (opts.match && opts.match.thisGame && opts.match.thisGame.board) || (opts.game && opts.game.board)
         this.persp = opts.persp
         this.logs = []
         this.stateHistory = []
         this.logger = new Logger
-        if (this.board) {
-            this.stateHistory.push(this.board.state28())
-        }
     }
 
     draw(isPrint) {
@@ -204,8 +199,8 @@ class DrawHelper {
     }
 
     async interactive() {
+        this.draw(true)
         while (true) {
-            this.draw(true)
             var answers = await this.prompt({
                 name    : 'input'
               , message : 'Input'
@@ -214,6 +209,7 @@ class DrawHelper {
             var {input} = answers
             var inputLc = input.toLowerCase()
             if (!input) {
+                this.draw(true)
                 continue
             }
             if (inputLc == 'q') {
@@ -223,31 +219,31 @@ class DrawHelper {
                 this.logger.console.log(this.commandHelp())
                 continue
             }
-            if (input[0] != '_') {
-                try {
-                    new Board(input).analyzer.validateLegalBoard()
-                } catch (err) {
-                    this.logger.error(err.name, ':', err.message)
-                    continue
-                }
-                this.board.setStateString(input)
-            }
-            switch (inputLc) {
-                case '_':
+            var [cmd, ...params] = input.split(' ')
+            var cmdLc = cmd.toLowerCase()
+            switch (cmdLc) {
+                case 'i':
                     this.logger.console.log(this.boardInfo())
                     break
-                case '_f':
+                case 's':
+                    await this.setStateCommand()
+                    this.draw(true)
+                    break
+                case 'd':
+                    await this.diceCommand(params.join(' '))
+                    break
+                case 'f':
                     this.persp = Opponent[this.persp]
-                    this.logger.info('Perspective changed to', ccolor(this.persp))
+                    this.logs.push('Change to', ccolor(this.persp))
+                    this.draw(true)
                     break
-                case '_p':
+                case 'p':
                     await this.placeCommand()
+                    this.draw(true)
                     break
-                case '_u':
+                case 'u':
                     await this.undoCommand()
-                    break
-                case '_d':
-                    await this.diceCommand()
+                    this.draw(true)
                     break
                 default:
                     this.logger.warn('Invalid command', input)
@@ -258,14 +254,21 @@ class DrawHelper {
     }
 
     commandHelp() {
-        return {
-            '_'  : 'board info'
-          , '_f' : 'flip perspective'
-          , '_p' : 'place piece'
-          , '_u' : 'undo move'
-          , '_d' : 'show moves for dice'
-          , '?'  : 'command help'
+        const helps = {
+            'i' : 'board info'
+          , 's' : 'set state of board'
+          , 'd' : 'show moves for dice'
+          , 'f' : 'flip perspective'
+          , 'p' : 'place piece'
+          , 'u' : 'undo move'
+          , '?' : 'command help'
         }
+        const arr = [
+            'Commands:'
+          , '---------'
+        ]
+        Object.entries(helps).forEach(it => arr.push(sp(it[0] + ':', it[1])))
+        return arr.join('\n')
     }
 
     boardInfo() {
@@ -276,15 +279,70 @@ class DrawHelper {
         }
     }
 
+    async setStateCommand() {
+        const {board} = this
+
+        const getBuiltIn = name => {
+            if (BoardStrings[name]) {
+                return BoardStrings[name]
+            }
+            const srch = Object.keys(BoardStrings).find(it => name.toLowerCase() == it.toLowerCase())
+            if (srch) {
+                return BoardStrings[srch]
+            }
+        }
+
+        const answers = await this.prompt({
+            name     : 'state'
+          , type     : 'input'
+          , message  : 'State string'
+          , default  : () => board.stateString()
+          , validate : value => {
+                if (value.toLowerCase() == 'q' || !value.length) {
+                    return true
+                }
+                if (getBuiltIn(value)) {
+                    value = getBuiltIn(value)
+                }
+                try {
+                    Board.fromStateString(value).analyzer.validateLegalBoard()
+                } catch (err) {
+                    return sp(err.name, ':', err.message)
+                }
+                return true
+            }
+        })
+        if (answers.state.toLowerCase() == 'q' || !answers.state.length) {
+            return
+        }
+
+        if (getBuiltIn(answers.state)) {
+            var newState = getBuiltIn(answers.state)
+        } else {
+            var newState = answers.state
+        }
+
+        newState = Board.fromStateString(newState).state28()
+        if (newState == board.state28()) {
+            this.logger.info('No change')
+            return
+        }
+        this.stateHistory.push(board.state28())
+        board.setStateString(newState)
+        this.logs.push('Set state')
+    }
+
     async undoCommand() {
-        if (this.stateHistory.length < 2) {
+        if (this.stateHistory.length < 1) {
             this.logger.error('Nothing to undo')
             return
         }
         this.board.setStateString(this.stateHistory.pop())
+        this.logs.push('Undo')
     }
 
     async diceCommand(input) {
+        const cons = this.logger.console
         const parseInput = value => value.split(',').map(it => parseInt(it.trim()))
         const checkDice = dice => {
             try {
@@ -299,7 +357,7 @@ class DrawHelper {
           , type     : 'input'
           , name     : 'dice'
           , validate : value => checkDice(parseInput(value))
-          , when     : () => !input || checkDice(input) !== true
+          , when     : () => !input || checkDice(parseInput(input)) !== true
         })
         input = input || answers.dice
         const dice = parseInput(input)
@@ -307,7 +365,43 @@ class DrawHelper {
         const {board} = this
         const turn = new Turn(board, this.persp).setRoll(dice)
 
-        this.logger.console.log(turn.allowedMoveIndex)
+        if (turn.isCantMove) {
+            cons.log('No moves for', this.persp, 'with', dice.join())
+            return
+        }
+
+        const moveDesc = move => {
+            const parts = []
+            if (move.origin == -1) {
+                var startPoint = 25
+                parts.push('bar')
+            } else {
+                var startPoint = OriginPoints[this.persp][move.origin]
+                parts.push(startPoint)
+            }
+            var destPoint = startPoint - move.face
+            if (destPoint < 1) {
+                destPoint = 'home'
+            }
+            parts.push(destPoint)
+            return parts.join(':')
+        }
+        //const series = Object.values(turn.endStatesToSeries)
+        const series = turn.builder.leaves.map(node => node.moveSeries())
+        const info = {
+            dice      : dice
+          , series    : series.length
+          , maxDepth  : turn.builder.maxDepth
+          , highFace  : turn.builder.highestFace
+        }
+
+        const hr = nchars(60, '-')
+        cons.log(hr)
+        cons.log(info)
+        cons.log('  Move Series:')
+        series.forEach((moves, i) => cons.log('   ', (i+1) + ':', moves.map(moveDesc)))
+        cons.log(hr)
+        
     }
 
     async placeCommand(input) {
@@ -346,6 +440,7 @@ class DrawHelper {
                 message : 'Color, (w)hite or (r)ed'
               , name    : 'color'
               , type    : 'input'
+              , default : () => ColorAbbr[this.persp].toLowerCase()
               , when    : answers => {
                     if (answers.from == 'b') {
                         return analyzer.hasBar(White) && analyzer.hasBar(Red)
@@ -360,7 +455,7 @@ class DrawHelper {
                         return true
                     }
                     return !!ColorNorm[value.toUpperCase()] || 'Invalid color'
-                } 
+                }
             }
           , {
                 message  : 'To, point, (b)ar, or (h)ome'
@@ -381,9 +476,16 @@ class DrawHelper {
                     if (answers.color) {
                         var color = ColorNorm[answers.color.toUpperCase()]
                     } else {
-                        const fromPoint = parseInt(answers.from)
-                        const fromOrigin = PointOrigins[this.persp][fromPoint]
-                        var color = analyzer.originOccupier(fromOrigin)
+                        if (answers.from == 'b') {
+                            var color = analyzer.hasBar(White) ? White : Red
+                        } else if (answers.from == 'h') {
+                            var color = analyzer.piecesHome(White) ? White : Red
+                        } else {
+                            const fromPoint = parseInt(answers.from)
+                            const fromOrigin = PointOrigins[this.persp][fromPoint]
+                            var color = analyzer.originOccupier(fromOrigin)
+                        }
+                        
                     }
 
                     return !occupier || occupier == color || sp(point, 'occupied by', occupier)
@@ -405,6 +507,7 @@ class DrawHelper {
 
         const desc = ['Place']
 
+        this.stateHistory.push(board.state28())
         if (answers.from == 'b') {
             if (analyzer.hasBar(White) && analyzer.hasBar(Red)) {
                 var color = ColorNorm[answers.color.toUpperCase()]
@@ -441,7 +544,6 @@ class DrawHelper {
             desc.push(destPoint)
         }
         this.logs.push(desc.join(' '))
-        this.stateHistory.push(board.state28())
     }
 
     static drawBoard(gameOrBoard, match, persp, logs) {

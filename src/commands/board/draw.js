@@ -26,14 +26,20 @@ const {Command, flags} = require('@oclif/command')
 const {Board}  = require('../../lib/core')
 const {Colors, BoardStrings} = require('../../lib/constants')
 const {InvalidColorError} = require('../../lib/errors')
+const Logger = require('../../lib/logger')
 const Helper = require('../../term/draw')
+const fs = require('fs')
+const fse = require('fs-extra')
+const os = require('os')
+const path = require('path')
 
 class BoardDrawCommand extends Command {
 
     async init() {
         const {flags} = this.parse(BoardDrawCommand)
         this.flags = flags
-        const stateString = this.flags.board || BoardStrings.Initial
+        this.logger = new Logger
+        const stateString = await this.getInitialState()//this.flags.board || BoardStrings.Initial
         const board = Board.fromStateString(stateString)
         board.analyzer.validateLegalBoard()
         const persp = this.flags.persp
@@ -49,20 +55,62 @@ class BoardDrawCommand extends Command {
     }
 
     async run() {
-        await this.init()
         if (this.opts.interactive) {
-            await this.helper.interactive()
+            return this.runInteractive()
         } else {
-            this.helper.draw(true)
+            return this.runNonInteractive()
         }
+    }
+
+    async runInteractive() {
+        await this.helper.interactive()
+        try {
+            await this.saveLastState()
+        } catch (err) {
+            this.logger.debug(err)
+            this.logger.error('Failed to save board state:', err.message)
+        }
+    }
+
+    async runNonInteractive() {
+        this.helper.draw(true)
+    }
+
+    async getInitialState() {
+        if (this.flags.state) {
+            return this.flags.state
+        }
+        const stateFile = this.getSaveStateFile()
+        if (fs.existsSync(stateFile)) {
+            try {
+                const data = await fse.readJson(stateFile)
+                const board = Board.fromStateString(data.lastState)
+                board.analyzer.validateLegalBoard()
+                this.logger.info('Loaded saved state')
+                return board.state28()
+            } catch (err) {
+                this.logger.debug(err)
+                this.logger.warn('Failed to load last board:', err.message)
+            }
+        }
+        return BoardStrings.Initial
+    }
+
+    async saveLastState() {
+        const stateFile = this.getSaveStateFile()
+        await fse.writeJson(stateFile, {lastState: this.helper.board.state28()}, {spaces: 2})
+    }
+
+    getSaveStateFile() {
+        return path.resolve(os.homedir(), '.gameon/board.draw.json')
     }
 }
 
 BoardDrawCommand.description = `Run performance profiling`
 
 BoardDrawCommand.flags = {
-    board: flags.string({
-        char        : 'b'
+    state: flags.string({
+        char        : 's'
       , description : 'board state string'
     })
   , persp: flags.string({
