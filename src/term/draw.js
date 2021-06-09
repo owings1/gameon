@@ -114,34 +114,42 @@ class DrawHelper {
             var cmdLc = cmd.toLowerCase()
 
             switch (cmdLc) {
+
                 case 'i':
                     this.logger.console.log(this.boardInfo())
                     break
+
                 case 's':
                     await this.setStateCommand(params.join(' ').trim())
                     this.draw(true)
                     break
+
                 case 'd':
                     await this.diceCommand(params.join(' '))
                     break
+
                 case 'f':
                     this.persp = Opponent[this.persp]
                     this.logs.push(sp('Change to', this.ccolor(this.persp)))
                     this.draw(true)
                     break
+
                 case 'p':
                     await this.placeCommand()
                     this.draw(true)
                     break
+
                 case 'u':
                     await this.undoCommand()
                     this.draw(true)
                     break
+
                 case 'x':
                     this.opts.breadthTrees = !this.opts.breadthTrees
                     var treeStyle = this.opts.breadthTrees ? 'breadth' : 'depth'
                     this.logger.info('Using', treeStyle, 'trees')
                     break
+
                 default:
                     this.logger.warn('Invalid command', input)
                     this.logger.console.log(this.commandHelp())
