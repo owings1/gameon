@@ -406,6 +406,48 @@ class Profiler {
     }
 }
 
+class StringBuilder {
+
+    constructor(...args) {
+        this.arr = []
+        this.add(...args)
+    }
+
+    add(...args) {
+        for (var i = 0, ilen = args.length; i < ilen; ++i) {
+            var arg = args[i]
+            if (arg instanceof StringBuilder) {
+                this.arr.push(arg.toString())
+            } else {
+                this.arr.push(arg)
+            }
+        }
+        return this
+    }
+
+    sp(...args) {
+        return this.add(args.join(' '))
+    }
+
+    replace(...args) {
+        const b = new StringBuilder(...args)
+        this.arr = b.arr
+        return this
+    }
+
+    length() {
+        return this.toString().length
+    }
+
+    join(sep) {
+        return this.arr.join(sep)
+    }
+
+    toString() {
+        return this.arr.join('')
+    }
+}
+
 class UtilError extends Error {
     constructor(...args) {
         super(...args)
@@ -423,5 +465,6 @@ class IllegalStateError extends UtilError {
 Util.Counter = Counter
 Util.Timer = Timer
 Util.Profiler = Profiler
+Util.StringBuilder = StringBuilder
 
 module.exports = Util

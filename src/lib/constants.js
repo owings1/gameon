@@ -22,6 +22,8 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
+const chalk = require('chalk')
+
 const White = 'White'
 const Red   = 'Red'
 
@@ -66,6 +68,17 @@ const OutsideOrigins = {
        9,  8,  7,  6
     ]
 }
+
+const TopPoints = [
+  13, 14, 15, 16, 17,
+  18, 19, 20, 21, 22,
+  23, 24
+]
+const BottomPoints = [
+  12, 11, 10, 9, 8,
+   7,  6,  5, 4, 3,
+   2,  1
+]
 
 const PointOrigins = {
     Red   : {'-1': -1}
@@ -114,21 +127,72 @@ populateMoveHashesCoords(MoveHashes, MoveCoords)
 const BoardStrings = {
     Initial: '0|0|2:W|0:|0:|0:|0:|5:R|0:|3:R|0:|0:|0:|5:W|5:R|0:|0:|0:|3:W|0:|5:W|0:|0:|0:|0:|2:R|0|0'
 }
+
+const Draw = {
+    Chars : {
+        topLeft      : '\u250f'
+      , topMid       : '\u2533'
+      , topRight     : '\u2513'
+      , midLeft      : ''  // TODO
+      , sep          : '\u2503'
+      , dblSep       : '\u2503\u2503'
+      , midRight     : ''  // TODO
+      , botLeft      : '\u2517'
+      , botMiddle    : '\u253b'
+      , botRight     : '\u251b'
+      , dash         : '\u2501'
+      , pip          : 'PIP'
+      , crawford     : 'CR'
+      , pts          : 'pts'
+      , empty        : ''
+      , slash        : '/'
+      , sp           : ' '
+      , dblSp        : '  '
+      , br           : '\n'
+      , die          :  {
+            1  : '\u2680'
+          , 2  : '\u2681'
+          , 3  : '\u2682'
+          , 4  : '\u2683'
+          , 5  : '\u2684'
+          , 6  : '\u2685'
+        }
+    }
+  , ChalkColorFor : {
+        Red   : 'red'
+     ,  White : 'white'
+    }
+  , Shorts : {
+        Red   : chalk.bold.red('R')
+      , White : chalk.bold.white('W')
+      , R     : chalk.bold.red('R')
+      , W     : chalk.bold.white('W')
+    }
+  , PadFixed   : 4
+  , MidFixed   : 1
+  , RightFixed : 10
+}
+Draw.TopBorder    = Draw.Chars.topLeft.padEnd(12 * Draw.PadFixed + 2 + 4, Draw.Chars.dash) + Draw.Chars.topRight
+Draw.BottomBorder = Draw.Chars.botLeft.padEnd(12 * Draw.PadFixed + 2 + 4, Draw.Chars.dash) + Draw.Chars.botRight
+
 const Constants = {
-    Red
-  , White
-  , Colors
+    BoardStrings
+  , BottomPoints
   , ColorAbbr
   , ColorNorm
+  , Colors
   , Direction
-  , Opponent
+  , Draw
   , InsideOrigins
+  , MoveCoords
+  , MoveHashes
+  , Opponent
+  , OriginPoints
   , OutsideOrigins
   , PointOrigins
-  , OriginPoints
-  , MoveHashes
-  , MoveCoords
-  , BoardStrings
+  , Red
+  , TopPoints
+  , White
 }
 
 module.exports = Constants

@@ -22,6 +22,48 @@ const {White, Red} = Constants
 
 
 describe('Move', () => {
+    var board
+
+    beforeEach(() => {
+        board = Board.setup()
+    })
+
+    describe('.coords', () => {
+
+        it('should have origin and face properties', () => {
+            const move = board.buildMove(White, 0, 1)
+            const result = move.coords
+            expect(result.origin).to.equal(0)
+            expect(result.face).to.equal(1)
+        })
+    })
+
+    describe('#copy', () => {
+
+        it('should return new ComeInMove with same board, color, and face', () => {
+            board.pushBar(White, board.popOrigin(0))
+            const move = board.buildMove(White, -1, 1)
+            const copy = move.copy()
+            expect(copy.constructor.name).to.equal('ComeInMove')
+            expect(copy.board).to.equal(board)
+            expect(copy.color).to.equal(White)
+            expect(copy.face).to.equal(1)
+        })
+    })
+
+    describe('#copyForBoard', () => {
+
+        it('should return new ComeInMove with same color and face, but other board', () => {
+            board.pushBar(White, board.popOrigin(0))
+            const move = board.buildMove(White, -1, 1)
+            const otherBoard = board.copy()
+            const copy = move.copyForBoard(otherBoard)
+            expect(copy.constructor.name).to.equal('ComeInMove')
+            expect(copy.board).to.equal(otherBoard)
+            expect(copy.color).to.equal(White)
+            expect(copy.face).to.equal(1)
+        })
+    })
 
     describe('#do', () => {
         it('should throw NotImplementedError', () => {

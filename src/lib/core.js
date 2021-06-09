@@ -1027,8 +1027,10 @@ class Board {
         return piece
     }
 
-    pushOrigin(origin, pieceOrColor) {
-        const piece = (pieceOrColor instanceof Piece) ? pieceOrColor : new Piece(pieceOrColor)
+    pushOrigin(origin, piece) {
+        if (!(piece instanceof Piece)) {
+            piece = new Piece(piece)
+        }
         this.slots[origin].push(piece)
         this.markChange()
     }

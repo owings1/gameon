@@ -24,23 +24,38 @@
  */
 const Constants = require('../lib/constants')
 
-const chalk      = require('chalk')
-const inquirer   = require('inquirer')
-const Core       = require('../lib/core')
-const Logger     = require('../lib/logger')
-const Robot      = require('../robot/player')
-const Util       = require('../lib/util')
-const sp         = Util.joinSpace
-const {intRange} = Util
+const chalk    = require('chalk')
+const inquirer = require('inquirer')
+const Core     = require('../lib/core')
+const Logger   = require('../lib/logger')
+const Robot    = require('../robot/player')
+const Util     = require('../lib/util')
+const sp       = Util.joinSpace
+
+const {RobotDelegator} = Robot
+const {StringBuilder}  = Util
+
+const {
+    Chars
+  , ChalkColorFor
+  , BottomBorder
+  , PadFixed
+  , MidFixed
+  , RightFixed
+  , Shorts
+  , TopBorder
+} = Constants.Draw
 
 const {
     BoardStrings
+  , BottomPoints
   , ColorAbbr
   , ColorNorm
   , Opponent
   , OriginPoints
   , PointOrigins
   , Red
+  , TopPoints
   , White
 } = Constants
 
@@ -49,151 +64,6 @@ const {
   , Dice
   , Turn
 } = Core
-
-const {RobotDelegator} = Robot
-
-const Shorts = {
-    Red   : chalk.bold.red('R')
-  , White : chalk.bold.white('W')
-  , R     : chalk.bold.red('R')
-  , W     : chalk.bold.white('W')
-}
-
-const ChalkColorFor = {
-    Red   : 'red'
- ,  White : 'white'
-}
-
-const Chars = {
-    topLeft      : '\u250f'
-  , topMid       : '\u2533'
-  , topRight     : '\u2513'
-  , midLeft      : ''  // TODO
-  , sep          : '\u2503'
-  , dblSep       : '\u2503\u2503'
-  , midRight     : ''  // TODO
-  , botLeft      : '\u2517'
-  , botMiddle    : '\u253b'
-  , botRight     : '\u251b'
-  , dash         : '\u2501'
-  , pip          : 'PIP'
-  , crawford     : 'CR'
-  , pts          : 'pts'
-  , empty        : ''
-  , slash        : '/'
-  , sp           : ' '
-  , dblSp        : '  '
-  , br           : '\n'
-  , die          :  {
-        1  : '\u2680'
-      , 2  : '\u2681'
-      , 3  : '\u2682'
-      , 4  : '\u2683'
-      , 5  : '\u2684'
-      , 6  : '\u2685'
-    }
-}
-
-const PadFixed = 4
-const MidFixed = 1
-const RightFixed = 10
-
-const TopBorder = Chars.topLeft.padEnd(12 * PadFixed + 2 + 4, Chars.dash) + Chars.topRight
-const BottomBorder = Chars.botLeft.padEnd(12 * PadFixed + 2 + 4, Chars.dash) + Chars.botRight
-
-const TopPoints = intRange(13, 24)
-const BottomPoints = intRange(1, 12).reverse()
-
-function grey(...args) {
-    return chalk.grey(...args)
-}
-function ccolor(color) {
-    return chalk.bold[ChalkColorFor[color]](color)
-}
-// the string for the piece color, if any
-function pieceStr(color) {
-    const c = ColorAbbr[color] || ''
-    var str = c.padStart(PadFixed, Chars.sp)
-    if (color) {
-        str = chalk.bold[ChalkColorFor[color]](str)
-    }
-    return str
-}
-
-function barRowStr(color, count) {
-    var str = Chars.sep.padEnd(6 * PadFixed + 1, Chars.sp)
-    if (count) {
-        str += sp(Chars.sp, Shorts[color], grey(count))
-    } else {
-        str += grey(Chars.sp, Chars.dblSep + Chars.sp)
-    }
-    str += nchars(6 * PadFixed, Chars.sp) + Chars.sep
-    return str
-}
-
-function homeCountStr(color, count) {
-    var str = '  '
-    if (count) {
-        str += sp(Shorts[color], grey(count))
-    }
-    return str
-}
-
-function overflowStr(count) {
-    var str = count > 6 ? '' + count : Chars.empty
-    str = grey(str.padStart(PadFixed, Chars.sp))
-    return str
-}
-
-function nchars(n, char) {
-    return Chars.empty.padEnd(n, char)
-}
-
-function cubePartStr(partIndex, cubeValue, isCrawford) {
-    var cubeStr = ''
-    switch (partIndex) {
-        case 0:
-            cubeStr = cat(Chars.topLeft, nchars(3, Chars.dash), Chars.topRight)
-            break
-        case 1:
-            cubeStr = (Chars.sep + Chars.sp + (isCrawford ? Chars.crawford : cubeValue)).padEnd(4, Chars.sp) + Chars.sep
-            break
-        case 2:
-            cubeStr = cat(Chars.botLeft, nchars(3, Chars.dash), Chars.botRight)
-            break
-    }
-    if (cubeStr && isCrawford) {
-        cubeStr = grey(cubeStr)
-    }
-    return cat(Chars.sp, cubeStr)
-}
-
-function pipCountStr(count) {
-    return cat(Chars.sp, chalk.bold.grey(count), Chars.sp, grey(Chars.pip))
-}
-
-function matchScoreStr(score, total) {
-    return cat(Chars.sp, score, Chars.slash, total, Chars.pts)
-}
-
-function numbers(points) {
-    var str = Chars.sp
-    points.forEach((point, i) => {
-        str += point.toString().padStart(PadFixed, Chars.sp)
-        if (i == 5) {
-            str += nchars(4, Chars.sp)
-        }
-    })
-    return str
-}
-
-function cat(...args) {
-    return args.join(Chars.empty)
-}
-
-function len(str) {
-    return Util.stripAnsi(str).length
-}
 
 class DrawHelper {
 
@@ -254,7 +124,7 @@ class DrawHelper {
                     break
                 case 'f':
                     this.persp = Opponent[this.persp]
-                    this.logs.push('Change to', ccolor(this.persp))
+                    this.logs.push('Change to', this.ccolor(this.persp))
                     this.draw(true)
                     break
                 case 'p':
@@ -289,12 +159,13 @@ class DrawHelper {
           , 'x' : 'toggler tree mode'
           , '?' : 'command help'
         }
-        const arr = [
+        const b = new StringBuilder(
             'Commands:'
           , '---------'
-        ]
-        Object.entries(helps).forEach(it => arr.push(sp(it[0] + ':', it[1])))
-        return arr.join('\n')
+        )
+        Object.entries(helps).forEach(it => b.sp(it[0] + ':', it[1]))
+        b.add('---------')
+        return b.join('\n')
     }
 
     boardInfo() {
@@ -312,7 +183,9 @@ class DrawHelper {
             if (BoardStrings[name]) {
                 return BoardStrings[name]
             }
-            const srch = Object.keys(BoardStrings).find(it => name.toLowerCase() == it.toLowerCase())
+            const srch = Object.keys(BoardStrings).find(it =>
+                name.toLowerCase() == it.toLowerCase()
+            )
             if (srch) {
                 return BoardStrings[srch]
             }
@@ -337,7 +210,7 @@ class DrawHelper {
                 try {
                     Board.fromStateString(value).analyzer.validateLegalBoard()
                 } catch (err) {
-                    return sp(err.name, ':', err.message)
+                    return [err.name, ':', err.message].join(' ')
                 }
                 return true
             }
@@ -431,7 +304,7 @@ class DrawHelper {
         }
 
         const robotMoves = await this.robot.getMoves(turn)
-        const hr = nchars(60, '-')
+        const hr = this.nchars(60, '-')
         cons.log(hr)
         cons.log(info)
         cons.log('  Move Series:')
@@ -557,7 +430,7 @@ class DrawHelper {
                 var color = analyzer.hasBar(White) ? White : Red
             }
             piece = board.popBar(color)
-            desc.push(sp(ccolor(piece.color), 'bar'))
+            desc.push(sp(this.ccolor(piece.color), 'bar'))
         } else if (answers.from == 'h') {
             if (analyzer.piecesHome(White) && analyzer.piecesHome(Red)) {
                 var color = ColorNorm[answers.color.toUpperCase()]
@@ -590,186 +463,287 @@ class DrawHelper {
 
     static drawBoard(gameOrBoard, match, persp, logs) {
 
-        const logsRev = (logs || []).slice(0).reverse()
-        persp = persp || White
+        if (!persp) {
+            persp = White
+        }
+
         const opersp = Opponent[persp]
 
         if (gameOrBoard.constructor.name == 'Game') {
             var game = gameOrBoard
-            var {board, cubeOwner, cubeValue} = game
-            var {isCrawford} = game.opts
+            var board = game.board
         } else {
             var game = null
             var board = gameOrBoard
-            var cubeOwner = null
-            var cubeValue = null
-            var isCrawford = null
         }
-        const {analyzer} = board
-        const pipCounts = analyzer.pipCounts()
-        const pointStats = {}
-        intRange(1, 24).forEach(point =>
-            pointStats[point] = analyzer.statPoint(persp, point)
+
+        const inst = new DrawInstance(board, game, match, persp, logs)
+
+        const b = new StringBuilder
+
+        b.add(Chars.br)
+
+        b.add(
+            // Top point numbers
+            inst.numbersRow(TopPoints)
+            // Top border
+          , inst.borderRow(TopBorder)
         )
-
-        const builder = []
-
-        var logIndex = 18
-
-        function wr(...args) {
-            builder.push(sp(...args))
-        }
-
-        function sideLog(pad) {
-            const n = logIndex--
-            if (!logsRev[n]) {
-                return Chars.empty
-            }
-            return cat(nchars(pad, Chars.sp), logsRev[n])
-        }
-
-        function writePieceRow(depth, points, cubePartIndex, sectionOwner) {
-
-            function afterRowString() {
-                switch (depth) {
-                    case 0:
-                        // Home
-                        return homeCountStr(sectionOwner, analyzer.piecesHome(sectionOwner))
-                    case 1:
-                        // PIP
-                        return pipCountStr(pipCounts[sectionOwner])
-                    case 2:
-                        // Match score
-                        if (match) {
-                            return matchScoreStr(match.scores[sectionOwner], match.total)
-                        }
-                        return ''
-                    default:
-                        // Cube part
-                        if (cubeValue && cubeOwner == sectionOwner) {
-                            return cubePartStr(cubePartIndex, cubeValue, isCrawford)
-                        }
-                        return ''
-                }
-            }
-
-            wr(Chars.sep)
-            points.forEach((point, i) => {                
-                const {color, count} = pointStats[point]
-                wr(pieceStr(count > depth && color))
-                if (i == 5) {
-                    wr(grey(Chars.sp, Chars.dblSep))
-                }
-            })
-            wr(cat(Chars.sp, Chars.sep))
-
-            const afterStr = afterRowString()
-            var pad = RightFixed - len(afterStr)
-            wr(afterStr)
-
-            wr(sideLog(pad))
-            wr(Chars.br)
-        }
-
-        function writeOverflowRow(points) {
-            wr(Chars.sep)
-            points.forEach((point, i) => {
-                const {count} = pointStats[point]
-                wr(overflowStr(count))
-                if (i == 5) {
-                    wr(grey(Chars.sp, Chars.dblSep))
-                }
-            })
-            wr(cat(Chars.sp, Chars.sep))
-            wr(sideLog(RightFixed))
-            wr(Chars.br)
-        }
-
-        function writeMiddleRow() {
-            wr(Chars.sep.padEnd(6 * PadFixed + 1, Chars.sp))
-            wr(chalk.grey(Chars.sp, Chars.dblSep))
-            wr(nchars(6 * PadFixed + 1, Chars.sp) + Chars.sep)
-            var pad = RightFixed
-            if (cubeValue && !cubeOwner) {
-                const cubeStr = cubePartStr(1, cubeValue, isCrawford)
-                pad -= len(cubeStr)
-                wr(cubeStr)
-            }
-            wr(sideLog(pad))
-            wr(Chars.br)
-        }
-
-        function writeBorderRow(border) {
-            wr(border)
-            wr(sideLog(RightFixed))
-            wr(Chars.br)
-        }
-
-        function writeBarRow(color, cubePartIndex) {
-            const count = analyzer.piecesOnBar(color)
-            wr(barRowStr(color, count))
-            var pad = RightFixed
-            if (cubeValue && !cubeOwner) {
-                const cubeStr = cubePartStr(cubePartIndex, cubeValue, isCrawford)
-                pad -= len(cubeStr)
-                wr(cubeStr)
-            }
-            wr(sideLog(pad))
-            wr(Chars.br)
-        }
-
-        function writeNumbersRow(points) {
-            wr(numbers(points))
-            wr(Chars.br)
-        }
-
-        wr(Chars.br)
-
-        // Top point numbers
-        writeNumbersRow(TopPoints)
-
-        // Top border
-        writeBorderRow(TopBorder)
 
         // Top piece rows
         for (var d = 0; d < 6; d++) {
-            writePieceRow(d, TopPoints, d - 3, opersp)
+            b.add(inst.pieceRow(d, TopPoints, d - 3, opersp))
         }
 
-        // Top overflow row
-        writeOverflowRow(TopPoints)
-
-        // Bar row
-        writeBarRow(persp, 0)
-
-        // Between bars blank row
-        writeMiddleRow()
-
-        // Bar row
-        writeBarRow(opersp, 2)
-
-        // Bottom overflow row
-        writeOverflowRow(BottomPoints)
+        b.add(
+            // Top overflow row
+            inst.overflowRow(TopPoints)
+            // Bar row
+          , inst.barRow(persp, 0)
+            // Between bars blank row
+          , inst.middleRow()
+            // Bar row
+          , inst.barRow(opersp, 2)
+            // Bottom overflow row
+          , inst.overflowRow(BottomPoints)
+        )
 
         // Bottom piece rows
         for (var d = 5; d >= 0; d--) {
-            writePieceRow(d, BottomPoints, 5 - d, persp)
+            b.add(inst.pieceRow(d, BottomPoints, 5 - d, persp))
         }
 
-        // Bottom border
-        writeBorderRow(BottomBorder)
+        b.add(
+            // Bottom border
+            inst.borderRow(BottomBorder)
+            // Bottom point numbers
+          , inst.numbersRow(BottomPoints)
+        )
 
-        // Bottom point numbers
-        writeNumbersRow(BottomPoints)
+        b.add(Chars.br)
 
-        wr(Chars.br)
-
-        return builder.join('')
+        return b.toString()
     }
 
     prompt(questions) {
         this._prompt = inquirer.prompt(Util.castToArray(questions))
         return this._prompt
+    }
+
+    ccolor(color) {
+        return chalk.bold[ChalkColorFor[color]](color)
+    }
+}
+
+class DrawInstance {
+
+    constructor(board, game, match, persp, logs) {
+        this.board = board
+        this.game = game
+        this.match = match
+        this.persp = persp
+        this.logs = logs
+        if (this.game) {
+            this.cubeOwner  = this.game.cubeOwner
+            this.cubeValue  = this.game.cubeValue
+            this.isCrawford = this.game.opts.isCrawford
+        }
+        this.analyzer = this.board.analyzer
+        this.pipCounts = this.analyzer.pipCounts()
+        this.pointStats = {}
+        for (var point = 1; point < 25; ++point) {
+            this.pointStats[point] = this.analyzer.statPoint(this.persp, point)
+        }
+        this.logIndex = 18
+        this.logsRev = (this.logs || []).slice(0).reverse()
+    }
+
+    pieceRow(depth, points, cubePartIndex, sectionOwner) {
+
+        const afterRowString = () => {
+            switch (depth) {
+                case 0:
+                    // Home
+                    return this.homeCountStr(sectionOwner, this.analyzer.piecesHome(sectionOwner))
+                case 1:
+                    // PIP
+                    return this.pipCountStr(this.pipCounts[sectionOwner])
+                case 2:
+                    // Match score
+                    if (this.match) {
+                        return this.matchScoreStr(this.match.scores[sectionOwner], this.match.total)
+                    }
+                    return ''
+                default:
+                    // Cube part
+                    if (this.cubeValue && this.cubeOwner == sectionOwner) {
+                        return this.cubePartStr(cubePartIndex, this.cubeValue, this.isCrawford)
+                    }
+                    return ''
+            }
+        }
+
+        const b = new StringBuilder(Chars.sep)
+
+        points.forEach((point, i) => {
+            const {color, count} = this.pointStats[point]
+            b.add(this.pieceStr(count > depth && color))
+            if (i == 5) {
+                b.add(chalk.grey(Chars.sp, Chars.dblSep))
+            }
+        })
+        b.add(Chars.sp, Chars.sep)
+
+        const afterStr = afterRowString()
+        var pad = RightFixed - this.len(afterStr)
+        b.add(afterStr, this.sideLog(pad), Chars.br)
+
+        return b
+    }
+
+    sideLog(pad) {
+        const n = this.logIndex--
+        if (!this.logsRev[n]) {
+            return Chars.empty
+        }
+        return new StringBuilder(this.nchars(pad, Chars.sp), this.logsRev[n])
+    }
+
+    overflowRow(points) {
+        const b = new StringBuilder(Chars.sep)
+        points.forEach((point, i) => {
+            const {count} = this.pointStats[point]
+            b.add(this.overflowStr(count))
+            if (i == 5) {
+                b.add(chalk.grey(Chars.sp, Chars.dblSep))
+            }
+        })
+        b.add(Chars.sp, Chars.sep)
+        b.add(this.sideLog(RightFixed))
+        b.add(Chars.br)
+        return b
+    }
+
+    middleRow() {
+        const b = new StringBuilder(Chars.sep.padEnd(6 * PadFixed + 1, Chars.sp))
+        b.add(chalk.grey(Chars.sp, Chars.dblSep))
+        b.add(this.nchars(6 * PadFixed + 1, Chars.sp), Chars.sep)
+        var pad = RightFixed
+        if (this.cubeValue && !this.cubeOwner) {
+            const cubeStr = this.cubePartStr(1, this.cubeValue, this.isCrawford)
+            pad -= this.len(cubeStr)
+            b.add(cubeStr)
+        }
+        b.add(this.sideLog(pad))
+        b.add(Chars.br)
+        return b
+    }
+
+    borderRow(border) {
+        return new StringBuilder(border, this.sideLog(RightFixed), Chars.br)
+    }
+
+    barRow(color, cubePartIndex) {
+        const b = new StringBuilder
+        const count = this.analyzer.piecesOnBar(color)
+        b.add(this.barRowStr(color, count))
+        var pad = RightFixed
+        if (this.cubeValue && !this.cubeOwner) {
+            const cubeStr = this.cubePartStr(cubePartIndex, this.cubeValue, this.isCrawford)
+            pad -= this.len(cubeStr)
+            b.add(cubeStr)
+        }
+        b.add(this.sideLog(pad), Chars.br)
+        return b
+    }
+
+    numbersRow(points) {
+        return new StringBuilder(this.numbers(points), Chars.br)
+    }
+
+    // the string for the piece color, if any
+    pieceStr(color) {
+        const c = ColorAbbr[color] || ''
+        var str = c.padStart(PadFixed, Chars.sp)
+        if (color) {
+            str = chalk.bold[ChalkColorFor[color]](str)
+        }
+        return str
+    }
+
+    barRowStr(color, count) {
+        const b = new StringBuilder()
+        b.add(Chars.sep.padEnd(6 * PadFixed + 1, Chars.sp))
+        if (count) {
+            b.sp(Chars.sp, Shorts[color], chalk.grey(count))
+        } else {
+            b.add(chalk.grey(Chars.sp, Chars.dblSep + Chars.sp))
+        }
+        b.add(this.nchars(6 * PadFixed, Chars.sp), Chars.sep)
+        return b
+    }
+
+    homeCountStr(color, count) {
+        var str = '  '
+        if (count) {
+            str += sp(Shorts[color], chalk.grey(count))
+        }
+        return str
+    }
+
+    overflowStr(count) {
+        var str = count > 6 ? '' + count : Chars.empty
+        str = chalk.grey(str.padStart(PadFixed, Chars.sp))
+        return str
+    }
+
+    nchars(n, char) {
+        return Chars.empty.padEnd(n, char)
+    }
+
+    cubePartStr(partIndex, cubeValue, isCrawford) {
+        const b = new StringBuilder()
+        switch (partIndex) {
+            case 0:
+                b.add(Chars.topLeft, this.nchars(3, Chars.dash), Chars.topRight)
+                break
+            case 1:
+                b.add(
+                    (Chars.sep + Chars.sp + (isCrawford ? Chars.crawford : cubeValue)).padEnd(4, Chars.sp)
+                  , Chars.sep
+                )
+                break
+            case 2:
+                b.add(Chars.botLeft, this.nchars(3, Chars.dash), Chars.botRight)
+                break
+        }
+        if (b.length() && isCrawford) {
+            b.replace(chalk.grey(b.toString()))
+        }
+        return Chars.sp + b.toString()
+    }
+
+    pipCountStr(count) {
+        return new StringBuilder(Chars.sp, chalk.bold.grey(count), Chars.sp, chalk.grey(Chars.pip))
+    }
+
+    matchScoreStr(score, total) {
+        return new StringBuilder(Chars.sp, score, Chars.slash, total, Chars.pts)
+    }
+
+    numbers(points) {
+        const b = new StringBuilder(Chars.sp)
+        points.forEach((point, i) => {
+            b.add(point.toString().padStart(PadFixed, Chars.sp))
+            if (i == 5) {
+                b.add(this.nchars(4, Chars.sp))
+            }
+        })
+        return b
+    }
+
+    len(str) {
+        return Util.stripAnsi(str.toString()).length
     }
 }
 
