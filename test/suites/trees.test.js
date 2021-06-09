@@ -16,10 +16,24 @@ const {
 const Constants = requireSrc('lib/constants')
 const Core = requireSrc('lib/core')
 const Util = requireSrc('lib/util')
-const {AbstractNode, SequenceTree, BreadthTree, DepthTree, DepthBuilder, TurnBuilder} = requireSrc('lib/trees')
+const {
+    AbstractNode
+  , BreadthTree
+  , DepthBuilder
+  , DepthTree
+  , SequenceTree
+  , TurnBuilder
+} = requireSrc('lib/trees')
 
 const {White, Red} = Constants
-const {Match, Game, Board, Turn, Piece, Dice} = Core
+const {
+    Board
+  , Dice
+  , Game
+  , Match
+  , Piece
+  , Turn
+} = Core
 
 describe('TurnBuilder', () => {
 
@@ -38,9 +52,6 @@ describe('TurnBuilder', () => {
             const turn2 = new Turn(Board.fromStateString(States.RedHasWinner12), Red)
             turn1.setRoll(1, 2)
             turn2.setRoll(1, 2)
-            //console.log(turn1.allowedMoveIndex)
-            //console.log('\n')
-            //console.log(turn2.allowedMoveIndex)
             expect(turn1.builder.result.hasWinner).to.equal(true)
             expect(turn2.builder.result.hasWinner).to.equal(true)
             expect(turn1.builder.trees[0].winners.length).to.equal(1)
