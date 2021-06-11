@@ -131,10 +131,10 @@ const BoardStrings = {
 const Draw = {
     Chars : {
         topLeft      : '\u250f'
-      , topMid       : '\u2533'
+      , topMiddle    : '\u2533'
       , topRight     : '\u2513'
       , midLeft      : ''  // TODO
-      , sep          : '\u2503'
+      , pipe         : '\u2503'
       , dblSep       : '\u2503\u2503'
       , midRight     : ''  // TODO
       , botLeft      : '\u2517'

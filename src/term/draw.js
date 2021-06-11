@@ -711,10 +711,6 @@ class DrawInstance {
         return new DrawInstance(game.board, game, match, persp, logs)
     }
 
-    static forColor(color, logs) {
-        
-    }
-
     constructor(board, game, match, persp, logs) {
         this.board = board
         this.game  = game
@@ -722,18 +718,24 @@ class DrawInstance {
         this.persp = persp || White
         this.logs  = logs || []
         this.logger = new Logger
-        this.boardWidth = 55
+        this.boardWidth = 53
         this.afterBoardWidth = 10
         this.painter = new Painter2//DefaultPainter
         this.reporter = new Reporter(this)
         this.TopBorder   = new StringBuilder(
             Chars.topLeft
-          , this.nchars(this.boardWidth - 1, Chars.dash)
+          , this.nchars(Math.floor(this.boardWidth / 2 - 1), Chars.dash)
+          , Chars.topMiddle
+          , Chars.topMiddle
+          , this.nchars(Math.floor(this.boardWidth / 2 - 1), Chars.dash)
           , Chars.topRight
         )
         this.BottomBorder = new StringBuilder(
             Chars.botLeft
-          , this.nchars(this.boardWidth - 1, Chars.dash)
+          , this.nchars(Math.floor(this.boardWidth / 2 - 1), Chars.dash)
+          , Chars.botMiddle
+          , Chars.botMiddle
+          , this.nchars(Math.floor(this.boardWidth / 2 - 1), Chars.dash)
           , Chars.botRight
         )
     }
@@ -853,24 +855,26 @@ class DrawInstance {
 
         const {chalks} = this.painter
 
-        b.add(chalks.boardBorder(Chars.sep))
+        b.add(chalks.boardBorder(Chars.pipe))
 
         points.forEach((point, i) => {
             const {color, count} = this.pointStats[point]
-            b.add(this.pieceStr(count > depth && color))
+            b.add(this.pieceStr(count > depth && color, i == 0 || i == 6))
             if (i == 5) {
                 b.sp(Chars.sp, chalks.centerStripe(Chars.dblSep))
             }
         })
         b.add(Chars.sp, Chars.sp)
 
-        b.add(chalks.boardBorder(Chars.sep))
+        b.add(chalks.boardBorder(Chars.pipe))
 
-        const afterStr = this.afterRowString(depth, cubePart, owner)
-
+        const afterStr = this.afterPieceRowString(depth, cubePart, owner)
         const pad = this.afterBoardWidth - this.len(afterStr)
 
-        b.add(afterStr, this.sideLog(pad), Chars.br)
+        b.add(afterStr)
+
+        b.add(this.sideLog(pad))
+        b.add(Chars.br)
 
         return b
     }
@@ -880,48 +884,22 @@ class DrawInstance {
         const b = new StringBuilder
         const {chalks} = this.painter
 
-        b.add(chalks.boardBorder(Chars.sep))
+        b.add(chalks.boardBorder(Chars.pipe))
 
         points.forEach((point, i) => {
             const {count} = this.pointStats[point]
-            b.add(this.overflowStr(count))
+            b.add(this.overflowStr(count, i == 0 || i == 6))
             if (i == 5) {
                 b.sp(Chars.sp, chalks.centerStripe(Chars.dblSep))
             }
         })
         b.add(Chars.sp, Chars.sp)
 
-        b.add(chalks.boardBorder(Chars.sep))
+        b.add(chalks.boardBorder(Chars.pipe))
 
-        b.add(this.sideLog(this.afterBoardWidth))
-        b.add(Chars.br)
-
-        return b
-    }
-
-    middleRow() {
-
-        const b = new StringBuilder
-        const {chalks} = this.painter
-
-        b.add(
-            chalks.boardBorder(Chars.sep)
-          , this.nchars(6 * PadFixed + 2, Chars.sp)
-          , chalks.centerStripe(Chars.dblSep)
-          , this.nchars(6 * PadFixed + 1, Chars.sp)
-          , Chars.sp
-          , chalks.boardBorder(Chars.sep)
-        )
-
-        var pad = this.afterBoardWidth
-        if (this.cubeValue && !this.cubeOwner) {
-            const cubeStr = this.cubePartStr(1, this.cubeValue, this.isCrawford)
-            pad -= this.len(cubeStr)
-            b.add(cubeStr)
-        }
+        const pad = this.afterBoardWidth
 
         b.add(this.sideLog(pad))
-
         b.add(Chars.br)
 
         return b
@@ -935,34 +913,152 @@ class DrawInstance {
 
         b.add(this.barRowStr(color, count))
 
-        var pad = this.afterBoardWidth
         if (this.cubeValue && !this.cubeOwner) {
-            const cubeStr = this.cubePartStr(cubePart, this.cubeValue, this.isCrawford)
-            pad -= this.len(cubeStr)
-            b.add(cubeStr)
+            var cubeStr = this.cubePartStr(cubePart, this.cubeValue, this.isCrawford)            
+        } else {
+            var cubeStr = Chars.empty
         }
 
-        b.add(this.sideLog(pad))
+        b.add(cubeStr)
 
+        const pad = this.afterBoardWidth - this.len(cubeStr)
+
+        b.add(this.sideLog(pad))
+        b.add(Chars.br)
+
+        return b
+    }
+
+    middleRow() {
+
+        const b = new StringBuilder
+        const {chalks} = this.painter
+
+        b.add(
+            chalks.boardBorder(Chars.pipe)
+          , this.nchars(6 * PadFixed + 1, Chars.sp)
+          , chalks.centerStripe(Chars.dblSep)
+          , this.nchars(6 * PadFixed + 0, Chars.sp)
+          , Chars.sp
+          , chalks.boardBorder(Chars.pipe)
+        )
+
+        if (this.cubeValue && !this.cubeOwner) {
+            var cubeStr = this.cubePartStr(1, this.cubeValue, this.isCrawford)
+        } else {
+            var cubeStr = Chars.empty
+        }
+
+        b.add(cubeStr)
+
+        const pad = this.afterBoardWidth - this.len(cubeStr)
+
+        b.add(this.sideLog(pad))
         b.add(Chars.br)
 
         return b
     }
 
     sideLog(pad) {
+
         const n = this.logIndex--
+
         if (!this.logs[n]) {
             return Chars.empty
         }
+
         var message = this.logs[this.logs.length - n - 1]
         if (this.len(message) > this.maxLogWidth) {
             message = Util.stripAnsi(message).substring(0, this.maxLogWidth)
         }
 
-        return new StringBuilder(this.nchars(pad, Chars.sp), message)
+        if (this.columns > 97) {
+            pad += 1
+        }
+
+        const b = new StringBuilder
+
+        b.add(this.nchars(pad, Chars.sp))
+        b.add(message)
+
+        return b
     }
 
-    afterRowString(depth, cubePart, owner) {
+    numbers(points) {
+
+        const b = new StringBuilder
+        const {chalks} = this.painter
+
+        b.add(chalks.pointLabel(Chars.sp))
+
+        points.forEach((point, i) => {
+            var pad = PadFixed
+            if (i == 0 || i == 6) {
+                pad -= 1
+            }
+            b.add(
+                chalks.pointLabel(point.toString().padStart(pad, Chars.sp))
+            )
+            if (i == 5) {
+                b.add(chalks.pointLabel(this.nchars(4, Chars.sp)))
+            }
+        })
+
+        b.add(chalks.pointLabel(this.nchars(3, Chars.sp)))
+
+        return b
+    }
+
+    barRowStr(color, count) {
+
+        const b = new StringBuilder
+        const {chalks} = this.painter
+
+        b.add(
+            chalks.boardBorder(Chars.pipe)
+          , this.nchars(6 * PadFixed - 1, Chars.sp)
+        )
+
+        if (count) {
+            b.sp(Chars.sp, chalks.piece[color](ColorAbbr[color]), chalks.barCount(count))
+        } else {
+            b.add(Chars.sp, Chars.sp, chalks.centerStripe(Chars.dblSep), Chars.sp)
+        }
+
+        b.add(
+            this.nchars(6 * PadFixed, Chars.sp)
+          , chalks.boardBorder(Chars.pipe)
+        )
+
+        return b
+    }
+
+    overflowStr(count, isFirst = false) {
+
+        const b = new StringBuilder
+        const {chalks} = this.painter
+
+        const countStr = count > 6 ? '' + count : Chars.empty
+
+        b.add(
+            chalks.overflowCount(countStr.padStart(PadFixed - isFirst, Chars.sp))
+        )
+
+        return b
+    }
+
+    // the string for the piece color, if any
+    pieceStr(color, isFirst = false) {
+        const {chalks} = this.painter
+        const c = ColorAbbr[color] || Chars.empty
+        var str = c.padStart(PadFixed - isFirst, Chars.sp)
+        if (color) {
+            str = chalks.piece[color](str)
+        }
+        return str
+    }
+
+    afterPieceRowString(depth, cubePart, owner) {
 
         switch (depth) {
             case 0:
@@ -986,41 +1082,6 @@ class DrawInstance {
         }
     }
 
-    // the string for the piece color, if any
-    pieceStr(color) {
-        const {chalks} = this.painter
-        const c = ColorAbbr[color] || Chars.empty
-        var str = c.padStart(PadFixed, Chars.sp)
-        if (color) {
-            str = chalks.piece[color](str)
-        }
-        return str
-    }
-
-    barRowStr(color, count) {
-
-        const b = new StringBuilder
-        const {chalks} = this.painter
-
-        b.add(
-            chalks.boardBorder(Chars.sep)
-          , this.nchars(6 * PadFixed, Chars.sp)
-        )
-
-        if (count) {
-            b.sp(Chars.sp, chalks.piece[color](ColorAbbr[color]), chalks.barCount(count))
-        } else {
-            b.add(Chars.sp, Chars.sp, chalks.centerStripe(Chars.dblSep), Chars.sp)
-        }
-
-        b.add(
-            this.nchars(6 * PadFixed + 1, Chars.sp)
-          , chalks.boardBorder(Chars.sep)
-        )
-
-        return b
-    }
-
     homeCountStr(color, count) {
 
         const b = new StringBuilder
@@ -1033,51 +1094,6 @@ class DrawInstance {
         }
 
         return b
-    }
-
-    overflowStr(count) {
-
-        const b = new StringBuilder
-        const {chalks} = this.painter
-
-        const countStr = count > 6 ? '' + count : Chars.empty
-
-        b.add(
-            chalks.overflowCount(countStr.padStart(PadFixed, Chars.sp))
-        )
-
-        return b
-    }
-
-    nchars(n, char) {
-        return Chars.empty.padEnd(n, char)
-    }
-
-    cubePartStr(partIndex, cubeValue, isCrawford) {
-
-        const b = new StringBuilder
-        const {chalks} = this.painter
-
-        switch (partIndex) {
-            case 0:
-                b.add(Chars.topLeft, this.nchars(3, Chars.dash), Chars.topRight)
-                break
-            case 1:
-                b.add(
-                    (Chars.sep + Chars.sp + (isCrawford ? Chars.crawford : cubeValue)).padEnd(4, Chars.sp)
-                  , Chars.sep
-                )
-                break
-            case 2:
-                b.add(Chars.botLeft, this.nchars(3, Chars.dash), Chars.botRight)
-                break
-        }
-
-        if (b.length() && isCrawford) {
-            b.replace(chalks.cubeDisabled(b.toString()))
-        }
-
-        return Chars.sp + b.toString()
     }
 
     pipCountStr(count) {
@@ -1094,30 +1110,39 @@ class DrawInstance {
         )
     }
 
-    numbers(points) {
+    cubePartStr(partIndex, cubeValue, isCrawford) {
 
         const b = new StringBuilder
         const {chalks} = this.painter
 
-        b.add(chalks.pointLabel(Chars.sp))
+        switch (partIndex) {
+            case 0:
+                b.add(Chars.topLeft, this.nchars(3, Chars.dash), Chars.topRight)
+                break
+            case 1:
+                b.add(
+                    (Chars.pipe + Chars.sp + (isCrawford ? Chars.crawford : cubeValue)).padEnd(4, Chars.sp)
+                  , Chars.pipe
+                )
+                break
+            case 2:
+                b.add(Chars.botLeft, this.nchars(3, Chars.dash), Chars.botRight)
+                break
+        }
 
-        points.forEach((point, i) => {
-            b.add(
-                chalks.pointLabel(point.toString().padStart(PadFixed, Chars.sp))
-            )
-            if (i == 5) {
-                b.add(chalks.pointLabel(this.nchars(4, Chars.sp)))
-            }
-        })
+        if (b.length() && isCrawford) {
+            b.replace(chalks.cubeDisabled(b.toString()))
+        }
 
-        b.add(chalks.pointLabel(Chars.sp))
-        b.add(chalks.pointLabel(Chars.sp))
-
-        return b
+        return Chars.sp + b.toString()
     }
 
     len(str) {
         return Util.stripAnsi(str.toString()).length
+    }
+
+    nchars(n, char) {
+        return Chars.empty.padEnd(n, char)
     }
 
     report(method, ...args) {
@@ -1222,7 +1247,7 @@ class Reporter {
         const b = new StringBuilder
 
         b.add(
-            chalks.forceMove('Forced move')
+            chalks.forceMove('Force move')
           , Chars.sp
           , 'for'
           , Chars.sp
