@@ -24,20 +24,26 @@
  */
 const Constants = require('./constants')
 const Core      = require('./core')
+const Errors    = require('./errors')
 const Logger    = require('./logger')
 
 const {EventEmitter} = require('events')
 
-const {White, Red, Opponent} = Constants
+const {Opponent} = Constants
+
+const {NotImplementedError} = Errors
 
 class Player extends EventEmitter {
 
     constructor(color) {
+
         super()
-        this.name = this.constructor.name
+
+        this.name   = this.constructor.name
         this.logger = new Logger
-        this.color = color
-        this.holds = []
+        this.color  = color
+        this.holds  = []
+
         this.on('matchStart', match => this.thisMatch = match)
         this.on('gameStart', (game, match, players) => {
             this.thisGame = game
@@ -62,7 +68,7 @@ class Player extends EventEmitter {
     }
 
     async playRoll(turn, game, match) {
-        throw new Error('NotImplemented')
+        throw new NotImplementedError('NotImplemented')
     }
 
     meta() {

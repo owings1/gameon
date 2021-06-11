@@ -17,9 +17,9 @@ const fs  = require('fs')
 const fse = require('fs-extra')
 const tmp = require('tmp')
 
-const Menu        = requireSrc('term/menu')
-const Draw        = requireSrc('term/draw')
-const TermPlayer  = requireSrc('term/player')
+const Menu           = requireSrc('term/menu')
+const {DrawInstance} = requireSrc('term/draw')
+const TermPlayer     = requireSrc('term/player')
 
 const Constants   = requireSrc('lib/constants')
 const Core        = requireSrc('lib/core')
@@ -43,50 +43,50 @@ describe('Draw', () => {
 
         // these are just for coverage
         var game
+        var draw
 
-        beforeEach(() => game = new Game)
+        beforeEach(() => {
+            game = new Game
+            draw = DrawInstance.forGame(game)
+        })
 
         it('should not barf for initial board', () => {
-            Draw.drawBoard(game)
+            draw.getString()
         })
 
         it('should not barf for RedHitComeIn3', () => {
             game.board.setStateString(States.RedHitComeIn3)
-            Draw.drawBoard(game)
+            draw.getString()
         })
 
         it('should not barf for WhiteCornerCase24', () => {
             game.board.setStateString(States.WhiteCornerCase24)
-            Draw.drawBoard(game)
+            draw.getString()
         })
 
         it('should not barf for WhiteGammon1', () => {
             game.board.setStateString(States.WhiteGammon1)
-            Draw.drawBoard(game)
+            draw.getString()
         })
 
         it('should not barf for RedGammon1', () => {
             game.board.setStateString(States.RedGammon1)
-            Draw.drawBoard(game)
+            draw.getString()
         })
 
         it('should not barf when game isCrawford', () => {
             game.opts.isCrawford = true
-            Draw.drawBoard(game)
+            draw.getString()
         })
 
         it('should not barf when cubeOwner is red', () => {
             game.cubeOwner = Red
-            Draw.drawBoard(game)
+            draw.getString()
         })
 
         it('should not barf when cubeOwner is white', () => {
             game.cubeOwner = White
-            Draw.drawBoard(game)
-        })
-
-        it('should not barf when match is passed', () => {
-            Draw.drawBoard(game, new Match(1))
+            draw.getString()
         })
     })
 })
@@ -1005,7 +1005,7 @@ describe('Coordinator', () => {
     })
 })
 
-describe('TermPlayer', () => {
+describe('Reporter', () => {
 
     var player
 
@@ -1015,38 +1015,43 @@ describe('TermPlayer', () => {
         player.logger.stdout = {write: () => {}}
     })
 
-    describe('#describeMove', () => {
-
+    describe('#move', () => {
         it('should include \'bar\' if origin is -1', () => {
             const board = Board.fromStateString(States.WhiteCornerCase24)
             const move = board.buildMove(White, -1, 4)
-            const result = player.describeMove(move)
+            const draw = DrawInstance.forBoard(board)
+            const {reporter} = draw
+            const result = reporter.move(move).toString()
             expect(result).to.contain('bar')
-        })
-
-        it.skip('should inclue 1 and 3 if origin is 0 and face is 2', () => {
-            const board = Board.setup()
-            const move = board.buildMove(White, 0, 2)
-            const result = player.describeMove(move)
-            // some color ansi problem, actual output is "White moves 24 -> 22"
-            console.log(result)
-            expect(result).to.contain('1')
-            expect(result).to.contain('3')
         })
 
         it('should include \'home\' for red if origin is 0 and face is 2', () => {
             const board = Board.fromStateString(States.EitherOneMoveWin)
             const move = board.buildMove(Red, 0, 2)
-            const result = player.describeMove(move)
+            const draw = DrawInstance.forBoard(board)
+            const {reporter} = draw
+            const result = reporter.move(move).toString()
             expect(result).to.contain('home')
         })
 
         it('should include HIT for hit move', () => {
             const board = Board.fromStateString(States.EitherHitWith11)
             const move = board.buildMove(White, 22, 1)
-            const result = player.describeMove(move)
+            const draw = DrawInstance.forBoard(board)
+            const {reporter} = draw
+            const result = reporter.move(move).toString()
             expect(result).to.contain('HIT')
         })
+    })
+})
+describe('TermPlayer', () => {
+
+    var player
+
+    beforeEach(() => {
+        player = new TermPlayer(White)
+        player.logger.loglevel = 1
+        player.logger.stdout = {write: () => {}}
     })
 
     describe('#playRoll', () => {

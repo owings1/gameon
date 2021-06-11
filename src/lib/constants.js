@@ -158,22 +158,22 @@ const Draw = {
           , 6  : '\u2685'
         }
     }
-  , ChalkColorFor : {
-        Red   : 'red'
-     ,  White : 'white'
-    }
-  , Shorts : {
-        Red   : chalk.bold.red('R')
-      , White : chalk.bold.white('W')
-      , R     : chalk.bold.red('R')
-      , W     : chalk.bold.white('W')
-    }
+ //, ChalkColorFor : {
+ //      Red   : 'red'
+ //   ,  White : 'white'
+ //  }
+ //, Shorts : {
+ //      Red   : chalk.bold.red('R')
+ //    , White : chalk.bold.white('W')
+ //    , R     : chalk.bold.red('R')
+ //    , W     : chalk.bold.white('W')
+ //  }
   , PadFixed   : 4
   , MidFixed   : 1
-  , RightFixed : 10
+ // , RightFixed : 10
 }
-Draw.TopBorder    = Draw.Chars.topLeft.padEnd(12 * Draw.PadFixed + 2 + 4, Draw.Chars.dash) + Draw.Chars.topRight
-Draw.BottomBorder = Draw.Chars.botLeft.padEnd(12 * Draw.PadFixed + 2 + 4, Draw.Chars.dash) + Draw.Chars.botRight
+//Draw.TopBorder    = Draw.Chars.topLeft.padEnd(12 * Draw.PadFixed + 2 + 4, Draw.Chars.dash) + Draw.Chars.topRight
+//Draw.BottomBorder = Draw.Chars.botLeft.padEnd(12 * Draw.PadFixed + 2 + 4, Draw.Chars.dash) + Draw.Chars.botRight
 
 const Constants = {
     BoardStrings

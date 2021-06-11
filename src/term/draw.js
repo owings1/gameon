@@ -59,13 +59,11 @@ const {
 
 const {
     Chars
-  , ChalkColorFor
-  , BottomBorder
+//  , ChalkColorFor
+//  , BottomBorder
   , PadFixed
   , MidFixed
-  , RightFixed
-  , Shorts
-  , TopBorder
+//  , TopBorder
 } = Constants.Draw
 
 class DrawHelper {
@@ -77,7 +75,7 @@ class DrawHelper {
         this.opts   = opts
         this.logs   = []
         this.logger = new Logger
-
+        this.inst = DrawInstance.forBoard(this.board, this.persp, this.logs)
         this.stateHistory = []
     }
 
@@ -131,6 +129,7 @@ class DrawHelper {
                 case 'f':
                     this.persp = Opponent[this.persp]
                     this.logs.push(sp('Change to', this.ccolor(this.persp)))
+                    this.inst.persp = this.persp
                     this.draw(true)
                     break
 
@@ -192,7 +191,12 @@ class DrawHelper {
             var newState = value
         }
 
-        newState = Board.fromStateString(newState).state28()
+        try {
+            newState = Board.fromStateString(newState).state28()
+        } catch (err) {
+            this.logger.error('Bad input', err.message)
+            return
+        }
 
         if (newState == board.state28()) {
             this.logger.info('No change')
@@ -575,7 +579,8 @@ class DrawHelper {
     }
 
     ccolor(color) {
-        return chalk.bold[ChalkColorFor[color]](color)
+        const {chalks} = this.inst.painter
+        return chalks.piece[color](color)
     }
 
     nchars(n, char) {
@@ -583,7 +588,7 @@ class DrawHelper {
     }
 
     draw(isPrint) {
-        const inst = DrawInstance.forBoard(this.board, this.persp, this.logs)
+        const {inst} = this
         const output = inst.getString()
         if (isPrint) {
             this.logger.writeStdout(output)
@@ -614,6 +619,7 @@ class DrawHelper {
         return turnMeta.endState
     }
 
+    /*
     static drawBoard(gameOrBoard, match, persp, logs) {
 
         if (!persp) {
@@ -632,6 +638,67 @@ class DrawHelper {
 
         return inst.getString()
     }
+    */
+}
+
+class Painter {
+
+    setChalks(chalks) {
+        this.chalks = chalks
+        this.induce()
+    }
+
+    induce() {
+        this.chalks.centerStripe  = this.chalks.boardBorder
+        this.chalks.pipCount      = this.chalks.dimCount.bold
+        this.chalks.homeCount     = this.chalks.dimCount
+        this.chalks.barCount      = this.chalks.dimCount
+        this.chalks.overflowCount = this.chalks.dimCount
+        this.chalks.gameEnd       = this.chalks.gameStart
+        this.chalks.matchEnd      = this.chalks.gameEnd.bold
+    }
+}
+
+class DefaultPainter extends Painter {
+
+    constructor() {
+        super()
+        this.setChalks({
+            boardBorder  : chalk.white
+          , bold         : chalk.bold
+          , cantMove     : chalk.yellow
+          , cubeDisabled : chalk.grey
+          , diceRolled   : chalk.magenta
+          , dim          : chalk.grey
+          , dimCount     : chalk.grey
+          , forceMove    : chalk.bold.yellow
+          , gameStart    : chalk.cyan
+          , hit          : chalk.bold.yellow
+          , hr           : chalk.grey
+          , pipLabel     : chalk.grey
+          , pointLabel   : chalk.white
+          , piece : {
+                Red   : chalk.red.bold
+              , White : chalk.white.bold
+            }
+        })
+    }
+}
+
+class Painter2 extends DefaultPainter {
+    constructor() {
+        super()
+        this.chalks = {
+            ...this.chalks
+          , boardBorder : chalk.dim.red
+          , pointLabel  : chalk.bgRedBright
+          , piece : {
+                Red   : chalk.keyword('orange').bold
+              , White : chalk.hex('#0080ff').bold
+            }
+        }
+        this.induce()
+    }
 }
 
 class DrawInstance {
@@ -640,12 +707,35 @@ class DrawInstance {
         return new DrawInstance(board, null, null, persp, logs)
     }
 
+    static forGame(game, match, persp, logs) {
+        return new DrawInstance(game.board, game, match, persp, logs)
+    }
+
+    static forColor(color, logs) {
+        
+    }
+
     constructor(board, game, match, persp, logs) {
         this.board = board
         this.game  = game
         this.match = match
-        this.persp = persp
-        this.logs  = logs
+        this.persp = persp || White
+        this.logs  = logs || []
+        this.logger = new Logger
+        this.boardWidth = 55
+        this.afterBoardWidth = 10
+        this.painter = new Painter2//DefaultPainter
+        this.reporter = new Reporter(this)
+        this.TopBorder   = new StringBuilder(
+            Chars.topLeft
+          , this.nchars(this.boardWidth - 1, Chars.dash)
+          , Chars.topRight
+        )
+        this.BottomBorder = new StringBuilder(
+            Chars.botLeft
+          , this.nchars(this.boardWidth - 1, Chars.dash)
+          , Chars.botRight
+        )
     }
 
     getString() {
@@ -659,7 +749,7 @@ class DrawInstance {
             // Top point numbers
           , this.numbersRow(TopPoints)
             // Top border
-          , this.borderRow(TopBorder)
+          , this.borderRow(this.TopBorder)
         )
 
         // Top piece rows
@@ -693,7 +783,7 @@ class DrawInstance {
 
         b.add(
             // Bottom border
-            this.borderRow(BottomBorder)
+            this.borderRow(this.BottomBorder)
             // Bottom point numbers
           , this.numbersRow(BottomPoints)
           , Chars.br
@@ -705,8 +795,10 @@ class DrawInstance {
     reload() {
 
         const {analyzer} = this.board
-
         this.opersp = Opponent[this.persp]
+
+        this.columns     = Math.max(this.logger.getStdout().columns, 0)
+        this.maxLogWidth = Math.max(0, this.columns - this.boardWidth - this.afterBoardWidth - 1)
 
         this.pipCounts = analyzer.pipCounts()
 
@@ -738,32 +830,136 @@ class DrawInstance {
         }
 
         this.logIndex = 18
-        this.logsRev = (this.logs || []).slice(0).reverse()
+    }
+
+    numbersRow(points) {
+        return new StringBuilder(this.numbers(points), Chars.br)
+    }
+
+    borderRow(border) {
+        const b = new StringBuilder
+        const {chalks} = this.painter
+        b.add(
+            chalks.boardBorder(border)
+          , this.sideLog(this.afterBoardWidth)
+          , Chars.br
+        )
+        return b
     }
 
     pieceRow(depth, points, cubePart, owner) {
 
         const b = new StringBuilder
 
-        b.add(Chars.sep)
+        const {chalks} = this.painter
+
+        b.add(chalks.boardBorder(Chars.sep))
 
         points.forEach((point, i) => {
             const {color, count} = this.pointStats[point]
             b.add(this.pieceStr(count > depth && color))
             if (i == 5) {
-                b.add(chalk.grey(Chars.sp, Chars.dblSep))
+                b.sp(Chars.sp, chalks.centerStripe(Chars.dblSep))
             }
         })
+        b.add(Chars.sp, Chars.sp)
 
-        b.add(Chars.sp, Chars.sep)
+        b.add(chalks.boardBorder(Chars.sep))
 
         const afterStr = this.afterRowString(depth, cubePart, owner)
 
-        const pad = RightFixed - this.len(afterStr)
+        const pad = this.afterBoardWidth - this.len(afterStr)
 
         b.add(afterStr, this.sideLog(pad), Chars.br)
 
         return b
+    }
+
+    overflowRow(points) {
+
+        const b = new StringBuilder
+        const {chalks} = this.painter
+
+        b.add(chalks.boardBorder(Chars.sep))
+
+        points.forEach((point, i) => {
+            const {count} = this.pointStats[point]
+            b.add(this.overflowStr(count))
+            if (i == 5) {
+                b.sp(Chars.sp, chalks.centerStripe(Chars.dblSep))
+            }
+        })
+        b.add(Chars.sp, Chars.sp)
+
+        b.add(chalks.boardBorder(Chars.sep))
+
+        b.add(this.sideLog(this.afterBoardWidth))
+        b.add(Chars.br)
+
+        return b
+    }
+
+    middleRow() {
+
+        const b = new StringBuilder
+        const {chalks} = this.painter
+
+        b.add(
+            chalks.boardBorder(Chars.sep)
+          , this.nchars(6 * PadFixed + 2, Chars.sp)
+          , chalks.centerStripe(Chars.dblSep)
+          , this.nchars(6 * PadFixed + 1, Chars.sp)
+          , Chars.sp
+          , chalks.boardBorder(Chars.sep)
+        )
+
+        var pad = this.afterBoardWidth
+        if (this.cubeValue && !this.cubeOwner) {
+            const cubeStr = this.cubePartStr(1, this.cubeValue, this.isCrawford)
+            pad -= this.len(cubeStr)
+            b.add(cubeStr)
+        }
+
+        b.add(this.sideLog(pad))
+
+        b.add(Chars.br)
+
+        return b
+    }
+
+    barRow(color, cubePart) {
+
+        const b = new StringBuilder
+
+        const count = this.barCounts[color]
+
+        b.add(this.barRowStr(color, count))
+
+        var pad = this.afterBoardWidth
+        if (this.cubeValue && !this.cubeOwner) {
+            const cubeStr = this.cubePartStr(cubePart, this.cubeValue, this.isCrawford)
+            pad -= this.len(cubeStr)
+            b.add(cubeStr)
+        }
+
+        b.add(this.sideLog(pad))
+
+        b.add(Chars.br)
+
+        return b
+    }
+
+    sideLog(pad) {
+        const n = this.logIndex--
+        if (!this.logs[n]) {
+            return Chars.empty
+        }
+        var message = this.logs[this.logs.length - n - 1]
+        if (this.len(message) > this.maxLogWidth) {
+            message = Util.stripAnsi(message).substring(0, this.maxLogWidth)
+        }
+
+        return new StringBuilder(this.nchars(pad, Chars.sp), message)
     }
 
     afterRowString(depth, cubePart, owner) {
@@ -780,105 +976,23 @@ class DrawInstance {
                 if (this.matchTotal) {
                     return this.matchScoreStr(this.matchScores[owner], this.matchTotal)
                 }
-                return ''
+                return Chars.empty
             default:
                 // Cube part
                 if (this.cubeValue && this.cubeOwner == owner) {
                     return this.cubePartStr(cubePart, this.cubeValue, this.isCrawford)
                 }
-                return ''
+                return Chars.empty
         }
-    }
-
-    sideLog(pad) {
-        const n = this.logIndex--
-        if (!this.logsRev[n]) {
-            return Chars.empty
-        }
-        return new StringBuilder(this.nchars(pad, Chars.sp), this.logsRev[n])
-    }
-
-    overflowRow(points) {
-
-        const b = new StringBuilder
-
-        b.add(Chars.sep)
-
-        points.forEach((point, i) => {
-            const {count} = this.pointStats[point]
-            b.add(this.overflowStr(count))
-            if (i == 5) {
-                b.add(chalk.grey(Chars.sp, Chars.dblSep))
-            }
-        })
-
-        b.add(Chars.sp, Chars.sep)
-        b.add(this.sideLog(RightFixed))
-        b.add(Chars.br)
-
-        return b
-    }
-
-    middleRow() {
-
-        const b = new StringBuilder
-
-        b.add(
-            Chars.sep.padEnd(6 * PadFixed + 1, Chars.sp)
-          , chalk.grey(Chars.sp, Chars.dblSep)
-          , this.nchars(6 * PadFixed + 1, Chars.sp)
-          , Chars.sep
-        )
-
-        var pad = RightFixed
-        if (this.cubeValue && !this.cubeOwner) {
-            const cubeStr = this.cubePartStr(1, this.cubeValue, this.isCrawford)
-            pad -= this.len(cubeStr)
-            b.add(cubeStr)
-        }
-
-        b.add(
-            this.sideLog(pad)
-          , Chars.br
-        )
-
-        return b
-    }
-
-    borderRow(border) {
-        return new StringBuilder(border, this.sideLog(RightFixed), Chars.br)
-    }
-
-    barRow(color, cubePart) {
-
-        const b = new StringBuilder
-
-        const count = this.barCounts[color]
-
-        b.add(this.barRowStr(color, count))
-
-        var pad = RightFixed
-        if (this.cubeValue && !this.cubeOwner) {
-            const cubeStr = this.cubePartStr(cubePart, this.cubeValue, this.isCrawford)
-            pad -= this.len(cubeStr)
-            b.add(cubeStr)
-        }
-
-        b.add(this.sideLog(pad), Chars.br)
-
-        return b
-    }
-
-    numbersRow(points) {
-        return new StringBuilder(this.numbers(points), Chars.br)
     }
 
     // the string for the piece color, if any
     pieceStr(color) {
-        const c = ColorAbbr[color] || ''
+        const {chalks} = this.painter
+        const c = ColorAbbr[color] || Chars.empty
         var str = c.padStart(PadFixed, Chars.sp)
         if (color) {
-            str = chalk.bold[ChalkColorFor[color]](str)
+            str = chalks.piece[color](str)
         }
         return str
     }
@@ -886,20 +1000,22 @@ class DrawInstance {
     barRowStr(color, count) {
 
         const b = new StringBuilder
+        const {chalks} = this.painter
 
         b.add(
-            Chars.sep.padEnd(6 * PadFixed + 1, Chars.sp)
+            chalks.boardBorder(Chars.sep)
+          , this.nchars(6 * PadFixed, Chars.sp)
         )
 
         if (count) {
-            b.sp(Chars.sp, Shorts[color], chalk.grey(count))
+            b.sp(Chars.sp, chalks.piece[color](ColorAbbr[color]), chalks.barCount(count))
         } else {
-            b.add(chalk.grey(Chars.sp, Chars.dblSep + Chars.sp))
+            b.add(Chars.sp, Chars.sp, chalks.centerStripe(Chars.dblSep), Chars.sp)
         }
 
         b.add(
-            this.nchars(6 * PadFixed, Chars.sp)
-          , Chars.sep
+            this.nchars(6 * PadFixed + 1, Chars.sp)
+          , chalks.boardBorder(Chars.sep)
         )
 
         return b
@@ -908,11 +1024,12 @@ class DrawInstance {
     homeCountStr(color, count) {
 
         const b = new StringBuilder
+        const {chalks} = this.painter
 
-        b.add('  ')
+        b.add(Chars.sp, Chars.sp)
 
         if (count) {
-            b.sp(Shorts[color], chalk.grey(count))
+            b.sp(chalks.piece[color](ColorAbbr[color]), chalks.homeCount(count))
         }
 
         return b
@@ -921,11 +1038,12 @@ class DrawInstance {
     overflowStr(count) {
 
         const b = new StringBuilder
+        const {chalks} = this.painter
 
         const countStr = count > 6 ? '' + count : Chars.empty
 
         b.add(
-            chalk.grey(countStr.padStart(PadFixed, Chars.sp))
+            chalks.overflowCount(countStr.padStart(PadFixed, Chars.sp))
         )
 
         return b
@@ -938,6 +1056,7 @@ class DrawInstance {
     cubePartStr(partIndex, cubeValue, isCrawford) {
 
         const b = new StringBuilder
+        const {chalks} = this.painter
 
         switch (partIndex) {
             case 0:
@@ -955,7 +1074,7 @@ class DrawInstance {
         }
 
         if (b.length() && isCrawford) {
-            b.replace(chalk.grey(b.toString()))
+            b.replace(chalks.cubeDisabled(b.toString()))
         }
 
         return Chars.sp + b.toString()
@@ -963,8 +1082,9 @@ class DrawInstance {
 
     pipCountStr(count) {
         const b = new StringBuilder
-        b.add(Chars.sp, chalk.bold.grey(count))
-        b.add(Chars.sp, chalk.grey(Chars.pip))
+        const {chalks} = this.painter
+        b.add(Chars.sp, chalks.pipCount(count))
+        b.add(Chars.sp, chalks.pipLabel(Chars.pip))
         return b
     }
 
@@ -977,17 +1097,21 @@ class DrawInstance {
     numbers(points) {
 
         const b = new StringBuilder
+        const {chalks} = this.painter
 
-        b.add(Chars.sp)
+        b.add(chalks.pointLabel(Chars.sp))
 
         points.forEach((point, i) => {
             b.add(
-                point.toString().padStart(PadFixed, Chars.sp)
+                chalks.pointLabel(point.toString().padStart(PadFixed, Chars.sp))
             )
             if (i == 5) {
-                b.add(this.nchars(4, Chars.sp))
+                b.add(chalks.pointLabel(this.nchars(4, Chars.sp)))
             }
         })
+
+        b.add(chalks.pointLabel(Chars.sp))
+        b.add(chalks.pointLabel(Chars.sp))
 
         return b
     }
@@ -995,6 +1119,294 @@ class DrawInstance {
     len(str) {
         return Util.stripAnsi(str.toString()).length
     }
+
+    report(method, ...args) {
+        const res = this.reporter[method](...args)
+        this.logs.push(res.toString())
+    }
 }
 
+
+class Reporter {
+
+    constructor(inst) {
+        this.inst = inst
+    }
+
+    gameStart(num) {
+        const {chalks} = this.inst.painter
+        const b = new StringBuilder
+        b.add(
+            chalks.gameStart('Starting game')
+        )
+        if (num) {
+            b.add(
+                Chars.sp
+              , chalks.bold(num)
+            )
+        }
+        return b
+    }
+
+    firstRollWinner(color, dice) {
+
+        const {chalks} = this.inst.painter
+        const b = new StringBuilder
+
+        b.sp(
+            chalks.piece[color](color)
+          , 'goes first with'
+        )
+        b.add(Chars.sp)
+        b.add(
+            chalks.piece.White(dice[0])
+          , ','
+          , chalks.piece.Red(dice[1])
+        )
+
+        return b
+    }
+
+    turnStart(color) {
+
+        const {chalks} = this.inst.painter
+        const b = new StringBuilder
+
+        b.add(
+            chalks.dim('---')
+          , Chars.sp
+          , chalks.piece[color](color)
+          , "'s"
+          , Chars.sp
+          , 'turn'
+        )
+
+        return b
+    }
+
+    playerRoll(color, dice) {
+
+        const {chalks} = this.inst.painter
+        const b = new StringBuilder
+
+        b.add(
+            chalks.piece[color](color)
+          , Chars.sp
+          , 'rolls'
+          , Chars.sp
+          , chalks.diceRolled(dice[0])
+          , ','
+          , chalks.diceRolled(dice[1])
+        )
+
+        return b
+    }
+
+    cantMove(color) {
+
+        const {chalks} = this.inst.painter
+        const b = new StringBuilder
+
+        b.add(
+            chalks.piece[color](color)
+          , Chars.sp
+          , chalks.cantMove('cannot move')
+        )
+
+        return b
+    }
+
+    forceMove(color, dice) {
+
+        const {chalks} = this.inst.painter
+        const b = new StringBuilder
+
+        b.add(
+            chalks.forceMove('Forced move')
+          , Chars.sp
+          , 'for'
+          , Chars.sp
+          , chalks.piece[color](color)
+          , Chars.sp
+          , 'with'
+          , Chars.sp
+          , chalks.diceRolled(dice[0])
+          , ','
+          , chalks.diceRolled(dice[1])
+        )
+
+        return b
+    }
+
+    move(move) {
+        if (move.isRegular) {
+            return this.regularMove(move)
+        }
+        if (move.isComeIn) {
+            return this.comeInMove(move)
+        }
+        if (move.isBearoff) {
+            return this.bearoffMove(move)
+        }
+    }
+
+    comeInMove({color, face, isHit}) {
+
+        const {persp} = this.inst
+
+        return this._move(
+            color
+          , 'bar'
+          , face
+          , isHit
+        )
+    }
+
+    regularMove({color, origin, face, isHit}) {
+
+        const {persp} = this.inst
+
+        return this._move(
+            color
+          , OriginPoints[persp][origin]
+          , OriginPoints[persp][origin] + face
+          , isHit
+        )
+    }
+
+    bearoffMove({color, origin}) {
+
+        const {persp} = this.inst
+
+        return this._move(
+            color
+          , OriginPoints[persp][origin]
+          , 'home'
+        )
+    }
+
+    _move(color, from, to, isHit) {
+
+        const {persp} = this.inst
+        const {chalks} = this.inst.painter
+        const b = new StringBuilder
+
+        b.add(
+            chalks.piece[color](color)
+          , Chars.sp
+          , 'moves'
+          , Chars.sp
+          , from
+          , Chars.sp
+          , '>'
+          , Chars.sp
+          , to
+        )
+
+        if (isHit) {
+            b.add(
+                Chars.sp
+              , chalks.hit('HIT')
+            )
+        }
+
+        return b
+    }
+
+    doubleOffered(color) {
+
+        const {chalks} = this.inst.painter
+        const b = new StringBuilder
+
+        b.add(
+            chalks.piece[color](color)
+          , Chars.sp
+          , 'doubles'
+        )
+
+        return b
+    }
+
+    doubleDeclined(color) {
+
+        const {chalks} = this.inst.painter
+        const b = new StringBuilder
+
+        b.add(
+            chalks.piece[color](color)
+          , Chars.sp
+          , 'declines the double'
+        )
+
+        return b
+    }
+
+    gameDoubled(cubeOwner, cubeValue) {
+
+        const {chalks} = this.inst.painter
+        const b = new StringBuilder
+
+        b.add(
+            chalks.piece[cubeOwner](cubeOwner)
+          , Chars.sp
+          , 'owns the cube at'
+          , Chars.sp
+          , cubeValue
+          , Chars.sp
+          , 'points'
+        )
+
+        return b
+    }
+
+    gameEnd(winner, finalValue) {
+
+        const {chalks} = this.inst.painter
+        const b = new StringBuilder
+
+        b.add(
+            chalks.piece[winner](winner)
+          , Chars.sp
+          , chalks.gameEnd('wins game for')
+          , Chars.sp
+          , chalks.bold(finalValue)
+          , Chars.sp
+          , chalks.gameEnd('points')
+        )
+
+        return b
+    }
+
+    matchEnd(winner, winnerPoints, loserPoints) {
+
+        const {chalks} = this.inst.painter
+        const b = new StringBuilder
+
+        b.add(
+            chalks.piece[winner](winner)
+          , Chars.sp
+          , chalks.matchEnd('wins the match')
+          , Chars.sp
+          , chalks.bold(winnerPoints)
+          , Chars.sp
+          , 'to'
+          , Chars.sp
+          , chalks.bold(loserPoints)
+        )
+
+        return b
+    }
+
+    hr() {
+
+        const {chalks} = this.inst.painter
+        const b = new StringBuilder
+
+        b.add(chalks.hr('-----------'))
+
+        return b
+    }
+}
+DrawInstance.Reporter = Reporter
+DrawHelper.DrawInstance = DrawInstance
 module.exports = DrawHelper
