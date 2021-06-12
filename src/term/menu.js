@@ -133,6 +133,7 @@ class Menu extends Logger {
             var {playChoice} = answers
 
             if (playChoice == 'back') {
+                isContinue = true
                 break
             }
 
@@ -185,7 +186,7 @@ class Menu extends Logger {
 
         while (true) {
 
-            var isContinue = false
+            var isContinue = true
 
             var matchChoices = this.getMatchChoices(opts, isOnline)
 
@@ -488,6 +489,7 @@ class Menu extends Logger {
                 this.opts.robots = {}
                 configs = this.opts.robots
                 await this.saveOpts()
+                await this.loadSettings()
                 continue
             }
 
