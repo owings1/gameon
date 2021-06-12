@@ -697,6 +697,96 @@ describe('Menu', () => {
         })
     })
 
+    describe('#loadCustomThemes', () => {
+
+        beforeEach(() => {
+            ThemeHelper.clearCustom()
+        })
+
+        async function writeTheme(name, config) {
+            const themesDir = menu.getThemesDir()
+            const file = resolve(themesDir, name + '.json')
+            await fse.ensureDir(themesDir)
+            await fse.writeJson(file, config, {spaces: 2})
+        }
+
+        async function writeThemeRaw(name, data) {
+            const themesDir = menu.getThemesDir()
+            const file = resolve(themesDir, name + '.json')
+            await fse.ensureDir(themesDir)
+            fs.writeFileSync(file, data)
+        }
+
+        it('should load basic theme', async () => {
+            await writeTheme('Test', {
+                styles: {
+                    'text.color': 'white'
+                }
+            })
+
+            const result = await menu.loadCustomThemes()
+            expect(result.length).to.equal(1)
+            expect(result[0]).to.equal('Test')
+        })
+
+        it('should load dependencies', async () => {
+            await writeTheme('t1', {
+                extends: ['t2'],
+                styles: {'text.color': 'white'}
+            })
+            await writeTheme('t2', {
+                extends: ['Default']
+            })
+            const result = await menu.loadCustomThemes()
+            expect(result.length).to.equal(2)
+            result.sort((a, b) => a.localeCompare(b))
+            expect(result[0]).to.equal('t1')
+            expect(result[1]).to.equal('t2')
+        })
+
+        it('should return empty after second call', async () => {
+            await writeTheme('Test', {
+                styles: {
+                    'text.color': 'white'
+                }
+            })
+
+            const res1 = await menu.loadCustomThemes()
+            expect(res1.length).to.equal(1)
+
+            const result = await menu.loadCustomThemes()
+            expect(result.length).to.equal(0)
+        })
+
+        it('should not load bad json, but load the rest', async () => {
+            await writeThemeRaw('TestBad', 'p')
+            await writeTheme('TestGood', {extends: ['Default']})
+            menu.loglevel = -1
+            const result = await menu.loadCustomThemes()
+            expect(result.length).to.equal(1)
+            expect(result[0]).to.equal('TestGood')
+        })
+
+        it('should not load bad dependencies, but load the rest', async () => {
+            await writeTheme('TestGood', {extends: ['Default']})
+            await writeTheme('TestBad', {extends: ['Nothing']})
+            menu.loglevel = -1
+            const result = await menu.loadCustomThemes()
+            expect(result.length).to.equal(1)
+            expect(result[0]).to.equal('TestGood')
+        })
+
+        it('should not load bad config, but load the rest', async () => {
+            await writeTheme('TestGood', {extends: ['Default']})
+            await writeTheme('TestBad', {styles: {'text.color': 'asdflkasd'}})
+            menu.loglevel = -1
+            const result = await menu.loadCustomThemes()
+            expect(result.length).to.equal(1)
+            expect(result[0]).to.equal('TestGood')
+        })
+
+    })
+
     describe('#newClient', () => {
 
         it('should return new client', () => {

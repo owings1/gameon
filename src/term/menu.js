@@ -41,12 +41,14 @@ const {RobotDelegator}  = Robot
 
 const {White, Red, States} = Constants
 const {Match, Board, Dice} = Core
+const {DependencyHelper}   = Util
 
 const assert   = require('assert')
 const chalk    = require('chalk')
 const crypto   = require('crypto')
 const fs       = require('fs')
 const fse      = require('fs-extra')
+const globby   = require('globby')
 const inquirer = require('inquirer')
 const {merge}  = Util
 const os       = require('os')
@@ -71,6 +73,8 @@ class Menu extends Logger {
     }
 
     async mainMenu() {
+
+        await this.loadCustomThemes()
 
         while (true) {
 
@@ -1024,6 +1028,10 @@ class Menu extends Logger {
               , name  : 'Robot Configuration'
               , when  : () => opts.isCustomRobot
             }
+          , {
+                value : 'themes'
+              , name  : 'Configure Themes'
+            }
         ])
     }
 
@@ -1236,6 +1244,12 @@ class Menu extends Logger {
         }
     }
 
+    getThemesDir() {
+        if (this.configDir) {
+            return path.resolve(this.configDir, 'themes')
+        }
+    }
+
     async loadLabConfig() {
         const stateFile = this.getLabConfigFile()
         if (fs.existsSync(stateFile)) {
@@ -1259,6 +1273,70 @@ class Menu extends Logger {
             await fse.ensureDir(path.dirname(stateFile))
             await fse.writeJson(stateFile, data, {spaces: 2})
         }
+    }
+
+    async loadCustomThemes() {
+
+        const themesDir = this.getThemesDir()
+
+        if (!themesDir) {
+            return
+        }
+
+        if (!this._themeHashes) {
+            this._themeHashes = {}
+        }
+
+        const configs = {}
+        const files = await globby(path.join(themesDir, '*.json'))
+        const helper = new DependencyHelper(ThemeHelper.list())
+
+        for (var file of files) {
+            try {
+                var config = await fse.readJson(file)
+                var name = Util.filenameWithoutExtension(file)
+                var hash = crypto.createHash('md5')
+                hash.update(JSON.stringify(config))
+                hash = hash.digest('hex')
+                if (this._themeHashes[name] == hash) {
+                    continue
+                }
+                configs[name] = {hash, config}
+                helper.add(name, config.extends)
+            } catch (err) {
+                this.error('Failed to load custom theme file: ' + file, err.message)
+            }
+        }
+
+        try {
+            var order = helper.resolve()
+        } catch (err) {
+            if (!err.isDependencyError) {
+                throw err
+            }
+            this.error(err.name, err.message)
+            // load what we can
+            var order = helper.order
+        }
+
+        const loaded = []
+
+        for (var name of order) {
+            var {config, hash} = configs[name]
+            this._themeHashes[name] = hash
+            try {
+                ThemeHelper.update(name, config)
+                loaded.push(name)
+            } catch (err) {
+                this.error('Failed to load theme ' + name, err.message)
+            }
+        }
+
+        if (loaded.length) {
+            this.info('Loaded', loaded.length, 'custom themes')
+        }
+
+        return loaded
     }
 
     static formatChoices(choices) {
