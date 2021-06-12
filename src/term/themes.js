@@ -59,6 +59,7 @@ const BuiltInThemes = {
           , 'board.piece.white.color'     : '#0080ff bold'
         }
     }
+    /*
   , WayOffbeat : {
         styles : {
             'text.background'             : 'cyan'
@@ -76,34 +77,50 @@ const BuiltInThemes = {
           , 'cube.inactive.color'         : 'grey'
         }
     }
+    */
 }
+
+const CustomThemes = {}
 
 const Themes = {...BuiltInThemes}
 
 class ThemeHelper {
 
-    static register(name, theme) {
+    static register(name, config) {
         if (Themes[name]) {
             throw new ThemeExistsError('Theme already exists: ' + name)
         }
-        theme.isCustom = true
-        Themes[name] = theme
+        this.validateConfig(config)
+        CustomThemes[name] = config
+        Themes[name] = config
     }
 
-    static update(name, theme) {
+    static update(name, config) {
         if (BuiltInThemes[name]) {
             throw new ThemeExistsError('Cannot update a built-in theme: ' + name)
         }
-        Themes[name] = theme
+        this.validateConfig(config)
+        CustomThemes[name] = config
+        Themes[name] = config
     }
 
     static list() {
         return Object.keys(Themes)
     }
 
+    static listCustom() {
+        return Object.keys(CustomThemes)
+    }
+
+    static clearCustom() {
+        for (var name in CustomThemes) {
+            delete CustomThemes[name]
+            delete Themes[name]
+        }
+    }
     static getConfig(name) {
         if (!Themes[name]) {
-            throw new ThemeNotFoundError('Theme not found:' + name)
+            throw new ThemeNotFoundError('Theme not found: ' + name)
         }
         return Themes[name]
     }
@@ -113,21 +130,26 @@ class ThemeHelper {
         return new this(styles)
     }
 
+    static validateConfig(config) {
+        const styles = this.getStylesFromConfig(config)
+        new this(styles)
+    }
+
     static getStyles(name) {
-        const theme = this.getConfig((name))
+        const config = this.getConfig((name))
+        return this.getStylesFromConfig(config)
+    }
+
+    static getStylesFromConfig(config) {
         var styles = {}
-        if (theme.extends) {
-            theme.extends.forEach(parentName => {
+        if (config.extends) {
+            config.extends.forEach(parentName => {
                 const parent = this.getConfig(parentName)
                 styles = {...styles, ...parent.styles}
             })
         }
-        styles = {...styles, ...theme.styles}
+        styles = {...styles, ...config.styles}
         return styles
-    }
-
-    constructor(styles) {
-        this.loadStyles(styles)
     }
 
     static styleKeys() {
@@ -171,6 +193,10 @@ class ThemeHelper {
           , 'text.piece.red.color'   : 'board.piece.red.color'
           , 'text.piece.white.color' : 'board.piece.white.color'
         }
+    }
+
+    constructor(styles) {
+        this.loadStyles(styles)
     }
 
     loadStyles(styles) {
