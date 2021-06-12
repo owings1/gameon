@@ -81,8 +81,18 @@ class DrawInstance {
         this.persp = persp || White
         this.logs  = logs || []
 
-        this.logger   = new Logger
-        this.theme    = ThemeHelper.getInstance(themeName)
+        this.logger = new Logger
+        try {
+            this.theme = ThemeHelper.getInstance(themeName)
+        } catch (err) {
+            if (!err.isThemeError) {
+                throw err
+            }
+            this.logger.error(err.name, err.message)
+            this.logger.warn('Using Default theme')
+            this.theme = ThemeHelper.getInstance('Default')
+        }
+        
         this.reporter = new Reporter(this)
 
         this.BoardWidth = 53
