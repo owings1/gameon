@@ -1243,8 +1243,8 @@ class Menu extends Logger {
                 const data = await fse.readJson(stateFile)
                 return data
             } catch (err) {
-                this.logger.debug(err)
-                this.logger.error('Failed to load saved state:', err.message)
+                this.debug(err)
+                this.error('Failed to load saved lab state:', err.message)
             }
         }
     }
