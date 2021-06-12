@@ -93,6 +93,29 @@ class Util {
         return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
     }
 
+    static fileDateString(date) {
+        date = date || new Date
+        const b = new StringBuilder
+        b.add(
+            [
+                date.getFullYear()
+              , (date.getMonth() + 1)
+              , date.getDate()
+            ].map(n => n.toString().padStart(2, '0')).join('-')
+        )
+        b.add(
+            [
+                date.getHours()
+              , date.getMinutes()
+              , date.getSeconds()
+            ].map(n => n.toString().padStart(2, '0')).join('-')
+        )
+        b.add(
+            date.getMilliseconds().toString().padStart(3, '0')
+        )
+        return b.join('_')
+    }
+
     static filenameWithoutExtension(str) {
         return Util.filepathWithoutExtension(path.basename(str))
     }

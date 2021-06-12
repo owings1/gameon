@@ -25,7 +25,10 @@
 const Constants = require('../lib/constants')
 
 const chalk       = require('chalk')
+const fs          = require('fs')
+const fse         = require('fs-extra')
 const inquirer    = require('inquirer')
+const path        = require('path')
 const Coordinator = require('../lib/coordinator')
 const Core        = require('../lib/core')
 const {DrawInstance} = require('./draw')
@@ -74,6 +77,7 @@ class LabHelper {
         this.inst = DrawInstance.forBoard(this.board, this.persp, this.logs, this.opts.theme)
         this.stateHistory = []
         this.hr = this.nchars(60, '-')
+        this.fetchLastRecords = null
     }
 
     async interactive() {
@@ -122,6 +126,7 @@ class LabHelper {
                 case 'd':
                     await this.diceCommand(false, params.join(' '))
                     break
+
                 case 'D':
                     await this.diceCommand(true, params.join(' '))
                     break
@@ -141,6 +146,10 @@ class LabHelper {
                 case 'u':
                     await this.undoCommand()
                     this.draw(true)
+                    break
+
+                case 'w':
+                    await this.writeLastResult()
                     break
 
                 case 'x':
@@ -203,6 +212,7 @@ class LabHelper {
             return
         }
 
+        this.fetchLastRecords = null
         this.stateHistory.push(board.state28())
 
         board.setStateString(newState)
@@ -216,6 +226,7 @@ class LabHelper {
             return
         }
         this.board.setStateString(this.stateHistory.pop())
+        this.fetchLastRecords = null
         this.logs.push('Undo')
     }
 
@@ -235,6 +246,8 @@ class LabHelper {
           , validate : value => this.validateDice(parseInput(value))
           , when     : () => !param || this.validateDice(parseInput(param)) !== true
         })
+
+        this.fetchLastRecords = null
 
         const value = param || answers.dice
 
@@ -262,22 +275,39 @@ class LabHelper {
             return
         }
 
-        cons.log(this.hr)
+        const wb = new StringBuilder
+        const log = (...args) => {
+            wb.sp(...args)
+            wb.add('\n')
+            cons.log(...args)
+        }
 
-        cons.log(info)
+        log(this.hr)
 
-        cons.log('  Move Series:')
+        log(info)
+
+        log('  Move Series:')
         series.forEach((moves, i) =>
-            cons.log('   ', (i+1) + ':', moves.map(move => this.moveDesc(move)))
+            log('   ', (i+1) + ':', moves.map(move => this.moveDesc(move)))
         )
 
-        cons.log(this.hr)
+        log(this.hr)
+
+        this.fetchLastRecords = () => {
+            return {
+                'moves.json' : Buffer.from(JSON.stringify({info, moves}, null, 2))
+              , 'moves.txt'  : Buffer.from(wb.toString())
+            }
+        }
     }
 
     async showRobotTurn(turn) {
 
         const cons = this.logger.console
         const robot = this.newRobot(turn.color)
+
+        const robotMeta = robot.meta()
+        const delegateWidth = Math.max(...robot.delegates.map(it => it.robot.name.length))
 
         var robotMoves
         var explain
@@ -290,60 +320,74 @@ class LabHelper {
             await robot.destroy()
         }
 
-        const delegateWidth = Math.max(...explain[0].delegates.map(it => it.name.length))
+        var count = 0
+        var hasDotDotDotted = false
 
-        const summary = explain.map(it => {
-            const info = {
-                moves      : it.moves.map(move => this.moveDesc(move, true))
-              , finalScore : parseFloat(it.finalScore.toFixed(4))
-              , endState   : it.endState
+        const wb = new StringBuilder
+        const log = (...args) => {
+            wb.sp(...args)
+            wb.add('\n')
+            if (count < 21) {
+                cons.log(...args)
             }
-            if (it.isChosen) {
-                info.isChosen = true
+            if (count == 21 && !hasDotDotDotted) {
+                hasDotDotDotted = true
+                cons.log()
+                cons.log('   ', explain.length - 20, 'more ....')
+                cons.log()
             }
-            info.delegates = {}
-            it.delegates.forEach(it => {
-                info.delegates[it.name] = {
-                    weighted: parseFloat(it.weightedScore.toFixed(4))
-                  , raw     : parseFloat(it.rawScore.toFixed(4))
-                }
-            })
-            return info
-        })
-        
-        summary.forEach((info, i) => {
+        }
 
-            cons.log()
-            cons.log(this.hr)
-            cons.log()
+        explain.forEach((info, i) => {
+
+            count += 1
+
+            log()
+            log(this.hr)
+            log()
+
+            const mstr = new StringBuilder(
+                chalk.grey('['), info.moves.map(move => this.moveDesc(move, true)).join(', '), chalk.grey(']')
+            ).toString()
 
             const b = new StringBuilder
 
-            const mstr = '[' + info.moves.join(', ') + ']'
             if (info.isChosen) {
                 b.add(chalk.bold.green('#1 Winner'), '  ', chalk.bold(mstr))
             } else {
-                b.add(chalk.yellow(i + 1), chalk.grey('/'), chalk.yellow(summary.length), '  ', mstr)
+                b.add(chalk.yellow(i + 1), chalk.grey('/'), chalk.yellow(explain.length), '  ', mstr)
             }
-            cons.log(b.toString())
+            log(b.toString())
 
-            cons.log()
-            cons.log('  ', chalk.bold('TotalScore'), chalk.bold.cyan(info.finalScore.toString()))
-            cons.log()
+            log()
+            log('  ', chalk.bold('TotalScore'), chalk.bold.cyan(info.finalScore.toFixed(4)))
+            log()
 
-            Object.entries(info.delegates).forEach(([name, scores]) => {
-                if (scores.raw + scores.weighted == 0) {
+            info.delegates.forEach(it => {
+                if (it.rawScore + it.weightedScore == 0) {
                     return
                 }
-                const b = new StringBuilder
-                b.add(chalk.grey('weighted: '), chalk.cyan(scores.weighted.toString().padEnd(6, ' ')), ' | ')
-                b.add(chalk.grey('raw: '), chalk.yellow(scores.raw.toString().padEnd(6, ' ')))
-                cons.log('    ', name.padEnd(delegateWidth, ' ') + ' |', b.toString())
+                const bd = new StringBuilder
+                bd.add(chalk.grey('weighted: '), chalk.cyan(it.weightedScore.toFixed(4).padEnd(6, ' ')), ' | ')
+                bd.add(chalk.grey('raw: '), chalk.yellow(it.rawScore.toFixed(4).padEnd(6, ' ')))
+                log('    ', it.name.padEnd(delegateWidth, ' ') + ' |', bd.toString())
             })
-            cons.log()
-            cons.log(''.padEnd(25, ' '), chalk.grey(info.endState))
+            log()
+            log(''.padEnd(25, ' '), chalk.grey(info.endState))
         })
-        cons.log()
+
+        log()
+
+        const turnMeta = turn.meta()
+        this.fetchLastRecords = () => {
+            return {
+                'explain.json'      : Buffer.from(JSON.stringify({explain}, null, 2))
+              , 'explain.ansii.txt' : Buffer.from(wb.toString())
+              , 'explain.txt'       : Buffer.from(Util.stripAnsi(wb.toString()))
+              , 'robot.json'        : Buffer.from(JSON.stringify({robot: robotMeta}))
+              , 'turn.json'         : Buffer.from(JSON.stringify({turn: turnMeta}))
+            }
+        }
     }
 
     async placeCommand() {
@@ -363,6 +407,8 @@ class LabHelper {
         if (answers.dest.toLowerCase() == 'q') {
             return
         }
+
+        this.fetchLastRecords = null
 
         this.stateHistory.push(board.state28())
 
@@ -434,6 +480,7 @@ class LabHelper {
           , 'f' : 'flip perspective'
           , 'p' : 'place piece'
           , 'u' : 'undo move'
+          , 'w' : 'write last results'
           , 'x' : 'toggler tree mode'
           , '?' : 'command help'
         }
@@ -673,6 +720,48 @@ class LabHelper {
         }
         robot.isStoreLastResult = true
         return robot
+    }
+
+    async writeLastResult() {
+
+        if (!this.opts.recordDir) {
+            this.logger.warn('No recordDir set')
+            return
+        }
+        if (!this.fetchLastRecords) {
+            this.logger.info('No result to save')
+            return
+        }
+
+        const subDir = 'labs'
+        const prefix = 'lab-' + Util.fileDateString()
+
+        const outDir = path.resolve(this.opts.recordDir, subDir, prefix)
+
+        this.logger.info('Saving to', path.join(this.opts.recordDir, subDir, prefix))
+
+        await fse.ensureDir(outDir)
+        
+        const records = await this.fetchLastRecords()
+
+        this.fetchLastRecords = null
+
+        for (var [basename, data] of Object.entries(records)) {
+            var file = path.resolve(outDir, path.basename(basename))
+            fs.writeFileSync(file, data)
+            this.logger.info('Wrote', basename)
+        }
+
+        const lab = {
+            date    : new Date
+          , version : Constants.Version
+          , board   : this.boardInfo()
+        }
+
+        var basename = 'lab.json'
+        const labFile = path.resolve(outDir, basename)
+        await fse.writeJson(labFile, lab, {spaces: 2})
+        this.logger.info('Wrote', basename)
     }
 
     async generateStateString() {

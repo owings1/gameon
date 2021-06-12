@@ -629,11 +629,15 @@ class Menu extends Logger {
             var board = Board.setup()
             var persp = White
         }
-        const {theme} = this.opts
-        const labOpts = {board, persp, theme}
-        labOpts.isCustomRobot = this.opts.isCustomRobot
-        // NB: this is a reference
-        labOpts.robots = this.opts.robots
+        const {theme, isCustomRobot, robots, recordDir} = this.opts
+        const labOpts = {
+            board
+          , persp
+          , theme
+          , isCustomRobot
+          , robots
+          , recordDir
+        }
         const helper = new LabHelper(labOpts)
         await helper.interactive()
         await this.saveLabConfig(helper)

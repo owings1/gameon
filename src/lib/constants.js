@@ -23,6 +23,8 @@
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 const chalk = require('chalk')
+const Pkg = require('../../package.json')
+const Version = Pkg.version
 
 const White = 'White'
 const Red   = 'Red'
@@ -189,10 +191,13 @@ const Constants = {
   , Opponent
   , OriginPoints
   , OutsideOrigins
+  , Pkg
   , PointOrigins
   , Red
   , TopPoints
+  , Version
   , White
+
 }
 
 module.exports = Constants
