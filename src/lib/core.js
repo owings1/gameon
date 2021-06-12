@@ -415,6 +415,13 @@ class Game {
 
 class Turn {
 
+    static defaults() {
+        return {
+            breadthTrees : false
+          , roller       : null
+        }
+    }
+
     constructor(board, color, opts = {}) {
 
         this.board      = board
@@ -441,7 +448,7 @@ class Turn {
         this.moves = []
         this.boardCache = {}
 
-        this.opts = opts
+        this.opts = Util.defaults(Turn.defaults(), opts)
         if (!this.opts.roller) {
             this.opts.roller = Dice.rollTwo
         }

@@ -597,6 +597,16 @@ describe('Turn', () => {
             expect(result.isDoubleOffered).to.equal(true)
             expect(result.isDoubleDeclined).to.equal(false)
         })
+
+        it('should convert to json when opts with circular references are passed', () => {
+            const board = Board.setup()
+            board.board = board
+            const opts = {board}
+            opts.opts = opts
+            const turn = new Turn(board, White, opts)
+            const result = turn.meta()
+            JSON.stringify(result)
+        })
     })
 
     describe('#move', () => {
@@ -754,6 +764,16 @@ describe('Turn', () => {
             const res = t1.serialize()
             const exp2 = Object.keys(res.allowedMoveIndex).sort()
             expect(JSON.stringify(exp1)).to.equal(JSON.stringify(exp2))
+        })
+
+        it('should convert to json when opts with circular references are passed', () => {
+            const board = Board.setup()
+            board.board = board
+            const opts = {board}
+            opts.opts = opts
+            const turn = new Turn(board, White, opts)
+            const result = turn.serialize()
+            JSON.stringify(result)
         })
     })
 
