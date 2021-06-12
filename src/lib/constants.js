@@ -130,52 +130,55 @@ const BoardStrings = {
     Initial: '0|0|2:W|0:|0:|0:|0:|5:R|0:|3:R|0:|0:|0:|5:W|5:R|0:|0:|0:|3:W|0:|5:W|0:|0:|0:|0:|2:R|0|0'
 }
 
+
+// https://codepoints.net/box_drawing
+const TableChars = {
+    topLeft      : '\u250f'
+  , topMiddle    : '\u2533'
+  , topRight     : '\u2513'
+  , middleLeft   : '\u2523'
+  , middleMiddle : '\u254b'
+  , middleRight  : '\u252b'
+  , bottomLeft   : '\u2523'//'\u2517'
+  , bottomMiddle : '\u253b'
+  , bottomRight  : '\u252b'//'\u251b'
+  , footerLeft   : '\u2517'
+  , footerMiddle : '\u2501'
+  , footerRight  : '\u251b'
+  , dash         : '\u2501'
+  , pipe         : '\u2503'
+  , dblPipe      : '\u2503\u2503'
+}
+
+
 const Draw = {
     Chars : {
-        topLeft      : '\u250f'
-      , topMiddle    : '\u2533'
-      , topRight     : '\u2513'
-      , midLeft      : ''  // TODO
-      , pipe         : '\u2503'
-      , dblSep       : '\u2503\u2503'
-      , midRight     : ''  // TODO
-      , botLeft      : '\u2517'
-      , botMiddle    : '\u253b'
-      , botRight     : '\u251b'
-      , dash         : '\u2501'
-      //, pip          : 'PIP'
-      //, crawford     : 'CR'
-      //, pts          : 'pts'
-      , empty        : ''
-      , slash        : '/'
-      , sp           : ' '
-      , dblSp        : '  '
-      , br           : '\n'
-      , die          :  {
-            1  : '\u2680'
-          , 2  : '\u2681'
-          , 3  : '\u2682'
-          , 4  : '\u2683'
-          , 5  : '\u2684'
-          , 6  : '\u2685'
-        }
+        empty : ''
+      , sp    : ' '
+      , dblSp : '  '
+      , br    : '\n'
+      //  topLeft      : '\u250f'
+      //, topMiddle    : '\u2533'
+      //, topRight     : '\u2513'
+      //, midLeft      : ''  // TODO
+      //, pipe         : '\u2503'
+      //, dblSep       : '\u2503\u2503'
+      //, midRight     : ''  // TODO
+      //, botLeft      : '\u2517'
+      //, botMiddle    : '\u253b'
+      //, botRight     : '\u251b'
+      //, dash         : '\u2501'
+      //, slash        : '/'
+      //, die          :  {
+      //      1  : '\u2680'
+      //    , 2  : '\u2681'
+      //    , 3  : '\u2682'
+      //    , 4  : '\u2683'
+      //    , 5  : '\u2684'
+      //    , 6  : '\u2685'
+      //  }
     }
- //, ChalkColorFor : {
- //      Red   : 'red'
- //   ,  White : 'white'
- //  }
- //, Shorts : {
- //      Red   : chalk.bold.red('R')
- //    , White : chalk.bold.white('W')
- //    , R     : chalk.bold.red('R')
- //    , W     : chalk.bold.white('W')
- //  }
- // , PadFixed   : 4
- // , MidFixed   : 1
- // , RightFixed : 10
 }
-//Draw.TopBorder    = Draw.Chars.topLeft.padEnd(12 * Draw.PadFixed + 2 + 4, Draw.Chars.dash) + Draw.Chars.topRight
-//Draw.BottomBorder = Draw.Chars.botLeft.padEnd(12 * Draw.PadFixed + 2 + 4, Draw.Chars.dash) + Draw.Chars.botRight
 
 const Constants = {
     BoardStrings
@@ -194,10 +197,10 @@ const Constants = {
   , Pkg
   , PointOrigins
   , Red
+  , TableChars
   , TopPoints
   , Version
   , White
-
 }
 
 module.exports = Constants

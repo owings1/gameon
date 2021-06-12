@@ -37,30 +37,12 @@ const path  = require('path')
 const {intRange, nmap, Timer} = Util
 const {resolve} = path
 
-const {Colors} = Constants
+const {Colors, TableChars} = Constants
 const {White, Red} = Colors
 
 const {Match, Profiler} = Core
 
 const {RobotDelegator} = Robot
-
-// https://codepoints.net/box_drawing
-const TableChars = {
-    topLeft      : '\u250f'
-  , topMiddle    : '\u2533'
-  , topRight     : '\u2513'
-  , middleLeft   : '\u2523'
-  , middleMiddle : '\u254b'
-  , middleRight  : '\u252b'
-  , bottomLeft   : '\u2523'//'\u2517'
-  , bottomMiddle : '\u253b'
-  , bottomRight  : '\u252b'//'\u251b'
-  , footerLeft   : '\u2517'
-  , footerMiddle : '\u2501'
-  , footerRight  : '\u251b'
-  , dash         : '\u2501'
-  , pipe         : '\u2503'
-}
 
 function getTableChars(color) {
     const chrs = {}

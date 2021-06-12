@@ -55,6 +55,7 @@ const {
   , OriginPoints
   , PointOrigins
   , Red
+  , TableChars
   , TopPoints
   , White
 } = Constants
@@ -228,7 +229,7 @@ class DrawInstance {
 
         const {chalks} = this.theme
 
-        b.add(chalks.boardBorder(Chars.pipe))
+        b.add(chalks.boardBorder(TableChars.pipe))
 
         points.forEach((point, i) => {
             const {color, count} = this.pointStats[point]
@@ -236,13 +237,13 @@ class DrawInstance {
             if (i == 5) {
                 b.add(
                     chalks.boardSp(Chars.sp + Chars.sp)
-                  , chalks.boardBorder(Chars.dblSep)
+                  , chalks.boardBorder(TableChars.dblPipe)
                 )
             }
         })
         b.add(chalks.boardSp(Chars.sp + Chars.sp))
 
-        b.add(chalks.boardBorder(Chars.pipe))
+        b.add(chalks.boardBorder(TableChars.pipe))
 
         const afterStr = this.afterPieceRowString(depth, cubePart, owner)
         const pad = this.AfterWidth - this.len(afterStr)
@@ -260,7 +261,7 @@ class DrawInstance {
         const b = new StringBuilder
         const {chalks} = this.theme
 
-        b.add(chalks.boardBorder(Chars.pipe))
+        b.add(chalks.boardBorder(TableChars.pipe))
 
         points.forEach((point, i) => {
             const {count} = this.pointStats[point]
@@ -268,13 +269,13 @@ class DrawInstance {
             if (i == 5) {
                 b.add(
                     chalks.boardSp(Chars.sp + Chars.sp)
-                  , chalks.boardBorder(Chars.dblSep)
+                  , chalks.boardBorder(TableChars.dblPipe)
                 )
             }
         })
         b.add(chalks.boardSp(Chars.sp + Chars.sp))
 
-        b.add(chalks.boardBorder(Chars.pipe))
+        b.add(chalks.boardBorder(TableChars.pipe))
 
         const pad = this.AfterWidth
 
@@ -314,12 +315,12 @@ class DrawInstance {
         const {chalks} = this.theme
 
         b.add(
-            chalks.boardBorder(Chars.pipe)
+            chalks.boardBorder(TableChars.pipe)
           , chalks.boardSp(this.nchars(6 * this.PiecePad + 1, Chars.sp))
-          , chalks.boardBorder(Chars.dblSep)
+          , chalks.boardBorder(TableChars.dblPipe)
           , chalks.boardSp(this.nchars(6 * this.PiecePad, Chars.sp))
           , chalks.boardSp(Chars.sp)
-          , chalks.boardBorder(Chars.pipe)
+          , chalks.boardBorder(TableChars.pipe)
         )
 
         if (this.cubeValue && !this.cubeOwner) {
@@ -401,7 +402,7 @@ class DrawInstance {
         const {chalks} = this.theme
 
         b.add(
-            chalks.boardBorder(Chars.pipe)
+            chalks.boardBorder(TableChars.pipe)
           , chalks.boardSp(this.nchars(6 * this.PiecePad + 1, Chars.sp))
         )
 
@@ -413,14 +414,14 @@ class DrawInstance {
             )
         } else {
             b.add(
-                chalks.boardBorder(Chars.dblSep)
+                chalks.boardBorder(TableChars.dblPipe)
               , chalks.boardSp(Chars.sp)
             )
         }
 
         b.add(
             chalks.boardSp(this.nchars(6 * this.PiecePad, Chars.sp))
-          , chalks.boardBorder(Chars.pipe)
+          , chalks.boardBorder(TableChars.pipe)
         )
 
         return b
@@ -529,13 +530,13 @@ class DrawInstance {
                 break
             case 1:
                 b.add(
-                    cubeChalk(Chars.pipe + Chars.sp)
+                    cubeChalk(TableChars.pipe + Chars.sp)
                 )
                 const valueStr = isCrawford ? 'CR' : cubeValue.toString()
                 b.add(
                     cubeChalk(valueStr)
                   , cubeChalk(this.nchars(2 - valueStr.length, Chars.sp))
-                  , cubeChalk(Chars.pipe)
+                  , cubeChalk(TableChars.pipe)
                 )
                 break
             case 2:
@@ -562,36 +563,36 @@ class DrawInstance {
     buildBorders() {
 
         const quadWidth = Math.floor(this.BoardWidth / 2 - 1)
-        const quadChars = this.nchars(quadWidth, Chars.dash)
+        const quadChars = this.nchars(quadWidth, TableChars.dash)
 
         this.TopBorder = new StringBuilder(
-            Chars.topLeft
+            TableChars.topLeft
           , quadChars
-          , Chars.topMiddle
-          , Chars.topMiddle
+          , TableChars.topMiddle
+          , TableChars.topMiddle
           , quadChars
-          , Chars.topRight
+          , TableChars.topRight
         ).toString()
 
         this.BottomBorder = new StringBuilder(
-            Chars.botLeft
+            TableChars.footerLeft
           , quadChars
-          , Chars.botMiddle
-          , Chars.botMiddle
+          , TableChars.bottomMiddle
+          , TableChars.bottomMiddle
           , quadChars
-          , Chars.botRight
+          , TableChars.footerRight
         ).toString()
 
         this.CubeTopBorder = new StringBuilder(
-            Chars.topLeft
-          , this.nchars(3, Chars.dash)
-          , Chars.topRight
+            TableChars.topLeft
+          , this.nchars(3, TableChars.dash)
+          , TableChars.topRight
         ).toString()
 
         this.CubeBottomBorder = new StringBuilder(
-            Chars.botLeft
-          , this.nchars(3, Chars.dash)
-          , Chars.botRight
+            TableChars.footerLeft
+          , this.nchars(3, TableChars.dash)
+          , TableChars.footerRight
         ).toString()
     }
 }

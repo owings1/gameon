@@ -59,6 +59,7 @@ const {
   , OriginPoints
   , PointOrigins
   , Red
+  , TableChars
   , TopPoints
   , White
 } = Constants
@@ -76,7 +77,7 @@ class LabHelper {
         this.logger = new Logger
         this.inst = DrawInstance.forBoard(this.board, this.persp, this.logs, this.opts.theme)
         this.stateHistory = []
-        this.hr = this.nchars(60, '-')
+        this.hr = this.nchars(44, TableChars.dash)
         this.fetchLastRecords = null
     }
 
@@ -328,7 +329,7 @@ class LabHelper {
             wb.sp(...args)
             wb.add('\n')
             if (count < 21) {
-                cons.log(...args)
+                cons.log(' ', ...args)
             }
             if (count == 21 && !hasDotDotDotted) {
                 hasDotDotDotted = true
@@ -361,31 +362,33 @@ class LabHelper {
 
             log()
             log('  ', chalk.bold('TotalScore'), chalk.bold.cyan(info.finalScore.toFixed(4)))
-            log()
+            log('    ', ''.padEnd(delegateWidth + 2, ' '), chalk.grey('weighted'), ' ', chalk.grey('raw'.padStart(6, ' ')))
 
             info.delegates.forEach(it => {
                 if (it.rawScore + it.weightedScore == 0) {
                     return
                 }
                 const bd = new StringBuilder
-                bd.add(chalk.grey('weighted: '), chalk.cyan(it.weightedScore.toFixed(4).padEnd(6, ' ')), ' | ')
-                bd.add(chalk.grey('raw: '), chalk.yellow(it.rawScore.toFixed(4).padEnd(6, ' ')))
-                log('    ', it.name.padEnd(delegateWidth, ' ') + ' |', bd.toString())
+                bd.add('  ', chalk.cyan(it.weightedScore.toFixed(4).padEnd(6, ' ')), ' ' + chalk.grey(TableChars.pipe) + ' ')
+                bd.add(chalk.yellow(it.rawScore.toFixed(4).padEnd(6, ' ')))
+
+                log('    ', it.name.padEnd(delegateWidth, ' '), ' ', bd.toString())
             })
             log()
-            log(''.padEnd(25, ' '), chalk.grey(info.endState))
+            log(''.padEnd(10, ' '), chalk.grey(info.endState))
         })
 
         log()
 
         const turnMeta = turn.meta()
+
         this.fetchLastRecords = () => {
             return {
                 'explain.json'      : Buffer.from(JSON.stringify({explain}, null, 2))
               , 'explain.ansii.txt' : Buffer.from(wb.toString())
               , 'explain.txt'       : Buffer.from(Util.stripAnsi(wb.toString()))
-              , 'robot.json'        : Buffer.from(JSON.stringify({robot: robotMeta}))
-              , 'turn.json'         : Buffer.from(JSON.stringify({turn: turnMeta}))
+              , 'robot.json'        : Buffer.from(JSON.stringify({robot: robotMeta}, null, 2))
+              , 'turn.json'         : Buffer.from(JSON.stringify({turn: turnMeta}, null, 2))
             }
         }
     }
