@@ -50,6 +50,14 @@ class IllegalMoveError extends GameError {
     }
 }
 
+class ThemeError extends GameError {
+
+    constructor(...args) {
+        super(...args)
+        this.isThemeError = true
+    }
+}
+
 class ArgumentError       extends GameError {}
 class InvalidRollError    extends GameError {}
 class MatchCanceledError  extends GameError {}
@@ -58,9 +66,10 @@ class NotImplementedError extends GameError {}
 class InvalidColorError     extends ArgumentError {}
 class InvalidDirError       extends ArgumentError {}
 class MaxDepthExceededError extends ArgumentError {}
-class ThemeExistsError      extends ArgumentError {}
-class ThemeNotFoundError    extends ArgumentError {}
-class ThemeConfigError      extends ArgumentError {}
+
+class ThemeExistsError      extends ThemeError {}
+class ThemeNotFoundError    extends ThemeError {}
+class ThemeConfigError      extends ThemeError {}
 
 class AlreadyRolledError        extends IllegalStateError {}
 class DoubleNotAllowedError     extends IllegalStateError {}
@@ -115,6 +124,9 @@ module.exports = {
   , NotImplementedError
   , OccupiedSlotError
   , PieceOnBarError
+  , ThemeConfigError
+  , ThemeExistsError
+  , ThemeNotFoundError
   , TurnAlreadyFinishedError
   , TurnNotFinishedError
 }
