@@ -73,6 +73,7 @@ class LabHelper {
         this.logger = new Logger
         this.inst = DrawInstance.forBoard(this.board, this.persp, this.logs, this.opts.theme)
         this.stateHistory = []
+        this.hr = this.nchars(60, '-')
     }
 
     async interactive() {
@@ -107,7 +108,7 @@ class LabHelper {
             var [cmd, ...params] = input.split(' ')
             var cmdLc = cmd.toLowerCase()
 
-            switch (cmdLc) {
+            switch (cmd) {
 
                 case 'i':
                     this.logger.console.log(this.boardInfo())
@@ -119,7 +120,10 @@ class LabHelper {
                     break
 
                 case 'd':
-                    await this.diceCommand(params.join(' '))
+                    await this.diceCommand(false, params.join(' '))
+                    break
+                case 'D':
+                    await this.diceCommand(true, params.join(' '))
                     break
 
                 case 'f':
@@ -215,7 +219,7 @@ class LabHelper {
         this.logs.push('Undo')
     }
 
-    async diceCommand(param) {
+    async diceCommand(isRobot, param) {
 
         const {board} = this
         const cons = this.logger.console
@@ -253,30 +257,93 @@ class LabHelper {
           , hasWinner : builder.result.hasWinner
         }
 
-        const robot = RobotDelegator.forDefaults(turn.color)
-
-        var robotMoves
-        try {
-            robotMoves = await robot.getMoves(turn)
-        } finally {
-            await robot.destroy()
+        if (isRobot) {
+            await this.showRobotTurn(turn)
+            return
         }
 
-        const hr = this.nchars(60, '-')
+        cons.log(this.hr)
 
-        cons.log(hr)
         cons.log(info)
+
         cons.log('  Move Series:')
         series.forEach((moves, i) =>
             cons.log('   ', (i+1) + ':', moves.map(move => this.moveDesc(move)))
         )
-        if (robotMoves.length) {
-            cons.log('  Robot Choice:')
-            cons.log('   ', robotMoves.map(move => this.moveDesc(move)))
+
+        cons.log(this.hr)
+    }
+
+    async showRobotTurn(turn) {
+
+        const cons = this.logger.console
+        const robot = this.newRobot(turn.color)
+
+        var robotMoves
+        var explain
+        var result
+        try {
+            robotMoves = await robot.getMoves(turn)
+            result = robot.lastResult
+            explain = robot.explainResult(robot.lastResult)
+        } finally {
+            await robot.destroy()
         }
 
-        //cons.log(turn.allowedMoveIndex)
-        cons.log(hr)
+        const delegateWidth = Math.max(...explain[0].delegates.map(it => it.name.length))
+
+        const summary = explain.map(it => {
+            const info = {
+                moves      : it.moves.map(move => this.moveDesc(move, true))
+              , finalScore : parseFloat(it.finalScore.toFixed(4))
+              , endState   : it.endState
+            }
+            if (it.isChosen) {
+                info.isChosen = true
+            }
+            info.delegates = {}
+            it.delegates.forEach(it => {
+                info.delegates[it.name] = {
+                    weighted: parseFloat(it.weightedScore.toFixed(4))
+                  , raw     : parseFloat(it.rawScore.toFixed(4))
+                }
+            })
+            return info
+        })
+        
+        summary.forEach((info, i) => {
+
+            cons.log()
+            cons.log(this.hr)
+            cons.log()
+
+            const b = new StringBuilder
+
+            const mstr = '[' + info.moves.join(', ') + ']'
+            if (info.isChosen) {
+                b.add(chalk.bold.green('#1 Winner'), '  ', chalk.bold(mstr))
+            } else {
+                b.add(chalk.yellow(i + 1), chalk.grey('/'), chalk.yellow(summary.length), '  ', mstr)
+            }
+            cons.log(b.toString())
+
+            cons.log()
+            cons.log('  ', chalk.bold('TotalScore'), chalk.bold.cyan(info.finalScore.toString()))
+            cons.log()
+
+            Object.entries(info.delegates).forEach(([name, scores]) => {
+                if (scores.raw + scores.weighted == 0) {
+                    return
+                }
+                const b = new StringBuilder
+                b.add(chalk.grey('weighted: '), chalk.cyan(scores.weighted.toString().padEnd(6, ' ')), ' | ')
+                b.add(chalk.grey('raw: '), chalk.yellow(scores.raw.toString().padEnd(6, ' ')))
+                cons.log('    ', name.padEnd(delegateWidth, ' ') + ' |', b.toString())
+            })
+            cons.log()
+            cons.log(''.padEnd(25, ' '), chalk.grey(info.endState))
+        })
+        cons.log()
     }
 
     async placeCommand() {
@@ -363,6 +430,7 @@ class LabHelper {
             'i' : 'board info'
           , 's' : 'set state of board'
           , 'd' : 'show moves for dice'
+          , 'D' : 'show robot info for dice'
           , 'f' : 'flip perspective'
           , 'p' : 'place piece'
           , 'u' : 'undo move'
@@ -388,7 +456,7 @@ class LabHelper {
         }
     }
 
-    moveDesc(move) {
+    moveDesc(move, isShort) {
 
         const b = new StringBuilder
 
@@ -407,7 +475,9 @@ class LabHelper {
         }
 
         b.add(destPoint)
-        b.add('[' + move.face + ']')
+        if (!isShort) {
+            b.add('[' + move.face + ']')
+        }
 
         return b.join(':')
     }
@@ -590,6 +660,19 @@ class LabHelper {
             this.logger.writeStdout(output)
         }
         return output
+    }
+
+    newRobot(...args) {
+        if (!this.opts.isCustomRobot) {
+            var robot = RobotDelegator.forDefaults(...args)
+        } else {
+            const configs = Object.entries(this.opts.robots).map(([name, config]) => {
+                return {name, ...config}
+            })
+            var robot = RobotDelegator.forConfigs(configs, ...args)
+        }
+        robot.isStoreLastResult = true
+        return robot
     }
 
     async generateStateString() {
