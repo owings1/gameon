@@ -33,13 +33,15 @@ const fse = require('fs-extra')
 const os = require('os')
 const path = require('path')
 
+const Menu = require('../term/menu')
+
 class LabCommand extends Command {
 
     async init() {
         const {flags} = this.parse(LabCommand)
         this.flags = flags
         this.logger = new Logger
-        const stateString = await this.getInitialState()//this.flags.board || BoardStrings.Initial
+        const stateString = await this.getInitialState()
         const board = Board.fromStateString(stateString)
         board.analyzer.validateLegalBoard()
         const persp = await this.getInitialPersp()
@@ -106,6 +108,7 @@ class LabCommand extends Command {
         }
         return BoardStrings.Initial
     }
+
     async fetchLastData() {
         if (!this._lastState) {
             const stateFile = this.getSaveStateFile()
@@ -135,9 +138,13 @@ class LabCommand extends Command {
     getSaveStateFile() {
         return path.resolve(os.homedir(), '.gameon/lab.json')
     }
+
+    getConfigDir() {
+        return Menu.DefaultConfigDir
+    }
 }
 
-LabCommand.description = `Run performance profiling`
+LabCommand.description = `Run lab`
 
 LabCommand.flags = {
     state: flags.string({

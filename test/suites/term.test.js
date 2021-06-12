@@ -10,6 +10,7 @@ const {
     MockPrompter,
     noop,
     tmpFile,
+    tmpDir,
     States
 } = TestUtil
 
@@ -96,23 +97,28 @@ describe('Menu', () => {
     var player
     var menu
 
+    var configDir
+    var settingsFile
     var authDir
     var server
 
     beforeEach(async () => {
-        authDir = tmp.dirSync().name
+        authDir = tmpDir()
+        configDir = tmpDir()
         server = new Server({
             authType: 'directory',
             authDir
         })
         server.logger.loglevel = 0
         server.auth.logger.loglevel = 0
-        menu = new Menu
+        settingsFile = configDir + '/settings.json'
+        menu = new Menu(configDir)
         menu.loglevel = 1
     })
 
     afterEach(async () => {
         await fse.remove(authDir)
+        await fse.remove(configDir)
     })
 
     describe('#mainMenu', () => {
@@ -652,28 +658,25 @@ describe('Menu', () => {
 
     describe('#getDefaultOpts', () => {
 
+
         it('should merge optsFile if specified', () => {
-            menu.optsFile = tmpFile()
-            fse.writeJsonSync(menu.optsFile, {total: 5})
+            fse.writeJsonSync(settingsFile, {total: 5})
             const result = menu.getDefaultOpts()
             expect(result.total).to.equal(5)
-            fse.removeSync(menu.optsFile)
         })
 
         it('should normalize opts file if not exists', () => {
-            menu.optsFile = tmpFile()
-            fse.removeSync(menu.optsFile)
+            
+            fse.removeSync(settingsFile)
             menu.getDefaultOpts()
-            JSON.parse(fs.readFileSync(menu.optsFile))
-            fse.removeSync(menu.optsFile)
+            const content = fs.readFileSync(settingsFile, 'utf-8')
+            JSON.parse(content)
         })
 
         it('should replace obsolete server url', () => {
-            menu.optsFile = tmpFile()
-            fse.writeJsonSync(menu.optsFile, {serverUrl: 'ws://bg.dougowings.net:8080'})
+            fse.writeJsonSync(settingsFile, {serverUrl: 'ws://bg.dougowings.net:8080'})
             const exp = menu.getDefaultServerUrl()
             const result = menu.getDefaultOpts()
-            fse.removeSync(menu.optsFile)
             expect(result.serverUrl).to.equal(exp)
         })
     })
@@ -811,10 +814,8 @@ describe('Menu', () => {
 
         it('should write default opts', async () => {
             const opts = menu.getDefaultOpts()
-            menu.optsFile = tmpFile()
             await menu.saveOpts()
-            const result = JSON.parse(fs.readFileSync(menu.optsFile))
-            await fse.remove(menu.optsFile)
+            const result = JSON.parse(fs.readFileSync(settingsFile))
             expect(JSON.stringify(result)).to.equal(JSON.stringify(opts))
         })
     })

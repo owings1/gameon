@@ -60,9 +60,9 @@ const ObsoleteServerUrls = [
 
 class Menu extends Logger {
 
-    constructor(optsFile) {
+    constructor(configDir) {
         super()
-        this.optsFile = optsFile
+        this.configDir = configDir
         this.opts = this.getDefaultOpts()
         const hash = crypto.createHash('md5')
         hash.update('main-menu')
@@ -424,7 +424,6 @@ class Menu extends Logger {
 
             await this.saveOpts()
         }
-
     }
 
     async robotConfigsMenu() {
@@ -1065,12 +1064,13 @@ class Menu extends Logger {
 
     getDefaultOpts() {
         var opts = {}
-        if (this.optsFile) {
-            fse.ensureDirSync(path.dirname(this.optsFile))
-            if (!fs.existsSync(this.optsFile)) {
-                fse.writeJsonSync(this.optsFile, {})
+        const settingsFile = this.getSettingsFile()
+        if (settingsFile) {
+            fse.ensureDirSync(path.dirname(settingsFile))
+            if (!fs.existsSync(settingsFile)) {
+                fse.writeJsonSync(settingsFile, {})
             }
-            merge(opts, JSON.parse(fs.readFileSync(this.optsFile)))
+            merge(opts, JSON.parse(fs.readFileSync(settingsFile)))
             if (ObsoleteServerUrls.indexOf(opts.serverUrl) > -1) {
                 opts.serverUrl = this.getDefaultServerUrl()
             }
@@ -1098,9 +1098,10 @@ class Menu extends Logger {
     }
 
     async saveOpts() {
-        if (this.optsFile) {
-            await fse.ensureDir(path.dirname(this.optsFile))
-            await fse.writeJson(this.optsFile, this.opts, {spaces: 2})
+        const settingsFile = this.getSettingsFile()
+        if (settingsFile) {
+            await fse.ensureDir(path.dirname(settingsFile))
+            await fse.writeJson(settingsFile, this.opts, {spaces: 2})
         }
     }
 
@@ -1184,8 +1185,16 @@ class Menu extends Logger {
         return password ? Util.decrypt1(password, this.chash) : ''
     }
 
+    getSettingsFile() {
+        if (this.configDir) {
+            return path.resolve(this.configDir, 'settings.json')
+        }
+    }
+
     getLabConfigFile() {
-        return path.resolve(os.homedir(), '.gameon/lab.json')
+        if (this.configDir) {
+            return path.resolve(this.configDir, 'lab.json')
+        }
     }
 
     async loadLabConfig() {
@@ -1203,11 +1212,14 @@ class Menu extends Logger {
 
     async saveLabConfig(helper) {
         const stateFile = this.getLabConfigFile()
-        const data = {
-            lastState : helper.board.state28()
-          , persp     : helper.persp
+        if (stateFile) {
+            const data = {
+                lastState : helper.board.state28()
+              , persp     : helper.persp
+            }
+            await fse.ensureDir(path.dirname(stateFile))
+            await fse.writeJson(stateFile, data, {spaces: 2})
         }
-        await fse.writeJson(stateFile, data, {spaces: 2})
     }
 
     static formatChoices(choices) {
@@ -1247,6 +1259,8 @@ class RequestError extends MenuError {
     }
 }
 class ResetKeyNotEnteredError extends MenuError {}
+
+Menu.DefaultConfigDir = path.resolve(os.homedir(), '.gameon')
 
 Menu.Errors = {
     MenuError
