@@ -23,20 +23,39 @@
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 const {Command, flags} = require('@oclif/command')
+
+const Logger = require('../lib/logger')
+const Menu = require('../term/menu')
+
+/*
 const {Board}  = require('../lib/core')
 const {Colors, BoardStrings} = require('../lib/constants')
 const {InvalidColorError} = require('../lib/errors')
-const Logger = require('../lib/logger')
 const Helper = require('../term/lab')
 const fs = require('fs')
 const fse = require('fs-extra')
 const os = require('os')
 const path = require('path')
-
-const Menu = require('../term/menu')
+*/
 
 class LabCommand extends Command {
 
+    async init() {
+        const {flags} = this.parse(LabCommand)
+        this.flags = flags
+        this.logger = new Logger
+        this.helper = new Menu(this.getConfigDir())
+    }
+
+    async run() {
+        await this.helper.runLab()
+    }
+
+    getConfigDir() {
+        return Menu.DefaultConfigDir
+    }
+
+    /*
     async init() {
         const {flags} = this.parse(LabCommand)
         this.flags = flags
@@ -138,15 +157,14 @@ class LabCommand extends Command {
     getSaveStateFile() {
         return path.resolve(os.homedir(), '.gameon/lab.json')
     }
+    */
 
-    getConfigDir() {
-        return Menu.DefaultConfigDir
-    }
 }
 
 LabCommand.description = `Run lab`
 
 LabCommand.flags = {
+    /*
     state: flags.string({
         char        : 's'
       , description : 'board state string'
@@ -159,6 +177,7 @@ LabCommand.flags = {
         char        : 'i'
       , description : 'interactive mode'
     })
+    */
 }
 
 module.exports = LabCommand
