@@ -301,6 +301,7 @@ class RobotDelegator extends Robot {
     constructor(...args) {
         super(...args)
         this.delegates = []
+        this.isStoreLastResult = false
     }
 
     addDelegate(robot, moveWeight, doubleWeight) {
@@ -344,6 +345,16 @@ class RobotDelegator extends Robot {
             }
             this.emit('turnData', turn, {startState: turn.startState, endState: selectedEndState, rankings, moves})
             Profiler.stop('RobotDelegator.getMoves.3')
+
+            if (this.isStoreLastResult) {
+                this.lastResult = {
+                    rankings
+                  , maxWeight
+                  , selectedEndState
+                  , results
+                  , turn
+                }
+            }
 
             return moves
 
@@ -428,6 +439,48 @@ class RobotDelegator extends Robot {
         }
     }
 
+    explainResult(result) {
+        const rankList = Object.keys(result.rankings).map(endState => {
+            const info = {
+                endState
+              , finalScore    : result.rankings[endState]
+              , moves         : result.turn.endStatesToSeries[endState]
+              , isChosen      : endState == result.selectedEndState
+              , delegates     : this.delegates.map((delegate, i) => {
+                    const rawScore = result.results[i][endState]
+                    return {
+                        name          : delegate.robot.name
+                      , weightedScore : rawScore * delegate.moveWeight
+                      , rawScore
+                    }
+                })
+            }
+            info.delegates.sort((a, b) => {
+                var cmp = b.weightedScore - a.weightedScore
+                if (cmp) {
+                    return cmp
+                }
+                cmp = b.rawScore - a.rawScore
+                if (cmp) {
+                    return cmp
+                }
+                return a.name.localeCompare(b.name)
+            })
+            return info
+        })
+        rankList.sort((a, b) => {
+            var cmp = b.finalScore - a.finalScore
+            if (cmp) {
+                return cmp
+            }
+            cmp = b.isChosen = a.isChosen
+            if (cmp) {
+                return cmp
+            }
+            return a.endState.localeCompare(b.endState)
+        })
+        return rankList
+    }
    /**
     * Get rankings from each delegate.
     *
