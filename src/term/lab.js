@@ -50,7 +50,8 @@ const {
 } = Core
 
 const {
-    BoardStrings
+    ArrowChars
+  , BoardStrings
   , BottomPoints
   , ColorAbbr
   , ColorNorm
@@ -77,7 +78,7 @@ class LabHelper {
         this.logger = new Logger
         this.inst = DrawInstance.forBoard(this.board, this.persp, this.logs, this.opts.theme)
         this.stateHistory = []
-        this.hr = this.nchars(44, TableChars.dash)
+        this.hr = this.nchars(39, TableChars.dash)
         this.fetchLastRecords = null
     }
 
@@ -321,6 +322,9 @@ class LabHelper {
             await robot.destroy()
         }
 
+        const {rankList, delegateList} = explain
+
+        var indent = 0
         var count = 0
         var hasDotDotDotted = false
 
@@ -329,7 +333,7 @@ class LabHelper {
             wb.sp(...args)
             wb.add('\n')
             if (count < 21) {
-                cons.log(' ', ...args)
+                cons.log(''.padEnd(indent - 1, ' '), ...args)
             }
             if (count == 21 && !hasDotDotDotted) {
                 hasDotDotDotted = true
@@ -339,9 +343,12 @@ class LabHelper {
             }
         }
 
-        explain.forEach((info, i) => {
+        var lastScore
+
+        rankList.forEach((info, i) => {
 
             count += 1
+            indent = 2
 
             log()
             log(this.hr)
@@ -353,42 +360,122 @@ class LabHelper {
 
             const b = new StringBuilder
 
+            var decreasePct = 0
             if (info.isChosen) {
                 b.add(chalk.bold.green('#1 Winner'), '  ', chalk.bold(mstr))
             } else {
-                b.add(chalk.yellow(i + 1), chalk.grey('/'), chalk.yellow(explain.length), '  ', mstr)
+                if (lastScore > 0) {
+                    decreasePct = Math.round(100 * (lastScore - info.finalScore) / lastScore)
+                }
+                b.add(chalk.yellow(i + 1), chalk.grey('/'), chalk.yellow(rankList.length))
+                b.add('  ', mstr)
             }
+            lastScore = info.finalScore
             log(b.toString())
-
             log()
-            log('  ', chalk.bold('TotalScore'), chalk.bold.cyan(info.finalScore.toFixed(4)))
-            log('    ', ''.padEnd(delegateWidth + 2, ' '), chalk.grey('weighted'), ' ', chalk.grey('raw'.padStart(6, ' ')))
+
+            indent += 2
+
+            const sb = new StringBuilder
+            sb.sp(chalk.bold('Score'), chalk.bold.cyan(info.finalScore.toFixed(4)))
+            if (decreasePct) {
+                sb.add(''.padEnd(3, ' '), chalk.red(ArrowChars.down + decreasePct + '%'))
+            }
+            log(sb.toString())
+
+            indent += 2
+
+            log(''.padEnd(delegateWidth + 3, ' '), chalk.grey('weighted'), chalk.grey('raw'.padStart(8, ' ')))
 
             info.delegates.forEach(it => {
+
                 if (it.rawScore + it.weightedScore == 0) {
                     return
                 }
-                const bd = new StringBuilder
-                bd.add('  ', chalk.cyan(it.weightedScore.toFixed(4).padEnd(6, ' ')), ' ' + chalk.grey(TableChars.pipe) + ' ')
-                bd.add(chalk.yellow(it.rawScore.toFixed(4).padEnd(6, ' ')))
 
-                log('    ', it.name.padEnd(delegateWidth, ' '), ' ', bd.toString())
+                const bd = new StringBuilder
+
+                bd.add(
+                    it.name.padEnd(delegateWidth + 6, ' ')
+                  , chalk.cyan(it.weightedScore.toFixed(4).padEnd(7, ' '))
+                  , chalk.grey(TableChars.pipe) + ' '
+                  , chalk.yellow(it.rawScore.toFixed(4).padEnd(6, ' '))
+                )
+
+                log(bd.toString())
             })
+
             log()
-            log(''.padEnd(10, ' '), chalk.grey(info.endState))
+
+            log(''.padEnd(6, ' '), chalk.grey(info.endState))
         })
 
         log()
 
+        
+
+        const delegateTables = delegateList.map(delegate => {
+            var hasRank = false
+            const table = {
+                name    : delegate.name
+              , columns : ['myRank', 'realRank', 'diff', 'myScore', 'moves']
+              , aligns  : ['padStart', 'padStart', 'padStart', 'padStart', 'padEnd']
+              , rows    : delegate.rankings.map(info => {
+                  if (info.myRank != null) {
+                      hasRank = true
+                  }
+                    const diff = info.myRank == null ? null : info.actualRank - info.myRank
+                     //console.log(info)
+                    return [
+                        info.myRank == null ? '' : info.myRank
+                      , info.actualRank
+                      , diff == null ? '' : diff
+                      , info.myScore.toFixed(4)
+                      , info.moves.map(move => ('[' + this.moveDesc(move, true) + ']').padEnd(7, ' ')).join(' ')
+                    ]
+                })
+            }
+            table.hasRank = hasRank
+            table.columnWidths = table.columns.map((column, i) => {
+                //console.log(column)
+                return Math.max(column.length, ...table.rows.map(row => row[i].toString().length))
+            })
+            table.width = Util.sumArray(table.columnWidths)
+            return table
+        })
+
+        count = 0
+
+        delegateTables.forEach(table => {
+            if (!table.hasRank) {
+                return
+            }
+            indent = 2
+            log(this.hr)
+            log(table.name)
+            log(
+                table.columns.map((column, i) => {
+                    return column[table.aligns[i]](table.columnWidths[i], ' ')
+                }).join(' ' + TableChars.pipe + ' ')
+                    
+            )
+            log(''.padEnd(table.width, TableChars.dash))
+            table.rows.forEach(row => {
+
+                log(row.map((cell, i) => cell.toString()[table.aligns[i]](table.columnWidths[i], ' ')).join(' ' + TableChars.pipe + ' '))
+            })
+            log()
+        })
         const turnMeta = turn.meta()
 
         this.fetchLastRecords = () => {
             return {
-                'explain.json'      : Buffer.from(JSON.stringify({explain}, null, 2))
-              , 'explain.ansii.txt' : Buffer.from(wb.toString())
-              , 'explain.txt'       : Buffer.from(Util.stripAnsi(wb.toString()))
-              , 'robot.json'        : Buffer.from(JSON.stringify({robot: robotMeta}, null, 2))
-              , 'turn.json'         : Buffer.from(JSON.stringify({turn: turnMeta}, null, 2))
+                'explain.json'    : JSON.stringify(explain, null, 2)
+              , 'explain.ans.txt' : wb.toString()
+              , 'explain.txt'     : Util.stripAnsi(wb.toString())
+              , 'results.json'    : JSON.stringify({results: result.results}, null, 2)
+              , 'robot.json'      : JSON.stringify({robot: robotMeta}, null, 2)
+              , 'turn.json'       : JSON.stringify({turn: turnMeta}, null, 2)
             }
         }
     }

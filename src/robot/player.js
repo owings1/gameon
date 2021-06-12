@@ -334,21 +334,21 @@ class RobotDelegator extends Robot {
             Profiler.stop('RobotDelegator.getMoves.1')
 
             Profiler.start('RobotDelegator.getMoves.2')
-            const {rankings, maxWeight, selectedEndState} = this._computeRankings(results)
+            const {totals, maxWeight, selectedEndState} = this._computeTotals(results)
             Profiler.stop('RobotDelegator.getMoves.2')
 
             Profiler.start('RobotDelegator.getMoves.3')
             const moves = turn.endStatesToSeries[selectedEndState]
             if (!moves) {
-                this.logger.error({maxWeight, rankings, selectedEndState, allowedEndStates: turn.allowedEndStates})
+                this.logger.error({maxWeight, totals, selectedEndState, allowedEndStates: turn.allowedEndStates})
                 throw new UndecidedMoveError('Cannot find moves among delegates')
             }
-            this.emit('turnData', turn, {startState: turn.startState, endState: selectedEndState, rankings, moves})
+            this.emit('turnData', turn, {startState: turn.startState, endState: selectedEndState, totals, moves})
             Profiler.stop('RobotDelegator.getMoves.3')
 
             if (this.isStoreLastResult) {
                 this.lastResult = {
-                    rankings
+                    totals
                   , maxWeight
                   , selectedEndState
                   , results
@@ -440,10 +440,11 @@ class RobotDelegator extends Robot {
     }
 
     explainResult(result) {
-        const rankList = Object.keys(result.rankings).map(endState => {
+
+        const rankList = Object.keys(result.totals).map(endState => {
             const info = {
                 endState
-              , finalScore    : result.rankings[endState]
+              , finalScore    : result.totals[endState]
               , moves         : result.turn.endStatesToSeries[endState]
               , isChosen      : endState == result.selectedEndState
               , delegates     : this.delegates.map((delegate, i) => {
@@ -468,6 +469,7 @@ class RobotDelegator extends Robot {
             })
             return info
         })
+
         rankList.sort((a, b) => {
             var cmp = b.finalScore - a.finalScore
             if (cmp) {
@@ -479,15 +481,87 @@ class RobotDelegator extends Robot {
             }
             return a.endState.localeCompare(b.endState)
         })
-        return rankList
+
+        // overall rankings
+        const rankedStates = rankList.map(info => info.endState)
+        const rankedStatesMap = {}
+        // unlikely for a tie, but should be considered
+        var rank = 1
+        rankedStates.forEach((endState, i) => {
+            if (i == 0) {
+                rankedStatesMap[endState] = rank
+                return
+            }
+            if (result.totals[endState] < result.totals[rankedStates[i - 1]]) {
+                rank += 1
+            }
+            rankedStatesMap[endState] = rank
+        })
+
+        // what did this delegate prefer wrt what was chosen
+        const delegateList = result.results.map((res, i) => {
+
+            const myRankedStates = Object.keys(res)
+            myRankedStates.sort((a, b) => res[b] - res[a])
+
+            // ties are much more likely
+            const myRankedStatesMap = {}
+            var rank = 1
+            myRankedStates.forEach((endState, i) => {
+                // score of zero ties for dead last
+                if (res[endState] == 0) {
+                    // but if it's also first, i gave no rankings, so null
+                    // is more appropriate
+                    if (i == 0 || rank == null) {
+                        rank = null
+                    } else {
+                        rank = myRankedStates.length
+                    }
+                    myRankedStatesMap[endState] = rank
+                    return
+                }
+                if (i == 0) {
+                    myRankedStatesMap[endState] = rank
+                    return
+                }
+                if (res[endState] < res[myRankedStates[i - 1]]) {
+                    rank += 1
+                }
+                myRankedStatesMap[endState] = rank
+            })
+
+            const delegate = this.delegates[i]
+            const info = {
+                name       : delegate.robot.name
+              , moveWeight : delegate.moveWeight
+              , rankings   : myRankedStates.map((endState, i) => {
+                    return {
+                        endState
+                      , moves       : result.turn.endStatesToSeries[endState]
+                        // just for reference
+                      , myScore     : res[endState]
+                      , actualScore : result.totals[endState]
+                        // what the delegator said
+                      , actualRank  : rankedStatesMap[endState]
+                        // what i said
+                      , myRank      : myRankedStatesMap[endState]
+                    }
+                })
+            }
+
+            return info
+        })
+
+        return {rankList, delegateList}
     }
+
    /**
-    * Get rankings from each delegate.
+    * Get scores from each delegate.
     *
-    * Returns a list of delegate rankings, in this.delegates order
+    * Returns a list of delegate scores, in this.delegates order
     *
     *   [
-    *       {endState: ranking}
+    *       {endState: scores}
     *   ]
     */
    async _getDelegatesResults(turn, game, match) {
@@ -497,14 +571,14 @@ class RobotDelegator extends Robot {
            var delegate = this.delegates[i]
            Profiler.start(delegate.rankTimerName)
            if (delegate.moveWeight == 0) {
-               var rankings = zeroRankings
+               var scores = zeroRankings
            } else {
-               var rankings = await delegate.robot.getRankings(turn, game, match)
-               if (rankings === ZERO_RANKINGS) {
-                   rankings = zeroRankings
+               var scores = await delegate.robot.getRankings(turn, game, match)
+               if (scores === ZERO_RANKINGS) {
+                   scores = zeroRankings
                }
            }
-           results.push(rankings)
+           results.push(scores)
            Profiler.stop(delegate.rankTimerName)
        }
        return results
@@ -515,12 +589,12 @@ class RobotDelegator extends Robot {
     *
     * Returns a result object:
     *
-    *    rankings: {endState: ranking}
+    *    totals: {endState: totalScore}
     *    maxWeight
     *    selectedEndState
     */
-   _computeRankings(results) {
-       const rankings = {}
+   _computeTotals(results) {
+       const totals = {}
        // Don't assume delegates will give good rankings >= 0. Instead log a warning,
        // but still allow selecting the moves with the max ranking.
        var maxWeight = -Infinity
@@ -529,21 +603,21 @@ class RobotDelegator extends Robot {
            var result = results[i]
            var delegate = this.delegates[i]
            for (var endState in result) {
-               if (!(endState in rankings)) {
-                   rankings[endState] = 0
+               if (!(endState in totals)) {
+                   totals[endState] = 0
                }
-               var instanceRank = result[endState]
-               if (instanceRank > 1 || instanceRank < 0) {
-                   this.logger.warn(delegate.robot.name, 'gave rank', instanceRank)
+               var instanceScore = result[endState]
+               if (instanceScore > 1 || instanceScore < 0) {
+                   this.logger.warn(delegate.robot.name, 'gave score', instanceScore)
                }
-               rankings[endState] += instanceRank * delegate.moveWeight
-               if (rankings[endState] > maxWeight) {
-                   maxWeight = rankings[endState]
+               totals[endState] += instanceScore * delegate.moveWeight
+               if (totals[endState] > maxWeight) {
+                   maxWeight = totals[endState]
                    selectedEndState = endState
                }
            }
        }
-       return {rankings, maxWeight, selectedEndState}
+       return {totals, maxWeight, selectedEndState}
    }
 }
 

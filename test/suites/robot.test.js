@@ -556,7 +556,7 @@ describe('RobotDelegator', () => {
             expect(err.name).to.equal('HasNotRolledError')
         })
 
-        it('should warn when delegate sets a ranking less than 0', async () => {
+        it('should warn when delegate sets a score less than 0', async () => {
             var msg = ''
             robot.logger.warn = (...args) => msg += args.join(' ')
             rando.getRankings = turn => {
@@ -571,7 +571,7 @@ describe('RobotDelegator', () => {
             const turn = game.nextTurn()
             turn.roll()
             const result = await robot.getMoves(turn, game)
-            expect(msg).to.equal('RandomRobot gave rank -1')
+            expect(msg).to.equal('RandomRobot gave score -1')
             expect(msg).to.have.length.greaterThan(0)
         })
 

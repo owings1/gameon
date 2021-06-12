@@ -150,6 +150,13 @@ const TableChars = {
   , dblPipe      : '\u2503\u2503'
 }
 
+//https://unicode-table.com/en/sets/arrow-symbols/#down-arrows
+const ArrowChars = {
+    left  : '\u2190'
+  , up    : '\u2191'
+  , right : '\u2192'
+  , down  : '\u2193'
+}
 
 const Draw = {
     Chars : {
@@ -181,7 +188,8 @@ const Draw = {
 }
 
 const Constants = {
-    BoardStrings
+    ArrowChars
+  , BoardStrings
   , BottomPoints
   , ColorAbbr
   , ColorNorm
