@@ -30,7 +30,6 @@ const Util      = require('../lib/util')
 
 const {Profiler} = Core
 const {HasNotRolledError} = Errors
-const {merge} = Util
 
 const ZERO_RANKINGS = 'ZERO_RANKINGS'
 
@@ -78,7 +77,7 @@ class Robot extends Base {
     }
 
     meta() {
-        return merge(super.meta(), {isRobot: this.isRobot})
+        return {...super.meta(), isRobot: this.isRobot}
     }
 }
 
@@ -411,11 +410,12 @@ class RobotDelegator extends Robot {
     }
 
     meta() {
-        return merge(super.meta(), {
-            delegates : this.delegates.map(({robot, moveWeight, doubleWeight}) =>
-                merge({moveWeight, doubleWeight}, robot.meta())
-            )
-        })
+        return {
+            ...super.meta()
+          , delegates : this.delegates.map(({robot, moveWeight, doubleWeight}) => {
+                return {moveWeight, doubleWeight, ...robot.meta()}
+            })
+        }
     }
 
     validateWeight(...args) {
