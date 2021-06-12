@@ -89,8 +89,8 @@ class DrawInstance {
                 throw err
             }
             this.logger.error(err.name, err.message)
-            this.logger.warn('Using Default theme')
-            this.theme = ThemeHelper.getInstance('Default')
+            this.logger.warn('Using default theme')
+            this.theme = ThemeHelper.getDefaultInstance()
         }
         
         this.reporter = new Reporter(this)

@@ -94,9 +94,10 @@ class InvalidColorError     extends ArgumentError {}
 class InvalidDirError       extends ArgumentError {}
 class MaxDepthExceededError extends ArgumentError {}
 
-class ThemeExistsError      extends ThemeError {}
-class ThemeNotFoundError    extends ThemeError {}
-class ThemeConfigError      extends ThemeError {}
+class ThemeExistsError   extends ThemeError {}
+class ThemeNotFoundError extends ThemeError {}
+class ThemeConfigError   extends ThemeError {}
+class StyleError         extends ThemeError {}
 
 class AlreadyRolledError        extends IllegalStateError {}
 class DoubleNotAllowedError     extends IllegalStateError {}
@@ -157,6 +158,7 @@ module.exports = {
   , PieceOnBarError
   , RequestError
   , ResetKeyNotEnteredError
+  , StyleError
   , ThemeConfigError
   , ThemeError
   , ThemeExistsError

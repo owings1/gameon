@@ -1562,13 +1562,14 @@ describe('Robot', () => {
     })
 })
 
-describe('Theme', () => {
+describe('ThemeHelper', () => {
 
     beforeEach(() => {
         ThemeHelper.clearCustom()
     })
 
     describe('extends', () => {
+
         it('child should inherit from parent', () => {
             const parentConfig = {
                 styles: {
@@ -1586,6 +1587,7 @@ describe('Theme', () => {
             const styles = ThemeHelper.getStyles('MyChild')
             expect(styles['text.background']).to.equal('blue')
         })
+
         it('child should overwrite parent', () => {
             const parentConfig = {
                 styles: {
@@ -1688,6 +1690,109 @@ describe('Theme', () => {
             }
             const err = getError(() => ThemeHelper.register('Foo', {extends: ['Anc' + i]}))
             expect(err.name).to.equal('MaxDepthExceededError')
+        })
+    })
+
+    describe('#getConfig', () => {
+        it('should throw ThemeNotFoundError for non-existent', () => {
+            const err = getError(() => ThemeHelper.getConfig('NoExist'))
+            expect(err.name).to.equal('ThemeNotFoundError')
+        })
+    })
+
+    describe('#getDefaultInstance', () => {
+        it('should return default instance', () => {
+            const theme = ThemeHelper.getDefaultInstance()
+            expect(theme.constructor.name).to.equal('Theme')
+        })
+    })
+
+    describe('#getInstance', () => {
+        it('should return default instance', () => {
+            const theme = ThemeHelper.getInstance('Default')
+            expect(theme.constructor.name).to.equal('Theme')
+        })
+    })
+
+    describe('#list', () => {
+        it('should return custom theme and Default', () => {
+            ThemeHelper.register('MyCustom', {})
+            const result = ThemeHelper.list()
+            expect(result).to.contain('Default')
+            expect(result).to.contain('MyCustom')
+        })
+    })
+
+    describe('#listCustom', () => {
+        it('should return custom theme only', () => {
+            ThemeHelper.register('MyCustom', {})
+            const result = ThemeHelper.listCustom()
+            expect(result).to.contain('MyCustom')
+            expect(result).to.have.length(1)
+        })
+    })
+
+    describe('#register', () => {
+
+        it('should throw ThemeExistsError for built in', () => {
+            const err = getError(() => ThemeHelper.register('Default', {}))
+            expect(err.name).to.equal('ThemeExistsError')
+        })
+    })
+
+    describe('#update', () => {
+
+        it('should update existing theme', () => {
+            const config1 = {styles: {'text.color': 'red'}}
+            ThemeHelper.register('Test1', config1)
+            const config2 = {styles: {'text.color': 'blue'}}
+            ThemeHelper.update('Test1', config2)
+            const result = ThemeHelper.getConfig('Test1')
+            expect(result.styles['text.color']).to.equal('blue')
+        })
+
+        it('should throw ThemeExistsError for built in', () => {
+            const err = getError(() => ThemeHelper.update('Default', {}))
+            expect(err.name).to.equal('ThemeExistsError')
+        })
+    })
+
+    describe('#validateConfig', () => {
+
+        it('should pass for valid hex value for color', () => {
+            const config = {
+                styles: {'text.color': '#ffffff'}
+            }
+            ThemeHelper.validateConfig(config)
+        })
+
+        it('should pass for valid hex value for background', () => {
+            const config = {
+                styles: {'text.background': '#ffffff'}
+            }
+            ThemeHelper.validateConfig(config)
+        })
+
+        it('should pass for valid built in for background', () => {
+            const config = {
+                styles: {'text.background': 'red bright'}
+            }
+            ThemeHelper.validateConfig(config)
+        })
+
+        it('should pass for valid keyword for background', () => {
+            const config = {
+                styles: {'text.background': 'orange'}
+            }
+            ThemeHelper.validateConfig(config)
+        })
+
+        it('should throw ThemeError for text.color = ###', () => {
+            const config = {
+                styles: {'text.color': '###'}
+            }
+            const err = getError(() => ThemeHelper.validateConfig(config))
+            expect(err.isThemeError).to.equal(true)
         })
     })
 })
