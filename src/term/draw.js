@@ -61,8 +61,6 @@ const {
 
 const {Chars} = Constants.Draw
 
-
-
 class DrawInstance {
 
     static forBoard(board, persp, logs, themeName) {
@@ -74,7 +72,9 @@ class DrawInstance {
     }
 
     constructor(board, game, match, persp, logs, themeName) {
+
         themeName = themeName || 'Default'
+
         this.board = board
         this.game  = game
         this.match = match
@@ -90,6 +90,47 @@ class DrawInstance {
         this.PiecePad = 4
 
         this.buildBorders()
+    }
+
+    reload() {
+
+        const {analyzer} = this.board
+        this.opersp = Opponent[this.persp]
+
+        this.columns     = Math.max(this.logger.getStdout().columns, 0)
+        this.maxLogWidth = Math.max(0, this.columns - this.BoardWidth - this.AfterWidth - 1)
+        this.maxLogWidth = Math.min(this.maxLogWidth, 36)
+
+        this.pipCounts = analyzer.pipCounts()
+
+        this.pointStats  = {}
+        this.barCounts   = {}
+        this.homeCounts  = {}
+        this.matchScores = {}
+
+        for (var point = 1; point < 25; ++point) {
+            this.pointStats[point] = analyzer.statPoint(this.persp, point)
+        }
+
+        for (var color in Colors) {
+            this.barCounts[color]  = analyzer.piecesOnBar(color)
+            this.homeCounts[color] = analyzer.piecesHome(color)
+            if (this.match) {
+                this.matchScores[color] = this.match.scores[color]
+            }
+        }
+
+        if (this.match) {
+            this.matchTotal = this.match.total
+        }
+
+        if (this.game) {
+            this.cubeOwner  = this.game.cubeOwner
+            this.cubeValue  = this.game.cubeValue
+            this.isCrawford = this.game.opts.isCrawford
+        }
+
+        this.logIndex = 20
     }
 
     getString() {
@@ -145,47 +186,6 @@ class DrawInstance {
         b.add(Chars.br)
 
         return b.toString()
-    }
-
-    reload() {
-
-        const {analyzer} = this.board
-        this.opersp = Opponent[this.persp]
-
-        this.columns     = Math.max(this.logger.getStdout().columns, 0)
-        this.maxLogWidth = Math.max(0, this.columns - this.BoardWidth - this.AfterWidth - 1)
-        this.maxLogWidth = Math.min(this.maxLogWidth, 36)
-
-        this.pipCounts = analyzer.pipCounts()
-
-        this.pointStats  = {}
-        this.barCounts   = {}
-        this.homeCounts  = {}
-        this.matchScores = {}
-
-        for (var point = 1; point < 25; ++point) {
-            this.pointStats[point] = analyzer.statPoint(this.persp, point)
-        }
-
-        for (var color in Colors) {
-            this.barCounts[color]  = analyzer.piecesOnBar(color)
-            this.homeCounts[color] = analyzer.piecesHome(color)
-            if (this.match) {
-                this.matchScores[color] = this.match.scores[color]
-            }
-        }
-
-        if (this.match) {
-            this.matchTotal = this.match.total
-        }
-
-        if (this.game) {
-            this.cubeOwner  = this.game.cubeOwner
-            this.cubeValue  = this.game.cubeValue
-            this.isCrawford = this.game.opts.isCrawford
-        }
-
-        this.logIndex = 20
     }
 
     numbersRow(points) {
