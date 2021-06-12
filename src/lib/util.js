@@ -462,8 +462,95 @@ class StringBuilder {
     }
 }
 
+class DependencyHelper {
+
+    constructor(roots) {
+        this.resolved = {}
+        this.unresolved = {}
+        this.added = {}
+        this.order = []
+        if (roots) {
+            roots.forEach(name => this.resolved[name] = true)
+        }
     }
 
+    add(name, dependencies) {
+
+        if (this.added[name]) {
+            throw new DependencyError('Duplicate name: ' + name)
+        }
+        this.added[name] = true
+
+        this.unresolved[name] = {}
+
+        if (dependencies) {
+            dependencies.forEach(dependency => {
+                if (!this.resolved[dependency]) {
+                    if (this.unresolved[dependency] && this.unresolved[dependency][name]) {
+                        throw new CircularDependencyError('Circular dependecy: ' + name + ' <-> ' + dependency)
+                    }
+                    this.unresolved[name][dependency] = true
+                }
+            })
+        }
+
+        if (!Object.keys(this.unresolved[name]).length) {
+            if (!this.resolved[name]) {
+                this.resolved[name] = true
+                this.order.push(name)
+            }
+            delete this.unresolved[name]
+        }
+    }
+
+    resolve() {
+
+        const missing = {}
+
+        for (var name in this.unresolved) {
+            for (var dependency in this.unresolved[name]) {
+                if (!this.added[dependency]) {
+                    missing[dependency] = true
+                }
+            }
+        }
+        if (Object.keys(missing).length) {
+            throw new MissingDependencyError('Missing dependencies ' + Object.keys(missing).join(', '))
+        }
+
+        do {
+            var count = this.resolveLoop()
+        } while (count > 0)
+
+        const unresolvedNames = Object.keys(this.unresolved)
+        if (unresolvedNames.length) {
+            throw new UnresolvedDependencyError('Unmet dependecies for: ' + unresolvedNames.join(', '))
+        }
+
+        return this.order
+    }
+
+    resolveLoop() {
+
+        var count = 0
+
+        Object.keys(this.unresolved).forEach(name => {
+
+            Object.keys(this.unresolved[name]).forEach(dependency => {
+                if (this.resolved[dependency]) {
+                    count += 1
+                    delete this.unresolved[name][dependency]
+                }
+            })
+
+            if (!Object.keys(this.unresolved[name]).length) {
+                this.resolved[name] = true
+                this.order.push(name)
+                delete this.unresolved[name]
+            }
+        })
+
+        return count
     }
 }
 
@@ -479,5 +566,6 @@ Util.Counter = Counter
 Util.Timer = Timer
 Util.Profiler = Profiler
 Util.StringBuilder = StringBuilder
+Util.DependencyHelper = DependencyHelper
 
 module.exports = Util

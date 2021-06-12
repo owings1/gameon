@@ -7,7 +7,7 @@ const {
 } = TestUtil
 
 const Util = requireSrc('lib/util')
-const {Profiler, Counter, Timer} = Util
+const {Profiler, Counter, Timer, DependencyHelper} = Util
 
 describe('Util', () => {
     describe('#arrayIncrement', () => {
@@ -488,5 +488,81 @@ describe('Timer', () => {
     it('should throw IllegalStateError on stop unstarted', () => {
         const err = getError(() => timer.stop())
         expect(err.name).to.equal('IllegalStateError')
+    })
+})
+
+describe('DependencyHelper', () => {
+
+    it('should throw MissingDependencyError', () => {
+
+        const roots = ['Default']
+        // missing c, d
+        const configs = {
+            a: ['c']
+          , b: ['c', 'd', 'e']
+          , e: ['Default']
+          , f: ['Default', 'b', 'c']
+        }
+        const helper = new DependencyHelper(roots)
+        for (var name in configs) {
+            helper.add(name, configs[name])
+        }
+        const err = getError(() => helper.resolve())
+        expect(err.name).to.equal('MissingDependencyError')
+
+    })
+
+    it('should resolve basic case', () => {
+
+        const roots = ['Default']
+        const configs = {
+            a: ['c']
+          , b: ['c', 'd', 'e']
+          , e: ['Default']
+          , f: ['Default', 'b', 'c']
+          , d: ['c']
+          , c: []
+        }
+        const helper = new DependencyHelper(roots)
+        for (var name in configs) {
+            helper.add(name, configs[name])
+        }
+        // load order should be 
+        const exp = ['e', 'c', 'a', 'd', 'b', 'f']
+        const result = helper.resolve()
+
+        expect(JSON.stringify(result)).to.equal(JSON.stringify(exp))
+    })
+
+    it('should throw CircularDependencyError for tight circle', () => {
+
+        const helper = new DependencyHelper
+        helper.add('a', ['b'])
+        const err = getError(() => helper.add('b', ['a']))
+
+        expect(err.name).to.equal('CircularDependencyError')
+    })
+
+    it('should throw UnresolvedDependencyError for bigger circle', () => {
+        const helper = new DependencyHelper
+        const configs = {
+            a: ['b']
+          , b: ['c']
+          , c: ['d']
+          , d: ['a']
+        }
+        for (var name in configs) {
+            helper.add(name, configs[name])
+        }
+        const err = getError(() => helper.resolve())
+
+        expect(err.name).to.equal('UnresolvedDependencyError')
+    })
+
+    it('should throw DependencyError for duplicate name', () => {
+        const helper = new DependencyHelper
+        helper.add('a', ['b'])
+        const err = getError(() => helper.add('a', ['c']))
+        expect(err.isDependencyError).to.equal(true)
     })
 })
