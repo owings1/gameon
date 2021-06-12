@@ -90,14 +90,19 @@ class Menu extends Logger {
                 break
             }
 
+            var isContinue = true
             if (mainChoice == 'play') {
-                await this.playMenu()
+                isContinue = await this.playMenu()
             } else if (mainChoice == 'account') {
-                await this.accountMenu()
+                isContinue = await this.accountMenu()
             } else if (mainChoice == 'settings') {
-                await this.settingsMenu()
+                isContinue = await this.settingsMenu()
             } else if (mainChoice == 'lab') {
-                await this.runLab()
+                isContinue = await this.runLab()
+            }
+
+            if (!isContinue) {
+                break
             }
         }
     }
@@ -106,6 +111,7 @@ class Menu extends Logger {
 
         while (true) {
 
+            var isContinue = true
             var playChoices = this.getPlayChoices()
 
             var answers = await this.prompt({
@@ -118,15 +124,23 @@ class Menu extends Logger {
 
             var {playChoice} = answers
 
+            if (playChoice == 'back') {
+                break
+            }
+
             if (playChoice == 'quit') {
+                isContinue = false
                 break
             }
 
             try {
                 if (playChoice == 'joinOnline') {
-                    await this.joinMenu()
+                    isContinue = await this.joinMenu()
                 } else {
-                    await this.matchMenu(playChoice == 'newOnline', playChoice == 'playRobot', playChoice == 'watchRobots')
+                    isContinue = await this.matchMenu(playChoice == 'newOnline', playChoice == 'playRobot', playChoice == 'watchRobots')
+                }
+                if (!isContinue) {
+                    break
                 }
             } catch (err) {
                 this.debug(err)
@@ -140,6 +154,8 @@ class Menu extends Logger {
                 }
             }
         }
+
+        return isContinue
     }
 
     async matchMenu(isOnline, isRobot, isRobots) {
@@ -161,6 +177,8 @@ class Menu extends Logger {
 
         while (true) {
 
+            var isContinue = false
+
             var matchChoices = this.getMatchChoices(opts, isOnline)
 
             var answers = await this.prompt({
@@ -173,7 +191,12 @@ class Menu extends Logger {
 
             var {matchChoice} = answers
 
+            if (matchChoice == 'back') {
+                break
+            }
+
             if (matchChoice == 'quit') {
+                isContinue = false
                 break
             }
 
@@ -204,6 +227,8 @@ class Menu extends Logger {
 
             await this.saveOpts()
         }
+
+        return isContinue
     }
 
     async getMatchAdvancedOpts(advancedOpts) {
@@ -234,7 +259,6 @@ class Menu extends Logger {
                 break
             }
 
-            
             var shouldLogin = false
 
             var isLoginChoice = ['createAccount', 'forgotPassword', 'changePassword'].indexOf(accountChoice) > -1
@@ -295,6 +319,8 @@ class Menu extends Logger {
 
             await this.saveOpts()
         }
+
+        return true
     }
 
     async promptCreateAccount() {
@@ -425,6 +451,8 @@ class Menu extends Logger {
 
             await this.saveOpts()
         }
+
+        return true
     }
 
     async robotConfigsMenu() {
@@ -504,10 +532,11 @@ class Menu extends Logger {
         const questions = this.getJoinQuestions(opts)
         const answers = await this.prompt(questions)
         if (!answers.matchId) {
-            return
+            return true
         }
         opts.matchId = answers.matchId
         await this.joinOnlineMatch(opts)
+        return true
     }
 
     async playLocalMatch(opts, advancedOpts) {
@@ -594,6 +623,7 @@ class Menu extends Logger {
         const helper = new LabHelper({board, persp, theme})
         await helper.interactive()
         await this.saveLabConfig(helper)
+        return true
     }
 
     getMatchOpts(opts, advancedOpts = {}) {
@@ -684,8 +714,12 @@ class Menu extends Logger {
               , name  : 'Robot vs Robot'
             }
           , {
-                value : 'quit'
+                value : 'back'
               , name  : 'Back'
+            }
+          , {
+                value : 'quit'
+              , name  : 'Quit'
             }
         ])
     }
@@ -700,8 +734,12 @@ class Menu extends Logger {
             })
         }
         choices.push({
-            value : 'quit'
+            value : 'back'
           , name  : 'Back'
+        })
+        choices.push({
+            value : 'quit'
+          , name  : 'Quit'
         })
         return Menu.formatChoices(choices)
     }
