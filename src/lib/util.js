@@ -24,6 +24,7 @@
  */
 const crypto    = require('crypto')
 const emailval  = require('email-validator')
+const Errors    = require('./errors')
 const merge     = require('merge')
 const path      = require('path')
 const stripAnsi = require('strip-ansi')
@@ -461,19 +462,18 @@ class StringBuilder {
     }
 }
 
-class UtilError extends Error {
-    constructor(...args) {
-        super(...args)
-        this.name = this.constructor.name
+    }
+
     }
 }
 
-class IllegalStateError extends UtilError {
-    constructor(...args) {
-        super(...args)
-        this.isIllegalStateError = true
-    }
-}
+const {
+    CircularDependencyError
+  , DependencyError
+  , IllegalStateError
+  , MissingDependencyError
+  , UnresolvedDependencyError
+} = Errors
 
 Util.Counter = Counter
 Util.Timer = Timer

@@ -24,6 +24,7 @@
  */
 const Constants  = require('../lib/constants')
 const Core       = require('../lib/core')
+const Errors     = require('../lib/errors')
 const Logger     = require('../lib/logger')
 const Util       = require('../lib/util')
 
@@ -1239,32 +1240,12 @@ class Menu extends Logger {
     }
 }
 
-class MenuError extends Error {
-    constructor(...args) {
-        super(...args)
-        this.name = this.constructor.name
-    }
-}
-
-class RequestError extends MenuError {
-    static forResponse(res, body, ...args) {
-        const err = new RequestError(...args)
-        err.res = res
-        err.status = res.status
-        err.body = body
-        if (body && body.error) {
-            err.cause = body.error
-        }
-        return err
-    }
-}
-class ResetKeyNotEnteredError extends MenuError {}
-
 Menu.DefaultConfigDir = path.resolve(os.homedir(), '.gameon')
 
-Menu.Errors = {
+const {
     MenuError
   , RequestError
   , ResetKeyNotEnteredError
-}
+} = Errors
+
 module.exports = Menu

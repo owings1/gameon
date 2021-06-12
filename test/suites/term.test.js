@@ -16,15 +16,20 @@ const {
 
 const fs  = require('fs')
 const fse = require('fs-extra')
+const path = require('path')
 const tmp = require('tmp')
+
+const {resolve} = path
 
 const Menu           = requireSrc('term/menu')
 const {DrawInstance} = requireSrc('term/draw')
 const TermPlayer     = requireSrc('term/player')
+const ThemeHelper    = requireSrc('term/themes')
 
 const Constants   = requireSrc('lib/constants')
 const Core        = requireSrc('lib/core')
 const Coordinator = requireSrc('lib/coordinator')
+const Errors      = requireSrc('lib/errors')
 const Robot       = requireSrc('robot/player')
 const Client      = requireSrc('net/client')
 const Server      = requireSrc('net/server')
@@ -33,6 +38,8 @@ const {White, Red} = Constants
 const {Match, Game, Board, Turn, Dice} = Core
 
 const {RandomRobot} = Robot
+
+const {RequestError} = Errors
 
 function newRando(...args) {
     return Robot.ConfidenceRobot.getDefaultInstance('RandomRobot', ...args)
@@ -838,13 +845,13 @@ describe('Menu', () => {
             it('should set case to error in body', () => {
                 const res = {status: 500}
                 const body = {error: {name: 'TestError', message: 'test error message'}}
-                const err = Menu.Errors.RequestError.forResponse(res, body)
+                const err = RequestError.forResponse(res, body)
                 expect(err.cause.name).to.equal('TestError')
             })
 
             it('should construct without body', () => {
                 const res = {status: 500}
-                const err = Menu.Errors.RequestError.forResponse(res)
+                const err = RequestError.forResponse(res)
             })
         })
         
@@ -1045,6 +1052,7 @@ describe('Reporter', () => {
         })
     })
 })
+
 describe('TermPlayer', () => {
 
     var player

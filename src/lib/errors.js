@@ -34,6 +34,13 @@ class GameError extends Error {
     }
 }
 
+class DependencyError extends Error {
+    constructor(...args) {
+        super(...args)
+        this.name = this.constructor.name
+        this.isDependencyError = true
+    }
+}
 
 class IllegalStateError extends GameError {
     constructor(...args) {
@@ -57,6 +64,26 @@ class ThemeError extends GameError {
         this.isThemeError = true
     }
 }
+
+class RequestError extends GameError {
+    static forResponse(res, body, ...args) {
+        const err = new RequestError(...args)
+        err.res = res
+        err.status = res.status
+        err.body = body
+        if (body && body.error) {
+            err.cause = body.error
+        }
+        return err
+    }
+}
+
+class MenuError               extends GameError {}
+class ResetKeyNotEnteredError extends MenuError {}
+
+class CircularDependencyError   extends DependencyError {}
+class MissingDependencyError    extends DependencyError {}
+class UnresolvedDependencyError extends DependencyError {}
 
 class ArgumentError       extends GameError {}
 class InvalidRollError    extends GameError {}
@@ -97,6 +124,8 @@ class PieceOnBarError        extends IllegalMoveError {}
 module.exports = {
     AlreadyRolledError
   , ArgumentError
+  , CircularDependencyError
+  , DependencyError
   , DoubleNotAllowedError
   , GameAlreadyStartedError
   , GameError
@@ -115,6 +144,8 @@ module.exports = {
   , MatchFinishedError
   , MaxDepthExceededError
   , MayNotBearoffError
+  , MenuError
+  , MissingDependencyError
   , MoveOutOfRangeError
   , MovesRemainingError
   , NoMovesMadeError
@@ -124,9 +155,13 @@ module.exports = {
   , NotImplementedError
   , OccupiedSlotError
   , PieceOnBarError
+  , RequestError
+  , ResetKeyNotEnteredError
   , ThemeConfigError
+  , ThemeError
   , ThemeExistsError
   , ThemeNotFoundError
   , TurnAlreadyFinishedError
   , TurnNotFinishedError
+  , UnresolvedDependencyError
 }
