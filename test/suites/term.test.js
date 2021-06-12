@@ -117,6 +117,7 @@ describe('Lab', () => {
     })
 
     describe('#interactive', () => {
+
         it('should quit with q', async () => {
             lab.prompt = MockPrompter({input: 'q'})
             await lab.interactive()
@@ -942,19 +943,19 @@ describe('Menu', () => {
         })
     })
 
-    describe('#getDefaultOpts', () => {
+    describe('#loadSettings', () => {
 
 
-        it('should merge optsFile if specified', () => {
+        it('should merge settingsFile if specified', async () => {
             fse.writeJsonSync(settingsFile, {total: 5})
-            const result = menu.getDefaultOpts()
+            await menu.loadSettings()
+            const result = menu.opts
             expect(result.total).to.equal(5)
         })
 
-        it('should normalize opts file if not exists', () => {
-            
+        it('should normalize opts file if not exists', async () => {
             fse.removeSync(settingsFile)
-            menu.getDefaultOpts()
+            await menu.loadSettings()
             const content = fs.readFileSync(settingsFile, 'utf-8')
             JSON.parse(content)
         })
