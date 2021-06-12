@@ -67,7 +67,7 @@ class LabHelper {
     constructor(opts = {}) {
 
         this.board  = opts.board
-        this.persp  = opts.persp
+        this.persp  = opts.persp || White
         this.opts   = opts
         this.logs   = []
         this.logger = new Logger
