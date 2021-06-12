@@ -22,14 +22,15 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-const chalk = require('chalk')
-const Util = require('../lib/util')
+const chalk  = require('chalk')
+const Util   = require('../lib/util')
 const Errors = require('../lib/errors')
 
 const {ucfirst} = Util
 
 const {
-    ThemeExistsError
+    MaxDepthExceededError
+  , ThemeExistsError
   , ThemeConfigError
   , ThemeNotFoundError
 } = Errors
@@ -59,30 +60,13 @@ const BuiltInThemes = {
           , 'board.piece.white.color'     : '#0080ff bold'
         }
     }
-    /*
-  , WayOffbeat : {
-        styles : {
-            'text.background'             : 'cyan'
-          , 'text.color'                  : 'blue'
-          , 'board.background'            : 'green'
-          , 'board.piece.white.color'     : '#0080ff bold'
-          , 'board.piece.red.color'       : 'orange bold'
-          , 'board.border.background'     : 'magenta'
-          , 'board.border.color'          : 'black'
-          , 'board.pointLabel.background' : 'red'
-          , 'board.pointLabel.color'      : 'white'
-          , 'text.piece.red.color'        : '#ff0088'
-          , 'text.dice.color'             : 'purple'
-          , 'cube.active.color'           : 'green'
-          , 'cube.inactive.color'         : 'grey'
-        }
-    }
-    */
 }
 
 const CustomThemes = {}
 
 const Themes = {...BuiltInThemes}
+
+const MaxExtendsDepth = 10
 
 class ThemeHelper {
 
@@ -113,11 +97,17 @@ class ThemeHelper {
     }
 
     static clearCustom() {
-        for (var name in CustomThemes) {
+        Object.keys(CustomThemes).forEach(name => {
             delete CustomThemes[name]
             delete Themes[name]
-        }
+        })
     }
+
+    static getInstance(name) {
+        const styles = this.getStyles(name)
+        return Theme.forStyles(styles)
+    }
+
     static getConfig(name) {
         if (!Themes[name]) {
             throw new ThemeNotFoundError('Theme not found: ' + name)
@@ -125,100 +115,138 @@ class ThemeHelper {
         return Themes[name]
     }
 
-    static getInstance(name) {
-        const styles = this.getStyles(name)
-        return new this(styles)
+    static getStyles(name) {
+        const config = this.getConfig(name)
+        return this.stylesForConfig(config)
     }
 
     static validateConfig(config) {
-        const styles = this.getStylesFromConfig(config)
-        new this(styles)
+        const styles = this.stylesForConfig(config)
+        Theme.forStyles(styles)
     }
 
-    static getStyles(name) {
-        const config = this.getConfig((name))
-        return this.getStylesFromConfig(config)
-    }
-
-    static getStylesFromConfig(config) {
-        var styles = {}
-        if (config.extends) {
-            config.extends.forEach(parentName => {
-                const parent = this.getConfig(parentName)
-                styles = {...styles, ...parent.styles}
-            })
-        }
-        styles = {...styles, ...config.styles}
+    static stylesForConfig(config) {
+        const styles = {...config.styles}
+        this._extendStyles(styles, config.extends)
         return styles
     }
 
-    static styleKeys() {
-        return [
-            'text.background'
-          , 'text.color'
-
-          , 'board.background'
-
-          , 'board.border.background'
-          , 'board.border.color'
-
-          , 'board.piece.white.background'
-          , 'board.piece.white.color'
-
-          , 'board.piece.red.background'
-          , 'board.piece.red.color'
-
-          , 'board.pointLabel.background'
-          , 'board.pointLabel.color'
-
-          , 'cube.active.background'
-          , 'cube.active.color'
-
-          , 'cube.inactive.background'
-          , 'cube.inactive.color'
-
-          , 'text.piece.red.color'
-          , 'text.piece.white.color'
-          , 'text.pipCount.color'
-          , 'text.dim.color'
-          , 'text.notice.color'
-          , 'text.gameStatus.color'
-          , 'text.dice.color'
-        ]
-    }
-
-    static defaultAliases() {
-        return {
-            'board.background'       : 'text.background'
-          , 'text.piece.red.color'   : 'board.piece.red.color'
-          , 'text.piece.white.color' : 'board.piece.white.color'
+    static _extendStyles(styles, parents, depth = 0) {
+        if (!parents) {
+            return
         }
-    }
-
-    constructor(styles) {
-        this.loadStyles(styles)
-    }
-
-    loadStyles(styles) {
-
-        styles = {
-            'text.color'              : 'white'
-          , 'text.background'         : 'black'
-          , ...styles
+        if (depth > MaxExtendsDepth) {
+            throw new MaxDepthExceededError('Too much theme inheritance')
         }
-
-        const aliases = ThemeHelper.defaultAliases()
-        for (var key in aliases) {
-            if (!styles[key]) {
-                styles[key] = styles[aliases[key]]
+        parents.forEach(name => {
+            const config = this.getConfig(name)
+            this._extendStyles(styles, config.extends, depth + 1)
+            if (!config.styles) {
+                return
             }
+            Object.keys(config.styles).forEach(key => {
+                if (!styles[key]) {
+                    styles[key] = config.styles[key]
+                }
+            })
+        })
+    }
+}
+
+const StyleKeys = [
+    'text.background'
+  , 'text.color'
+
+  , 'board.background'
+
+  , 'board.border.background'
+  , 'board.border.color'
+
+  , 'board.piece.white.background'
+  , 'board.piece.white.color'
+
+  , 'board.piece.red.background'
+  , 'board.piece.red.color'
+
+  , 'board.pointLabel.background'
+  , 'board.pointLabel.color'
+
+  , 'cube.active.background'
+  , 'cube.active.color'
+
+  , 'cube.inactive.background'
+  , 'cube.inactive.color'
+
+  , 'text.piece.red.color'
+  , 'text.piece.white.color'
+  , 'text.pipCount.color'
+  , 'text.dim.color'
+  , 'text.notice.color'
+  , 'text.gameStatus.color'
+  , 'text.dice.color'
+]
+
+const DefaultAliases = {
+    'board.background'       : 'text.background'
+  , 'text.piece.red.color'   : 'board.piece.red.color'
+  , 'text.piece.white.color' : 'board.piece.white.color'
+}
+
+// Without the background/color qualifier.
+// E.g. board.border.background and board.border.color reduce to board.border
+const Categories = []
+
+function populateCategories() {
+    const categoriesMap = {}
+    StyleKeys.forEach(key => {
+        const keyParts = key.split('.')
+        keyParts.pop()
+        categoriesMap[keyParts.join('.')] = true
+    })
+    Object.keys(categoriesMap).forEach(category => {
+        Categories.push(category)
+    })
+}
+
+populateCategories()
+
+class Theme {
+
+    static forStyles(styles) {
+        const chalks = this.build(styles)
+        return new this(chalks)
+    }
+
+    static build(_styles) {
+
+        const styles = this.buildStyles(_styles)
+        const defs   = this.buildDefs(styles)
+        const chalks = this.buildChalks(defs)
+
+        return chalks
+    }
+
+    static buildStyles(_styles) {
+
+        // Minimal defaults.
+        const styles = {
+            'text.color'      : 'white'
+          , 'text.background' : 'black'
+          , ..._styles
         }
 
-        const styleKeys = ThemeHelper.styleKeys()
-        styleKeys.forEach(key => {
-            var keyParts = key.split('.')
-            var firstPart = keyParts[0]
-            var lastPart = keyParts[keyParts.length - 1]
+        // Default aliases.
+        Object.entries(DefaultAliases).forEach(([key, alias]) => {
+            if (!styles[key]) {
+                styles[key] = styles[alias]
+            }
+        })
+
+        // Additional defaults for text/board sections.
+        StyleKeys.forEach(key => {
+            const keyParts  = key.split('.')
+            const firstPart = keyParts[0]
+            const lastPart  = keyParts[keyParts.length - 1]
             if (!styles[key]) {
                 if (lastPart == 'background') {
                     if (firstPart == 'board') {
@@ -232,117 +260,147 @@ class ThemeHelper {
             }
         })
 
-        const styleDefs = {}
+        return styles
+    }
+
+    // Convert values into array definitions to construct chalk callables.
+    //
+    // Examples:
+    //
+    //    text.color:
+    //          '#ffffff bold' --> ['hex', '#ffffff', 'bold']
+    //          'blue dim'     --> ['keyword', 'blue', 'dim']
+    //
+    //    text.background:
+    //          'orange'         -->  ['bgKeyword', 'orange']
+    //          'red bright'     -->  ['bgRedBright']
+    //          '#ffffff'        -->  ['bgHex', '#ffffff']
+    //          '#ffffff bright' -->  ['bgHex', '#ffffff'] 
+    //
+    static buildDefs(styles) {
+
+        const defs = {}
 
         Object.keys(styles).forEach(key => {
-            var [value, mod] = styles[key].split(' ')
-            var keyParts = key.split('.')
-            var lastKeyPart = keyParts[keyParts.length - 1]
-            var isHex = value[0] == '#'
+
+            const [value, mod] = styles[key].split(' ')
+            const keyParts     = key.split('.')
+            const lastKeyPart  = keyParts[keyParts.length - 1]
+            const isHex        = value[0] == '#'
 
             if (lastKeyPart == 'background') {
                 if (isHex) {
-                    styleDefs[key] = ['bgHex', value]
+                    defs[key] = ['bgHex', value]
                 } else {
                     var builtInName = 'bg' + ucfirst(value)
                     if (mod) {
                         builtInName += ucfirst(mod)
                     }
                     if (chalk[builtInName]) {
-                        styleDefs[key] = [builtInName]
+                        defs[key] = [builtInName]
                     } else {
-                        styleDefs[key] = ['bgKeyword', value]
+                        defs[key] = ['bgKeyword', value]
                     }
                 }
             } else {
                 if (isHex) {
-                    styleDefs[key] = ['hex', value]
+                    defs[key] = ['hex', value]
                 } else {
-                    styleDefs[key] = ['keyword', value]
+                    defs[key] = ['keyword', value]
                 }
                 if (mod) {
-                    styleDefs[key].push(mod)
+                    defs[key].push(mod)
                 }
             }
         })
 
-        //console.log(styleDefs)
+        return defs
+    }
 
-        const consolidatedKeyMap = {}
-        for (var key of styleKeys) {
-            var keyParts = key.split('.')
-            keyParts.pop()
-            consolidatedKeyMap[keyParts.join('.')] = true
-        }
+    // Build chalk callables. Each key will have its own, e.g. text.color
+    // and text.background, as well as a single chalk callable for each
+    // category, e.g. text or board.piece.white, which includes both the
+    // foreground and background styles.
+    static buildChalks(defs) {
 
-        const styleChalks = {}
-        Object.keys(consolidatedKeyMap).forEach(key => {
-            var bgKey = key + '.background'
-            var fgKey = key + '.color'
-            var bgDef = styleDefs[bgKey]
-            var fgDef = styleDefs[fgKey]
+        const chalks = {}
+
+        Categories.forEach(category => {
+
+            const bgKey = category + '.background'
+            const fgKey = category + '.color'
+
+            var bgDef = defs[bgKey]
+            var fgDef = defs[fgKey]
 
             if (!fgDef) {
-                fgDef = styleDefs['text.color']
+                // default to text color
+                fgDef = defs['text.color']
             }
             if (!bgDef) {
-                if (key.indexOf('board.') == 0) {
-                    bgDef = styleDefs['board.background']
+                // default to board or text background
+                if (category.indexOf('board.') == 0) {
+                    bgDef = defs['board.background']
                 } else {
-                    bgDef = styleDefs['text.background']
+                    bgDef = defs['text.background']
                 }
             }
-            var styleChalk = chalk
+
+            // construct chalk callable
+            var theChalk = chalk
 
             if (bgDef) {
                 if (bgDef.length == 1) {
-                    styleChalk = styleChalk[bgDef[0]]
+                    // native chalk method, e.g. bgRed or bgRedBright
+                    theChalk = theChalk[bgDef[0]]
                 } else {
-                    styleChalk = styleChalk[bgDef[0]](bgDef[1])
+                    // hex or keyword construct
+                    theChalk = theChalk[bgDef[0]](bgDef[1])
                 }
-                styleChalks[bgKey] = styleChalk
+                chalks[bgKey] = theChalk
             }
             if (fgDef) {
-                styleChalk = styleChalk[fgDef[0]](fgDef[1])
+                // always a hex or keyword construct
+                theChalk = theChalk[fgDef[0]](fgDef[1])
                 if (fgDef[2]) {
-                    styleChalk = styleChalk[fgDef[2]]
+                    // modifier property, e.g. bold or dim
+                    theChalk = theChalk[fgDef[2]]
                 }
-                styleChalks[fgKey] = styleChalk
+                chalks[fgKey] = theChalk
             }
 
-            styleChalks[key] = styleChalk
+            chalks[category] = theChalk
         })
 
-        const chalks = {
-              boardBorder  : styleChalks['board.border']
-            , boardSp      : styleChalks['board.background']
-            , noticeText   : styleChalks['text.notice']
-            , cubeActive   : styleChalks['cube.active']
-            , cubeDisabled : styleChalks['cube.inactive']
-            , diceRolled   : styleChalks['text.dice']
-            , textDim      : styleChalks['text.dim']
-            , gameStatus   : styleChalks['text.gameStatus']
-            , hr           : styleChalks['text.dim']
-            , pipLabel     : styleChalks['text.dim']
-            , pipCount     : styleChalks['text.pipCount']
-            , pointLabel   : styleChalks['board.pointLabel']
-            , text         : styleChalks['text']
-            , textBold     : styleChalks['text'].bold
-            , piece : {
-                  Red   : styleChalks['board.piece.red']
-                , White : styleChalks['board.piece.white']
-              }
-            , colorText : {
-                  Red   : styleChalks['text.piece.red']
-                , White : styleChalks['text.piece.white']
-              }
-        }
-
-        this.setChalks(chalks)
+        return chalks
     }
 
-    setChalks(chalks) {
-        this.chalks = chalks
+    constructor(chalks) {
+        // Index the chalk callables for use by DrawInstance/Reporter
+        this.chalks = {
+              boardBorder  : chalks['board.border']
+            , boardSp      : chalks['board.background']
+            , noticeText   : chalks['text.notice']
+            , cubeActive   : chalks['cube.active']
+            , cubeDisabled : chalks['cube.inactive']
+            , diceRolled   : chalks['text.dice']
+            , textDim      : chalks['text.dim']
+            , gameStatus   : chalks['text.gameStatus']
+            , hr           : chalks['text.dim']
+            , pipLabel     : chalks['text.dim']
+            , pipCount     : chalks['text.pipCount']
+            , pointLabel   : chalks['board.pointLabel']
+            , text         : chalks['text']
+            , textBold     : chalks['text'].bold
+            , piece : {
+                  Red   : chalks['board.piece.red']
+                , White : chalks['board.piece.white']
+              }
+            , colorText : {
+                  Red   : chalks['text.piece.red']
+                , White : chalks['text.piece.white']
+              }
+        }
     }
 }
 

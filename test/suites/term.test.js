@@ -737,6 +737,7 @@ describe('Menu', () => {
             await writeTheme('t2', {
                 extends: ['Default']
             })
+            menu.loglevel = 1
             const result = await menu.loadCustomThemes()
             expect(result.length).to.equal(2)
             result.sort((a, b) => a.localeCompare(b))
@@ -1557,6 +1558,136 @@ describe('Robot', () => {
             const player = new TermPlayer.Robot(newRando(White), {delay: 0.01})
             const result = player.meta()
             expect(result.isRobot).to.equal(true)
+        })
+    })
+})
+
+describe('Theme', () => {
+
+    beforeEach(() => {
+        ThemeHelper.clearCustom()
+    })
+
+    describe('extends', () => {
+        it('child should inherit from parent', () => {
+            const parentConfig = {
+                styles: {
+                    'text.background' : 'blue'
+                }
+            }
+            const childConfig = {
+                extends: ['MyParent'],
+                styles : {
+                    'text.color' : 'orange'
+                }
+            }
+            ThemeHelper.register('MyParent', parentConfig)
+            ThemeHelper.register('MyChild', childConfig)
+            const styles = ThemeHelper.getStyles('MyChild')
+            expect(styles['text.background']).to.equal('blue')
+        })
+        it('child should overwrite parent', () => {
+            const parentConfig = {
+                styles: {
+                    'text.color' : 'green'
+                }
+            }
+            const childConfig = {
+                extends: ['MyParent'],
+                styles : {
+                    'text.color' : 'orange'
+                }
+            }
+            ThemeHelper.register('MyParent', parentConfig)
+            ThemeHelper.register('MyChild', childConfig)
+            const styles = ThemeHelper.getStyles('MyChild')
+            expect(styles['text.color']).to.equal('orange')
+        })
+
+        it('should inherit from grandparent (recursion)', () => {
+            const gpConfig = {
+                styles : {
+                    'text.background' : 'cyan'
+                }
+            }
+            const parentConfig = {
+                extends: ['MyGrandparent'],
+                styles: {
+                    'text.color' : 'green'
+                }
+            }
+            const childConfig = {
+                extends: ['MyParent'],
+                styles : {
+                    'text.color' : 'orange'
+                }
+            }
+            ThemeHelper.register('MyGrandparent', gpConfig)
+            ThemeHelper.register('MyParent', parentConfig)
+            ThemeHelper.register('MyChild', childConfig)
+            const styles = ThemeHelper.getStyles('MyChild')
+            expect(styles['text.color']).to.equal('orange')
+            expect(styles['text.background']).to.equal('cyan')
+        })
+
+        it('should inherit from grandparent (multi-extends)', () => {
+            const gpConfig = {
+                styles : {
+                    'text.background' : 'cyan'
+                }
+            }
+            const parentConfig = {
+                styles: {
+                    'text.color' : 'green'
+                }
+            }
+            const childConfig = {
+                extends: ['MyParent', 'MyGrandparent'],
+                styles : {
+                    'text.color' : 'orange'
+                }
+            }
+            ThemeHelper.register('MyGrandparent', gpConfig)
+            ThemeHelper.register('MyParent', parentConfig)
+            ThemeHelper.register('MyChild', childConfig)
+            const styles = ThemeHelper.getStyles('MyChild')
+            expect(styles['text.color']).to.equal('orange')
+            expect(styles['text.background']).to.equal('cyan')
+        })
+
+        it('parent should override grandparent (multi-extends)', () => {
+            const gpConfig = {
+                styles : {
+                    'text.background' : 'cyan',
+                    'text.color'      : 'blue'
+                }
+            }
+            const parentConfig = {
+                styles: {
+                    'text.background' : 'green'
+                }
+            }
+            const childConfig = {
+                extends: ['MyParent', 'MyGrandparent'],
+                styles : {
+                    'text.color' : 'orange'
+                }
+            }
+            ThemeHelper.register('MyGrandparent', gpConfig)
+            ThemeHelper.register('MyParent', parentConfig)
+            ThemeHelper.register('MyChild', childConfig)
+            const styles = ThemeHelper.getStyles('MyChild')
+            expect(styles['text.color']).to.equal('orange')
+            expect(styles['text.background']).to.equal('green')
+        })
+
+        it('should throw MaxDepthExceededError on 11', () => {
+            ThemeHelper.register('Anc0', {styles: {'text.color': 'blue'}})
+            for (var i = 0; i < 11; ++i) {
+                ThemeHelper.register('Anc' + (i+1), {extends: ['Anc' + i]})
+            }
+            const err = getError(() => ThemeHelper.register('Foo', {extends: ['Anc' + i]}))
+            expect(err.name).to.equal('MaxDepthExceededError')
         })
     })
 })
