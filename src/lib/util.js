@@ -25,6 +25,7 @@
 const crypto    = require('crypto')
 const emailval  = require('email-validator')
 const merge     = require('merge')
+const path      = require('path')
 const stripAnsi = require('strip-ansi')
 const uuid      = require('uuid')
 
@@ -89,6 +90,14 @@ class Util {
     static escapeRegex(str) {
         // from: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Guide/Regular_Expressions#Using_Special_Characters
         return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+    }
+
+    static filenameWithoutExtension(str) {
+        return Util.filepathWithoutExtension(path.basename(str))
+    }
+
+    static filepathWithoutExtension(str) {
+        return str.replace(/\.[^/.]+$/, '')
     }
 
     static intRange(a, b) {
