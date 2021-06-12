@@ -55,10 +55,11 @@ const os       = require('os')
 const path     = require('path')
 const sp       = Util.joinSpace
 
-const DefaultServerUrl = 'https://bg.dougowings.net'
+const DefaultServerUrl = 'https://gameon.dougowings.net'
 const ObsoleteServerUrls = [
     'ws://bg.dougowings.net:8080'
   , 'wss://bg.dougowings.net'
+  , 'https://bg.dougowings.net'
 ]
 
 class Menu extends Logger {
@@ -67,6 +68,8 @@ class Menu extends Logger {
         super()
         this.configDir = configDir
         this.opts = this.getDefaultOpts()
+        this.isSettingsLoaded = false
+        this.isThemesLoaded = false
         const hash = crypto.createHash('md5')
         hash.update('main-menu')
         this.chash = hash.digest('hex')
@@ -74,6 +77,7 @@ class Menu extends Logger {
 
     async mainMenu() {
 
+        await this.loadSettings()
         await this.loadCustomThemes()
 
         while (true) {
@@ -615,6 +619,8 @@ class Menu extends Logger {
     }
 
     async runLab() {
+        await this.ensureSettingsLoaded()
+        await this.ensureThemesLoaded()
         var config = await this.loadLabConfig()
         if (config) {
             var board = Board.fromStateString(config.lastState)
@@ -624,7 +630,11 @@ class Menu extends Logger {
             var persp = White
         }
         const {theme} = this.opts
-        const helper = new LabHelper({board, persp, theme})
+        const labOpts = {board, persp, theme}
+        labOpts.isCustomRobot = this.opts.isCustomRobot
+        // NB: this is a reference
+        labOpts.robots = this.opts.robots
+        const helper = new LabHelper(labOpts)
         await helper.interactive()
         await this.saveLabConfig(helper)
         return true
@@ -1028,10 +1038,6 @@ class Menu extends Logger {
               , name  : 'Robot Configuration'
               , when  : () => opts.isCustomRobot
             }
-          , {
-                value : 'themes'
-              , name  : 'Configure Themes'
-            }
         ])
     }
 
@@ -1110,19 +1116,7 @@ class Menu extends Logger {
     }
 
     getDefaultOpts() {
-        var opts = {}
-        const settingsFile = this.getSettingsFile()
-        if (settingsFile) {
-            fse.ensureDirSync(path.dirname(settingsFile))
-            if (!fs.existsSync(settingsFile)) {
-                fse.writeJsonSync(settingsFile, {})
-            }
-            merge(opts, JSON.parse(fs.readFileSync(settingsFile)))
-            if (ObsoleteServerUrls.indexOf(opts.serverUrl) > -1) {
-                opts.serverUrl = this.getDefaultServerUrl()
-            }
-        }
-        opts = merge({
+        const opts = {
             total         : 1
           , isJacoby      : false
           , isCrawford    : true
@@ -1136,10 +1130,10 @@ class Menu extends Logger {
           , isCustomRobot : false
           , theme         : 'Default'
           , robots        : {}
-        }, opts)
+        }
         ConfidenceRobot.listClassNames().forEach(name => {
             const {defaults} = ConfidenceRobot.getClassMeta(name)
-            opts.robots[name] = merge({}, defaults, opts.robots[name])
+            opts.robots[name] = merge(true, defaults, opts.robots[name])
         })
         return opts
     }
@@ -1250,6 +1244,44 @@ class Menu extends Logger {
         }
     }
 
+    async ensureSettingsLoaded() {
+        if (this.isSettingsLoaded) {
+            return
+        }
+        await this.loadSettings()
+    }
+
+    async ensureThemesLoaded() {
+        if (this.isThemesLoaded) {
+            return
+        }
+        await this.loadCustomThemes()
+    }
+
+    async loadSettings() {
+        const settingsFile = this.getSettingsFile()
+        if (!settingsFile) {
+            return
+        }
+        if (!fs.existsSync(settingsFile)) {
+            await fse.ensureDir(path.dirname(settingsFile))
+            await fse.writeJson(settingsFile, {})
+        }
+        const settings = await fse.readJson(settingsFile)
+        if (ObsoleteServerUrls.indexOf(settings.serverUrl) > -1) {
+            settings.serverUrl = this.getDefaultServerUrl()
+        }
+
+        merge(this.opts, settings)
+
+        ConfidenceRobot.listClassNames().forEach(name => {
+            const {defaults} = ConfidenceRobot.getClassMeta(name)
+            this.opts.robots[name] = merge(true, defaults, this.opts.robots[name])
+        })
+
+        this.isSettingsLoaded = true
+    }
+
     async loadLabConfig() {
         const stateFile = this.getLabConfigFile()
         if (fs.existsSync(stateFile)) {
@@ -1283,10 +1315,6 @@ class Menu extends Logger {
             return
         }
 
-        if (!this._themeHashes) {
-            this._themeHashes = {}
-        }
-
         const configs = {}
         const files = await globby(path.join(themesDir, '*.json'))
         const helper = new DependencyHelper(ThemeHelper.list())
@@ -1295,13 +1323,7 @@ class Menu extends Logger {
             try {
                 var config = await fse.readJson(file)
                 var name = Util.filenameWithoutExtension(file)
-                var hash = crypto.createHash('md5')
-                hash.update(JSON.stringify(config))
-                hash = hash.digest('hex')
-                if (this._themeHashes[name] == hash) {
-                    continue
-                }
-                configs[name] = {hash, config}
+                configs[name] = config
                 helper.add(name, config.extends)
             } catch (err) {
                 this.error('Failed to load custom theme file: ' + file, err.message)
@@ -1322,10 +1344,8 @@ class Menu extends Logger {
         const loaded = []
 
         for (var name of order) {
-            var {config, hash} = configs[name]
-            this._themeHashes[name] = hash
             try {
-                ThemeHelper.update(name, config)
+                ThemeHelper.update(name, configs[name])
                 loaded.push(name)
             } catch (err) {
                 this.error('Failed to load theme ' + name, err.message)
@@ -1335,6 +1355,8 @@ class Menu extends Logger {
         if (loaded.length) {
             this.info('Loaded', loaded.length, 'custom themes')
         }
+
+        this.isThemesLoaded = true
 
         return loaded
     }
