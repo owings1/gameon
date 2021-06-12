@@ -29,14 +29,16 @@ const Util       = require('../lib/util')
 
 const Coordinator = require('../lib/coordinator')
 const Client      = require('../net/client')
+const LabHelper   = require('./lab')
 const NetPlayer   = require('../net/player')
 const TermPlayer  = require('./player')
+const ThemeHelper = require('./themes')
 const Robot       = require('../robot/player')
 
 const {ConfidenceRobot} = Robot
 const {RobotDelegator}  = Robot
 
-const {White, Red} = Constants
+const {White, Red, States} = Constants
 const {Match, Board, Dice} = Core
 
 const assert   = require('assert')
@@ -93,7 +95,9 @@ class Menu extends Logger {
                 await this.accountMenu()
             } else if (mainChoice == 'settings') {
                 await this.settingsMenu()
-            } 
+            } else if (mainChoice == 'lab') {
+                await this.runLab()
+            }
         }
     }
 
@@ -577,6 +581,21 @@ class Menu extends Logger {
         }
     }
 
+    async runLab() {
+        var config = await this.loadLabConfig()
+        if (config) {
+            var board = Board.fromStateString(config.lastState)
+            var persp = config.persp
+        } else {
+            var board = Board.setup()
+            var persp = White
+        }
+        const {theme} = this.opts
+        const helper = new LabHelper({board, persp, theme})
+        await helper.interactive()
+        await this.saveLabConfig(helper)
+    }
+
     getMatchOpts(opts, advancedOpts = {}) {
         const matchOpts = {...opts}
         if (advancedOpts.startState) {
@@ -630,6 +649,10 @@ class Menu extends Logger {
           , {
                 value : 'settings'
               , name  : 'Settings'
+            }
+          , {
+                value : 'lab'
+              , name  : 'Lab'
             }
           , {
                 value : 'quit'
@@ -896,6 +919,17 @@ class Menu extends Logger {
                 }
             }
           , {
+                value : 'theme'
+              , name  : 'Theme'
+              , question : {
+                    name : 'theme'
+                  , message : 'Choose a theme'
+                  , type    : 'list'
+                  , default : () => opts.theme
+                  , choices : () => ThemeHelper.list()
+                }
+            }
+          , {
                 value : 'fastForced'
               , name  : 'Fast Forced Moves'
               , question : {
@@ -1053,6 +1087,7 @@ class Menu extends Logger {
           , recordDir     : this.getDefaultRecordDir()
           , fastForced    : false
           , isCustomRobot : false
+          , theme         : 'Default'
           , robots        : {}
         }, opts)
         ConfidenceRobot.listClassNames().forEach(name => {
@@ -1147,6 +1182,32 @@ class Menu extends Logger {
 
     decryptPassword(password) {
         return password ? Util.decrypt1(password, this.chash) : ''
+    }
+
+    getLabConfigFile() {
+        return path.resolve(os.homedir(), '.gameon/lab.json')
+    }
+
+    async loadLabConfig() {
+        const stateFile = this.getLabConfigFile()
+        if (fs.existsSync(stateFile)) {
+            try {
+                const data = await fse.readJson(stateFile)
+                return data
+            } catch (err) {
+                this.logger.debug(err)
+                this.logger.error('Failed to load saved state:', err.message)
+            }
+        }
+    }
+
+    async saveLabConfig(helper) {
+        const stateFile = this.getLabConfigFile()
+        const data = {
+            lastState : helper.board.state28()
+          , persp     : helper.persp
+        }
+        await fse.writeJson(stateFile, data, {spaces: 2})
     }
 
     static formatChoices(choices) {

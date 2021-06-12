@@ -42,6 +42,7 @@ class TermPlayer extends Base {
     static defaults() {
         return {
             fastForced: false
+          , theme     : 'Default'
         }
     }
 
@@ -68,7 +69,7 @@ class TermPlayer extends Base {
             this.isDualRobot = this.isRobot && this.opponent.isRobot
 
             this.persp = this.isRobot ? White : this.color
-            this.draw = DrawInstance.forGame(game, match, this.persp, this.logs)
+            this.draw = DrawInstance.forGame(game, match, this.persp, this.logs, this.opts.theme)
 
             this.report('gameStart', match ? match.games.length : null)
         })
@@ -436,7 +437,7 @@ class TermPlayer extends Base {
         if (!this.draw) {
             return sp(...args)
         }
-        return this.draw.painter.chalks.piece[color](...args)
+        return this.draw.theme.chalks.colorText[color](...args)
     }
 
     ccolor(color) {

@@ -58,6 +58,9 @@ class NotImplementedError extends GameError {}
 class InvalidColorError     extends ArgumentError {}
 class InvalidDirError       extends ArgumentError {}
 class MaxDepthExceededError extends ArgumentError {}
+class ThemeExistsError      extends ArgumentError {}
+class ThemeNotFoundError    extends ArgumentError {}
+class ThemeConfigError      extends ArgumentError {}
 
 class AlreadyRolledError        extends IllegalStateError {}
 class DoubleNotAllowedError     extends IllegalStateError {}

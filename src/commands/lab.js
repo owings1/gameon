@@ -1,5 +1,5 @@
 /**
- * gameon - board:draw command
+ * gameon - lab command
  *
  * Copyright (C) 2020-2021 Doug Owings
  *
@@ -23,20 +23,20 @@
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 const {Command, flags} = require('@oclif/command')
-const {Board}  = require('../../lib/core')
-const {Colors, BoardStrings} = require('../../lib/constants')
-const {InvalidColorError} = require('../../lib/errors')
-const Logger = require('../../lib/logger')
-const Helper = require('../../term/draw')
+const {Board}  = require('../lib/core')
+const {Colors, BoardStrings} = require('../lib/constants')
+const {InvalidColorError} = require('../lib/errors')
+const Logger = require('../lib/logger')
+const Helper = require('../term/lab')
 const fs = require('fs')
 const fse = require('fs-extra')
 const os = require('os')
 const path = require('path')
 
-class BoardDrawCommand extends Command {
+class LabCommand extends Command {
 
     async init() {
-        const {flags} = this.parse(BoardDrawCommand)
+        const {flags} = this.parse(LabCommand)
         this.flags = flags
         this.logger = new Logger
         const stateString = await this.getInitialState()//this.flags.board || BoardStrings.Initial
@@ -133,13 +133,13 @@ class BoardDrawCommand extends Command {
     }
 
     getSaveStateFile() {
-        return path.resolve(os.homedir(), '.gameon/board.draw.json')
+        return path.resolve(os.homedir(), '.gameon/lab.json')
     }
 }
 
-BoardDrawCommand.description = `Run performance profiling`
+LabCommand.description = `Run performance profiling`
 
-BoardDrawCommand.flags = {
+LabCommand.flags = {
     state: flags.string({
         char        : 's'
       , description : 'board state string'
@@ -154,4 +154,4 @@ BoardDrawCommand.flags = {
     })
 }
 
-module.exports = BoardDrawCommand
+module.exports = LabCommand

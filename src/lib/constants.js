@@ -141,9 +141,9 @@ const Draw = {
       , botMiddle    : '\u253b'
       , botRight     : '\u251b'
       , dash         : '\u2501'
-      , pip          : 'PIP'
-      , crawford     : 'CR'
-      , pts          : 'pts'
+      //, pip          : 'PIP'
+      //, crawford     : 'CR'
+      //, pts          : 'pts'
       , empty        : ''
       , slash        : '/'
       , sp           : ' '
@@ -168,8 +168,8 @@ const Draw = {
  //    , R     : chalk.bold.red('R')
  //    , W     : chalk.bold.white('W')
  //  }
-  , PadFixed   : 4
-  , MidFixed   : 1
+ // , PadFixed   : 4
+ // , MidFixed   : 1
  // , RightFixed : 10
 }
 //Draw.TopBorder    = Draw.Chars.topLeft.padEnd(12 * Draw.PadFixed + 2 + 4, Draw.Chars.dash) + Draw.Chars.topRight

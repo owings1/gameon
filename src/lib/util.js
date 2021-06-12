@@ -278,6 +278,10 @@ class Util {
         }
         return str
     }
+
+    static ucfirst(str) {
+        return str.substring(0, 1).toUpperCase() + str.substring(1)
+    }
 }
 
 var timerSuffix = 0
