@@ -78,7 +78,6 @@ class LabHelper {
         this.logger = new Logger
         this.inst = DrawInstance.forBoard(this.board, this.persp, this.logs, this.opts.theme)
         this.stateHistory = []
-        this.hr = this.nchars(39, TableChars.dash)
         this.fetchLastRecords = null
     }
 
@@ -284,7 +283,9 @@ class LabHelper {
             cons.log(...args)
         }
 
-        log(this.hr)
+        const hr = this.nchars(39, TableChars.dash)
+
+        log(hr)
 
         log(info)
 
@@ -293,7 +294,7 @@ class LabHelper {
             log('   ', (i+1) + ':', moves.map(move => this.moveDesc(move)))
         )
 
-        log(this.hr)
+        log(hr)
 
         this.fetchLastRecords = () => {
             return {
@@ -329,7 +330,7 @@ class LabHelper {
         var hasDotDotDotted = false
 
         const wb = new StringBuilder
-        const log = (...args) => {
+        var log = (...args) => {
             wb.sp(...args)
             wb.add('\n')
             if (count < 21) {
@@ -338,11 +339,11 @@ class LabHelper {
             if (count == 21 && !hasDotDotDotted) {
                 hasDotDotDotted = true
                 cons.log()
-                cons.log('   ', explain.length - 20, 'more ....')
+                cons.log('   ', rankList.length - 20, 'more ....')
                 cons.log()
             }
         }
-
+        var hr = this.nchars(39, TableChars.dash)
         var lastScore
 
         rankList.forEach((info, i) => {
@@ -351,7 +352,7 @@ class LabHelper {
             indent = 2
 
             log()
-            log(this.hr)
+            log(hr)
             log()
 
             const mstr = new StringBuilder(
@@ -412,20 +413,53 @@ class LabHelper {
 
         log()
 
-        
+        var indent = 0
+        const wb2 = new StringBuilder
+        var log = (...args) => {
+            wb2.sp(...args)
+            wb2.add('\n')
+            cons.log(''.padEnd(indent - 1, ' '), ...args)
+        }
 
+        const len = str => Util.stripAnsi(str).length
+
+        const ch = {
+            border : chalk.grey
+        }
+
+        const formatters = {
+            myRank  : value => value
+          , rank    : value => value
+          , diff    : value => {
+                if (value == null) {
+                    return value
+                }
+                var str = value.toString()
+                if (value > 0) {
+                    str = '+' + value
+                }
+                if (value == 0) {
+                    return chalk.bold.green(str)
+                }
+                if (Math.abs(value) == 1) {
+                    return chalk.green(str)
+                }
+                return value
+            }
+          , myScore : value => value
+          , moves   : value => value
+        }
         const delegateTables = delegateList.map(delegate => {
             var hasRank = false
             const table = {
                 name    : delegate.name
-              , columns : ['myRank', 'realRank', 'diff', 'myScore', 'moves']
+              , columns : ['myRank', 'rank', 'diff', 'myScore', 'moves']
               , aligns  : ['padStart', 'padStart', 'padStart', 'padStart', 'padEnd']
               , rows    : delegate.rankings.map(info => {
                   if (info.myRank != null) {
                       hasRank = true
                   }
                     const diff = info.myRank == null ? null : info.actualRank - info.myRank
-                     //console.log(info)
                     return [
                         info.myRank == null ? '' : info.myRank
                       , info.actualRank
@@ -437,45 +471,78 @@ class LabHelper {
             }
             table.hasRank = hasRank
             table.columnWidths = table.columns.map((column, i) => {
-                //console.log(column)
                 return Math.max(column.length, ...table.rows.map(row => row[i].toString().length))
             })
-            table.width = Util.sumArray(table.columnWidths)
+            table.width = Util.sumArray(table.columnWidths) + Math.max(table.columns.length - 1, 0) * 3
             return table
         })
 
-        count = 0
+        const maxTableWidth = Math.max(...delegateTables.map(table => table.width))
+        var hr = chalk.bgGrey.white(this.nchars(maxTableWidth + 2, TableChars.dash))
 
         delegateTables.forEach(table => {
             if (!table.hasRank) {
                 return
             }
             indent = 2
-            log(this.hr)
-            log(table.name)
+            log(hr)
+            log()
+            log(chalk.cyan.bold(table.name))
+            log()
             log(
-                table.columns.map((column, i) => {
+                ch.border(TableChars.topLeft) + table.columns.map((column, i) => {
+                    return ch.border(''.padEnd(table.columnWidths[i], TableChars.dash))
+                }).join(ch.border(TableChars.dash + TableChars.topMiddle + TableChars.dash)) + ch.border(TableChars.topRight)
+            )
+            log(
+                ch.border(TableChars.pipe) + table.columns.map((column, i) => {
                     return column[table.aligns[i]](table.columnWidths[i], ' ')
-                }).join(' ' + TableChars.pipe + ' ')
+                }).join(' ' + ch.border(TableChars.pipe) + ' ') + ch.border(TableChars.pipe)
                     
             )
-            log(''.padEnd(table.width, TableChars.dash))
+            log(
+                ch.border(TableChars.middleLeft) + table.columns.map((column, i) => {
+                    return ch.border(''.padEnd(table.columnWidths[i], TableChars.dash))
+                }).join(ch.border(TableChars.dash + TableChars.middleMiddle + TableChars.dash)) + ch.border(TableChars.middleRight)
+            )
             table.rows.forEach(row => {
-
-                log(row.map((cell, i) => cell.toString()[table.aligns[i]](table.columnWidths[i], ' ')).join(' ' + TableChars.pipe + ' '))
+                log(
+                    ch.border(TableChars.pipe) + row.map((cell, i) => {
+                        const align = table.aligns[i]
+                        const value = formatters[table.columns[i]](cell).toString()
+                        const vb = new StringBuilder
+                        const pad = ''.padEnd(table.columnWidths[i] - len(value), ' ')
+                        if (align == 'padStart') {
+                            vb.add(pad)
+                        }
+                        vb.add(value)
+                        if (align == 'padEnd') {
+                            vb.add(pad)
+                        }
+                        return vb.toString()
+                    }).join(' ' + ch.border(TableChars.pipe) + ' ') + ch.border(TableChars.pipe)
+                )
             })
+            log(
+                ch.border(TableChars.footerLeft) + table.columns.map((column, i) => {
+                    return ch.border(''.padEnd(table.columnWidths[i], TableChars.dash))
+                }).join(ch.border(TableChars.dash + TableChars.bottomMiddle + TableChars.dash)) + ch.border(TableChars.footerRight)
+            )
             log()
         })
+
         const turnMeta = turn.meta()
 
         this.fetchLastRecords = () => {
             return {
-                'explain.json'    : JSON.stringify(explain, null, 2)
-              , 'explain.ans.txt' : wb.toString()
-              , 'explain.txt'     : Util.stripAnsi(wb.toString())
-              , 'results.json'    : JSON.stringify({results: result.results}, null, 2)
-              , 'robot.json'      : JSON.stringify({robot: robotMeta}, null, 2)
-              , 'turn.json'       : JSON.stringify({turn: turnMeta}, null, 2)
+                'explain.json'      : JSON.stringify(explain, null, 2)
+              , 'ranklist.ans.txt'  : wb.toString()
+              , 'ranklist.txt'      : Util.stripAnsi(wb.toString())
+              , 'delegates.ans.txt' : wb2.toString()
+              , 'delegates.txt'     : Util.stripAnsi(wb2.toString())
+              , 'results.json'      : JSON.stringify({results: result.results}, null, 2)
+              , 'robot.json'        : JSON.stringify({robot: robotMeta}, null, 2)
+              , 'turn.json'         : JSON.stringify({turn: turnMeta}, null, 2)
             }
         }
     }
@@ -839,7 +906,7 @@ class LabHelper {
         for (var [basename, data] of Object.entries(records)) {
             var file = path.resolve(outDir, path.basename(basename))
             fs.writeFileSync(file, data)
-            this.logger.info('Wrote', basename)
+            this.logger.info('   ', basename)
         }
 
         const lab = {
@@ -851,7 +918,7 @@ class LabHelper {
         var basename = 'lab.json'
         const labFile = path.resolve(outDir, basename)
         await fse.writeJson(labFile, lab, {spaces: 2})
-        this.logger.info('Wrote', basename)
+        this.logger.info('   ', basename)
     }
 
     async generateStateString() {
