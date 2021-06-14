@@ -63,64 +63,31 @@ class Table {
     }
 
     build() {
+
         this.columns = Table.buildColumns(this.columns)
         this.rows = Table.buildRows(this.columns, this.data)
-        this.columns.forEach((column, i) => {
-            column.width = Math.max(
-                stripAnsi(column.title).length
-              , ...this.rows.map(row => {
-                    const value = row[i]
-                    if (value == null) {
-                        return 0
-                    }
-                    const len = stripAnsi(value.toString()).length
-                    if (isNaN(len)) {
-                        return 0
-                    }
-                    return len
-                })
-            )
-        })
-        this.headerStrings = this.buildHeaderStrings()
-        this.rowStringParts = this.buildRowStringParts()
-        this.borderStrings = this.buildBorderStrings()
-        const bch = chalk[this.opts.borderColor]
-        this.headerString = [
-            bch(TableChars.pipe)
-          , ' '
-          , this.headerStrings.join(' ' + bch(TableChars.pipe) + ' ')
-          , ' '
-          , bch(TableChars.pipe)
-        ].join('')
-        this.rowStrings = this.rowStringParts.map(parts =>
-            [
-                bch(TableChars.pipe)
-              , ' '
-              , parts.join(' ' + bch(TableChars.pipe) + ' ')
-              , ' '
-              , bch(TableChars.pipe)
-            ].join('')
-        )
-        this.lines = []
-        this.lines.push(this.borderStrings.top)
-        this.lines.push(this.headerString)
-        this.lines.push(this.borderStrings.middle)
-        this.rowStrings.forEach(rowStr => this.lines.push(rowStr))
-        this.lines.push(this.borderStrings.bottom)
+
+        this.calculateColumnWidths()
+        this.buildHeaderStrings()
+        this.buildRowStringParts()
+        this.buildBorderStrings()
+        this.buildFinalStrings()
+        this.buildLines()
+
         return this.lines.join('\n')
     }
 
     buildHeaderStrings() {
-        return this.columns.map((column, i) => pad(column.title, column.align, column.width))
+        this.headerStrings = this.columns.map((column, i) => pad(column.title, column.align, column.width))
     }
 
     buildRowStringParts() {
-        return this.rows.map(row => this.columns.map((column, i) => pad(row[i], column.align, column.width)))
+        this.rowStringParts = this.rows.map(row => this.columns.map((column, i) => pad(row[i], column.align, column.width)))
     }
 
     buildBorderStrings() {
         const bch = chalk[this.opts.borderColor]
-        return {
+        this.borderStrings = {
             top : bch([
                 TableChars.topLeft
               , this.columns.map(column => pad('', 'right', column.width, TableChars.dash)).join(
@@ -143,6 +110,55 @@ class Table {
               , TableChars.footerRight
             ].join(TableChars.dash))
         }
+    }
+
+    calculateColumnWidths() {
+        this.columns.forEach((column, i) => {
+            column.width = Math.max(
+                stripAnsi(column.title).length
+              , ...this.rows.map(row => {
+                    const value = row[i]
+                    if (value == null) {
+                        return 0
+                    }
+                    const len = stripAnsi(value.toString()).length
+                    if (isNaN(len)) {
+                        return 0
+                    }
+                    return len
+                })
+            )
+        })
+    }
+
+    buildFinalStrings() {
+        const bch = chalk[this.opts.borderColor]
+        this.headerString = [
+            bch(TableChars.pipe)
+          , ' '
+          , this.headerStrings.join(' ' + bch(TableChars.pipe) + ' ')
+          , ' '
+          , bch(TableChars.pipe)
+        ].join('')
+
+        this.rowStrings = this.rowStringParts.map(parts =>
+            [
+                bch(TableChars.pipe)
+              , ' '
+              , parts.join(' ' + bch(TableChars.pipe) + ' ')
+              , ' '
+              , bch(TableChars.pipe)
+            ].join('')
+        )
+    }
+
+    buildLines() {
+        this.lines = []
+        this.lines.push(this.borderStrings.top)
+        this.lines.push(this.headerString)
+        this.lines.push(this.borderStrings.middle)
+        this.rowStrings.forEach(rowStr => this.lines.push(rowStr))
+        this.lines.push(this.borderStrings.bottom)
     }
 
     static buildColumns(arr) {
