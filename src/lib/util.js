@@ -159,6 +159,20 @@ class Util {
         return arr
     }
 
+    static padEnd(str, n, chr) {
+        while (Util.stripAnsi(str).length < n) {
+            str += chr
+        }
+        return str
+    }
+
+    static padStart(str, n, chr) {
+        while (Util.stripAnsi(str).length < n) {
+            str = chr + str
+        }
+        return str
+    }
+
     static propsFrom(obj, keys) {
         keys = Array.isArray(keys) ? keys : Object.keys(keys)
         obj = obj || {}

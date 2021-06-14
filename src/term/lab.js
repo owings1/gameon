@@ -35,6 +35,7 @@ const {DrawInstance} = require('./draw')
 const Logger      = require('../lib/logger')
 const Robot       = require('../robot/player')
 const Util        = require('../lib/util')
+const {Table}     = require('./tables')
 const ThemeHelper = require('./themes')
 const sp          = Util.joinSpace
 
@@ -423,111 +424,72 @@ class LabHelper {
 
         const len = str => Util.stripAnsi(str).length
 
-        const ch = {
-            border : chalk.grey
-        }
+        //const ch = {
+        //    border : chalk.grey
+        //}
+        //
 
-        const formatters = {
-            myRank  : value => value
-          , rank    : value => value
-          , diff    : value => {
-                if (value == null) {
-                    return value
-                }
-                var str = value.toString()
-                if (value > 0) {
-                    str = '+' + value
-                }
-                if (value == 0) {
-                    return chalk.bold.green(str)
-                }
-                if (Math.abs(value) == 1) {
-                    return chalk.green(str)
-                }
-                return value
+        const columns = [
+            {
+                name   : 'myRank'
+              , align  : 'right'
+              , format : value => value == null ? '' : value.toString()
             }
-          , myScore : value => value
-          , moves   : value => value
-        }
-        const delegateTables = delegateList.map(delegate => {
-            var hasRank = false
-            const table = {
-                name    : delegate.name
-              , columns : ['myRank', 'rank', 'diff', 'myScore', 'moves']
-              , aligns  : ['padStart', 'padStart', 'padStart', 'padStart', 'padEnd']
-              , rows    : delegate.rankings.map(info => {
-                  if (info.myRank != null) {
-                      hasRank = true
-                  }
-                    const diff = info.myRank == null ? null : info.actualRank - info.myRank
-                    return [
-                        info.myRank == null ? '' : info.myRank
-                      , info.actualRank
-                      , diff == null ? '' : diff
-                      , info.myScore.toFixed(4)
-                      , info.moves.map(move => ('[' + this.moveDesc(move, true) + ']').padEnd(7, ' ')).join(' ')
-                    ]
-                })
+          , {
+                name   : 'rank'
+              , align  : 'right'
+              , key    : 'actualRank'
+              , format : value => value == null ? '' : value.toString()
             }
-            table.hasRank = hasRank
-            table.columnWidths = table.columns.map((column, i) => {
-                return Math.max(column.length, ...table.rows.map(row => row[i].toString().length))
-            })
-            table.width = Util.sumArray(table.columnWidths) + Math.max(table.columns.length - 1, 0) * 3
+          , {
+                name   : 'diff'
+              , align  : 'right'
+              , get    : info => info.myRank == null ? null : info.actualRank - info.myRank
+              , format : value => {
+                    if (value == null) {
+                        return ''
+                    }
+                    var str = value.toString()
+                    if (value == 0) {
+                        return chalk.bold.green(str)
+                    }
+                    if (Math.abs(value) == 1) {
+                        return chalk.green(str)
+                    }
+                    return str
+                }
+            }
+          , {
+                name   : 'myScore'
+              , align  : 'right'
+              , format : value => value.toFixed(4)
+            }
+          , {
+                name: 'moves'
+              , format: moves => moves.map(move => 
+                    ('[' + this.moveDesc(move, true) + ']').padEnd(7, ' ')
+                ).join(' ')
+            }
+        ]
+
+        const tables = delegateList.map(delegate => {
+            const table = new Table(columns, delegate.rankings)
+            table.build()
+            table.name = delegate.name
+            table.width = Util.sumArray(table.columns.map(it => it.width)) + Math.max(table.columns.length - 1, 0) * 3
             return table
         })
 
-        const maxTableWidth = Math.max(...delegateTables.map(table => table.width))
+        const maxTableWidth = Math.max(...tables.map(table => table.width))
         var hr = chalk.bgGrey.white(this.nchars(maxTableWidth + 2, TableChars.dash))
 
-        delegateTables.forEach(table => {
-            if (!table.hasRank) {
-                return
-            }
+        tables.forEach(table => {
             indent = 2
             log(hr)
             log()
             log(chalk.cyan.bold(table.name))
             log()
-            log(
-                ch.border(TableChars.topLeft) + table.columns.map((column, i) => {
-                    return ch.border(''.padEnd(table.columnWidths[i], TableChars.dash))
-                }).join(ch.border(TableChars.dash + TableChars.topMiddle + TableChars.dash)) + ch.border(TableChars.topRight)
-            )
-            log(
-                ch.border(TableChars.pipe) + table.columns.map((column, i) => {
-                    return column[table.aligns[i]](table.columnWidths[i], ' ')
-                }).join(' ' + ch.border(TableChars.pipe) + ' ') + ch.border(TableChars.pipe)
-                    
-            )
-            log(
-                ch.border(TableChars.middleLeft) + table.columns.map((column, i) => {
-                    return ch.border(''.padEnd(table.columnWidths[i], TableChars.dash))
-                }).join(ch.border(TableChars.dash + TableChars.middleMiddle + TableChars.dash)) + ch.border(TableChars.middleRight)
-            )
-            table.rows.forEach(row => {
-                log(
-                    ch.border(TableChars.pipe) + row.map((cell, i) => {
-                        const align = table.aligns[i]
-                        const value = formatters[table.columns[i]](cell).toString()
-                        const vb = new StringBuilder
-                        const pad = ''.padEnd(table.columnWidths[i] - len(value), ' ')
-                        if (align == 'padStart') {
-                            vb.add(pad)
-                        }
-                        vb.add(value)
-                        if (align == 'padEnd') {
-                            vb.add(pad)
-                        }
-                        return vb.toString()
-                    }).join(' ' + ch.border(TableChars.pipe) + ' ') + ch.border(TableChars.pipe)
-                )
-            })
-            log(
-                ch.border(TableChars.footerLeft) + table.columns.map((column, i) => {
-                    return ch.border(''.padEnd(table.columnWidths[i], TableChars.dash))
-                }).join(ch.border(TableChars.dash + TableChars.bottomMiddle + TableChars.dash)) + ch.border(TableChars.footerRight)
-            )
+            table.lines.forEach(line => log(line))
             log()
         })
 
