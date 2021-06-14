@@ -36,10 +36,6 @@ const {
 
 const {TableChars} = Constants
 
-class TableHelper {
-    
-}
-
 function pad(str, align, width, chr = ' ') {
     if (align == 'right') {
         return padStart(str, width, chr)
@@ -78,11 +74,17 @@ class Table {
     }
 
     buildHeaderStrings() {
-        this.headerStrings = this.columns.map((column, i) => pad(column.title, column.align, column.width))
+        this.headerStrings = this.columns.map((column, i) =>
+            pad(column.title, column.align, column.width)
+        )
     }
 
     buildRowStringParts() {
-        this.rowStringParts = this.rows.map(row => this.columns.map((column, i) => pad(row[i], column.align, column.width)))
+        this.rowStringParts = this.rows.map(row =>
+            this.columns.map((column, i) =>
+                pad(row[i], column.align, column.width)
+            )
+        )
     }
 
     buildBorderStrings() {
@@ -90,21 +92,27 @@ class Table {
         this.borderStrings = {
             top : bch([
                 TableChars.topLeft
-              , this.columns.map(column => pad('', 'right', column.width, TableChars.dash)).join(
+              , this.columns.map(column =>
+                    pad('', 'right', column.width, TableChars.dash)
+                ).join(
                     TableChars.dash + TableChars.topMiddle + TableChars.dash
                 )
               , TableChars.topRight
             ].join(TableChars.dash))
           , middle: bch([
                 TableChars.middleLeft
-              , this.columns.map(column => pad('', 'left', column.width, TableChars.dash)).join(
+              , this.columns.map(column =>
+                    pad('', 'left', column.width, TableChars.dash)
+                ).join(
                     TableChars.dash + TableChars.middleMiddle + TableChars.dash
                 )
               , TableChars.middleRight
             ].join(TableChars.dash))
           , bottom: bch([
                 TableChars.footerLeft
-              , this.columns.map(column => pad('', 'left', column.width, TableChars.dash)).join(
+              , this.columns.map(column =>
+                    pad('', 'left', column.width, TableChars.dash)
+                ).join(
                     TableChars.dash + TableChars.bottomMiddle + TableChars.dash
                 )
               , TableChars.footerRight
@@ -132,7 +140,9 @@ class Table {
     }
 
     buildFinalStrings() {
+
         const bch = chalk[this.opts.borderColor]
+
         this.headerString = [
             bch(TableChars.pipe)
           , ' '
@@ -153,10 +163,11 @@ class Table {
     }
 
     buildLines() {
-        this.lines = []
-        this.lines.push(this.borderStrings.top)
-        this.lines.push(this.headerString)
-        this.lines.push(this.borderStrings.middle)
+        this.lines = [
+            this.borderStrings.top
+          , this.headerString
+          , this.borderStrings.middle
+        ]
         this.rowStrings.forEach(rowStr => this.lines.push(rowStr))
         this.lines.push(this.borderStrings.bottom)
     }
@@ -186,11 +197,14 @@ class Table {
     }
 
     static buildRows(columns, data) {
-        return data.map(info => columns.map(column => column.format(column.get(info), info)))
+        return data.map(info =>
+            columns.map(column =>
+                column.format(column.get(info), info)
+            )
+        )
     }
 }
 
 module.exports = {
     Table
-  , TableHelper
 }
