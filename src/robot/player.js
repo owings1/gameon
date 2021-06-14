@@ -548,6 +548,13 @@ class RobotDelegator extends Robot {
                     }
                 })
             }
+            info.rankings.sort((a, b) => {
+                var cmp = a.myRank - b.myRank
+                if (cmp) {
+                    return cmp
+                }
+                return a.actualRank - b.actualRank
+            })
 
             return info
         })

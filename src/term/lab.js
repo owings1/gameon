@@ -326,12 +326,35 @@ class LabHelper {
 
         const {rankList, delegateList} = explain
 
+        const wb = this.showRobotTurnRankList(rankList, delegateWidth)
+        const wb2 = this.showRobotTurnDelegates(delegateList)
+
+        const turnMeta = turn.meta()
+
+        this.fetchLastRecords = () => {
+            return {
+                'explain.json'      : JSON.stringify(explain, null, 2)
+              , 'ranklist.ans.txt'  : wb.toString()
+              , 'ranklist.txt'      : Util.stripAnsi(wb.toString())
+              , 'delegates.ans.txt' : wb2.toString()
+              , 'delegates.txt'     : Util.stripAnsi(wb2.toString())
+              , 'results.json'      : JSON.stringify({results: result.results}, null, 2)
+              , 'robot.json'        : JSON.stringify({robot: robotMeta}, null, 2)
+              , 'turn.json'         : JSON.stringify({turn: turnMeta}, null, 2)
+            }
+        }
+    }
+
+    showRobotTurnRankList(rankList, delegateWidth) {
+
+        const cons = this.logger.console
+
         var indent = 0
         var count = 0
         var hasDotDotDotted = false
 
         const wb = new StringBuilder
-        var log = (...args) => {
+        const log = (...args) => {
             wb.sp(...args)
             wb.add('\n')
             if (count < 21) {
@@ -344,7 +367,9 @@ class LabHelper {
                 cons.log()
             }
         }
-        var hr = this.nchars(39, TableChars.dash)
+
+        const hr = this.nchars(39, TableChars.dash)
+
         var lastScore
 
         rankList.forEach((info, i) => {
@@ -414,20 +439,23 @@ class LabHelper {
 
         log()
 
+        return wb
+    }
+
+    showRobotTurnDelegates(delegateList) {
+
+        const cons = this.logger.console
+
         var indent = 0
+
         const wb2 = new StringBuilder
-        var log = (...args) => {
+        const log = (...args) => {
             wb2.sp(...args)
             wb2.add('\n')
             cons.log(''.padEnd(indent - 1, ' '), ...args)
         }
 
-        const len = str => Util.stripAnsi(str).length
-
-        //const ch = {
-        //    border : chalk.grey
-        //}
-        //
+        //const len = str => Util.stripAnsi(str).length
 
         const columns = [
             {
@@ -453,6 +481,9 @@ class LabHelper {
                     if (value == 0) {
                         return chalk.bold.green(str)
                     }
+                    if (value > 0) {
+                        str = '+' + str
+                    }
                     if (Math.abs(value) == 1) {
                         return chalk.green(str)
                     }
@@ -477,13 +508,17 @@ class LabHelper {
             table.build()
             table.name = delegate.name
             table.width = Util.sumArray(table.columns.map(it => it.width)) + Math.max(table.columns.length - 1, 0) * 3
+            table.hasRank = delegate.rankings[0] && delegate.rankings[0].myRank != null
             return table
         })
 
-        const maxTableWidth = Math.max(...tables.map(table => table.width))
-        var hr = chalk.bgGrey.white(this.nchars(maxTableWidth + 2, TableChars.dash))
+        const maxTableWidth = Math.max(...tables.map(table => table.width)) + 2
+        const hr = chalk.bgGrey.white(this.nchars(maxTableWidth + 2, TableChars.dash))
 
         tables.forEach(table => {
+            if (!table.hasRank) {
+                return
+            }
             indent = 2
             log(hr)
             log()
@@ -493,20 +528,7 @@ class LabHelper {
             log()
         })
 
-        const turnMeta = turn.meta()
-
-        this.fetchLastRecords = () => {
-            return {
-                'explain.json'      : JSON.stringify(explain, null, 2)
-              , 'ranklist.ans.txt'  : wb.toString()
-              , 'ranklist.txt'      : Util.stripAnsi(wb.toString())
-              , 'delegates.ans.txt' : wb2.toString()
-              , 'delegates.txt'     : Util.stripAnsi(wb2.toString())
-              , 'results.json'      : JSON.stringify({results: result.results}, null, 2)
-              , 'robot.json'        : JSON.stringify({robot: robotMeta}, null, 2)
-              , 'turn.json'         : JSON.stringify({turn: turnMeta}, null, 2)
-            }
-        }
+        return wb2
     }
 
     async placeCommand() {
