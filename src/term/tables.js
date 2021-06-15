@@ -47,7 +47,12 @@ class Table {
 
     static defaults() {
         return {
-            borderColor : 'grey'
+            colorBorder  : 'grey'
+          , colorHead    : 'white'
+          , colorEven    : 'white'
+          , colorOdd     : 'white'
+          , footerAlign  : 'left'
+          , innerBorders : false
         }
     }
 
@@ -56,6 +61,7 @@ class Table {
         this.columns = columns
         this.data = data
         this.rows = null
+        this.footerLines = null
     }
 
     build() {
@@ -64,9 +70,13 @@ class Table {
         this.rows = Table.buildRows(this.columns, this.data)
 
         this.calculateColumnWidths()
+        this.calculateTableInnerWidth()
+
         this.buildHeaderStrings()
         this.buildRowStringParts()
+        this.buildFooterInnerStrings()
         this.buildBorderStrings()
+
         this.buildFinalStrings()
         this.buildLines()
 
@@ -74,21 +84,31 @@ class Table {
     }
 
     buildHeaderStrings() {
+        const ch = chalk[this.opts.colorHead]
         this.headerStrings = this.columns.map((column, i) =>
-            pad(column.title, column.align, column.width)
+            pad(ch(column.title), column.align, column.width)
         )
     }
 
     buildRowStringParts() {
-        this.rowStringParts = this.rows.map(row =>
-            this.columns.map((column, i) =>
-                pad(row[i], column.align, column.width)
+        const chodd = chalk[this.opts.colorOdd]
+        const cheven = chalk[this.opts.colorEven]
+        this.rowStringParts = this.rows.map((row, i) => {
+            const ch = i % 2 ? cheven : chodd
+            return this.columns.map((column, i) =>
+                pad(ch(row[i]), column.align, column.width)
             )
+        })
+    }
+
+    buildFooterInnerStrings() {
+        this.footerInnerStrings = (this.footerLines || []).map(footerLine =>
+            pad(footerLine, this.opts.footerAlign, this.innerWidth)
         )
     }
 
     buildBorderStrings() {
-        const bch = chalk[this.opts.borderColor]
+        const bch = chalk[this.opts.colorBorder]
         this.borderStrings = {
             top : bch([
                 TableChars.topLeft
@@ -107,6 +127,24 @@ class Table {
                     TableChars.dash + TableChars.middleMiddle + TableChars.dash
                 )
               , TableChars.middleRight
+            ].join(TableChars.dash))
+          , prefoot: bch([
+                TableChars.bottomLeft
+              , this.columns.map(column =>
+                    pad('', 'left', column.width, TableChars.dash)
+                ).join(
+                    TableChars.dash + TableChars.bottomMiddle + TableChars.dash
+                )
+              , TableChars.bottomRight
+            ].join(TableChars.dash))
+          , postfoot: bch([
+                TableChars.footerLeft
+              , this.columns.map(column =>
+                    pad('', 'left', column.width, TableChars.dash)
+                ).join(
+                    TableChars.dash + TableChars.footerMiddle + TableChars.dash
+                )
+              , TableChars.footerRight
             ].join(TableChars.dash))
           , bottom: bch([
                 TableChars.footerLeft
@@ -139,9 +177,33 @@ class Table {
         })
     }
 
+    calculateTableInnerWidth() {
+        // start with column inner widths
+        this.innerWidth = Util.sumArray(this.columns.map(column => column.width))
+        // add inner borders/padding
+        this.innerWidth += Math.max(this.columns.length - 1, 0) * 3
+        if (this.footerLines && this.footerLines.length) {
+            // check if footers will fit
+            const minFooterWidth = Math.max(...this.footerLines.map(str => stripAnsi(str).length))
+            if (minFooterWidth > this.innerWidth) {
+                const deficit = minFooterWidth - this.innerWidth
+                // adjust innerWidth
+                this.innerWidth += deficit
+                if (this.columns.length) {
+                    // adjust width of last column
+                    this.columns[this.columns.length - 1].width += deficit
+                } else {
+                    // corner case of no columns
+                    // TODO
+                    throw new Error('not implemented')
+                }
+            }
+        }
+    }
+
     buildFinalStrings() {
 
-        const bch = chalk[this.opts.borderColor]
+        const bch = chalk[this.opts.colorBorder]
 
         this.headerString = [
             bch(TableChars.pipe)
@@ -160,6 +222,16 @@ class Table {
               , bch(TableChars.pipe)
             ].join('')
         )
+
+        this.footerStrings = this.footerInnerStrings.map(innerStr =>
+            [
+                bch(TableChars.pipe)
+              , ' '
+              , innerStr
+              , ' '
+              , bch(TableChars.pipe)
+            ].join('')
+        )
     }
 
     buildLines() {
@@ -168,8 +240,19 @@ class Table {
           , this.headerString
           , this.borderStrings.middle
         ]
-        this.rowStrings.forEach(rowStr => this.lines.push(rowStr))
-        this.lines.push(this.borderStrings.bottom)
+        this.rowStrings.forEach((rowStr, i) => {
+            if (this.opts.innerBorders && i > 0) {
+                this.lines.push(this.borderStrings.middle)
+            }
+            this.lines.push(rowStr)
+        })
+        if (this.footerStrings.length) {
+            this.lines.push(this.borderStrings.prefoot)
+            this.footerStrings.forEach(footerStr => this.lines.push(footerStr))
+            this.lines.push(this.borderStrings.postfoot)
+        } else {
+            this.lines.push(this.borderStrings.bottom)
+        }
     }
 
     static buildColumns(arr) {
@@ -187,11 +270,13 @@ class Table {
             align  : 'left'
           , title  : column.name
           , key    : column.name
-          , format : (value, info) => '' + value
           , ...column
         }
         if (!column.get) {
             column.get = info => info[column.key]
+        }
+        if (!column.format) {
+            column.format = (value, info) => '' + value
         }
         return column
     }

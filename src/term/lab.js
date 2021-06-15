@@ -504,7 +504,10 @@ class LabHelper {
         ]
 
         const tables = delegateList.map(delegate => {
-            const table = new Table(columns, delegate.rankings)
+            const opts = {
+                //colorEven: 'cyan'
+            }
+            const table = new Table(columns, delegate.rankings, opts)
             table.build()
             table.name = delegate.name
             table.width = Util.sumArray(table.columns.map(it => it.width)) + Math.max(table.columns.length - 1, 0) * 3

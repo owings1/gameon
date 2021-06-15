@@ -27,6 +27,7 @@ const Coordinator = require('../lib/coordinator')
 const Core        = require('../lib/core')
 const Logger      = require('../lib/logger')
 const Robot       = require('./player')
+const {Table}     = require('../term/tables')
 const Util        = require('../lib/util')
 
 const chalk = require('chalk')
@@ -34,54 +35,85 @@ const fs    = require('fs')
 const fse   = require('fs-extra')
 const path  = require('path')
 
-const {intRange, nmap, Timer} = Util
+const {Timer}   = Util
 const {resolve} = path
 
-const {Colors, TableChars} = Constants
-const {White, Red} = Colors
+const {Colors, White, Red} = Constants
 
 const {Match, Profiler} = Core
 
 const {RobotDelegator} = Robot
 
-function getTableChars(color) {
-    const chrs = {}
-    for (var k in TableChars) {
-        chrs[k] = chalk[color](TableChars[k])
+function f_round(value) {
+    return Math.round(value).toLocaleString()
+}
+
+function f_elapsed(value) {
+    return value == null ? '' : value.toLocaleString() + ' ms'
+}
+
+const Columns = {
+    name: {
+        name       : 'name'
+      , title      : 'Name'
+      , align      : 'left'
+      , sortable   : true
+      , defaultDir : 'asc'
     }
-    return chrs
-}
-
-function repeat(str, n) {
-    return nmap(n, () => str).join('')
-}
-
-const AvailableColumns = [
-    'name'
-  , 'elapsed'
-  , 'average'
-  , 'count'
-  , 'game'
-  , 'match'
-  , 'turn'
-]
-
-const SortableColumns = AvailableColumns
-
-const DefaultSortDirections = {
-    'name'    : 'asc'
-  , 'elapsed' : 'desc'
-  , 'average' : 'desc'
-  , 'count'   : 'desc'
-  , 'game'    : 'desc'
-  , 'match'   : 'desc'
-  , 'turn'    : 'desc'
+  , elapsed: {
+        name       : 'elapsed'
+      , title      : 'Elapsed (ms)'
+      , align      : 'right'
+      , format     : f_elapsed
+      , sortable   : true
+      , defaultDir : 'desc'
+    }
+  , average: {
+        name       : 'average'
+      , title      : 'Average (ms)'
+      , align      : 'right'
+      , format     : value => value == null ? '' : value.toFixed(4) + ' ms'
+      , sortable   : true
+      , defaultDir : 'desc'
+    }
+  , count: {
+        name       : 'count'
+      , title      : 'Count'
+      , align      : 'right'
+      , format     : f_round
+      , sortable   : true
+      , defaultDir : 'desc'
+    }
+  , match: {
+        name       : 'match'
+      , title      : 'Match (avg)'
+      , align      : 'right'
+      , format     : f_round
+      , sortable   : true
+      , defaultDir : 'desc'
+    }
+  , game: {
+        name       : 'game'
+      , title      : 'Game (avg)'
+      , align      : 'right'
+      , format     : f_round
+      , sortable   : true
+      , defaultDir : 'desc'
+    }
+  , turn : {
+        name       : 'turn'
+      , title      : 'Turn (avg)'
+      , align      : 'right'
+      , format     : f_round
+      , sortable   : true
+      , defaultDir : 'desc'
+    }
 }
 
 class Helper {
 
     static sortableColumns() {
-        return SortableColumns.slice(0)
+        return Object.values(Columns).filter(column => column.sortable).map(column => column.name)
     }
 
     static defaults() {
@@ -111,26 +143,30 @@ class Helper {
     }
 
     constructor(opts) {
+
         this.opts = Util.defaults(Helper.defaults(), opts)
+
         this.columns = this.opts.columns.toLowerCase().split(',')
         
-        this.columns.forEach(column => {
-            if (AvailableColumns.indexOf(column) < 0) {
-                throw new Error('Invalid column: ' + column)
+        this.columns.forEach(name => {
+            if (!Columns[name]) {
+                throw new Error('Invalid column: ' + name)
             }
         })
+
         this.sortColumns = []
         this.sortDirs = []
+
         this.opts.sortBy.toLowerCase().split(',').forEach(sortBy => {
-            var [column, dir] = sortBy.split(':')
-            if (SortableColumns.indexOf(column) < 0) {
-                throw new Error('Invalid sort column: ' + column)
+            var [name, dir] = sortBy.split(':')
+            if (Columns[name].sortabe) {
+                throw new Error('Invalid sort column: ' + name)
             }
-            dir = dir || DefaultSortDirections[column]
+            dir = dir || Columns[name].defaultDir
             if (dir != 'asc' && dir != 'desc') {
-                throw new Error("Invalid sort direction '" + dir + "' for column " + column)
+                throw new Error("Invalid sort direction '" + dir + "' for column " + name)
             }
-            this.sortColumns.push(column)
+            this.sortColumns.push(name)
             this.sortDirs.push(dir == 'asc' ? 1 : -1)
         })
 
@@ -160,36 +196,49 @@ class Helper {
             }
             
         }
+
         this.logger = new Logger
         this.coordinator = new Coordinator
         this.roller = null
     }
 
     async run() {
+
         if (this.opts.breadthTrees) {
             this.logger.info('Using breadth trees')
         }
+
         if (this.opts.rollsFile) {
             this.logger.info('Loading rolls file', path.basename(this.opts.rollsFile))
             await this.loadRollsFile(this.opts.rollsFile)
         }
+
         const filters = []
         if (this.opts.gaugeRegex) {
             this.logger.info('Using regex filter', this.opts.gaugeRegex.toString())
             filters.push(gauge => this.opts.gaugeRegex.test(gauge.name))
         }
+
         Profiler.enabled = true
         Profiler.resetAll()
+
         const white = RobotDelegator.forDefaults(White)
         const red = RobotDelegator.forDefaults(Red)
+
         try {
+
             this.logger.info('Running', this.opts.numMatches, 'matches of', this.opts.matchTotal, 'points each')
+
             var matchCount = 0
-            var gameCount = 0
-            var turnCount = 0
+            var gameCount  = 0
+            var turnCount  = 0
+
             const matchOpts = {breadthTrees: this.opts.breadthTrees, roller: this.roller}
+
             const summaryTimer = new Timer
+
             summaryTimer.start()
+
             for (var i = 0; i < this.opts.numMatches; ++i) {
                 var match = new Match(this.opts.matchTotal, matchOpts)
                 await this.coordinator.runMatch(match, white, red)
@@ -199,16 +248,23 @@ class Helper {
                     turnCount += match.games[j].getTurnCount()
                 }
             }
+
             summaryTimer.stop()
+
             this.logger.info('Done')
+
             const summary = {
                 elapsed : summaryTimer.elapsed
               , matchCount
               , gameCount
               , turnCount
             }
+
             const data = this.buildData(Profiler, summary, filters)
-            this.logData(data, summary)
+            const table = this.buildTable(data, summary)
+
+            this.logTable(table)
+
         } finally {
             white.destroy()
             red.destroy()
@@ -302,40 +358,17 @@ class Helper {
         return data
     }
 
-    logData(data, summary) {
+    buildTable(data, summary) {
 
-        const {columns} = this
-        const {innerBorders, colorOdd, colorEven, colorHead} = this.opts
-
-        const titles = {
-            // optional
-            name    : 'Name'
-          , elapsed : 'Elapsed (ms)'
-          , average : 'Average (ms)'
-          , count   : 'Count'
-          , match   : 'Match (avg)'
-          , game    : 'Game (avg)'
-          , turn    : 'Turn (avg)'
-        }
-
-        const round =  value => Math.round(value).toLocaleString()
-        const format = {
-            // optional, but should return string
-            elapsed : value => value == null ? '' : value.toLocaleString() + ' ms'
-          , average : value => value == null ? '' : value.toFixed(4) + ' ms'
-          , count   : round
-          , match   : round
-          , game    : round
-          , turn    : round
-        }
+        const columns = this.columns.map(name => Columns[name])
 
         const footerInfo = [
-            ['Total Elapsed', format.elapsed(summary.elapsed)]
-          , ['Total Matches', summary.matchCount.toLocaleString()]
-          , ['Total Games',   summary.gameCount.toLocaleString()]
-          , ['Total Turns',   summary.turnCount.toLocaleString()]
-          , ['Games / Match', round(summary.gameCount / summary.matchCount)]
-          , ['Turns / Game',  round(summary.turnCount / summary.gameCount)]
+            ['Total Elapsed' , f_elapsed(summary.elapsed)]
+          , ['Total Matches' , summary.matchCount.toLocaleString()]
+          , ['Total Games'   , summary.gameCount.toLocaleString()]
+          , ['Total Turns'   , summary.turnCount.toLocaleString()]
+          , ['Games / Match' , f_round(summary.gameCount / summary.matchCount)]
+          , ['Turns / Game'  , f_round(summary.turnCount / summary.gameCount)]
         ]
         const footerTitleWidth = Math.max(...footerInfo.map(it => it[0].length))
         const footerValueWidth = Math.max(...footerInfo.map(it => it[1].length))
@@ -349,107 +382,16 @@ class Helper {
             return [title, value].join(' : ')
         })
 
-        const colors = {
-            border: 'grey'
-        }
+        const table = new Table(columns, data, this.opts)
 
-        const aligns = {
-            // optional, default is padStart (right align)
-            name : 'padEnd'
-        }
+        table.footerLines = footerLines
+        table.build()
 
-        const widths = {
-            // optional min width
-        }
+        return table
+    }
 
-        // setup columns
-        var rowWidth = 0
-        const dashParts = []
-        columns.forEach(key => {
-            // defaults
-            titles[key] = titles[key] || key
-            format[key] = format[key] || (value => '' + value)
-            aligns[key] = aligns[key] || 'padStart'
-            widths[key] = widths[key] || 0
-            // fit column width to data
-            widths[key] = Math.max(widths[key], titles[key].length, ...data.map(row => format[key](row[key]).length))
-            rowWidth += widths[key]
-        })
-
-        rowWidth += Math.max(columns.length - 1, 0) * 3
-
-        // verify footer will fit in column
-        const minFooterWidth = Math.max(...footerLines.map(str => str.length))
-        var widthDeficit = minFooterWidth - rowWidth
-        if (widthDeficit > 0) {
-            if (columns.length) {
-                // adjust the last column width
-                widths[columns[columns.length - 1]] += widthDeficit
-            } else {
-                // corner case of no columns
-                // create dummy column space of dashes
-                var dummyDashes = repeat(TableChars.dash, widthDeficit)
-                dashParts.push(chalk[colors.border](dummyDashes))
-            }
-            rowWidth += widthDeficit
-        }
-
-        columns.forEach(key => {
-            // some reason dash doesn't pad when chalked
-            const dashes = repeat(TableChars.dash, widths[key])
-            dashParts.push(chalk[colors.border](dashes))
-        })
-
-        // setup border
-        const border = getTableChars(colors.border)
-        border.pipeSpaced = ' ' + border.pipe + ' '
-        for (var vpos of ['top', 'middle', 'bottom', 'footer']) {
-            var joiner = [border.dash, border[vpos + 'Middle'], border.dash].join('')
-            border[vpos] = [
-                border[vpos + 'Left'], dashParts.join(joiner), border[vpos + 'Right']
-            ].join(border.dash)
-        }
-
-        // build header
-        const headerInnerStr = columns.map(key =>
-            chalk[colorHead](titles[key][aligns[key]](widths[key], ' '))).join(border.pipeSpaced)
-        const headerStr = [
-            border.pipe, headerInnerStr.padEnd(rowWidth, ' '), border.pipe
-        ].join(' ')
-
-        // build body
-        const alt = (str, i) => {
-            const method = i % 2 ? colorEven : colorOdd
-            return chalk[method](str)
-        }
-        const bodyStrs = data.map((row, i) => {
-            const innerStr = columns.map(key =>
-                alt(format[key](row[key])[aligns[key]](widths[key], ' '), i)
-            ).join(border.pipeSpaced)
-            return [border.pipe, innerStr.padEnd(rowWidth, ' '), border.pipe].join(' ')
-        })
-
-        // build footer
-        const footerStrs = footerLines.map(line =>
-            [border.pipe, line.padEnd(rowWidth, ' '), border.pipe].join(' ')
-        )
-
-        // Write
-
-        this.println(border.top)
-        this.println(headerStr)
-        this.println(border.middle)
-
-        bodyStrs.forEach((rowStr, i) => {
-            if (innerBorders && i > 0) {
-                this.println(border.middle)
-            }
-            this.println(rowStr)
-        })
-
-        this.println(border.bottom)
-        footerStrs.forEach(footerStr => this.println(footerStr))
-        this.println(border.footer)
+    logTable(table) {
+        table.lines.forEach(line => this.println(line))
     }
 
     println(line) {
