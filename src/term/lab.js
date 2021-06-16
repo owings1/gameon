@@ -262,6 +262,11 @@ class LabHelper {
             return
         }
 
+        if (isRobot) {
+            await this.showRobotTurn(turn)
+            return
+        }
+
         const series = turn.builder.leaves.map(node => node.moveSeries())
         const {builder} = turn
         const info = {
@@ -272,15 +277,10 @@ class LabHelper {
           , hasWinner : builder.result.hasWinner
         }
 
-        if (isRobot) {
-            await this.showRobotTurn(turn)
-            return
-        }
-
-        const wb = new StringBuilder
+        const b = new StringBuilder
         const log = (...args) => {
-            wb.sp(...args)
-            wb.add('\n')
+            b.sp(...args)
+            b.add('\n')
             cons.log(...args)
         }
 
@@ -297,10 +297,13 @@ class LabHelper {
 
         log(hr)
 
+        const turnData = turn.serialize()
+
         this.fetchLastRecords = () => {
             return {
-                'moves.json' : Buffer.from(JSON.stringify({info, moves}, null, 2))
-              , 'moves.txt'  : Buffer.from(wb.toString())
+                'series.json' : JSON.stringify({info, series}, null, 2)
+              , 'series.txt'  : b.toString()
+              , 'turn.json'  : JSON.stringify({turn: turnData}, null, 2)
             }
         }
     }
@@ -313,34 +316,31 @@ class LabHelper {
         const robotMeta = robot.meta()
         const delegateWidth = Math.max(...robot.delegates.map(it => it.robot.name.length))
 
-        var robotMoves
-        var explain
-        var result
         try {
-            robotMoves = await robot.getMoves(turn)
-            result = robot.lastResult
-            explain = robot.explainResult(robot.lastResult)
+            var robotMoves = await robot.getMoves(turn)
+            var result = robot.lastResult
+            var explain = robot.explainResult(robot.lastResult)
         } finally {
             await robot.destroy()
         }
 
         const {rankList, delegateList} = explain
 
-        const wb = this.showRobotTurnRankList(rankList, delegateWidth)
-        const wb2 = this.showRobotTurnDelegates(delegateList)
+        const b_rankList  = this.showRobotTurnRankList(rankList, delegateWidth)
+        const b_delegates = this.showRobotTurnDelegates(delegateList)
 
-        const turnMeta = turn.meta()
+        const turnData = turn.serialize()
 
         this.fetchLastRecords = () => {
             return {
                 'explain.json'      : JSON.stringify(explain, null, 2)
-              , 'ranklist.ans.txt'  : wb.toString()
-              , 'ranklist.txt'      : Util.stripAnsi(wb.toString())
-              , 'delegates.ans.txt' : wb2.toString()
-              , 'delegates.txt'     : Util.stripAnsi(wb2.toString())
+              , 'ranklist.ans.txt'  : b_rankList.toString()
+              , 'ranklist.txt'      : Util.stripAnsi(b_rankList.toString())
+              , 'delegates.ans.txt' : b_delegates.toString()
+              , 'delegates.txt'     : Util.stripAnsi(b_delegates.toString())
               , 'results.json'      : JSON.stringify({results: result.results}, null, 2)
               , 'robot.json'        : JSON.stringify({robot: robotMeta}, null, 2)
-              , 'turn.json'         : JSON.stringify({turn: turnMeta}, null, 2)
+              , 'turn.json'         : JSON.stringify({turn: turnData}, null, 2)
             }
         }
     }
@@ -353,10 +353,10 @@ class LabHelper {
         var count = 0
         var hasDotDotDotted = false
 
-        const wb = new StringBuilder
+        const b_log = new StringBuilder
         const log = (...args) => {
-            wb.sp(...args)
-            wb.add('\n')
+            b_log.sp(...args)
+            b_log.add('\n')
             if (count < 21) {
                 cons.log(''.padEnd(indent - 1, ' '), ...args)
             }
@@ -368,7 +368,7 @@ class LabHelper {
             }
         }
 
-        const hr = this.nchars(39, TableChars.dash)
+        const hr = this.nchars(49, TableChars.dash)
 
         var lastScore
 
@@ -394,7 +394,7 @@ class LabHelper {
                 if (lastScore > 0) {
                     decreasePct = Math.round(100 * (lastScore - info.finalScore) / lastScore)
                 }
-                b.add(chalk.yellow(i + 1), chalk.grey('/'), chalk.yellow(rankList.length))
+                b.add(chalk.bold.cyan(info.rank), chalk.grey('/'), chalk.yellow(rankList.length))
                 b.add('  ', mstr)
             }
             lastScore = info.finalScore
@@ -412,11 +412,11 @@ class LabHelper {
 
             indent += 2
 
-            log(''.padEnd(delegateWidth + 3, ' '), chalk.grey('weighted'), chalk.grey('raw'.padStart(8, ' ')))
+            log(''.padEnd(delegateWidth + 3, ' '), chalk.grey('weighted'), chalk.grey('myScore'.padStart(9, ' ')), ' ', chalk.grey('myRank'))
 
             info.delegates.forEach(it => {
 
-                if (it.rawScore + it.weightedScore == 0) {
+                if (it.myScore + it.weightedScore == 0) {
                     return
                 }
 
@@ -425,8 +425,10 @@ class LabHelper {
                 bd.add(
                     it.name.padEnd(delegateWidth + 6, ' ')
                   , chalk.cyan(it.weightedScore.toFixed(4).padEnd(7, ' '))
-                  , chalk.grey(TableChars.pipe) + ' '
-                  , chalk.yellow(it.rawScore.toFixed(4).padEnd(6, ' '))
+                  , chalk.grey(TableChars.pipe) + '  '
+                  , chalk.yellow(it.myScore.toFixed(4).padEnd(6, ' '))
+                  , ' ' + chalk.grey(TableChars.pipe) + ' '
+                  , chalk.yellow(it.myRank.toString().padStart(rankList.length.toString().length, ' '))
                 )
 
                 log(bd.toString())
@@ -434,12 +436,12 @@ class LabHelper {
 
             log()
 
-            log(''.padEnd(6, ' '), chalk.grey(info.endState))
+            log(''.padEnd(16, ' '), chalk.grey(info.endState))
         })
 
         log()
 
-        return wb
+        return b_log
     }
 
     showRobotTurnDelegates(delegateList) {
@@ -448,14 +450,12 @@ class LabHelper {
 
         var indent = 0
 
-        const wb2 = new StringBuilder
+        const b = new StringBuilder
         const log = (...args) => {
-            wb2.sp(...args)
-            wb2.add('\n')
+            b.sp(...args)
+            b.add('\n')
             cons.log(''.padEnd(indent - 1, ' '), ...args)
         }
-
-        //const len = str => Util.stripAnsi(str).length
 
         const columns = [
             {
@@ -503,25 +503,16 @@ class LabHelper {
             }
         ]
 
-        const tables = delegateList.map(delegate => {
-            const opts = {
-                //colorEven: 'cyan'
-            }
-            const table = new Table(columns, delegate.rankings, opts)
-            table.build()
-            table.name = delegate.name
-            table.width = Util.sumArray(table.columns.map(it => it.width)) + Math.max(table.columns.length - 1, 0) * 3
-            table.hasRank = delegate.rankings[0] && delegate.rankings[0].myRank != null
-            return table
-        })
+        const tables = delegateList.filter(it =>
+            it.rankings[0] && it.rankings[0].myRank != null
+        ).map(delegate =>
+            new Table(columns, delegate.rankings, {name: delegate.name}).build()
+        )
 
-        const maxTableWidth = Math.max(...tables.map(table => table.width)) + 2
+        const maxTableWidth = Math.max(...tables.map(table => table.innerWidth)) + 2
         const hr = chalk.bgGrey.white(this.nchars(maxTableWidth + 2, TableChars.dash))
 
         tables.forEach(table => {
-            if (!table.hasRank) {
-                return
-            }
             indent = 2
             log(hr)
             log()
@@ -531,7 +522,7 @@ class LabHelper {
             log()
         })
 
-        return wb2
+        return b
     }
 
     async placeCommand() {

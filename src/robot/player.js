@@ -441,18 +441,129 @@ class RobotDelegator extends Robot {
 
     explainResult(result) {
 
-        const rankList = Object.keys(result.totals).map(endState => {
+        // overall rankings
+        const overallRankings = Object.keys(result.totals)
+        overallRankings.sort((a, b) => {
+            var cmp = result.totals[b] - result.totals[a]
+            if (cmp) {
+                return cmp
+            }
+            cmp = (b == result.selectedEndState) - (a == result.selectedEndState)
+            if (cmp) {
+                return cmp
+            }
+            return a.localeCompare(b)
+        })
+        const overallRankingsMap = {}
+        var rankTrack = 1
+        overallRankings.forEach((endState, i) => {
+            // score of zero ties for dead last
+            if (result.totals[endState] == 0) {
+                rankTrack = overallRankings.length
+                overallRankingsMap[endState] = rankTrack
+                return
+            }
+            if (i == 0) {
+                overallRankingsMap[endState] = rankTrack
+                return
+            }
+            if (result.totals[endState] < result.totals[overallRankings[i - 1]]) {
+                rankTrack += 1
+            }
+            overallRankingsMap[endState] = rankTrack
+        })
+        // how many endStates for each rank {rank: count}
+        const overallRankCounts = {}
+        Object.values(overallRankingsMap).forEach(rank => {
+            if (!overallRankCounts[rank]) {
+                overallRankCounts[rank] = 0
+            }
+            overallRankCounts[rank] += 1
+        })
+
+        // delegate rankings, delegate ordered
+        const delegateRankedStatesMaps = []
+
+        // what did this delegate prefer wrt what was chosen
+        const delegateList = result.results.map((res, i) => {
+
+            const myRankedStates = Object.keys(res)
+            myRankedStates.sort((a, b) => res[b] - res[a])
+
+            // ties are much more likely
+            const myRankedStatesMap = {}
+            var myRankTrack = 1
+            myRankedStates.forEach((endState, i) => {
+                // score of zero ties for dead last
+                if (res[endState] == 0) {
+                    // but if it's also first, i gave no rankings, so null
+                    // is more appropriate
+                    if (i == 0 || myRankTrack == null) {
+                        myRankTrack = null
+                    } else {
+                        myRankTrack = myRankedStates.length
+                    }
+                    myRankedStatesMap[endState] = myRankTrack
+                    return
+                }
+                if (i == 0) {
+                    myRankedStatesMap[endState] = myRankTrack
+                    return
+                }
+                if (res[endState] < res[myRankedStates[i - 1]]) {
+                    myRankTrack += 1
+                }
+                myRankedStatesMap[endState] = myRankTrack
+            })
+
+            delegateRankedStatesMaps.push(myRankedStatesMap)
+
+            const delegate = this.delegates[i]
+            const info = {
+                name       : delegate.robot.name
+              , moveWeight : delegate.moveWeight
+              , rankings   : myRankedStates.map((endState, i) => {
+                    return {
+                        endState
+                      , moves       : result.turn.endStatesToSeries[endState]
+                        // just for reference
+                      , myScore     : res[endState]
+                      , actualScore : result.totals[endState]
+                        // what the delegator said
+                      , actualRank  : overallRankingsMap[endState]
+                        // what i said
+                      , myRank      : myRankedStatesMap[endState]
+                    }
+                })
+            }
+            info.rankings.sort((a, b) => {
+                var cmp = a.myRank - b.myRank
+                if (cmp) {
+                    return cmp
+                }
+                return a.actualRank - b.actualRank
+            })
+
+            return info
+        })
+
+        const rankList = overallRankings.map(endState => {
+            const rank = overallRankingsMap[endState]
             const info = {
                 endState
               , finalScore    : result.totals[endState]
+              , rank          : rank
+              , rankCount     : overallRankCounts[rank]
               , moves         : result.turn.endStatesToSeries[endState]
               , isChosen      : endState == result.selectedEndState
               , delegates     : this.delegates.map((delegate, i) => {
-                    const rawScore = result.results[i][endState]
+                    const myScore = result.results[i][endState]
+                    const myRank = delegateRankedStatesMaps[i][endState]
                     return {
                         name          : delegate.robot.name
-                      , weightedScore : rawScore * delegate.moveWeight
-                      , rawScore
+                      , weightedScore : myScore * delegate.moveWeight
+                      , myScore
+                      , myRank
                     }
                 })
             }
@@ -467,95 +578,6 @@ class RobotDelegator extends Robot {
                 }
                 return a.name.localeCompare(b.name)
             })
-            return info
-        })
-
-        rankList.sort((a, b) => {
-            var cmp = b.finalScore - a.finalScore
-            if (cmp) {
-                return cmp
-            }
-            cmp = b.isChosen = a.isChosen
-            if (cmp) {
-                return cmp
-            }
-            return a.endState.localeCompare(b.endState)
-        })
-
-        // overall rankings
-        const rankedStates = rankList.map(info => info.endState)
-        const rankedStatesMap = {}
-        // unlikely for a tie, but should be considered
-        var rank = 1
-        rankedStates.forEach((endState, i) => {
-            if (i == 0) {
-                rankedStatesMap[endState] = rank
-                return
-            }
-            if (result.totals[endState] < result.totals[rankedStates[i - 1]]) {
-                rank += 1
-            }
-            rankedStatesMap[endState] = rank
-        })
-
-        // what did this delegate prefer wrt what was chosen
-        const delegateList = result.results.map((res, i) => {
-
-            const myRankedStates = Object.keys(res)
-            myRankedStates.sort((a, b) => res[b] - res[a])
-
-            // ties are much more likely
-            const myRankedStatesMap = {}
-            var rank = 1
-            myRankedStates.forEach((endState, i) => {
-                // score of zero ties for dead last
-                if (res[endState] == 0) {
-                    // but if it's also first, i gave no rankings, so null
-                    // is more appropriate
-                    if (i == 0 || rank == null) {
-                        rank = null
-                    } else {
-                        rank = myRankedStates.length
-                    }
-                    myRankedStatesMap[endState] = rank
-                    return
-                }
-                if (i == 0) {
-                    myRankedStatesMap[endState] = rank
-                    return
-                }
-                if (res[endState] < res[myRankedStates[i - 1]]) {
-                    rank += 1
-                }
-                myRankedStatesMap[endState] = rank
-            })
-
-            const delegate = this.delegates[i]
-            const info = {
-                name       : delegate.robot.name
-              , moveWeight : delegate.moveWeight
-              , rankings   : myRankedStates.map((endState, i) => {
-                    return {
-                        endState
-                      , moves       : result.turn.endStatesToSeries[endState]
-                        // just for reference
-                      , myScore     : res[endState]
-                      , actualScore : result.totals[endState]
-                        // what the delegator said
-                      , actualRank  : rankedStatesMap[endState]
-                        // what i said
-                      , myRank      : myRankedStatesMap[endState]
-                    }
-                })
-            }
-            info.rankings.sort((a, b) => {
-                var cmp = a.myRank - b.myRank
-                if (cmp) {
-                    return cmp
-                }
-                return a.actualRank - b.actualRank
-            })
-
             return info
         })
 

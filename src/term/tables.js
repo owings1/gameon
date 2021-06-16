@@ -53,15 +53,18 @@ class Table {
           , colorOdd     : 'white'
           , footerAlign  : 'left'
           , innerBorders : false
+          , name         : 'Table'
         }
     }
 
     constructor(columns, data, opts) {
         this.opts = Util.defaults(Table.defaults(), opts)
+        this.name = this.opts.name
         this.columns = columns
         this.data = data
         this.rows = null
         this.footerLines = null
+        this.lines = []
     }
 
     build() {
@@ -80,7 +83,7 @@ class Table {
         this.buildFinalStrings()
         this.buildLines()
 
-        return this.lines.join('\n')
+        return this
     }
 
     buildHeaderStrings() {
@@ -253,6 +256,10 @@ class Table {
         } else {
             this.lines.push(this.borderStrings.bottom)
         }
+    }
+
+    toString() {
+        return this.lines.join('\n')
     }
 
     static buildColumns(arr) {
