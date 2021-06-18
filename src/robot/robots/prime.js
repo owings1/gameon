@@ -24,14 +24,14 @@
  */
 const Base = require('../player').ConfidenceRobot
 
-const {ZERO_RANKINGS} = Base
+const {ZERO_SCORES} = Base
 
 class PrimeRobot extends Base {
 
     async getRankings(turn, game, match) {
 
         if (turn.board.analyzer.isDisengaged()) {
-            return ZERO_RANKINGS
+            return ZERO_SCORES
         }
 
         const scores = {}

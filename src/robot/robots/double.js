@@ -27,12 +27,12 @@ const Constants = require('../../lib/constants')
 
 const {Opponent} = Constants
 
-const {ZERO_RANKINGS} = Base
+const {ZERO_SCORES} = Base
 
 class DoubleRobot extends Base {
 
     async getRankings(turn, game, match) {
-        return ZERO_RANKINGS
+        return ZERO_SCORES
     }
 
     async getDoubleConfidence(turn, game, match) {

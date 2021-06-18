@@ -31,7 +31,7 @@ const Util      = require('../lib/util')
 const {Profiler} = Core
 const {HasNotRolledError} = Errors
 
-const ZERO_RANKINGS = 'ZERO_RANKINGS'
+const ZERO_SCORES = 'ZERO_SCORES'
 
 class Robot extends Base {
 
@@ -272,7 +272,7 @@ class ConfidenceRobot extends Robot {
     }
 }
 
-ConfidenceRobot.ZERO_RANKINGS = ZERO_RANKINGS
+ConfidenceRobot.ZERO_SCORES = ZERO_SCORES
 
 class RobotDelegator extends Robot {
 
@@ -603,7 +603,7 @@ class RobotDelegator extends Robot {
                var scores = zeroRankings
            } else {
                var scores = await delegate.robot.getRankings(turn, game, match)
-               if (scores === ZERO_RANKINGS) {
+               if (scores === ZERO_SCORES) {
                    scores = zeroRankings
                }
            }
@@ -672,5 +672,5 @@ module.exports = {
   , RobotDelegator
   , UndecidedMoveError
   , InvalidRobotError
-  , ZERO_RANKINGS
+  , ZERO_SCORES
 }

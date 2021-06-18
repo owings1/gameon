@@ -30,7 +30,7 @@ const Core      = require('../../lib/core')
 const {intRange} = require('../../lib/util')
 const {Colors, PointOrigins} = Constants
 const {Board} = Core
-const {ZERO_RANKINGS} = Base
+const {ZERO_SCORES} = Base
 
 const {UndecidedMoveError} = Robot
 
@@ -85,11 +85,11 @@ class FirstTurnRobot extends Base {
     async getRankings(turn, game, match) {
         // skip non-game, greater than second turn, and doubles
         if (!game) {
-            return ZERO_RANKINGS
+            return ZERO_SCORES
         }
         const turnCount = game.getTurnCount()
         if (turnCount > 2 || turn.dice[0] == turn.dice[1]) {
-            return ZERO_RANKINGS
+            return ZERO_SCORES
         }
         const rankings = this.zeroRankings(turn)
         const diceHash = turn.diceSorted.join(',')

@@ -177,7 +177,7 @@ describe('BearoffRobot', () => {
         it('should return 0 rankings when cannot bear off', async () => {
             const turn = game.nextTurn().roll()
             const result = await robot.getRankings(turn, game)
-            expect(result).to.equal(robot.constructor.ZERO_RANKINGS)
+            expect(result).to.equal(robot.constructor.ZERO_SCORES)
         })
 
         it('should rank Bearoff1Best best for Bearoff1Start with 5,3', async () => {
@@ -284,7 +284,7 @@ describe('FirstTurnRobot', () => {
             const turn = game.nextTurn()
             turn.roll()
             const result = await robot.getRankings(turn, game)
-            expect(result).to.equal(robot.constructor.ZERO_RANKINGS)
+            expect(result).to.equal(robot.constructor.ZERO_SCORES)
         })
 
         // implementation has changed
