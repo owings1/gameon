@@ -27,20 +27,22 @@ const Util      = require('../lib/util')
 
 const chalk = require('chalk')
 
-const {
-    StringBuilder
-  , stripAnsi
-  , padEnd
-  , padStart
-} = Util
+const {StringBuilder} = Util
 
 const {TableChars} = Constants
 
+function strlen(str) {
+    if (str == null) {
+        return 0
+    }
+    return Util.stripAnsi(str.toString()).length
+}
+
 function pad(str, align, width, chr = ' ') {
     if (align == 'right') {
-        return padStart(str, width, chr)
+        return Util.padStart(str, width, chr)
     }
-    return padEnd(str, width, chr)
+    return Util.padEnd(str, width, chr)
 }
 
 class Table {
@@ -54,16 +56,18 @@ class Table {
           , footerAlign  : 'left'
           , innerBorders : false
           , name         : 'Table'
+          , footerLines  : null
         }
     }
 
     constructor(columns, data, opts) {
         this.opts = Util.defaults(Table.defaults(), opts)
+        Table.validateOpts(this.opts)
         this.name = this.opts.name
         this.columns = columns
         this.data = data
         this.rows = null
-        this.footerLines = null
+        this.footerLines = this.opts.footerLines || null
         this.lines = []
     }
 
@@ -82,6 +86,8 @@ class Table {
 
         this.buildFinalStrings()
         this.buildLines()
+
+        this.outerWidth = strlen(this.lines[0])
 
         return this
     }
@@ -112,50 +118,54 @@ class Table {
 
     buildBorderStrings() {
         const bch = chalk[this.opts.colorBorder]
+        const dashParts = this.columns.map(column =>
+            pad('', 'left', column.width, TableChars.dash)
+        )
+        const dashesFootOnly = pad('', 'left', this.innerWidth, TableChars.dash)
         this.borderStrings = {
             top : bch([
                 TableChars.topLeft
-              , this.columns.map(column =>
-                    pad('', 'right', column.width, TableChars.dash)
-                ).join(
+              , dashParts.join(
                     TableChars.dash + TableChars.topMiddle + TableChars.dash
                 )
               , TableChars.topRight
             ].join(TableChars.dash))
           , middle: bch([
                 TableChars.middleLeft
-              , this.columns.map(column =>
-                    pad('', 'left', column.width, TableChars.dash)
-                ).join(
+              , dashParts.join(
                     TableChars.dash + TableChars.middleMiddle + TableChars.dash
                 )
               , TableChars.middleRight
             ].join(TableChars.dash))
           , prefoot: bch([
                 TableChars.bottomLeft
-              , this.columns.map(column =>
-                    pad('', 'left', column.width, TableChars.dash)
-                ).join(
+              , dashParts.join(
                     TableChars.dash + TableChars.bottomMiddle + TableChars.dash
                 )
               , TableChars.bottomRight
             ].join(TableChars.dash))
           , postfoot: bch([
                 TableChars.footerLeft
-              , this.columns.map(column =>
-                    pad('', 'left', column.width, TableChars.dash)
-                ).join(
+              , dashParts.join(
                     TableChars.dash + TableChars.footerMiddle + TableChars.dash
                 )
               , TableChars.footerRight
             ].join(TableChars.dash))
           , bottom: bch([
                 TableChars.footerLeft
-              , this.columns.map(column =>
-                    pad('', 'left', column.width, TableChars.dash)
-                ).join(
+              , dashParts.join(
                     TableChars.dash + TableChars.bottomMiddle + TableChars.dash
                 )
+              , TableChars.footerRight
+            ].join(TableChars.dash))
+          , topFootOnly : bch([
+                TableChars.topLeft
+              , dashesFootOnly
+              , TableChars.topRight
+            ].join(TableChars.dash))
+          , bottomFootOnly : bch([
+                TableChars.footerLeft
+              , dashesFootOnly
               , TableChars.footerRight
             ].join(TableChars.dash))
         }
@@ -164,18 +174,8 @@ class Table {
     calculateColumnWidths() {
         this.columns.forEach((column, i) => {
             column.width = Math.max(
-                stripAnsi(column.title).length
-              , ...this.rows.map(row => {
-                    const value = row[i]
-                    if (value == null) {
-                        return 0
-                    }
-                    const len = stripAnsi(value.toString()).length
-                    if (isNaN(len)) {
-                        return 0
-                    }
-                    return len
-                })
+                strlen(column.title)
+              , ...this.rows.map(row => strlen(row[i]))
             )
         })
     }
@@ -187,7 +187,7 @@ class Table {
         this.innerWidth += Math.max(this.columns.length - 1, 0) * 3
         if (this.footerLines && this.footerLines.length) {
             // check if footers will fit
-            const minFooterWidth = Math.max(...this.footerLines.map(str => stripAnsi(str).length))
+            const minFooterWidth = Math.max(...this.footerLines.map(strlen))
             if (minFooterWidth > this.innerWidth) {
                 const deficit = minFooterWidth - this.innerWidth
                 // adjust innerWidth
@@ -195,10 +195,6 @@ class Table {
                 if (this.columns.length) {
                     // adjust width of last column
                     this.columns[this.columns.length - 1].width += deficit
-                } else {
-                    // corner case of no columns
-                    // TODO
-                    throw new Error('not implemented')
                 }
             }
         }
@@ -238,6 +234,18 @@ class Table {
     }
 
     buildLines() {
+        if (this.columns.length) {
+            this.buildLinesNormal()
+        } else if (this.footerStrings.length) {
+            // corner case of no columns
+            this.buildLinesFooterOnly()
+        } else {
+            // corner case of no columns, no footerLines
+            this.lines = []
+        }
+    }
+
+    buildLinesNormal() {
         this.lines = [
             this.borderStrings.top
           , this.headerString
@@ -258,6 +266,13 @@ class Table {
         }
     }
 
+    buildLinesFooterOnly() {
+        this.lines = []
+        this.lines.push(this.borderStrings.topFootOnly)
+        this.footerStrings.forEach(footerStr => this.lines.push(footerStr))
+        this.lines.push(this.borderStrings.bottomFootOnly)
+    }
+
     toString() {
         return this.lines.join('\n')
     }
@@ -274,9 +289,9 @@ class Table {
             column.name = col
         }
         column = {
-            align  : 'left'
-          , title  : column.name
-          , key    : column.name
+            align : 'left'
+          , title : column.name
+          , key   : column.name
           , ...column
         }
         if (!column.get) {
@@ -294,6 +309,19 @@ class Table {
                 column.format(column.get(info), info)
             )
         )
+    }
+
+    static validateOpts(opts) {
+        for (var opt of ['colorHead', 'colorOdd', 'colorEven']) {
+            try {
+                chalk[opts[opt]]('')
+            } catch (err) {
+                if (err.name == 'TypeError' && err.message.indexOf('not a function')) {
+                    throw new Error("Unsupported chalk color '" + opts[opt] + "' for option " + opt)
+                }
+                throw err
+            }
+        }
     }
 }
 

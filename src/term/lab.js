@@ -497,9 +497,9 @@ class LabHelper {
             }
           , {
                 name: 'moves'
-              , format: moves => moves.map(move => 
-                    ('[' + this.moveDesc(move, true) + ']').padEnd(7, ' ')
-                ).join(' ')
+              , format: moves => chalk.grey('[') + moves.map(move => 
+                    (this.moveDesc(move, true)).padEnd(5, ' ')
+                ).join(chalk.grey(',') + ' ') + chalk.grey(']')
             }
         ]
 
@@ -509,8 +509,8 @@ class LabHelper {
             new Table(columns, delegate.rankings, {name: delegate.name}).build()
         )
 
-        const maxTableWidth = Math.max(...tables.map(table => table.innerWidth)) + 2
-        const hr = chalk.bgGrey.white(this.nchars(maxTableWidth + 2, TableChars.dash))
+        const maxTableWidth = Math.max(...tables.map(table => table.outerWidth))
+        const hr = chalk.bgGrey.white(this.nchars(maxTableWidth, TableChars.dash))
 
         tables.forEach(table => {
             indent = 2

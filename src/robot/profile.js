@@ -52,61 +52,112 @@ function f_elapsed(value) {
     return value == null ? '' : value.toLocaleString() + ' ms'
 }
 
+function numCmp(a, b) {
+    if (a == null && b != null) {
+        return -1
+    }
+    if (b == null && a != null) {
+        return 1
+    }
+    return a - b
+}
+
 const Columns = {
     name: {
-        name       : 'name'
-      , title      : 'Name'
-      , align      : 'left'
+        def : {
+            name       : 'name'
+          , title      : 'Name'
+          , align      : 'left'
+        }
       , sortable   : true
       , defaultDir : 'asc'
+      , sorter     : (a, b) => (a.name + '').localeCompare(b.name + '')
+      , g_counter  : counter => counter.name
+      , g_timer    : timer => timer.name
     }
+
   , elapsed: {
-        name       : 'elapsed'
-      , title      : 'Elapsed (ms)'
-      , align      : 'right'
-      , format     : f_elapsed
+        def : {
+            name       : 'elapsed'
+          , title      : 'Elapsed (ms)'
+          , align      : 'right'
+          , format     : f_elapsed
+        }
       , sortable   : true
       , defaultDir : 'desc'
+      , sorter     : (a, b) => numCmp(a.elapsed, b.elapsed)
+      , g_counter  : counter => null
+      , g_timer    : timer => timer.elapsed
     }
+
   , average: {
-        name       : 'average'
-      , title      : 'Average (ms)'
-      , align      : 'right'
-      , format     : value => value == null ? '' : value.toFixed(4) + ' ms'
+        def : {
+            name       : 'average'
+          , title      : 'Average (ms)'
+          , align      : 'right'
+          , format     : value => value == null ? '' : value.toFixed(4) + ' ms'
+        }
       , sortable   : true
       , defaultDir : 'desc'
+      , sorter     : (a, b) => numCmp(a.average, b.average)
+      , g_counter  : counter => null
+      , g_timer    : timer => timer.elapsed / timer.startCount
     }
+
   , count: {
-        name       : 'count'
-      , title      : 'Count'
-      , align      : 'right'
-      , format     : f_round
+        def : {
+            name       : 'count'
+          , title      : 'Count'
+          , align      : 'right'
+          , format     : f_round
+        }
       , sortable   : true
       , defaultDir : 'desc'
+      , sorter     : (a, b) => numCmp(a.count, b.count)
+      , g_counter  : counter => counter.value
+      , g_timer    : timer => timer.startCount
     }
+
   , match: {
-        name       : 'match'
-      , title      : 'Match (avg)'
-      , align      : 'right'
-      , format     : f_round
+        def : {
+            name       : 'match'
+          , title      : 'Match (avg)'
+          , align      : 'right'
+          , format     : f_round
+        }
       , sortable   : true
       , defaultDir : 'desc'
+      , sorter     : (a, b) => numCmp(a.match, b.match)
+      , g_counter  : (counter, summary) => counter.value / summary.matchCount
+      , g_timer    : (timer, summary) => timer.startCount / summary.matchCount
     }
+
   , game: {
-        name       : 'game'
-      , title      : 'Game (avg)'
-      , align      : 'right'
-      , format     : f_round
+        def : {
+            name       : 'game'
+          , title      : 'Game (avg)'
+          , align      : 'right'
+          , format     : f_round
+        }
       , sortable   : true
       , defaultDir : 'desc'
+      , sorter     : (a, b) => numCmp(a.game, b.game)
+      , g_counter  : (counter, summary) => counter.value / summary.gameCount
+      , g_timer    : (timer, summary) => timer.startCount / summary.gameCount
     }
+
   , turn : {
-        name       : 'turn'
-      , title      : 'Turn (avg)'
-      , align      : 'right'
-      , format     : f_round
+        def : {
+            name       : 'turn'
+          , title      : 'Turn (avg)'
+          , align      : 'right'
+          , format     : f_round
+        }
       , sortable   : true
       , defaultDir : 'desc'
+      , sorter     : (a, b) => numCmp(a.turn, b.turn)
+      , g_counter  : (counter, summary) => counter.value / summary.turnCount
+      , g_timer    : (timer, summary) => timer.startCount / summary.turnCount
     }
 }
 
@@ -146,7 +197,7 @@ class Helper {
 
         this.opts = Util.defaults(Helper.defaults(), opts)
 
-        this.columns = this.opts.columns.toLowerCase().split(',')
+        this.columns = this.opts.columns.toLowerCase().split(',').map(it => it.trim()).filter(it => it.length)
         
         this.columns.forEach(name => {
             if (!Columns[name]) {
@@ -169,17 +220,6 @@ class Helper {
             this.sortColumns.push(name)
             this.sortDirs.push(dir == 'asc' ? 1 : -1)
         })
-
-        for (var opt of ['colorHead', 'colorOdd', 'colorEven']) {
-            try {
-                chalk[this.opts[opt]]('')
-            } catch (err) {
-                if (err.name == 'TypeError' && err.message.indexOf('not a function')) {
-                    throw new Error("Unsupported chalk color '" + this.opts[opt] + "' for option " + opt)
-                }
-                throw err
-            }
-        }
 
         if (this.opts.gaugeRegex) {
             if (typeof this.opts.gaugeRegex == 'string') {
@@ -240,8 +280,11 @@ class Helper {
             summaryTimer.start()
 
             for (var i = 0; i < this.opts.numMatches; ++i) {
+
                 var match = new Match(this.opts.matchTotal, matchOpts)
+
                 await this.coordinator.runMatch(match, white, red)
+
                 matchCount += 1
                 gameCount += match.games.length
                 for (var j = 0, jlen = match.games.length; j < jlen; ++j) {
@@ -276,46 +319,6 @@ class Helper {
 
         const {columns, sortColumns, sortDirs} = this
 
-        const timerGetters = {
-            name    : timer => timer.name
-          , elapsed : timer => timer.elapsed
-          , average : timer => timer.elapsed / timer.startCount
-          , count   : timer => timer.startCount
-          , match   : timer => timer.startCount / summary.matchCount
-          , game    : timer => timer.startCount / summary.gameCount
-          , turn    : timer => timer.startCount / summary.turnCount
-        }
-
-        const counterGetters = {
-            name    : counter => counter.name
-          , elapsed : counter => null
-          , average : counter => null
-          , count   : counter => counter.value
-          , match   : counter => counter.value / summary.matchCount
-          , game    : counter => counter.value / summary.gameCount
-          , turn    : counter => counter.value / summary.turnCount
-        }
-
-        const numCmp = (a, b) => {
-            if (a == null && b != null) {
-                return -1
-            }
-            if (b == null && a != null) {
-                return 1
-            }
-            return a - b
-        }
-
-        const sorters = {
-            name    : (a, b) => (a.name + '').localeCompare(b.name + '')
-          , elapsed : (a, b) => numCmp(a.elapsed, b.elapsed)
-          , average : (a, b) => numCmp(a.average, b.average)
-          , count   : (a, b) => numCmp(a.count, b.count)
-          , match   : (a, b) => numCmp(a.match, b.match)
-          , game    : (a, b) => numCmp(a.game, b.game)
-          , turn    : (a, b) => numCmp(a.turn, b.turn)
-        }
-
         const filter = gauge => !filters.find(filter => !filter(gauge))
 
         const data = []
@@ -325,8 +328,8 @@ class Helper {
                 return
             }
             const row = {}
-            columns.forEach(key => {
-                row[key] = timerGetters[key](timer)
+            columns.forEach(name => {
+                row[name] = Columns[name].g_timer(timer, summary)
             })
             data.push(row)
         })
@@ -336,8 +339,8 @@ class Helper {
                 return
             }
             const row = {}
-            columns.forEach(key => {
-                row[key] = counterGetters[key](counter)
+            columns.forEach(name => {
+                row[name] = Columns[name].g_counter(counter, summary)
             })
             data.push(row)
         })
@@ -345,9 +348,9 @@ class Helper {
         data.sort((a, b) => {
             var res = 0
             for (var i = 0; i < sortColumns.length; ++i) {
-                var column = sortColumns[i]
+                var name = sortColumns[i]
                 var dir = sortDirs[i]
-                res = sorters[column](a, b) * dir
+                res = Columns[name].sorter(a, b) * dir
                 if (res) {
                     break
                 }
@@ -360,7 +363,7 @@ class Helper {
 
     buildTable(data, summary) {
 
-        const columns = this.columns.map(name => Columns[name])
+        const columns = this.columns.map(name => Columns[name].def)
 
         const footerInfo = [
             ['Total Elapsed' , f_elapsed(summary.elapsed)]
@@ -382,12 +385,7 @@ class Helper {
             return [title, value].join(' : ')
         })
 
-        const table = new Table(columns, data, this.opts)
-
-        table.footerLines = footerLines
-        table.build()
-
-        return table
+        return new Table(columns, data, {...this.opts, footerLines}).build()
     }
 
     logTable(table) {
@@ -395,14 +393,14 @@ class Helper {
     }
 
     println(line) {
-        this.logger.writeStdout(''.padEnd(this.opts.indent, ' '))
-        this.logger.writeStdout(line)
-        this.logger.writeStdout('\n')
+        const {logger} = this
+        logger.writeStdout(''.padEnd(this.opts.indent, ' '))
+        logger.writeStdout(line)
+        logger.writeStdout('\n')
     }
 
     loadRollsFile(file) {
-        file = resolve(file)
-        const data = JSON.parse(fs.readFileSync(file, 'utf-8'))
+        const data = JSON.parse(fs.readFileSync(resolve(file), 'utf-8'))
         if (!Array.isArray(data.rolls)) {
             throw new Error('Invalid rolls data, expects rolls key to be an array')
         }
