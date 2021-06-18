@@ -46,6 +46,7 @@ class SafetyRobot extends Base {
         return {
             v1 : this
           , v2 : SafetyRobot_v2
+          , v3 : SafetyRobot_v3
         }
     }
 
@@ -103,6 +104,15 @@ class SafetyRobot_v2 extends SafetyRobot {
     constructor(...args) {
         super(...args)
         this.isIncludeAllBlots = false
+    }
+}
+
+class SafetyRobot_v3 extends SafetyRobot_v2 {
+
+    // Enforces spread on scores
+    async getRankings(turn, game, match) {
+        const scores = await super.getRankings(turn, game, match)
+        return this.spreadRanking(scores)
     }
 }
 
