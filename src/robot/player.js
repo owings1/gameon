@@ -260,8 +260,8 @@ class ConfidenceRobot extends Robot {
         return ConfidenceRobot.zeroRankings(turn)
     }
 
-    spreadRanking(...args) {
-        return Util.spreadRanking(...args)
+    spreadScore(...args) {
+        return Util.spreadScore(...args)
     }
 
     static zeroRankings(turn) {

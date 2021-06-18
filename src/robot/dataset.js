@@ -104,15 +104,15 @@ class Helper {
     prepTurnsData(turnDatas) {
         const trains = []
         turnDatas.forEach(({startState, rankings}) => {
-            const spreadRankings = Util.spreadRanking(rankings)
+            const spreadScores = Util.spreadScore(rankings)
             const startStructure = Helper.boardStructure(Board.fromStateString(startState))
             const startPos = startStructure.map(i => 1 / (i + 15))
-            const startSpread = Util.spreadRanking(startStructure)
+            const startSpread = Util.spreadScore(startStructure)
             Object.entries(rankings).forEach(([endState, score]) => {
                 const endStructure = Helper.boardStructure(Board.fromStateString(endState))
                 const endPos = endStructure.map(i => 1 / (i + 15))
-                const endSpread = Util.spreadRanking(endStructure)
-                const scoreSpread = spreadRankings[endState]
+                const endSpread = Util.spreadScore(endStructure)
+                const scoreSpread = spreadScores[endState]
                 trains.push({
                     input  : startPos.concat(endPos)
                   , output : scoreSpread

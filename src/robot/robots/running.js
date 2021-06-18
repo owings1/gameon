@@ -50,7 +50,7 @@ class RunningRobot extends Base {
             scores[endState] = this._rankEndState(turn, endState)
         }
         // Inverse ranking
-        return this.spreadRanking(scores, true)
+        return this.spreadScore(scores, true)
     }
 
     _rankEndState(turn, endState) {

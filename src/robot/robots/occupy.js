@@ -38,7 +38,7 @@ class OccupyRobot extends Base {
             const {analyzer} = turn.fetchBoard(endState)
             pointCounts[endState] = analyzer.originsHeld(turn.color).length
         })
-        return this.spreadRanking(pointCounts)
+        return this.spreadScore(pointCounts)
     }
 }
 

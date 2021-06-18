@@ -215,7 +215,7 @@ class Util {
         return b - a
     }
 
-    static spreadRanking(obj, isInverse) {
+    static spreadScore(obj, isInverse) {
         const iobj = {}
         var size = 0
         var minRaw = Infinity

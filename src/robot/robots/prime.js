@@ -49,7 +49,7 @@ class PrimeRobot extends Base {
             }
         })
 
-        const rankings = this.spreadRanking(scores)
+        const rankings = this.spreadScore(scores)
         zeros.forEach(endState => rankings[endState] = 0)
 
         return rankings

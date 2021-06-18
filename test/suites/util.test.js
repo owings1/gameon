@@ -270,7 +270,7 @@ describe('Util', () => {
         })
     })
 
-    describe('#spreadRanking', () => {
+    describe('#spreadScore', () => {
 
         const expCases = [
             {
@@ -304,19 +304,19 @@ describe('Util', () => {
             }
 
             it(desc, () => {
-                const result = Util.spreadRanking(input, isInverse)
+                const result = Util.spreadScore(input, isInverse)
                 expect(JSON.stringify(result)).to.equal(JSON.stringify(exp))
             })
 
             it('should return same value after 2 calls for ' + JSON.stringify(input), () => {
-                const result1 = Util.spreadRanking(input)
-                const result2 = Util.spreadRanking(result1)
+                const result1 = Util.spreadScore(input)
+                const result2 = Util.spreadScore(result1)
                 expect(JSON.stringify(result1)).to.equal(JSON.stringify(result2))
             })
 
             it('should invert and back again for 2 invert calls for ' + JSON.stringify(input), () => {
-                const result1 = Util.spreadRanking(input)
-                const result2 = Util.spreadRanking(Util.spreadRanking(result1, true), true)
+                const result1 = Util.spreadScore(input)
+                const result2 = Util.spreadScore(Util.spreadScore(result1, true), true)
                 expect(JSON.stringify(result1)).to.equal(JSON.stringify(result2))
             })
         })

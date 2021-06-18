@@ -48,7 +48,7 @@ class BearoffRobot extends Base {
                 scores[endState] += pointsCovered
             }
         })
-        return hasBearoff ? this.spreadRanking(scores) : ZERO_RANKINGS
+        return hasBearoff ? this.spreadScore(scores) : ZERO_RANKINGS
     }
 }
 

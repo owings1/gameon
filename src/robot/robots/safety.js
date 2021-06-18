@@ -76,7 +76,7 @@ class SafetyRobot extends Base {
                 zeros.push(endState)
             }
         }
-        const rankings = this.spreadRanking(scores, true)
+        const rankings = this.spreadScore(scores, true)
         for (var i = 0, ilen = zeros.length; i < ilen; ++i) {
             rankings[zeros[i]] = 1
         }
@@ -112,7 +112,7 @@ class SafetyRobot_v3 extends SafetyRobot_v2 {
     // Enforces spread on scores
     async getRankings(turn, game, match) {
         const scores = await super.getRankings(turn, game, match)
-        return this.spreadRanking(scores)
+        return this.spreadScore(scores)
     }
 }
 

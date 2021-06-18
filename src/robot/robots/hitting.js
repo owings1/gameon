@@ -43,7 +43,7 @@ class HittingRobot extends Base {
             //}
         })
 
-        const rankings = this.spreadRanking(counts)
+        const rankings = this.spreadScore(counts)
         //zeros.forEach(endState => rankings[endState] = 0)
 
         return rankings

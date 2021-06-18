@@ -34,7 +34,7 @@ class RandomRobot extends Base {
     }
 
     async getRankings(turn, game, match) {
-        return this.spreadRanking(this.zeroRankings(turn))
+        return this.spreadScore(this.zeroRankings(turn))
     }
 }
 
@@ -45,7 +45,7 @@ class RandomRobot_v2 extends Base {
         turn.allowedEndStates.forEach(endState => {
             scores[endState] = Math.random()
         })
-        return this.spreadRanking(scores)
+        return this.spreadScore(scores)
     }
 }
 
