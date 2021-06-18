@@ -91,7 +91,7 @@ class FirstTurnRobot extends Base {
         if (turnCount > 2 || turn.dice[0] == turn.dice[1]) {
             return ZERO_SCORES
         }
-        const rankings = this.zeroRankings(turn)
+        const rankings = this.zeroScores(turn)
         const diceHash = turn.diceSorted.join(',')
         // we only have one potential move series
         const {moveHashes, firstMoveEndState} = MoveIndex[turn.color][diceHash]

@@ -560,7 +560,7 @@ describe('RobotDelegator', () => {
             var msg = ''
             robot.logger.warn = (...args) => msg += args.join(' ')
             rando.getRankings = turn => {
-                const rankings = rando.zeroRankings(turn)
+                const rankings = rando.zeroScores(turn)
                 const key = Object.keys(rankings).pop()
                 rankings[key] = -1
                 return rankings

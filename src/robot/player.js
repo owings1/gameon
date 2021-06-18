@@ -256,16 +256,16 @@ class ConfidenceRobot extends Robot {
         return 1
     }
 
-    zeroRankings(turn) {
-        return ConfidenceRobot.zeroRankings(turn)
+    zeroScores(turn) {
+        return ConfidenceRobot.zeroScores(turn)
     }
 
     spreadScore(...args) {
         return Util.spreadScore(...args)
     }
 
-    static zeroRankings(turn) {
-        Profiler.inc('ConfidenceRobot.zeroRankings')
+    static zeroScores(turn) {
+        Profiler.inc('ConfidenceRobot.zeroScores')
         const rankings = {}
         turn.allowedEndStates.forEach(endState => rankings[endState] = 0)
         return rankings
@@ -595,16 +595,16 @@ class RobotDelegator extends Robot {
     */
    async _getDelegatesResults(turn, game, match) {
        const results = []
-       const zeroRankings = ConfidenceRobot.zeroRankings(turn)
+       const zeroScores = ConfidenceRobot.zeroScores(turn)
        for (var i = 0, ilen = this.delegates.length; i < ilen; ++i) {
            var delegate = this.delegates[i]
            Profiler.start(delegate.rankTimerName)
            if (delegate.moveWeight == 0) {
-               var scores = zeroRankings
+               var scores = zeroScores
            } else {
                var scores = await delegate.robot.getRankings(turn, game, match)
                if (scores === ZERO_SCORES) {
-                   scores = zeroRankings
+                   scores = zeroScores
                }
            }
            results.push(scores)

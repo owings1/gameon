@@ -34,7 +34,7 @@ class RandomRobot extends Base {
     }
 
     async getRankings(turn, game, match) {
-        return this.spreadScore(this.zeroRankings(turn))
+        return this.spreadScore(this.zeroScores(turn))
     }
 }
 
