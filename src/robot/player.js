@@ -221,12 +221,12 @@ class ConfidenceRobot extends Robot {
         if (!turn.isRolled) {
             throw new HasNotRolledError('Turn is not rolled')
         }
-        const rankings = await this.getRankings(turn, game, match)
-        if (rankings.length == 0) {
-            throw new UndecidedMoveError('No moves returned from getRankings')
+        const scores = await this.getScores(turn, game, match)
+        if (scores.length == 0) {
+            throw new UndecidedMoveError('No moves returned from getScores')
         }
-        const maxRank = Math.max(...Object.values(rankings))
-        const stateString = Object.keys(rankings).find(str => rankings[str] == maxRank)
+        const maxScore = Math.max(...Object.values(scores))
+        const stateString = Object.keys(scores).find(str => scores[str] == maxScore)
         return turn.endStatesToSeries[stateString]
     }
 
@@ -244,7 +244,7 @@ class ConfidenceRobot extends Robot {
 
     // {stateString -> weight}
     // where 0 <= weight <= 1
-    async getRankings(turn, game, match) {
+    async getScores(turn, game, match) {
         throw new Error('NotImplemented')
     }
 
@@ -266,9 +266,9 @@ class ConfidenceRobot extends Robot {
 
     static zeroScores(turn) {
         Profiler.inc('ConfidenceRobot.zeroScores')
-        const rankings = {}
-        turn.allowedEndStates.forEach(endState => rankings[endState] = 0)
-        return rankings
+        const scores = {}
+        turn.allowedEndStates.forEach(endState => scores[endState] = 0)
+        return scores
     }
 }
 
@@ -310,7 +310,7 @@ class RobotDelegator extends Robot {
         }
         this.validateWeight(moveWeight)
         this.validateWeight(doubleWeight)
-        this.delegates.push({robot, moveWeight, doubleWeight, rankTimerName: 'getRankings.' + robot.name})
+        this.delegates.push({robot, moveWeight, doubleWeight, scoreTimerName: 'getScores.' + robot.name})
     }
 
     async getMoves(turn, game, match) {
@@ -598,17 +598,17 @@ class RobotDelegator extends Robot {
        const zeroScores = ConfidenceRobot.zeroScores(turn)
        for (var i = 0, ilen = this.delegates.length; i < ilen; ++i) {
            var delegate = this.delegates[i]
-           Profiler.start(delegate.rankTimerName)
+           Profiler.start(delegate.scoreTimerName)
            if (delegate.moveWeight == 0) {
                var scores = zeroScores
            } else {
-               var scores = await delegate.robot.getRankings(turn, game, match)
+               var scores = await delegate.robot.getScores(turn, game, match)
                if (scores === ZERO_SCORES) {
                    scores = zeroScores
                }
            }
            results.push(scores)
-           Profiler.stop(delegate.rankTimerName)
+           Profiler.stop(delegate.scoreTimerName)
        }
        return results
    }
@@ -624,8 +624,8 @@ class RobotDelegator extends Robot {
     */
    _computeTotals(results) {
        const totals = {}
-       // Don't assume delegates will give good rankings >= 0. Instead log a warning,
-       // but still allow selecting the moves with the max ranking.
+       // Don't assume delegates will give good scores >= 0. Instead log a warning,
+       // but still allow selecting the moves with the max score.
        var maxWeight = -Infinity
        var selectedEndState
        for (var i = 0, ilen = results.length; i < ilen; ++i) {

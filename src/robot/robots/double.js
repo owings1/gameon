@@ -31,7 +31,7 @@ const {ZERO_SCORES} = Base
 
 class DoubleRobot extends Base {
 
-    async getRankings(turn, game, match) {
+    async getScores(turn, game, match) {
         return ZERO_SCORES
     }
 

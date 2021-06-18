@@ -55,7 +55,7 @@ class SafetyRobot extends Base {
         this.isIncludeAllBlots = true
     }
 
-    async getRankings(turn, game, match) {
+    async getScores(turn, game, match) {
 
         if (turn.board.analyzer.isDisengaged()) {
             return ZERO_SCORES
@@ -76,11 +76,11 @@ class SafetyRobot extends Base {
                 zeros.push(endState)
             }
         }
-        const rankings = this.spreadScore(scores, true)
+        const finalScores = this.spreadScore(scores, true)
         for (var i = 0, ilen = zeros.length; i < ilen; ++i) {
-            rankings[zeros[i]] = 1
+            finalScores[zeros[i]] = 1
         }
-        return rankings
+        return finalScores
     }
 
     _fetchBlots(analyzer, color) {
@@ -110,8 +110,8 @@ class SafetyRobot_v2 extends SafetyRobot {
 class SafetyRobot_v3 extends SafetyRobot_v2 {
 
     // Enforces spread on scores
-    async getRankings(turn, game, match) {
-        const scores = await super.getRankings(turn, game, match)
+    async getScores(turn, game, match) {
+        const scores = await super.getScores(turn, game, match)
         return this.spreadScore(scores)
     }
 }

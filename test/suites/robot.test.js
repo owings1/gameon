@@ -102,7 +102,7 @@ describe('ConfidenceRobot', () => {
         })
 
         it('should throw UndecidedMoveError when moves are empty', async () => {
-            robot.getRankings = () => []
+            robot.getScores = () => []
             // hack a turn
             const turn = {isRolled: true}
             const err = await getErrorAsync(() => robot.getMoves(turn))
@@ -116,10 +116,10 @@ describe('ConfidenceRobot', () => {
         })
     })
 
-    describe('#getRankings', () => {
+    describe('#getScores', () => {
 
         it('should throw NotImplemented for base class', async () => {
-            const err = await getErrorAsync(() => robot.getRankings())
+            const err = await getErrorAsync(() => robot.getScores())
             expect(err.message).to.equal('NotImplemented')
         })
     })
@@ -155,11 +155,11 @@ describe('RandomRobot', () => {
             robot = ConfidenceRobot.getVersionInstance('RandomRobot', 'v2', White)
         })
 
-        it('should get rankings', async () => {
+        it('should get scores', async () => {
             rolls = [[6, 2]]
             const turn = game.firstTurn()
-            const rankings = await robot.getRankings(turn, game)
-            expect(Object.keys(rankings).length).to.equal(turn.allowedEndStates.length)
+            const scores = await robot.getScores(turn, game)
+            expect(Object.keys(scores).length).to.equal(turn.allowedEndStates.length)
         })
     })
 })
@@ -172,47 +172,47 @@ describe('BearoffRobot', () => {
         doFirstTurn()
     })
 
-    describe('#getRankings', () => {
+    describe('#getScores', () => {
 
-        it('should return 0 rankings when cannot bear off', async () => {
+        it('should return 0 scores when cannot bear off', async () => {
             const turn = game.nextTurn().roll()
-            const result = await robot.getRankings(turn, game)
+            const result = await robot.getScores(turn, game)
             expect(result).to.equal(robot.constructor.ZERO_SCORES)
         })
 
-        it('should rank Bearoff1Best best for Bearoff1Start with 5,3', async () => {
+        it('should score Bearoff1Best best for Bearoff1Start with 5,3', async () => {
             game.board.setStateString(States.Bearoff1Start)
             const turn = game.nextTurn()
             turn.setRoll([5, 3])
-            const result = await robot.getRankings(turn, game)
+            const result = await robot.getScores(turn, game)
             const maxRank = Math.max(...Object.values(result))
             expect(result[States28.Bearoff1Best]).to.equal(maxRank)
         })
 
-        it('should rank only one best for Bearoff1Start with 5,3', async () => {
+        it('should score only one best for Bearoff1Start with 5,3', async () => {
             game.board.setStateString(States.Bearoff1Start)
             const turn = game.nextTurn()
             turn.setRoll([5, 3])
-            const result = await robot.getRankings(turn, game)
+            const result = await robot.getScores(turn, game)
             const maxRank = Math.max(...Object.values(result))
             const bests = turn.allowedEndStates.filter(str => result[str] == maxRank)
             expect(bests).to.have.length(1)
         })
 
-        it('should rank Bearoff2Best best for Bearoff2Start with 1,3', async () => {
+        it('should score Bearoff2Best best for Bearoff2Start with 1,3', async () => {
             game.board.setStateString(States.Bearoff2Start)
             const turn = game.nextTurn()
             turn.setRoll([1, 3])
-            const result = await robot.getRankings(turn, game)
+            const result = await robot.getScores(turn, game)
             const maxRank = Math.max(...Object.values(result))
             expect(result[States28.Bearoff2Best]).to.equal(maxRank)
         })
 
-        it('should rank only one best for Bearoff2Start with 1,3', async () => {
+        it('should score only one best for Bearoff2Start with 1,3', async () => {
             game.board.setStateString(States.Bearoff2Start)
             const turn = game.nextTurn()
             turn.setRoll([1, 3])
-            const result = await robot.getRankings(turn, game)
+            const result = await robot.getScores(turn, game)
             const maxRank = Math.max(...Object.values(result))
             const bests = turn.allowedEndStates.filter(str => result[str] == maxRank)
             expect(bests).to.have.length(1)
@@ -221,7 +221,7 @@ describe('BearoffRobot', () => {
         it('should not care about points covered when game is still engaged for Bearoff3Start with 4,1', async () => {
             game.board.setStateString(States.Bearoff3Start)
             const turn = game.nextTurn().setRoll(4, 1)
-            const result = await robot.getRankings(turn, game)
+            const result = await robot.getScores(turn, game)
             
             expect(result[States28.Bearoff3End1]).to.equal(result[States28.Bearoff3End2])
         })
@@ -229,7 +229,7 @@ describe('BearoffRobot', () => {
         it('should take one home for Bearoff4Start even though may not yet bear off with 6,4', async () => {
             game.board.setStateString(States.Bearoff4Start)
             const turn = game.nextTurn().setRoll(6, 4)
-            const result = await robot.getRankings(turn, game)
+            const result = await robot.getScores(turn, game)
             const maxRank = Math.max(...Object.values(result))
             expect(result[States28.Bearoff4Best]).to.equal(maxRank)
             expect(result[States28.Bearoff4Best]).to.be.greaterThan(result[States28.Bearoff4Bad])
@@ -272,7 +272,7 @@ describe('FirstTurnRobot', () => {
             //console.log(moveIndex.Red)
         })
     })
-    describe('#getRankings', () => {
+    describe('#getScores', () => {
 
         it('should return all end states for 4th turn', async () => {
             rolls = [[1, 2]]
@@ -283,7 +283,7 @@ describe('FirstTurnRobot', () => {
             makeRandomMoves(game.thisTurn, true)
             const turn = game.nextTurn()
             turn.roll()
-            const result = await robot.getRankings(turn, game)
+            const result = await robot.getScores(turn, game)
             expect(result).to.equal(robot.constructor.ZERO_SCORES)
         })
 
@@ -295,11 +295,11 @@ describe('FirstTurnRobot', () => {
             const turn = game.nextTurn()
             turn.setRoll([2, 1])
             robot.pointMoves = () => { throw e }
-            const err = await getErrorAsync(() => robot.getRankings(turn, game))
+            const err = await getErrorAsync(() => robot.getScores(turn, game))
             expect(err).to.equal(e)
         })
 
-        it('should not try an illegal move on second turn and return all 0 rankings', async () => {
+        it('should not try an illegal move on second turn and return all 0 scores', async () => {
             rolls = [[1, 6]]
             const firstTurn = game.firstTurn()
             firstTurn.move(12, 6)
@@ -307,7 +307,7 @@ describe('FirstTurnRobot', () => {
             firstTurn.finish()
             const turn = game.nextTurn()
             turn.setRoll([6, 5])
-            const result = await robot.getRankings(turn, game)
+            const result = await robot.getScores(turn, game)
             const uniqueVals = Util.uniqueInts(Object.values(result))
             expect(JSON.stringify(uniqueVals)).to.equal(JSON.stringify([0]))
         })
@@ -341,40 +341,40 @@ describe('HittingRobot', () => {
         doFirstTurn()
     })
 
-    describe('#getRankings', () => {
+    describe('#getScores', () => {
 
-        it('should rank HittingCase1Best for HittingCase1Start for 2,1 roll', async () => {
+        it('should score HittingCase1Best for HittingCase1Start for 2,1 roll', async () => {
             game.board.setStateString(States.HittingCase1Start)
             const turn = game.nextTurn()
             turn.setRoll([2, 1])
-            const result = await robot.getRankings(turn, game)
+            const result = await robot.getScores(turn, game)
             const maxRank = Math.max(...Object.values(result))
             expect(result[States28.HittingCase1Best]).to.equal(maxRank)
         })
 
-        it('should rank only one best for HittingCase1Start for 2,1 roll', async () => {
+        it('should score only one best for HittingCase1Start for 2,1 roll', async () => {
             game.board.setStateString(States.HittingCase1Start)
             const turn = game.nextTurn()
             turn.setRoll([2, 1])
-            const result = await robot.getRankings(turn, game)
+            const result = await robot.getScores(turn, game)
             const maxRank = Math.max(...Object.values(result))
             const bests = turn.allowedEndStates.filter(str => result[str] == maxRank)
             expect(bests).to.have.length(1)
         })
 
-        it('should rank HittingCase1Bad 0 for HittingCase1Start for 2,1 roll', async () => {
+        it('should score HittingCase1Bad 0 for HittingCase1Start for 2,1 roll', async () => {
             game.board.setStateString(States.HittingCase1Start)
             const turn = game.nextTurn()
             turn.setRoll([2, 1])
-            const result = await robot.getRankings(turn, game)
+            const result = await robot.getScores(turn, game)
             expect(result[States28.HittingCase1Bad]).to.equal(0)
         })
 
-        it('should rank HittingCase1Med > 0 and < 1 for HittingCase1Start for 2,1 roll', async () => {
+        it('should score HittingCase1Med > 0 and < 1 for HittingCase1Start for 2,1 roll', async () => {
             game.board.setStateString(States.HittingCase1Start)
             const turn = game.nextTurn()
             turn.setRoll([2, 1])
-            const result = await robot.getRankings(turn, game)
+            const result = await robot.getScores(turn, game)
             expect(result[States28.HittingCase1Med]).to.be.greaterThan(0)
             expect(result[States28.HittingCase1Med]).to.be.lessThan(1)
         })
@@ -388,30 +388,30 @@ describe('OccupyRobot', () => {
         doFirstTurn()
     })
 
-    describe('#getRankings', () => {
+    describe('#getScores', () => {
 
-        it('should rank OccupyCase1Best best for OccupyCase1Start for 2,1 roll', async () => {
+        it('should score OccupyCase1Best best for OccupyCase1Start for 2,1 roll', async () => {
             game.board.setStateString(States.OccupyCase1Start)
             const turn = game.nextTurn()
             turn.setRoll([2, 1])
-            const result = await robot.getRankings(turn, game)
+            const result = await robot.getScores(turn, game)
             const maxRank = Math.max(...Object.values(result))
             expect(result[States28.OccupyCase1Best]).to.equal(maxRank)
         })
 
-        it('should rank OccupyCase1Best value 1 for OccupyCase1Start for 2,1 roll', async () => {
+        it('should score OccupyCase1Best value 1 for OccupyCase1Start for 2,1 roll', async () => {
             game.board.setStateString(States.OccupyCase1Start)
             const turn = game.nextTurn()
             turn.setRoll([2, 1])
-            const result = await robot.getRankings(turn, game)
+            const result = await robot.getScores(turn, game)
             expect(result[States28.OccupyCase1Best]).to.equal(1)
         })
 
-        it('should rank OccupyCase1Bad value 0 for OccupyCase1Start for 2,1 roll', async () => {
+        it('should score OccupyCase1Bad value 0 for OccupyCase1Start for 2,1 roll', async () => {
             game.board.setStateString(States.OccupyCase1Start)
             const turn = game.nextTurn()
             turn.setRoll([2, 1])
-            const result = await robot.getRankings(turn, game)
+            const result = await robot.getScores(turn, game)
             expect(result[States28.OccupyCase1Bad]).to.equal(0)
         })
     })
@@ -424,40 +424,40 @@ describe('PrimeRobot', () => {
         doFirstTurn()
     })
 
-    describe('#getRankings', () => {
+    describe('#getScores', () => {
 
-        it('should rank PrimeCase1Best best for PrimeCase1Start for 2,1 roll', async () => {
+        it('should score PrimeCase1Best best for PrimeCase1Start for 2,1 roll', async () => {
             game.board.setStateString(States.PrimeCase1Start)
             const turn = game.nextTurn()
             turn.setRoll([2, 1])
-            const result = await robot.getRankings(turn, game)
+            const result = await robot.getScores(turn, game)
             const maxRank = Math.max(...Object.values(result))
             expect(result[States28.PrimeCase1Best]).to.equal(maxRank)
         })
 
-        it('should rank only one best for PrimeCase1Start for 2,1 roll', async () => {
+        it('should score only one best for PrimeCase1Start for 2,1 roll', async () => {
             game.board.setStateString(States.PrimeCase1Start)
             const turn = game.nextTurn()
             turn.setRoll([2, 1])
-            const result = await robot.getRankings(turn, game)
+            const result = await robot.getScores(turn, game)
             const maxRank = Math.max(...Object.values(result))
             const bests = turn.allowedEndStates.filter(str => result[str] == maxRank)
             expect(bests).to.have.length(1)
         })
 
-        it('should rank PrimeCase1Bad 0 for PrimeCase1Start for 2,1 roll', async () => {
+        it('should score PrimeCase1Bad 0 for PrimeCase1Start for 2,1 roll', async () => {
             game.board.setStateString(States.PrimeCase1Start)
             const turn = game.nextTurn()
             turn.setRoll([2, 1])
-            const result = await robot.getRankings(turn, game)
+            const result = await robot.getScores(turn, game)
             expect(result[States28.PrimeCase1Bad]).to.equal(0)
         })
 
-        it('should rank PrimeCase1Med > 0 and < 1 for PrimeCase1Start for 2,1 roll', async () => {
+        it('should score PrimeCase1Med > 0 and < 1 for PrimeCase1Start for 2,1 roll', async () => {
             game.board.setStateString(States.PrimeCase1Start)
             const turn = game.nextTurn()
             turn.setRoll([2, 1])
-            const result = await robot.getRankings(turn, game)
+            const result = await robot.getScores(turn, game)
             expect(result[States28.PrimeCase1Med]).to.be.greaterThan(0)
             expect(result[States28.PrimeCase1Med]).to.be.lessThan(1)
         })
@@ -471,40 +471,40 @@ describe('SafetyRobot', () => {
         doFirstTurn()
     })
 
-    describe('#getRankings', () => {
+    describe('#getScores', () => {
 
-        it('should rank SafetyCase1Best best for SafetyCase1Start for 2,1 roll', async () => {
+        it('should score SafetyCase1Best best for SafetyCase1Start for 2,1 roll', async () => {
             game.board.setStateString(States.SafetyCase1Start)
             const turn = game.nextTurn()
             turn.setRoll([2, 1])
-            const result = await robot.getRankings(turn, game)
+            const result = await robot.getScores(turn, game)
             const maxRank = Math.max(...Object.values(result))
             expect(result[States28.SafetyCase1Best]).to.equal(maxRank)
         })
 
-        it('should rank only one best for SafetyCase1Start for 2,1 roll', async () => {
+        it('should score only one best for SafetyCase1Start for 2,1 roll', async () => {
             game.board.setStateString(States.SafetyCase1Start)
             const turn = game.nextTurn()
             turn.setRoll([2, 1])
-            const result = await robot.getRankings(turn, game)
+            const result = await robot.getScores(turn, game)
             const maxRank = Math.max(...Object.values(result))
             const bests = turn.allowedEndStates.filter(str => result[str] == maxRank)
             expect(bests).to.have.length(1)
         })
 
-        it('should rank SafetyCase1Bad 0 for SafetyCase1Start for 2,1 roll', async () => {
+        it('should score SafetyCase1Bad 0 for SafetyCase1Start for 2,1 roll', async () => {
             game.board.setStateString(States.SafetyCase1Start)
             const turn = game.nextTurn()
             turn.setRoll([2, 1])
-            const result = await robot.getRankings(turn, game)
+            const result = await robot.getScores(turn, game)
             expect(result[States28.SafetyCase1Bad]).to.equal(0)
         })
 
-        it('should rank SafetyCase1Med > 0 and < 1 for SafetyCase1Start for 2,1 roll', async () => {
+        it('should score SafetyCase1Med > 0 and < 1 for SafetyCase1Start for 2,1 roll', async () => {
             game.board.setStateString(States.SafetyCase1Start)
             const turn = game.nextTurn()
             turn.setRoll([2, 1])
-            const result = await robot.getRankings(turn, game)
+            const result = await robot.getScores(turn, game)
             expect(result[States28.SafetyCase1Med]).to.be.greaterThan(0)
             expect(result[States28.SafetyCase1Med]).to.be.lessThan(1)
         })
@@ -559,11 +559,11 @@ describe('RobotDelegator', () => {
         it('should warn when delegate sets a score less than 0', async () => {
             var msg = ''
             robot.logger.warn = (...args) => msg += args.join(' ')
-            rando.getRankings = turn => {
-                const rankings = rando.zeroScores(turn)
-                const key = Object.keys(rankings).pop()
-                rankings[key] = -1
-                return rankings
+            rando.getScores = turn => {
+                const scores = rando.zeroScores(turn)
+                const key = Object.keys(scores).pop()
+                scores[key] = -1
+                return scores
             }
             rolls = [[1, 2]]
             makeRandomMoves(game.firstTurn(), true)
@@ -575,9 +575,9 @@ describe('RobotDelegator', () => {
             expect(msg).to.have.length.greaterThan(0)
         })
 
-        it('should throw UndecidedMoveError when delegate ranks invalid state highest', async () => {
+        it('should throw UndecidedMoveError when delegate scores invalid state highest', async () => {
             robot.addDelegate(rando, 1, 0)
-            rando.getRankings = turn => {
+            rando.getScores = turn => {
                 return {invalidStr: 1}
             }
             doFirstTurn()

@@ -29,7 +29,7 @@ const {ZERO_SCORES} = Base
 class OccupyRobot extends Base {
 
     // maximum number of points held
-    async getRankings(turn, game, match) {
+    async getScores(turn, game, match) {
         if (turn.board.analyzer.isDisengaged()) {
             return ZERO_SCORES
         }

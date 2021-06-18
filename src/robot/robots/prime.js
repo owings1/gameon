@@ -28,7 +28,7 @@ const {ZERO_SCORES} = Base
 
 class PrimeRobot extends Base {
 
-    async getRankings(turn, game, match) {
+    async getScores(turn, game, match) {
 
         if (turn.board.analyzer.isDisengaged()) {
             return ZERO_SCORES
@@ -49,10 +49,10 @@ class PrimeRobot extends Base {
             }
         })
 
-        const rankings = this.spreadScore(scores)
-        zeros.forEach(endState => rankings[endState] = 0)
+        const finalScores = this.spreadScore(scores)
+        zeros.forEach(endState => finalScores[endState] = 0)
 
-        return rankings
+        return finalScores
     }
 
     sizeBonus(size) {

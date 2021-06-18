@@ -28,7 +28,7 @@ const {ZERO_SCORES} = Base
 
 class BearoffRobot extends Base {
 
-    async getRankings(turn, game, match) {
+    async getScores(turn, game, match) {
 
         const baseline = turn.board.analyzer.piecesHome(turn.color)
 

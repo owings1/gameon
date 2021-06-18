@@ -42,18 +42,18 @@ intRange(1, 24).forEach(point =>
 
 class RunningRobot extends Base {
 
-    async getRankings(turn, game, match) {
+    async getScores(turn, game, match) {
         const scores = {}
         const len = turn.allowedEndStates.length
         for (var i = 0; i < len; i++) {
             var endState = turn.allowedEndStates[i]
-            scores[endState] = this._rankEndState(turn, endState)
+            scores[endState] = this._scoreEndState(turn, endState)
         }
-        // Inverse ranking
+        // Inverse scoring
         return this.spreadScore(scores, true)
     }
 
-    _rankEndState(turn, endState) {
+    _scoreEndState(turn, endState) {
         const {analyzer} = turn.fetchBoard(endState)
         const points = analyzer.pointsOccupied(turn.color)
         const len = points.length

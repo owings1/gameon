@@ -33,14 +33,14 @@ class RandomRobot extends Base {
         }
     }
 
-    async getRankings(turn, game, match) {
+    async getScores(turn, game, match) {
         return this.spreadScore(this.zeroScores(turn))
     }
 }
 
 class RandomRobot_v2 extends Base {
 
-    async getRankings(turn, game, match) {
+    async getScores(turn, game, match) {
         const scores = {}
         turn.allowedEndStates.forEach(endState => {
             scores[endState] = Math.random()

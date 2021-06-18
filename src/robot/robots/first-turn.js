@@ -82,7 +82,7 @@ class FirstTurnRobot extends Base {
         return MoveIndex
     }
 
-    async getRankings(turn, game, match) {
+    async getScores(turn, game, match) {
         // skip non-game, greater than second turn, and doubles
         if (!game) {
             return ZERO_SCORES
@@ -91,24 +91,24 @@ class FirstTurnRobot extends Base {
         if (turnCount > 2 || turn.dice[0] == turn.dice[1]) {
             return ZERO_SCORES
         }
-        const rankings = this.zeroScores(turn)
+        const scores = this.zeroScores(turn)
         const diceHash = turn.diceSorted.join(',')
         // we only have one potential move series
         const {moveHashes, firstMoveEndState} = MoveIndex[turn.color][diceHash]
         // if this is the first move, we must be ok
         if (turnCount == 1) {
-            rankings[firstMoveEndState] = 1
+            scores[firstMoveEndState] = 1
         } else {
             // check the allowedMoveIndex for the available moves
             var store = turn.allowedMoveIndex[moveHashes[0]]
             if (store) {
                 store = store.index[moveHashes[1]]
                 if (store) {
-                    rankings[store.move.board.state28()] = 1 / turnCount
+                    scores[store.move.board.state28()] = 1 / turnCount
                 }
             }
         }
-        return rankings
+        return scores
     }
 }
 

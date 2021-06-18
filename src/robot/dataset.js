@@ -103,12 +103,12 @@ class Helper {
 
     prepTurnsData(turnDatas) {
         const trains = []
-        turnDatas.forEach(({startState, rankings}) => {
-            const spreadScores = Util.spreadScore(rankings)
+        turnDatas.forEach(({startState, scores}) => {
+            const spreadScores = Util.spreadScore(scores)
             const startStructure = Helper.boardStructure(Board.fromStateString(startState))
             const startPos = startStructure.map(i => 1 / (i + 15))
             const startSpread = Util.spreadScore(startStructure)
-            Object.entries(rankings).forEach(([endState, score]) => {
+            Object.entries(scores).forEach(([endState, score]) => {
                 const endStructure = Helper.boardStructure(Board.fromStateString(endState))
                 const endPos = endStructure.map(i => 1 / (i + 15))
                 const endSpread = Util.spreadScore(endStructure)
