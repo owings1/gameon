@@ -879,6 +879,7 @@ describe('Menu', () => {
         })
 
         it('should set RandomRobot version to v2', async () => {
+            const defaults = Robot.ConfidenceRobot.getClassMeta('RandomRobot').defaults
             menu.prompt = MockPrompter([
                 {robotChoice: 'RandomRobot'},
                 {robotChoice: 'version'},
@@ -889,7 +890,7 @@ describe('Menu', () => {
             await menu.robotConfigsMenu()
             expect(menu.opts.robots.RandomRobot.version).to.equal('v2')
             // call .choices() for coverage
-            const question = menu.getConfigureRobotChoices('RandomRobot', menu.opts.robots.RandomRobot).find(it => it.value == 'version').question
+            const question = menu.getConfigureRobotChoices('RandomRobot', menu.opts.robots.RandomRobot, defaults).find(it => it.value == 'version').question
             const choices = question.choices()
             expect(choices).to.contain('v2')
         })

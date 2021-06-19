@@ -187,6 +187,14 @@ const Draw = {
     }
 }
 
+const DefaultServerUrl = 'https://gameon.dougowings.net'
+const ObsoleteServerUrls = [
+    'ws://bg.dougowings.net:8080'
+  , 'wss://bg.dougowings.net'
+  , 'https://bg.dougowings.net'
+]
+
+
 const Constants = {
     ArrowChars
   , BoardStrings
@@ -194,11 +202,13 @@ const Constants = {
   , ColorAbbr
   , ColorNorm
   , Colors
+  , DefaultServerUrl
   , Direction
   , Draw
   , InsideOrigins
   , MoveCoords
   , MoveHashes
+  , ObsoleteServerUrls
   , Opponent
   , OriginPoints
   , OutsideOrigins

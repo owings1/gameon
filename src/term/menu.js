@@ -42,6 +42,7 @@ const {RobotDelegator}  = Robot
 const {White, Red, States} = Constants
 const {Match, Board, Dice} = Core
 const {DependencyHelper}   = Util
+const {StringBuilder}      = Util
 
 const assert   = require('assert')
 const chalk    = require('chalk')
@@ -53,14 +54,22 @@ const inquirer = require('inquirer')
 const {merge}  = Util
 const os       = require('os')
 const path     = require('path')
-const sp       = Util.joinSpace
 
-const DefaultServerUrl = 'https://gameon.dougowings.net'
-const ObsoleteServerUrls = [
-    'ws://bg.dougowings.net:8080'
-  , 'wss://bg.dougowings.net'
-  , 'https://bg.dougowings.net'
-]
+const {padStart} = Util
+const sp         = Util.joinSpace
+
+const {
+    DefaultServerUrl
+  , ObsoleteServerUrls
+} = Constants
+
+function getDiffChalk(a, b) {
+    if (a == b) {
+        return sp
+    }
+    const isLess = typeof a == 'string' ? a.localeCompare(b) < 0 : a < b
+    return isLess ? chalk.bold.red : chalk.bold.green
+}
 
 class Menu extends Logger {
 
@@ -459,6 +468,11 @@ class Menu extends Logger {
             opts.delay = +opts.delay
 
             await this.saveOpts()
+
+            if (question.name == 'isCustomRobot' && opts.isCustomRobot) {
+                await this.robotConfigsMenu()
+                continue
+            }
         }
 
         return true
@@ -499,42 +513,40 @@ class Menu extends Logger {
 
     async configureRobotMenu(name) {
 
-        var config = this.opts.robots[name] || ConfidenceRobot.getClassMeta(name).defaults
+        const defaults = ConfidenceRobot.getClassMeta(name).defaults
+        var config = this.opts.robots[name] || defaults
 
-        while (true) {
+        var robotChoices = this.getConfigureRobotChoices(name, config, defaults)
+        var answers = await this.prompt({
+            name     : 'robotChoice'
+          , message  : 'Configure ' + name
+          , type     : 'rawlist'
+          , choices  : robotChoices
+          , pageSize : robotChoices.length + 1
+        })
 
-            var robotChoices = this.getConfigureRobotChoices(name, config)
-            var answers = await this.prompt({
-                name     : 'robotChoice'
-              , message  : 'Configure ' + name
-              , type     : 'rawlist'
-              , choices  : robotChoices
-              , pageSize : robotChoices.length + 1
-            })
+        var {robotChoice} = answers
 
-            var {robotChoice} = answers
-
-            if (robotChoice == 'done') {
-                break
-            }
-
-            if (robotChoice == 'reset') {
-                this.opts.robots[name] = merge({}, ConfidenceRobot.getClassMeta(name).defaults)
-                config = this.opts.robots[name]
-                await this.saveOpts()
-                continue
-            }
-
-            var question = robotChoices.find(choice => choice.value == robotChoice).question
-
-            answers = await this.prompt(question)
-
-            config[question.name] = answers[question.name]
-            config.moveWeight = +config.moveWeight
-            config.doubleWeight = +config.doubleWeight
-
-            await this.saveOpts()
+        if (robotChoice == 'done') {
+            return
         }
+
+        if (robotChoice == 'reset') {
+            this.opts.robots[name] = {...defaults}
+            config = this.opts.robots[name]
+            await this.saveOpts()
+            return
+        }
+
+        var question = robotChoices.find(choice => choice.value == robotChoice).question
+
+        answers = await this.prompt(question)
+
+        config[question.name] = answers[question.name]
+        config.moveWeight = +config.moveWeight
+        config.doubleWeight = +config.doubleWeight
+
+        await this.saveOpts()
     }
 
     async joinMenu() {
@@ -1035,13 +1047,26 @@ class Menu extends Logger {
         ]
         ConfidenceRobot.listClassNames().forEach(name => {
             const classMeta = ConfidenceRobot.getClassMeta(name)
+            const {defaults} = classMeta
             const choice = {
                 value : name
               , name  : name
               , question : {
                     display : () => {
-                      const config = configs[name] || classMeta.defaults
-                      return 'version: ' + config.version + ', moveWeight: ' + config.moveWeight.toString().padStart(4, ' ') + ', doubleWeight: ' + config.doubleWeight
+                        const config = configs[name] || defaults
+                        const ch_version      = getDiffChalk(config.version     ,  defaults.version)
+                        const ch_moveWeight   = getDiffChalk(config.moveWeight   , defaults.moveWeight)
+                        const ch_doubleWeight = getDiffChalk(config.doubleWeight , defaults.doubleWeight)
+                        const b = new StringBuilder
+                        b.sp(
+                            'version:'
+                          , ch_version(config.version) + ','
+                          , 'moveWeight:'
+                          , padStart(ch_moveWeight(config.moveWeight.toString()), 4, ' ') + ','
+                          , 'doubleWeight:'
+                          , ch_doubleWeight(config.doubleWeight.toString())
+                        )
+                        return b.toString()
                     }
                 }
             }
@@ -1050,7 +1075,7 @@ class Menu extends Logger {
         return Menu.formatChoices(choices)
     }
 
-    getConfigureRobotChoices(name, config) {
+    getConfigureRobotChoices(name, config, defaults) {
         return Menu.formatChoices([
             {
                 value : 'done'
@@ -1068,6 +1093,7 @@ class Menu extends Logger {
                 , message  : 'Version'
                 , type     : 'list'
                 , default  : () => config.version
+                , display  : () => getDiffChalk(config.version, defaults.version)(config.version)
                 , choices  : () => Object.keys(ConfidenceRobot.getClassMeta(name).versions)
               }
             }
@@ -1079,6 +1105,7 @@ class Menu extends Logger {
                   , message  : 'Move Weight'
                   , type     : 'input'
                   , default  : () => config.moveWeight
+                  , display  : () => getDiffChalk(config.moveWeight, defaults.moveWeight)(config.moveWeight)
                   , validate : value => Util.errMessage(() => RobotDelegator.validateWeight(+value))
                 }
             }
@@ -1090,6 +1117,7 @@ class Menu extends Logger {
                   , message  : 'Double Weight'
                   , type     : 'input'
                   , default  : () => config.doubleWeight
+                  , display  : () => getDiffChalk(config.doubleWeight, defaults.doubleWeight)(config.doubleWeight)
                   , validate : value => Util.errMessage(() => RobotDelegator.validateWeight(+value))
                 }
             }
