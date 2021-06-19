@@ -126,23 +126,33 @@ class LabHelper {
                     break
 
                 case 'd':
-                    await this.diceCommand(false, params.join(' '))
+                    await this.diceCommand(false, params.join(' ').trim())
                     break
 
                 case 'D':
-                    await this.diceCommand(true, params.join(' '))
+                    await this.diceCommand(true, params.join(' ').trim())
                     break
 
                 case 'f':
                     this.persp = Opponent[this.persp]
-                    this.logs.push(sp('Change to', this.ccolor(this.persp)))
+                    this.logs.push(sp('Perspective', this.ccolor(this.persp)))
                     this.inst.persp = this.persp
+                    this.draw(true)
+                    break
+
+                case 'F':
+                    this.board.setStateString(this.board.inverted().state28())
+                    this.logs.push('Invert board')
                     this.draw(true)
                     break
 
                 case 'p':
                     await this.placeCommand()
                     this.draw(true)
+                    break
+
+                case 'r':
+                    await this.rolloutCommand(params.join(' ').trim())
                     break
 
                 case 'u':
@@ -312,6 +322,8 @@ class LabHelper {
 
         const cons = this.logger.console
         const robot = this.newRobot(turn.color)
+
+        robot.isStoreLastResult = true
 
         const robotMeta = robot.meta()
         const delegateWidth = Math.max(...robot.delegates.map(it => it.robot.name.length))
@@ -498,7 +510,7 @@ class LabHelper {
           , {
                 name: 'moves'
               , format: moves => chalk.grey('[') + moves.map(move => 
-                    (this.moveDesc(move, true)).padEnd(5, ' ')
+                    this.moveDesc(move, true).padEnd(5, ' ')
                 ).join(chalk.grey(',') + ' ') + chalk.grey(']')
             }
         ]
@@ -523,6 +535,77 @@ class LabHelper {
         })
 
         return b
+    }
+
+    async rolloutCommand(param) {
+        const numMatches = parseInt(param) || 100
+        const matchOpts = {
+            forceFirst : this.persp
+          , startState : this.board.state28()
+        }
+        const answers = await this.prompt([
+            {
+                name    : 'rollsFile'
+              , message : 'Rolls File'
+              , type    : 'input'
+              , default  : () => this.opts.rollsFile
+              , validate : value => {
+                    if (!value.length) {
+                        return true
+                    }
+                    return Dice.rollsFileError(value)
+                }
+            }
+        ])
+        if (answers.rollsFile) {
+            this.logger.info('Using custom rolls file')
+            this.opts.rollsFile = path.resolve(answers.rollsFile)
+            const {rolls} = JSON.parse(fs.readFileSync(this.opts.rollsFile))
+            var rollIndex = 0
+            var maxIndex = rolls.length - 1
+            matchOpts.roller = () => {
+                if (rollIndex > maxIndex) {
+                    rollIndex = 0
+                }
+                return rolls[rollIndex++]
+            }
+        } else {
+            this.opts.rollsFile = null
+        }
+
+        const players = {}
+        players[this.persp] = this.newRobot(this.persp)
+        players[Opponent[this.persp]] = RobotDelegator.forDefaults(Opponent[this.persp])
+
+        const coordinator = new Coordinator
+        const matches = []
+        try {
+            this.logger.info('Running', numMatches, 'matches', this.persp, 'goes first')
+            for (var i = 0; i < numMatches; ++i) {
+                var match = new Match(1, matchOpts)
+                await coordinator.runMatch(match, players.White, players.Red)
+                matches.push(match.meta())
+            }
+        } finally {
+            await Promise.all(Object.values(players).map(player => player.destroy()))
+        }
+
+        const scores = {Red: 0, White: 0}
+        matches.forEach(meta => {
+            scores.Red += meta.scores.Red
+            scores.White += meta.scores.White
+        })
+
+        this.logger.info('scores', scores)
+        const diff = scores[this.persp] - scores[Opponent[this.persp]]
+        if (diff > 0) {
+            var diffStr = chalk.green('+' + diff.toString())
+        } else if (diff < 0) {
+            var diffStr = chalk.red(diff.toString())
+        } else {
+            var diffStr = chalk.yellow(diff.toString())
+        }
+        this.logger.info('diff:', diffStr)
     }
 
     async placeCommand() {
@@ -613,10 +696,12 @@ class LabHelper {
           , 'd' : 'show moves for dice'
           , 'D' : 'show robot info for dice'
           , 'f' : 'flip perspective'
+          , 'F' : 'flip (invert) board'
           , 'p' : 'place piece'
+          , 'r' : 'rollout'
           , 'u' : 'undo move'
           , 'w' : 'write last results'
-          , 'x' : 'toggler tree mode'
+          , 'x' : 'toggle tree mode'
           , '?' : 'command help'
         }
         const b = new StringBuilder(
@@ -853,7 +938,6 @@ class LabHelper {
             })
             var robot = RobotDelegator.forConfigs(configs, ...args)
         }
-        robot.isStoreLastResult = true
         return robot
     }
 

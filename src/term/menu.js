@@ -627,9 +627,11 @@ class Menu extends Logger {
         if (config) {
             var board = Board.fromStateString(config.lastState)
             var persp = config.persp
+            var rollsFile = config.rollsFile
         } else {
             var board = Board.setup()
             var persp = White
+            var rollsFile = null
         }
         const {theme, isCustomRobot, robots, recordDir} = this.opts
         const labOpts = {
@@ -639,6 +641,7 @@ class Menu extends Logger {
           , isCustomRobot
           , robots
           , recordDir
+          , rollsFile
         }
         const helper = new LabHelper(labOpts)
         await helper.interactive()
@@ -847,35 +850,7 @@ class Menu extends Logger {
                     if (!value.length) {
                         return true
                     }
-                    var data
-                    try {
-                        data = JSON.parse(fs.readFileSync(value))
-                    } catch (err) {
-                        return err.message
-                    }
-                    if (!Array.isArray(data.rolls)) {
-                        return 'Invalid rolls data, expects rolls key to be an array'
-                    }
-                    if (!data.rolls.length) {
-                        return 'Rolls cannot be empty'
-                    }
-                    // check for at least one valid first roll
-                    var isUniqueFound = false
-                    for (var i = 0; i < data.rolls.length; ++i) {
-                        var dice = data.rolls[i]
-                        try {
-                            Dice.checkTwo(dice)
-                        } catch (err) {
-                            return 'Invalid roll found at index ' + i + ': ' + err.message
-                        }
-                        if (dice[0] != dice[1]) {
-                            isUniqueFound = true
-                        }
-                    }
-                    if (!isUniqueFound) {
-                        return 'Cannot find one unique roll'
-                    }
-                    return true
+                    return Dice.rollsFileError(value)
                 }
             }
         ]
@@ -1307,6 +1282,7 @@ class Menu extends Logger {
             const data = {
                 lastState : helper.board.state28()
               , persp     : helper.persp
+              , rollsFile : helper.opts.rollsFile
             }
             await fse.ensureDir(path.dirname(stateFile))
             await fse.writeJson(stateFile, data, {spaces: 2})

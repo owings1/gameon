@@ -26,6 +26,8 @@ const Constants = require('./constants')
 const Errors    = require('./errors')
 const Util      = require('./util')
 
+const fs = require('fs')
+
 const {nmap} = Util
 
 const CacheKeys = {
@@ -45,6 +47,7 @@ class Match {
           , breadthTrees : false
           , roller       : null
           , startState   : null
+          , forceFirst   : null
         }
     }
 
@@ -198,6 +201,7 @@ class Game {
           , breadthTrees : false
           , roller       : null
           , startState   : null
+          , forceFirst   : null
         }
     }
 
@@ -266,9 +270,9 @@ class Game {
 
         do {
             var dice = this.opts.roller()
-        } while (dice[0] == dice[1])
+        } while (dice[0] == dice[1] && !this.opts.forceFirst)
 
-        const firstColor = Dice.getWinner(dice)
+        const firstColor = this.opts.forceFirst || Dice.getWinner(dice)
 
         this.thisTurn = new Turn(this.board, firstColor, this.opts)
 
@@ -1148,6 +1152,38 @@ class Dice {
             return null
         }
         return dice[0] > dice[1] ? White : Red
+    }
+
+    static rollsFileError(file) {
+        var data
+        try {
+            data = JSON.parse(fs.readFileSync(file))
+        } catch (err) {
+            return err.message
+        }
+        if (!Array.isArray(data.rolls)) {
+            return 'Invalid rolls data, expects rolls key to be an array'
+        }
+        if (!data.rolls.length) {
+            return 'Rolls cannot be empty'
+        }
+        // check for at least one valid first roll
+        var isUniqueFound = false
+        for (var i = 0; i < data.rolls.length; ++i) {
+            var dice = data.rolls[i]
+            try {
+                Dice.checkTwo(dice)
+            } catch (err) {
+                return 'Invalid roll found at index ' + i + ': ' + err.message
+            }
+            if (dice[0] != dice[1]) {
+                isUniqueFound = true
+            }
+        }
+        if (!isUniqueFound) {
+            return 'Cannot find one unique roll'
+        }
+        return true
     }
 
     static sequencesForFaces(faces) {

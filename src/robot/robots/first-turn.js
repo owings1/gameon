@@ -95,8 +95,8 @@ class FirstTurnRobot extends Base {
         const diceHash = turn.diceSorted.join(',')
         // we only have one potential move series
         const {moveHashes, firstMoveEndState} = MoveIndex[turn.color][diceHash]
-        // if this is the first move, we must be ok
-        if (turnCount == 1) {
+        // check if the anticipated end state is allowed
+        if (firstMoveEndState in turn.endStatesToSeries) {
             scores[firstMoveEndState] = 1
         } else {
             // check the allowedMoveIndex for the available moves

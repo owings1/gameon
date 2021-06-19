@@ -111,8 +111,7 @@ class SafetyRobot_v3 extends SafetyRobot_v2 {
 
     // Enforces spread on scores
     async getScores(turn, game, match) {
-        const scores = await super.getScores(turn, game, match)
-        return this.spreadScore(scores)
+        return this.spreadScore(await super.getScores(turn, game, match))
     }
 }
 
