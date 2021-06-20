@@ -85,7 +85,11 @@ class Util {
     }
 
     static defaults(defaults, ...opts) {
-        return Util.propsFrom(Util.merge({}, defaults, ...opts), defaults)
+        return this.propsFrom(Util.merge({}, defaults, ...opts), defaults)
+    }
+
+    static async destroyAll(obj) {
+        await Promise.all(Object.values(obj).map(it => it.destroy()))
     }
 
     static escapeRegex(str) {

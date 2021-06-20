@@ -202,7 +202,7 @@ class Helper {
     generateConfigsCases() {
         const {opts} = this
 
-        const names = ConfidenceRobot.listClassNames().filter(name =>
+        const names = RobotDelegator.listClassNames().filter(name =>
             ConfidenceRobot.getClassMeta(name).isCalibrate
         )
         const version = 'v1' // TODO: multiple versions

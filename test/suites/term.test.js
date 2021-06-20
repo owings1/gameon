@@ -400,7 +400,7 @@ describe('Menu', () => {
         server.auth.logger.loglevel = 0
         settingsFile = configDir + '/settings.json'
         menu = new Menu(configDir)
-        menu.loglevel = 1
+        menu.logger.loglevel = 1
     })
 
     afterEach(async () => {
@@ -499,7 +499,7 @@ describe('Menu', () => {
         })
 
         it('should invalidate match id abcd with joinOnline, then quit', async () => {
-            menu.loglevel = -1
+            menu.logger.loglevel = -1
             menu.prompt = MockPrompter([
                 {playChoice: 'joinOnline'},
                 {matchId: 'abcd'},
@@ -516,7 +516,7 @@ describe('Menu', () => {
                 {matchId: '12345678'},
                 {playChoice: 'quit'}
             ])
-            menu.loglevel = -1
+            menu.logger.loglevel = -1
             await menu.playMenu()
         })
 
@@ -528,7 +528,7 @@ describe('Menu', () => {
                 {playChoice: 'joinOnline'},
                 {playChoice: 'quit'}
             ])
-            menu.loglevel = -1
+            menu.logger.loglevel = -1
             await menu.playMenu()
         })
     })
@@ -743,7 +743,8 @@ describe('Menu', () => {
 
         it('should log error and done when promptForgotPassword throws', async () => {
             var err
-            menu.error = e => err = e
+            menu.logger.loglevel = 0
+            menu.logger.error = e => err = e
             menu.promptForgotPassword = () => { throw new Error }
             const username = 'nobody@nowhere.example'
             const password = 'd4PUxRs2'
@@ -758,7 +759,8 @@ describe('Menu', () => {
 
         it('should log error and done when password entered and login fails', async () => {
             var err
-            menu.error = e => err = e
+            menu.logger.loglevel = 0
+            menu.logger.error = e => err = e
             menu.opts.username = 'nobody2@nowhere.example'
             const password = 'JUzrDc5k'
             menu.prompt = MockPrompter([
@@ -772,7 +774,8 @@ describe('Menu', () => {
 
         it('should unset password and log error then done on incorrect password for change-password', async () => {
             var err
-            menu.error = e => err = e
+            menu.logger.loglevel = 0
+            menu.logger.error = e => err = e
             const username = 'nobody@nowhere.example'
             const oldPassword = 'C7pUaA3c'
             const badPassword = 'etzF4Y8L'
@@ -922,7 +925,7 @@ describe('Menu', () => {
         })
 
         it('should unset password and throw cause BadCredentialsError for bad confirmKey', async () => {
-            menu.loglevel = 0
+            menu.logger.loglevel = 0
             const username = 'nobody@nowhere.example'
             const password = 'r2tW5aUn'
             const confirmKey = 'bad-confirm-key'
@@ -1018,7 +1021,7 @@ describe('Menu', () => {
             await writeTheme('t2', {
                 extends: ['Default']
             })
-            menu.loglevel = 1
+            menu.logger.loglevel = 1
             const result = await menu.loadCustomThemes()
             expect(result.length).to.equal(2)
             result.sort((a, b) => a.localeCompare(b))
@@ -1043,7 +1046,7 @@ describe('Menu', () => {
         it('should not load bad json, but load the rest', async () => {
             await writeThemeRaw('TestBad', 'p')
             await writeTheme('TestGood', {extends: ['Default']})
-            menu.loglevel = -1
+            menu.logger.loglevel = -1
             const result = await menu.loadCustomThemes()
             expect(result.length).to.equal(1)
             expect(result[0]).to.equal('TestGood')
@@ -1052,7 +1055,7 @@ describe('Menu', () => {
         it('should not load bad dependencies, but load the rest', async () => {
             await writeTheme('TestGood', {extends: ['Default']})
             await writeTheme('TestBad', {extends: ['Nothing']})
-            menu.loglevel = -1
+            menu.logger.loglevel = -1
             const result = await menu.loadCustomThemes()
             expect(result.length).to.equal(1)
             expect(result[0]).to.equal('TestGood')
@@ -1061,7 +1064,7 @@ describe('Menu', () => {
         it('should not load bad config, but load the rest', async () => {
             await writeTheme('TestGood', {extends: ['Default']})
             await writeTheme('TestBad', {styles: {'text.color': 'asdflkasd'}})
-            menu.loglevel = -1
+            menu.logger.loglevel = -1
             const result = await menu.loadCustomThemes()
             expect(result.length).to.equal(1)
             expect(result[0]).to.equal('TestGood')
@@ -1112,7 +1115,7 @@ describe('Menu', () => {
                 }
             }
             var warnStr = ''
-            menu.warn = (...args) => warnStr += args.join(' ')
+            menu.logger.warn = (...args) => warnStr += args.join(' ')
             await menu.playLocalMatch(menu.opts)
             expect(warnStr).to.contain('testMessage')
         })

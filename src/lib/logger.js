@@ -83,6 +83,10 @@ class Logger {
         this.getStdout().write(str)
     }
 
+    _error(...args) {
+        return this._parentError(...args)
+    }
+
     static logify(obj, opts) {
         opts = merge({}, Logger.defaults(), opts)
         Logging(obj, {
@@ -91,7 +95,7 @@ class Logger {
         obj.loglevel = Levels[process.env.LOG_LEVEL || 'info']
         obj.logLevel = obj.loglevel
         obj.console = console
-        const oldError = obj.error
+        obj._parentError = obj.error
         obj.error = (...args) => {
             args = args.map(arg => {
                 if (arg instanceof Error) {
@@ -102,7 +106,7 @@ class Logger {
                 }
                 return arg
             })
-            return oldError.call(obj, ...args)
+            return obj._error(...args)
         }
         return obj
     }

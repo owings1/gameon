@@ -285,15 +285,16 @@ describe('Server', () => {
         await authServer.listen()
         authServerUrl = 'http://localhost:' + authServer.port
         authClient = new Client(authServerUrl)
+        authClient.logger.loglevel = 1
     })
 
     afterEach(async () => {
         await client.close()
         await client2.close()
-        server.close()
+        await server.close()
 
         await fse.remove(authDir)
-        authServer.close()
+        await authServer.close()
     })
 
     describe('Server', () => {

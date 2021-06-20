@@ -168,10 +168,6 @@ class ConfidenceRobot extends Robot {
         return {v1 : this}
     }
 
-    static listClassNames() {
-        return Object.keys(KnownRobots)
-    }
-
     static getClassMeta(name) {
         const classMeta = KnownRobots[name]
         if (!classMeta) {
@@ -185,7 +181,7 @@ class ConfidenceRobot extends Robot {
     }
 
     static getClassVersion(name, version) {
-        const classMeta = ConfidenceRobot.getClassMeta(name)
+        const classMeta = this.getClassMeta(name)
         const theClass = classMeta.versions[version]
         if (!theClass) {
             throw new InvalidRobotVersionError("Unknown version for " + name + ": " + version)
@@ -194,17 +190,17 @@ class ConfidenceRobot extends Robot {
     }
 
     static getClassDefault(name) {
-        const {defaults} = ConfidenceRobot.getClassMeta(name)
-        return ConfidenceRobot.getClassVersion(name, defaults.version)
+        const {defaults} = this.getClassMeta(name)
+        return this.getClassVersion(name, defaults.version)
     }
 
     static getVersionInstance(name, version, ...args) {
-        const theClass = ConfidenceRobot.getClassVersion(name, version)
+        const theClass = this.getClassVersion(name, version)
         return new theClass(...args)
     }
 
     static getDefaultInstance(name, ...args) {
-        const theClass = ConfidenceRobot.getClassDefault(name)
+        const theClass = this.getClassDefault(name)
         return new theClass(...args)
     }
 
@@ -276,8 +272,12 @@ ConfidenceRobot.ZERO_SCORES = ZERO_SCORES
 
 class RobotDelegator extends Robot {
 
+    static listClassNames() {
+        return Object.keys(KnownRobots)
+    }
+
     static forConfigs(configs, ...args) {
-        const robot = new RobotDelegator(...args)
+        const robot = new this(...args)
         configs.forEach(({name, version, moveWeight, doubleWeight}) => {
             const delegate = ConfidenceRobot.getVersionInstance(name, version, ...args)
             robot.addDelegate(delegate, moveWeight, doubleWeight)
@@ -287,12 +287,12 @@ class RobotDelegator extends Robot {
     }
 
     static forDefaults(...args) {
-        const configs = RobotDelegator.getDefaultConfigs()
-        return RobotDelegator.forConfigs(configs, ...args)
+        const configs = this.getDefaultConfigs()
+        return this.forConfigs(configs, ...args)
     }
 
     static getDefaultConfigs() {
-        return ConfidenceRobot.listClassNames().map(name => {
+        return this.listClassNames().map(name => {
             const {defaults, isCalibrate} = ConfidenceRobot.getClassMeta(name)
             return {name, isCalibrate, ...defaults}
         })
@@ -441,19 +441,41 @@ class RobotDelegator extends Robot {
 
     explainResult(result) {
 
+        const sorters = {
+            delegateRankings : (a, b) => {
+                var cmp = a.myRank - b.myRank
+                if (cmp) {
+                    return cmp
+                }
+                return a.actualRank - b.actualRank
+            }
+          , overallRankings : (a, b) => {
+                var cmp = result.totals[b] - result.totals[a]
+                if (cmp) {
+                    return cmp
+                }
+                cmp = (b == result.selectedEndState) - (a == result.selectedEndState)
+                if (cmp) {
+                    return cmp
+                }
+                return a.localeCompare(b)
+            }
+          , rankListDelegates: (a, b) => {
+                var cmp = b.weightedScore - a.weightedScore
+                if (cmp) {
+                    return cmp
+                }
+                cmp = b.rawScore - a.rawScore
+                if (cmp) {
+                    return cmp
+                }
+                return a.name.localeCompare(b.name)
+            }
+        }
+
         // overall rankings
         const overallRankings = Object.keys(result.totals)
-        overallRankings.sort((a, b) => {
-            var cmp = result.totals[b] - result.totals[a]
-            if (cmp) {
-                return cmp
-            }
-            cmp = (b == result.selectedEndState) - (a == result.selectedEndState)
-            if (cmp) {
-                return cmp
-            }
-            return a.localeCompare(b)
-        })
+        overallRankings.sort(sorters.overallRankings)
         const overallRankingsMap = {}
         var rankTrack = 1
         overallRankings.forEach((endState, i) => {
@@ -536,13 +558,7 @@ class RobotDelegator extends Robot {
                     }
                 })
             }
-            info.rankings.sort((a, b) => {
-                var cmp = a.myRank - b.myRank
-                if (cmp) {
-                    return cmp
-                }
-                return a.actualRank - b.actualRank
-            })
+            info.rankings.sort(sorters.delegateRankings)
 
             return info
         })
@@ -551,12 +567,12 @@ class RobotDelegator extends Robot {
             const rank = overallRankingsMap[endState]
             const info = {
                 endState
-              , finalScore    : result.totals[endState]
-              , rank          : rank
-              , rankCount     : overallRankCounts[rank]
-              , moves         : result.turn.endStatesToSeries[endState]
-              , isChosen      : endState == result.selectedEndState
-              , delegates     : this.delegates.map((delegate, i) => {
+              , finalScore : result.totals[endState]
+              , rank       : rank
+              , rankCount  : overallRankCounts[rank]
+              , moves      : result.turn.endStatesToSeries[endState]
+              , isChosen   : endState == result.selectedEndState
+              , delegates  : this.delegates.map((delegate, i) => {
                     const myScore = result.results[i][endState]
                     const myRank = delegateRankedStatesMaps[i][endState]
                     return {
@@ -567,17 +583,7 @@ class RobotDelegator extends Robot {
                     }
                 })
             }
-            info.delegates.sort((a, b) => {
-                var cmp = b.weightedScore - a.weightedScore
-                if (cmp) {
-                    return cmp
-                }
-                cmp = b.rawScore - a.rawScore
-                if (cmp) {
-                    return cmp
-                }
-                return a.name.localeCompare(b.name)
-            })
+            info.delegates.sort(sorters.rankListDelegates)
             return info
         })
 

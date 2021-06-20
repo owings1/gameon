@@ -22,11 +22,11 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-const Constants  = require('../lib/constants')
-const Core       = require('../lib/core')
-const Errors     = require('../lib/errors')
-const Logger     = require('../lib/logger')
-const Util       = require('../lib/util')
+const Constants = require('../lib/constants')
+const Core      = require('../lib/core')
+const Errors    = require('../lib/errors')
+const Logger    = require('../lib/logger')
+const Util      = require('../lib/util')
 
 const Coordinator = require('../lib/coordinator')
 const Client      = require('../net/client')
@@ -51,7 +51,6 @@ const fs       = require('fs')
 const fse      = require('fs-extra')
 const globby   = require('globby')
 const inquirer = require('inquirer')
-const {merge}  = Util
 const os       = require('os')
 const path     = require('path')
 
@@ -71,6 +70,10 @@ function getDiffChalk(a, b) {
     return isLess ? chalk.bold.red : chalk.bold.green
 }
 
+function chalkDiff(value, defaultValue) {
+    return getDiffChalk(value, defaultValue)(value.toString())
+}
+
 class Menu extends Logger {
 
     constructor(configDir) {
@@ -82,6 +85,7 @@ class Menu extends Logger {
         const hash = crypto.createHash('md5')
         hash.update('main-menu')
         this.chash = hash.digest('hex')
+        this.logger = new Logger
     }
 
     async mainMenu() {
@@ -155,20 +159,23 @@ class Menu extends Logger {
                 if (playChoice == 'joinOnline') {
                     isContinue = await this.joinMenu()
                 } else {
-                    isContinue = await this.matchMenu(playChoice == 'newOnline', playChoice == 'playRobot', playChoice == 'watchRobots')
+                    var isOnline = playChoice == 'newOnline'
+                    var isRobot  = playChoice == 'playRobot'
+                    var isRobots = playChoice == 'watchRobots'
+                    isContinue = await this.matchMenu(isOnline, isRobot, isRobots)
                 }
                 if (!isContinue) {
                     break
                 }
             } catch (err) {
-                this.debug(err)
+                this.logger.debug(err)
                 if (err.name == 'MatchCanceledError') {
-                    this.warn('The match was canceled', '-', err.message)
+                    this.logger.warn('The match was canceled', '-', err.message)
                 } else if (err.isAuthError) {
-                    this.warn(err)
-                    this.error('Authentication error, go to Account to sign up or log in.')   
+                    this.logger.warn(err)
+                    this.logger.error('Authentication error, go to Account to sign up or log in.')   
                 } else {
-                    this.error(err)
+                    this.logger.error(err)
                 }
             }
         }
@@ -219,7 +226,7 @@ class Menu extends Logger {
             }
 
             if (matchChoice == 'advanced') {
-                advancedOpts = await this.getMatchAdvancedOpts(advancedOpts)
+                advancedOpts = await this.promptMatchAdvancedOpts(advancedOpts)
                 continue
             }
 
@@ -249,7 +256,7 @@ class Menu extends Logger {
         return isContinue
     }
 
-    async getMatchAdvancedOpts(advancedOpts) {
+    async promptMatchAdvancedOpts(advancedOpts) {
         const questions = this.getMatchAdvancedQuestions(advancedOpts)
         const answers = await this.prompt(questions)
         return answers
@@ -280,12 +287,13 @@ class Menu extends Logger {
             var shouldLogin = false
 
             var isLoginChoice = ['createAccount', 'forgotPassword', 'changePassword'].indexOf(accountChoice) > -1
+
             if (isLoginChoice) {
                 shouldLogin = true
                 try {
                     if (accountChoice == 'createAccount') {
                         await this.promptCreateAccount()
-                        this.info('Account created')
+                        this.logger.info('Account created')
                     } else if (accountChoice == 'forgotPassword') {
                         try {
                             await this.promptForgotPassword()
@@ -296,23 +304,29 @@ class Menu extends Logger {
                                 throw err
                             }
                         }
-                        this.info('Password reset')
+                        this.logger.info('Password reset')
                     } else {
                         assert(accountChoice == 'changePassword')
                         await this.promptChangePassword()
-                        this.info('Password changed')
+                        this.logger.info('Password changed')
                     }
                 } catch (err) {
-                    this.error(err)
+                    this.logger.error(err)
                     continue
                 }
             } else if (accountChoice == 'clearCredentials') {
+
                 opts.username = ''
                 opts.password = ''
+
                 await this.saveOpts()
-                this.info('Credentials cleared')
+
+                this.logger.info('Credentials cleared')
+
                 continue
+
             } else {
+
                 var question = accountChoices.find(choice => choice.value == accountChoice).question
 
                 answers = await this.prompt(question)
@@ -330,8 +344,8 @@ class Menu extends Logger {
                 try {
                     await this.doLogin()
                 } catch (err) {
-                    this.error(err)
-                    this.warn('Login failed', err)
+                    this.logger.error(err)
+                    this.logger.warn('Login failed', err)
                 }
             }
 
@@ -345,13 +359,17 @@ class Menu extends Logger {
 
         const {opts} = this
 
-        const createAnswers = await this.prompt([
+        const answers = await this.prompt([
             this.getUsernameQuestion()
           , this.getPasswordQuestion()
           , this.getPasswordConfirmQuestion()
         ])
-        const body = await this.sendSignup(opts.serverUrl, createAnswers.username, createAnswers.password)
-        opts.username = createAnswers.username
+        const body = await this.sendSignup(
+            opts.serverUrl
+          , answers.username
+          , answers.password
+        )
+        opts.username = answers.username
         opts.password = this.encryptPassword(body.passwordEncrypted)
     }
 
@@ -364,7 +382,7 @@ class Menu extends Logger {
         await this.sendForgotPassword(opts.serverUrl, forgotAnswers.username)
         opts.username = forgotAnswers.username
 
-        this.info('Reset key sent, check email')
+        this.logger.info('Reset key sent, check email')
 
         const resetAnswers = await this.prompt([
             {
@@ -372,14 +390,27 @@ class Menu extends Logger {
               , message : 'Reset Key'
               , type    : 'input'
             }
-          , merge({}, this.getPasswordQuestion(), {when: answers => answers.resetKey})
-          , merge({}, this.getPasswordConfirmQuestion(), {when: answers => answers.resetKey})
+          , {
+                ...this.getPasswordQuestion()
+              , when: answers => answers.resetKey
+            }
+          , {
+                ...this.getPasswordConfirmQuestion()
+              , when: answers => answers.resetKey
+            }
         ])
+
         if (!resetAnswers.resetKey) {
             throw new ResetKeyNotEnteredError
         }
 
-        const body = await this.sendResetPassword(opts.serverUrl, opts.username, resetAnswers.password, resetAnswers.resetKey)
+        const body = await this.sendResetPassword(
+            opts.serverUrl
+          , opts.username
+          , resetAnswers.password
+          , resetAnswers.resetKey
+        )
+
         opts.password = this.encryptPassword(body.passwordEncrypted)
     }
 
@@ -388,13 +419,27 @@ class Menu extends Logger {
         const {opts} = this
 
         opts.password = ''
-        const changeAnswers = await this.prompt([
-            merge({}, this.getPasswordQuestion(), {name: 'oldPassword', message: 'Current password'})
-          , merge({}, this.getPasswordQuestion(), {message: 'New password'})
+
+        const answers = await this.prompt([
+            {
+                ...this.getPasswordQuestion()
+              , name    : 'oldPassword'
+              , message : 'Current password'
+            }
+          , {
+                ...this.getPasswordQuestion()
+              , message : 'New password'
+            }
           , this.getPasswordConfirmQuestion()
         ])
+
         try {
-            const body = await this.sendChangePassword(opts.serverUrl, opts.username, changeAnswers.oldPassword, changeAnswers.password)
+            const body = await this.sendChangePassword(
+                opts.serverUrl
+              , opts.username
+              , answers.oldPassword
+              , answers.password
+            )
             opts.password = this.encryptPassword(body.passwordEncrypted)
         } catch (err) {
             opts.password = ''
@@ -404,27 +449,42 @@ class Menu extends Logger {
     }
 
     async doLogin() {
+
         const {opts} = this
+
         try {
-            this.info('Logging into', opts.serverUrl)
-            const body = await this.testCredentials(opts.serverUrl, opts.username, this.decryptPassword(opts.password))
-            this.info(chalk.bold.green('Login succeeded.'))
+
+            this.logger.info('Logging into', opts.serverUrl)
+
+            const body = await this.testCredentials(
+                opts.serverUrl
+              , opts.username
+              , this.decryptPassword(opts.password)
+            )
+
+            this.logger.info(chalk.bold.green('Login succeeded.'))
             opts.password = this.encryptPassword(body.passwordEncrypted)
+
         } catch (err) {
+
             if (err.name == 'UserNotConfirmedError') {
-                this.info('You must confirm your account. Check your email.')
-                var confirmAnswers = await this.prompt({
+
+                this.logger.info('You must confirm your account. Check your email.')
+
+                const answers = await this.prompt({
                     name    : 'key'
                   , type    : 'input'
                   , message : 'Enter confirm key'
                 })
+
                 try {
-                    await this.sendConfirmKey(opts.serverUrl, opts.username, confirmAnswers.key)
-                    this.info(chalk.bold.green('Login succeeded.'))
+                    await this.sendConfirmKey(opts.serverUrl, opts.username, answers.key)
+                    this.logger.info(chalk.bold.green('Login succeeded.'))
                 } catch (err) {
                     opts.password = ''
                     throw err
                 }
+
             } else {
                 opts.password = ''
                 throw err
@@ -440,13 +500,13 @@ class Menu extends Logger {
 
         while (true) {
 
-            var settingsChoices = this.getSettingsChoices(opts)
+            var choices = this.getSettingsChoices(opts)
             var answers = await this.prompt([{
                 name     : 'settingChoice'
               , message  : 'Settings Menu'
               , type     : 'rawlist'
-              , choices  : settingsChoices
-              , pageSize : settingsChoices.length + 1
+              , choices
+              , pageSize : choices.length + 1
             }])
 
             var {settingChoice} = answers
@@ -460,7 +520,7 @@ class Menu extends Logger {
                 continue
             }
 
-            var question = settingsChoices.find(choice => choice.value == settingChoice).question
+            var question = choices.find(choice => choice.value == settingChoice).question
 
             answers = await this.prompt(question)
 
@@ -484,13 +544,13 @@ class Menu extends Logger {
 
         while (true) {
 
-            var robotChoices = this.getRobotConfigsChoices(configs)
+            var choices = this.getRobotConfigsChoices(configs)
             var answers = await this.prompt({
                 name     : 'robotChoice'
               , message  : 'Configure Robots'
               , type     : 'rawlist'
-              , choices  : robotChoices
-              , pageSize : robotChoices.length + 1
+              , choices
+              , pageSize : choices.length + 1
             })
 
             var {robotChoice} = answers
@@ -514,18 +574,18 @@ class Menu extends Logger {
     async configureRobotMenu(name) {
 
         const defaults = ConfidenceRobot.getClassMeta(name).defaults
-        var config = this.opts.robots[name] || defaults
+        const config = this.opts.robots[name] || defaults
 
-        var robotChoices = this.getConfigureRobotChoices(name, config, defaults)
+        const choices = this.getConfigureRobotChoices(name, config, defaults)
         var answers = await this.prompt({
             name     : 'robotChoice'
           , message  : 'Configure ' + name
           , type     : 'rawlist'
-          , choices  : robotChoices
-          , pageSize : robotChoices.length + 1
+          , choices
+          , pageSize : choices.length + 1
         })
 
-        var {robotChoice} = answers
+        const {robotChoice} = answers
 
         if (robotChoice == 'done') {
             return
@@ -533,25 +593,24 @@ class Menu extends Logger {
 
         if (robotChoice == 'reset') {
             this.opts.robots[name] = {...defaults}
-            config = this.opts.robots[name]
             await this.saveOpts()
             return
         }
 
-        var question = robotChoices.find(choice => choice.value == robotChoice).question
+        const question = choices.find(choice => choice.value == robotChoice).question
 
         answers = await this.prompt(question)
 
         config[question.name] = answers[question.name]
-        config.moveWeight = +config.moveWeight
-        config.doubleWeight = +config.doubleWeight
+        config.moveWeight     = +config.moveWeight
+        config.doubleWeight   = +config.doubleWeight
 
         await this.saveOpts()
     }
 
     async joinMenu() {
         const {opts} = this
-        const questions = this.getJoinQuestions(opts)
+        const questions = this.getJoinQuestions()
         const answers = await this.prompt(questions)
         if (!answers.matchId) {
             return true
@@ -623,19 +682,19 @@ class Menu extends Logger {
             await coordinator.runMatch(match, players.White, players.Red)
         } catch (err) {
             if (err.name == 'MatchCanceledError') {
-                this.warn('The match was canceled', '-', err.message)
+                this.logger.warn('The match was canceled', '-', err.message)
             } else {
                 throw err
             }
         } finally {
-            await this.destroyAll(players)
+            await Util.destroyAll(players)
         }
     }
 
     async runLab() {
         await this.ensureSettingsLoaded()
         await this.ensureThemesLoaded()
-        var config = await this.loadLabConfig()
+        const config = await this.loadLabConfig()
         if (config) {
             var board = Board.fromStateString(config.lastState)
             var persp = config.persp
@@ -664,11 +723,11 @@ class Menu extends Logger {
     getMatchOpts(opts, advancedOpts = {}) {
         const matchOpts = {...opts}
         if (advancedOpts.startState) {
-            this.info('Setting initial state')
+            this.logger.info('Setting initial state')
             matchOpts.startState = advancedOpts.startState
         }
         if (advancedOpts.rollsFile) {
-            this.info('Using custom rolls file')
+            this.logger.info('Using custom rolls file')
             const {rolls} = JSON.parse(fs.readFileSync(advancedOpts.rollsFile))
             var rollIndex = 0
             var maxIndex = rolls.length - 1
@@ -680,10 +739,6 @@ class Menu extends Logger {
             }
         }
         return matchOpts
-    }
-
-    async destroyAll(players) {
-        await Promise.all(Object.values(players).map(player => player.destroy()))
     }
 
     newRobot(...args) {
@@ -822,7 +877,7 @@ class Menu extends Logger {
         ]
     }
 
-    getJoinQuestions(opts) {
+    getJoinQuestions() {
         return [
             {
                 name     : 'matchId'
@@ -1045,26 +1100,23 @@ class Menu extends Logger {
               , name  : 'Reset defaults'
             }
         ]
-        ConfidenceRobot.listClassNames().forEach(name => {
+        RobotDelegator.listClassNames().forEach(name => {
             const classMeta = ConfidenceRobot.getClassMeta(name)
             const {defaults} = classMeta
             const choice = {
-                value : name
-              , name  : name
+                value    : name
+              , name     : name
               , question : {
                     display : () => {
                         const config = configs[name] || defaults
-                        const ch_version      = getDiffChalk(config.version     ,  defaults.version)
-                        const ch_moveWeight   = getDiffChalk(config.moveWeight   , defaults.moveWeight)
-                        const ch_doubleWeight = getDiffChalk(config.doubleWeight , defaults.doubleWeight)
                         const b = new StringBuilder
                         b.sp(
                             'version:'
-                          , ch_version(config.version) + ','
+                          , chalkDiff(config.version, defaults.version) + ','
                           , 'moveWeight:'
-                          , padStart(ch_moveWeight(config.moveWeight.toString()), 4, ' ') + ','
+                          , padStart(chalkDiff(config.moveWeight, defaults.moveWeight), 4, ' ') + ','
                           , 'doubleWeight:'
-                          , ch_doubleWeight(config.doubleWeight.toString())
+                          , chalkDiff(config.doubleWeight, defaults.doubleWeight)
                         )
                         return b.toString()
                     }
@@ -1093,7 +1145,7 @@ class Menu extends Logger {
                 , message  : 'Version'
                 , type     : 'list'
                 , default  : () => config.version
-                , display  : () => getDiffChalk(config.version, defaults.version)(config.version)
+                , display  : () => chalkDiff(config.version, defaults.version)
                 , choices  : () => Object.keys(ConfidenceRobot.getClassMeta(name).versions)
               }
             }
@@ -1105,7 +1157,7 @@ class Menu extends Logger {
                   , message  : 'Move Weight'
                   , type     : 'input'
                   , default  : () => config.moveWeight
-                  , display  : () => getDiffChalk(config.moveWeight, defaults.moveWeight)(config.moveWeight)
+                  , display  : () => chalkDiff(config.moveWeight, defaults.moveWeight)
                   , validate : value => Util.errMessage(() => RobotDelegator.validateWeight(+value))
                 }
             }
@@ -1117,7 +1169,7 @@ class Menu extends Logger {
                   , message  : 'Double Weight'
                   , type     : 'input'
                   , default  : () => config.doubleWeight
-                  , display  : () => getDiffChalk(config.doubleWeight, defaults.doubleWeight)(config.doubleWeight)
+                  , display  : () => chalkDiff(config.doubleWeight, defaults.doubleWeight)
                   , validate : value => Util.errMessage(() => RobotDelegator.validateWeight(+value))
                 }
             }
@@ -1140,9 +1192,9 @@ class Menu extends Logger {
           , theme         : 'Default'
           , robots        : {}
         }
-        ConfidenceRobot.listClassNames().forEach(name => {
+        RobotDelegator.listClassNames().forEach(name => {
             const {defaults} = ConfidenceRobot.getClassMeta(name)
-            opts.robots[name] = merge(true, defaults, opts.robots[name])
+            opts.robots[name] = {...defaults, ...opts.robots[name]}
         })
         return opts
     }
@@ -1157,13 +1209,11 @@ class Menu extends Logger {
 
     async testCredentials(serverUrl, username, password) {
         const client = this.newClient(serverUrl, username, password)
-        var res
         try {
-            res = await client.connect()
+            return await client.connect()
         } finally {
             client.close()
         }
-        return res
     }
 
     async sendSignup(serverUrl, username, password) {
@@ -1200,7 +1250,7 @@ class Menu extends Logger {
         const res = await client.postJson(uri, data)
         const body = await res.json()
         if (!res.ok) {
-            this.warn(body)
+            this.logger.warn(body)
             throw RequestError.forResponse(res, body, uri.split('/').pop() + ' failed')
         }
         return body
@@ -1219,7 +1269,9 @@ class Menu extends Logger {
     }
 
     newClient(serverUrl, username, password) {
-        return new Client(serverUrl, username, password)
+        const client = new Client(serverUrl, username, password)
+        client.logger.loglevel = this.logger.loglevel
+        return client
     }
 
     prompt(questions) {
@@ -1281,11 +1333,11 @@ class Menu extends Logger {
             settings.serverUrl = this.getDefaultServerUrl()
         }
 
-        merge(this.opts, settings)
+        this.opts = {...this.opts, ...settings}
 
-        ConfidenceRobot.listClassNames().forEach(name => {
+        RobotDelegator.listClassNames().forEach(name => {
             const {defaults} = ConfidenceRobot.getClassMeta(name)
-            this.opts.robots[name] = merge(true, defaults, this.opts.robots[name])
+            this.opts.robots[name] = {...defaults, ...this.opts.robots[name]}
         })
 
         this.isSettingsLoaded = true
@@ -1298,8 +1350,8 @@ class Menu extends Logger {
                 const data = await fse.readJson(stateFile)
                 return data
             } catch (err) {
-                this.debug(err)
-                this.error('Failed to load saved lab state:', err.message)
+                this.logger.debug(err)
+                this.logger.error('Failed to load saved lab state:', err.message)
             }
         }
     }
@@ -1336,7 +1388,7 @@ class Menu extends Logger {
                 configs[name] = config
                 helper.add(name, config.extends)
             } catch (err) {
-                this.error('Failed to load custom theme file: ' + file, err.message)
+                this.logger.error('Failed to load custom theme file: ' + file, err.message)
             }
         }
 
@@ -1346,7 +1398,7 @@ class Menu extends Logger {
             if (!err.isDependencyError) {
                 throw err
             }
-            this.error(err.name, err.message)
+            this.logger.error(err.name, err.message)
             // load what we can
             var order = helper.order
         }
@@ -1358,12 +1410,12 @@ class Menu extends Logger {
                 ThemeHelper.update(name, configs[name])
                 loaded.push(name)
             } catch (err) {
-                this.error('Failed to load theme ' + name, err.message)
+                this.logger.error('Failed to load theme ' + name, err.message)
             }
         }
 
         if (loaded.length) {
-            this.info('Loaded', loaded.length, 'custom themes')
+            this.logger.info('Loaded', loaded.length, 'custom themes')
         }
 
         this.isThemesLoaded = true
