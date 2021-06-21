@@ -54,6 +54,8 @@ class RobotProfileCommand extends Command {
     }
 }
 
+RobotProfileCommand.aliases = ['profile']
+
 RobotProfileCommand.description = `Run performance profiling`
 
 RobotProfileCommand.flags = {
