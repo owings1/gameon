@@ -53,16 +53,13 @@ const {
 const {
     ArrowChars
   , BoardStrings
-  , BottomPoints
   , ColorAbbr
   , ColorNorm
-  , Colors
   , Opponent
   , OriginPoints
   , PointOrigins
   , Red
   , TableChars
-  , TopPoints
   , White
 } = Constants
 
@@ -475,6 +472,8 @@ class LabHelper {
 
     showRobotTurnDelegates(delegateList) {
 
+        const {theme} = this
+        const ch = theme.table
         const cons = this.logger.console
 
         var indent = 0
@@ -485,9 +484,6 @@ class LabHelper {
             b.add('\n')
             cons.log(''.padEnd(indent - 1, ' '), ...args)
         }
-
-        const {theme} = this
-        const dim = theme.table.dim
 
         const columns = [
             {
@@ -529,9 +525,9 @@ class LabHelper {
             }
           , {
                 name: 'moves'
-              , format: moves => dim('[') + moves.map(move =>
+              , format: moves => ch.dim('[') + moves.map(move =>
                     this.moveDesc(move, true).padEnd(5, ' ')
-                ).join(dim(',') + ' ') + dim(']')
+                ).join(ch.dim(',') + ' ') + ch.dim(']')
             }
         ]
 
@@ -548,7 +544,7 @@ class LabHelper {
             indent = 2
             log(hr)
             log()
-            log(theme.table.title(table.name))
+            log(ch.title(table.name))
             log()
             table.lines.forEach(line => log(line))
             log()
@@ -651,8 +647,10 @@ class LabHelper {
 
         this.stateHistory.push(board.state28())
 
-        const b = new StringBuilder('Place')
-        
+        const b = new StringBuilder
+
+        b.add('Place')
+
         var piece
 
         if (answers.from == 'b') {
@@ -933,7 +931,7 @@ class LabHelper {
     }
 
     ccolor(color) {
-        const ch = this.drawer.theme.board
+        const ch = this.theme.board
         return ch.piece[color.toLowerCase()](color)
     }
 
