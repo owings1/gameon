@@ -66,6 +66,10 @@ const {
   , White
 } = Constants
 
+function stringify(data, indent = 2) {
+    return JSON.stringify(data, null, indent)
+}
+
 class LabHelper {
 
     constructor(opts = {}) {
@@ -324,9 +328,9 @@ class LabHelper {
 
         this.fetchLastRecords = () => {
             return {
-                'series.json' : JSON.stringify({info, series}, null, 2)
+                'series.json' : stringify({info, series})
               , 'series.txt'  : b.toString()
-              , 'turn.json'  : JSON.stringify({turn: turnData}, null, 2)
+              , 'turn.json'   : stringify({turn: turnData})
             }
         }
     }
@@ -358,14 +362,14 @@ class LabHelper {
 
         this.fetchLastRecords = () => {
             return {
-                'explain.json'      : JSON.stringify(explain, null, 2)
+                'explain.json'      : stringify(explain)
               , 'ranklist.ans.txt'  : b_rankList.toString()
               , 'ranklist.txt'      : Util.stripAnsi(b_rankList.toString())
               , 'delegates.ans.txt' : b_delegates.toString()
               , 'delegates.txt'     : Util.stripAnsi(b_delegates.toString())
-              , 'results.json'      : JSON.stringify({results: result.results}, null, 2)
-              , 'robot.json'        : JSON.stringify({robot: robotMeta}, null, 2)
-              , 'turn.json'         : JSON.stringify({turn: turnData}, null, 2)
+              , 'results.json'      : stringify({results: result.results})
+              , 'robot.json'        : stringify({robot: robotMeta})
+              , 'turn.json'         : stringify({turn: turnData})
             }
         }
     }
@@ -482,6 +486,9 @@ class LabHelper {
             cons.log(''.padEnd(indent - 1, ' '), ...args)
         }
 
+        const {theme} = this
+        const dim = theme.table.dim
+
         const columns = [
             {
                 name   : 'myRank'
@@ -522,26 +529,26 @@ class LabHelper {
             }
           , {
                 name: 'moves'
-              , format: moves => chalk.grey('[') + moves.map(move => 
+              , format: moves => dim('[') + moves.map(move =>
                     this.moveDesc(move, true).padEnd(5, ' ')
-                ).join(chalk.grey(',') + ' ') + chalk.grey(']')
+                ).join(dim(',') + ' ') + dim(']')
             }
         ]
 
         const tables = delegateList.filter(it =>
             it.rankings[0] && it.rankings[0].myRank != null
-        ).map(delegate =>
-            new Table(columns, delegate.rankings, {name: delegate.name, theme: this.opts.theme}).build()
+        ).map(({name, rankings}) =>
+            new Table(columns, rankings, {name, theme}).build()
         )
 
         const maxTableWidth = Math.max(...tables.map(table => table.outerWidth))
-        const hr = chalk.bgGrey.white(nchars(maxTableWidth, TableChars.dash))
+        const hr = theme.hr(nchars(maxTableWidth, TableChars.dash))
 
         tables.forEach(table => {
             indent = 2
             log(hr)
             log()
-            log(chalk.cyan.bold(table.name))
+            log(theme.table.title(table.name))
             log()
             table.lines.forEach(line => log(line))
             log()
@@ -926,8 +933,8 @@ class LabHelper {
     }
 
     ccolor(color) {
-        const {ch} = this.drawer.theme
-        return ch.piece[color](color)
+        const ch = this.drawer.theme.board
+        return ch.piece[color.toLowerCase()](color)
     }
 
     draw(isPrint) {

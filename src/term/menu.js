@@ -99,19 +99,20 @@ const Questions = {
 class Menu {
 
     constructor(configDir) {
+
         this.logger = new Logger
         this.configDir = configDir
-        this.settings = Menu.defaults()
+
+        this.settings = Menu.settingsDefaults()
         this.credentials = Menu.credentialDefaults()
+
         this.isCredentialsLoaded = false
         this.isSettingsLoaded = false
         this.isThemesLoaded = false
+
         const hash = crypto.createHash('md5')
         hash.update('main-menu')
         this.chash = hash.digest('hex')
-
-        // legacy
-        this.opts = this.settings
     }
 
     async mainMenu() {
@@ -206,6 +207,7 @@ class Menu {
                 } else {
                     this.logger.error(err)
                 }
+                //throw err
             }
         }
 
@@ -215,8 +217,6 @@ class Menu {
     async matchMenu(isOnline, isRobot, isRobots) {
 
         await this.ensureSettingsLoaded()
-
-        const choices = this.getMatchChoices(isOnline)
 
         var message
         if (isRobots) {
@@ -234,6 +234,8 @@ class Menu {
         while (true) {
 
             var isContinue = true
+
+            var choices = this.getMatchChoices(isOnline)
 
             var answers = await this.prompt({
                 name     : 'matchChoice'
@@ -531,9 +533,9 @@ class Menu {
 
         await this.ensureSettingsLoaded()
 
-        const choices = this.getSettingsChoices()
-
         while (true) {
+
+            var choices = this.getSettingsChoices()
 
             var answers = await this.prompt({
                 name     : 'settingChoice'
@@ -586,9 +588,9 @@ class Menu {
 
         await this.ensureSettingsLoaded()
 
-        const choices = this.getRobotConfigsChoices()
-
         while (true) {
+
+            var choices = this.getRobotConfigsChoices()
 
             var answers = await this.prompt({
                 name     : 'robotChoice'
@@ -762,7 +764,7 @@ class Menu {
             var persp = White
             var rollsFile = null
         }
-        const {theme, isCustomRobot, robots, recordDir} = this.opts
+        const {theme, isCustomRobot, robots, recordDir} = this.settings
         const labOpts = {
             board
           , persp
@@ -800,11 +802,11 @@ class Menu {
     }
 
     newRobot(...args) {
-        const {opts} = this
-        if (!opts.isCustomRobot) {
+        const {settings} = this
+        if (!settings.isCustomRobot) {
             return this.newDefaultRobot(...args)
         }
-        const configs = Object.entries(opts.robots).map(([name, config]) => {
+        const configs = Object.entries(settings.robots).map(([name, config]) => {
             return {name, ...config}
         })
         return RobotDelegator.forConfigs(configs, ...args)
@@ -1172,6 +1174,7 @@ class Menu {
     getConfigureRobotChoices(name) {
         const {defaults, versions} = ConfidenceRobot.getClassMeta(name)
         const config = () => this.settings.robots[name]
+        const weightValidator = value => Util.errMessage(() => RobotDelegator.validateWeight(+value))
         return Menu.formatChoices([
             {
                 value : 'done'
@@ -1202,7 +1205,7 @@ class Menu {
                   , type     : 'input'
                   , default  : () => config().moveWeight
                   , display  : () => chalkDiff(config().moveWeight, defaults.moveWeight)
-                  , validate : value => Util.errMessage(() => RobotDelegator.validateWeight(+value))
+                  , validate : weightValidator
                 }
             }
           , {
@@ -1313,7 +1316,7 @@ class Menu {
 
         const settings = await fse.readJson(settingsFile)
 
-        const defaults = Menu.defaults()
+        const defaults = Menu.settingsDefaults()
         this.settings = Util.defaults(defaults, this.settings, settings)
         this.settings.matchOpts = Util.defaults(defaults.matchOpts, settings.matchOpts)
 
@@ -1323,8 +1326,6 @@ class Menu {
             this.logger.info('Migrating legacy robot config')
             await this.saveSettings()
         }
-
-        this.opts = this.settings
 
         this.isSettingsLoaded = true
     }
@@ -1340,7 +1341,7 @@ class Menu {
         const settingsFile = this.getSettingsFile()
         if (settingsFile) {
             await fse.ensureDir(path.dirname(settingsFile))
-            const settings = Util.defaults(Menu.defaults(), this.opts)
+            const settings = Util.defaults(Menu.settingsDefaults(), this.settings)
             await fse.writeJson(settingsFile, settings, {spaces: 2})
         }
     }
@@ -1460,7 +1461,7 @@ class Menu {
         }
     }
 
-    static defaults() {
+    static settingsDefaults() {
         return {
             delay         : 0.5
           , isRecord      : false

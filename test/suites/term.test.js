@@ -1190,7 +1190,7 @@ describe('Menu', () => {
     describe('#saveSettings', () => {
 
         it('should write default settings', async () => {
-            const settings = Menu.defaults()
+            const settings = Menu.settingsDefaults()
             await menu.saveSettings()
             const result = JSON.parse(fs.readFileSync(settingsFile))
             expect(JSON.stringify(result)).to.equal(JSON.stringify(settings))

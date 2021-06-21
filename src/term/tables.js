@@ -91,67 +91,67 @@ class Table {
     }
 
     buildHeaderStrings() {
-        const ch = this.theme.ch.table.head
+        const ch = this.theme.table.head
         this.headerStrings = this.columns.map((column, i) =>
-            pad(ch(column.title), column.align, column.width)
+            pad(ch(column.title), column.align, column.width, ch(' '))
         )
     }
 
     buildRowStringParts() {
-        const chodd = this.theme.ch.table.odd
-        const cheven = this.theme.ch.table.even
+        const ch = this.theme.table
         this.rowStringParts = this.rows.map((row, i) => {
-            const ch = i % 2 ? cheven : chodd
+            const chn = i % 2 ? ch.even : ch.odd
             return this.columns.map((column, i) =>
-                pad(ch(row[i]), column.align, column.width)
+                pad(chn(row[i]), column.align, column.width, chn(' '))
             )
         })
     }
 
     buildFooterInnerStrings() {
+        const ch = this.theme.table.foot
         this.footerInnerStrings = (this.footerLines || []).map(footerLine =>
-            pad(footerLine, this.opts.footerAlign, this.innerWidth)
+            pad(ch(footerLine), this.opts.footerAlign, this.innerWidth, ch(' '))
         )
     }
 
     buildBorderStrings() {
-        const bch = this.theme.ch.table.border
+        const ch = this.theme.table.border
         const dashParts = this.columns.map(column =>
             pad('', 'left', column.width, TableChars.dash)
         )
         const dashesFootOnly = pad('', 'left', this.innerWidth, TableChars.dash)
         this.borderStrings = {
-            top : bch([
+            top : ch([
                 TableChars.topLeft
               , dashParts.join(wrapDash(TableChars.topMiddle))
               , TableChars.topRight
             ].join(TableChars.dash))
-          , middle: bch([
+          , middle: ch([
                 TableChars.middleLeft
               , dashParts.join(wrapDash(TableChars.middleMiddle))
               , TableChars.middleRight
             ].join(TableChars.dash))
-          , prefoot: bch([
+          , prefoot: ch([
                 TableChars.bottomLeft
               , dashParts.join(wrapDash(TableChars.bottomMiddle))
               , TableChars.bottomRight
             ].join(TableChars.dash))
-          , postfoot: bch([
+          , postfoot: ch([
                 TableChars.footerLeft
               , dashParts.join(wrapDash(TableChars.footerMiddle))
               , TableChars.footerRight
             ].join(TableChars.dash))
-          , bottom: bch([
+          , bottom: ch([
                 TableChars.footerLeft
               , dashParts.join(wrapDash(TableChars.bottomMiddle))
               , TableChars.footerRight
             ].join(TableChars.dash))
-          , topFootOnly : bch([
+          , topFootOnly : ch([
                 TableChars.topLeft
               , dashesFootOnly
               , TableChars.topRight
             ].join(TableChars.dash))
-          , bottomFootOnly : bch([
+          , bottomFootOnly : ch([
                 TableChars.footerLeft
               , dashesFootOnly
               , TableChars.footerRight
@@ -190,33 +190,34 @@ class Table {
 
     buildFinalStrings() {
 
-        const bch = this.theme.ch.table.border
+        const ch = this.theme.table
 
         this.headerString = [
-            bch(TableChars.pipe)
-          , ' '
-          , this.headerStrings.join(' ' + bch(TableChars.pipe) + ' ')
-          , ' '
-          , bch(TableChars.pipe)
+            ch.border(TableChars.pipe)
+          , ch.head(' ')
+          , this.headerStrings.join(ch.head(' ') + ch.border(TableChars.pipe) + ch.head(' '))
+          , ch.head(' ')
+          , ch.border(TableChars.pipe)
         ].join('')
 
-        this.rowStrings = this.rowStringParts.map(parts =>
-            [
-                bch(TableChars.pipe)
-              , ' '
-              , parts.join(' ' + bch(TableChars.pipe) + ' ')
-              , ' '
-              , bch(TableChars.pipe)
+        this.rowStrings = this.rowStringParts.map((parts, i) => {
+            const chn = i % 2 ? ch.even : ch.odd
+            return [
+                ch.border(TableChars.pipe)
+              , chn(' ')
+              , parts.join(chn(' ') + ch.border(TableChars.pipe) + chn(' '))
+              , chn(' ')
+              , ch.border(TableChars.pipe)
             ].join('')
-        )
+        })
 
         this.footerStrings = this.footerInnerStrings.map(innerStr =>
             [
-                bch(TableChars.pipe)
-              , ' '
+                ch.border(TableChars.pipe)
+              , ch.foot(' ')
               , innerStr
-              , ' '
-              , bch(TableChars.pipe)
+              , ch.foot(' ')
+              , ch.border(TableChars.pipe)
             ].join('')
         )
     }

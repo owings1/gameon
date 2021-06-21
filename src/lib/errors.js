@@ -96,6 +96,7 @@ class InvalidRollError    extends GameError {}
 class MatchCanceledError  extends GameError {}
 class NotImplementedError extends GameError {}
 
+class IncompatibleKeysError extends ArgumentError {}
 class InvalidColorError     extends ArgumentError {}
 class InvalidDirError       extends ArgumentError {}
 class MaxDepthExceededError extends ArgumentError {}
@@ -152,6 +153,7 @@ module.exports = {
   , IllegalBareoffError
   , IllegalMoveError
   , IllegalStateError
+  , IncompatibleKeysError
   , InvalidColorError
   , InvalidDirError
   , InvalidRollError

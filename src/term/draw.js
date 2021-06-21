@@ -205,11 +205,11 @@ class DrawHelper {
     }
 
     numbersRow(points) {
+        const ch = this.theme.text
         const b = new StringBuilder
-        const {ch} = this.theme
         b.add(
             this.numbers(points)
-          , ch.text(nchars(this.AfterWidth, Chars.sp))
+          , ch(nchars(this.AfterWidth, Chars.sp))
           , this.sideLog(0)
           , Chars.br
         )
@@ -217,11 +217,11 @@ class DrawHelper {
     }
 
     borderRow(border) {
+        const {theme} = this
         const b = new StringBuilder
-        const {ch} = this.theme
         b.add(
-            ch.boardBorder(border)
-          , ch.text(nchars(this.AfterWidth, Chars.sp))
+            theme.board.border(border)
+          , theme.text(nchars(this.AfterWidth, Chars.sp))
           , this.sideLog(0)
           , Chars.br
         )
@@ -230,25 +230,24 @@ class DrawHelper {
 
     pieceRow(depth, points, cubePart, owner) {
 
+        const ch = this.theme.board
         const b = new StringBuilder
 
-        const {ch} = this.theme
-
-        b.add(ch.boardBorder(TableChars.pipe))
+        b.add(ch.border(TableChars.pipe))
 
         points.forEach((point, i) => {
             const {color, count} = this.pointStats[point]
             b.add(this.pieceStr(count > depth && color, i == 0 || i == 6))
             if (i == 5) {
                 b.add(
-                    ch.boardSp(Chars.dblSp)
-                  , ch.boardBorder(TableChars.dblPipe)
+                    ch(Chars.dblSp)
+                  , ch.border(TableChars.dblPipe)
                 )
             }
         })
-        b.add(ch.boardSp(Chars.dblSp))
+        b.add(ch(Chars.dblSp))
 
-        b.add(ch.boardBorder(TableChars.pipe))
+        b.add(ch.border(TableChars.pipe))
 
         const afterStr = this.afterPieceRowString(depth, cubePart, owner)
         const pad = this.AfterWidth - this.len(afterStr)
@@ -263,24 +262,24 @@ class DrawHelper {
 
     overflowRow(points) {
 
+        const ch = this.theme.board
         const b = new StringBuilder
-        const {ch} = this.theme
 
-        b.add(ch.boardBorder(TableChars.pipe))
+        b.add(ch.border(TableChars.pipe))
 
         points.forEach((point, i) => {
             const {count} = this.pointStats[point]
             b.add(this.overflowStr(count, i == 0 || i == 6))
             if (i == 5) {
                 b.add(
-                    ch.boardSp(Chars.dblSp)
-                  , ch.boardBorder(TableChars.dblPipe)
+                    ch(Chars.dblSp)
+                  , ch.border(TableChars.dblPipe)
                 )
             }
         })
-        b.add(ch.boardSp(Chars.dblSp))
+        b.add(ch(Chars.dblSp))
 
-        b.add(ch.boardBorder(TableChars.pipe))
+        b.add(ch.border(TableChars.pipe))
 
         const pad = this.AfterWidth
 
@@ -316,16 +315,16 @@ class DrawHelper {
 
     middleRow() {
 
+        const ch = this.theme.board
         const b = new StringBuilder
-        const {ch} = this.theme
 
         b.add(
-            ch.boardBorder(TableChars.pipe)
-          , ch.boardSp(nchars(6 * this.PiecePad + 1, Chars.sp))
-          , ch.boardBorder(TableChars.dblPipe)
-          , ch.boardSp(nchars(6 * this.PiecePad, Chars.sp))
-          , ch.boardSp(Chars.sp)
-          , ch.boardBorder(TableChars.pipe)
+            ch.border(TableChars.pipe)
+          , ch(nchars(6 * this.PiecePad + 1, Chars.sp))
+          , ch.border(TableChars.dblPipe)
+          , ch(nchars(6 * this.PiecePad, Chars.sp))
+          , ch(Chars.sp)
+          , ch.border(TableChars.pipe)
         )
 
         if (this.cubeValue && !this.cubeOwner) {
@@ -346,7 +345,7 @@ class DrawHelper {
 
     sideLog(pad) {
 
-        const {ch} = this.theme
+        const ch = this.theme.text
         const n = this.logIndex--
 
         const b = new StringBuilder
@@ -357,12 +356,12 @@ class DrawHelper {
             maxWidth -= 1
         }
 
-        b.add(ch.text(nchars(pad, Chars.sp)))
+        b.add(ch(nchars(pad, Chars.sp)))
 
         if (this.logs[n]) {
             var message = this.logs[this.logs.length - n - 1]
             if (this.len(message) > this.maxLogWidth) {
-                message = ch.text(
+                message = ch(
                     Util.stripAnsi(message).substring(0, this.maxLogWidth)
                 )
             }
@@ -371,17 +370,17 @@ class DrawHelper {
         }
 
         b.add(message)
-        b.add(ch.text(nchars(maxWidth - this.len(message), Chars.sp)))
+        b.add(ch(nchars(maxWidth - this.len(message), Chars.sp)))
 
         return b
     }
 
     numbers(points) {
 
+        const ch = this.theme.board.pointLabel
         const b = new StringBuilder
-        const {ch} = this.theme
 
-        b.add(ch.pointLabel(Chars.sp))
+        b.add(ch(Chars.sp))
 
         points.forEach((point, i) => {
             var pad = this.PiecePad
@@ -389,44 +388,46 @@ class DrawHelper {
                 pad -= 1
             }
             b.add(
-                ch.pointLabel(point.toString().padStart(pad, Chars.sp))
+                ch(point.toString().padStart(pad, Chars.sp))
             )
             if (i == 5) {
-                b.add(ch.pointLabel(nchars(4, Chars.sp)))
+                b.add(ch(nchars(4, Chars.sp)))
             }
         })
 
-        b.add(ch.pointLabel(nchars(3, Chars.sp)))
+        b.add(ch(nchars(3, Chars.sp)))
 
         return b
     }
 
     barRowStr(color, count) {
 
+        const {theme} = this
+
+        const ch = theme.board
         const b = new StringBuilder
-        const {ch} = this.theme
 
         b.add(
-            ch.boardBorder(TableChars.pipe)
-          , ch.boardSp(nchars(6 * this.PiecePad + 1, Chars.sp))
+            ch.border(TableChars.pipe)
+          , ch(nchars(6 * this.PiecePad + 1, Chars.sp))
         )
 
         if (count) {
             b.add(
-                ch.piece[color](ColorAbbr[color])
-              , ch.boardSp(Chars.sp)
-              , ch.textDim(count)
+                ch.piece[color.toLowerCase()](ColorAbbr[color])
+              , ch(Chars.sp)
+              , ch.dim(count)
             )
         } else {
             b.add(
-                ch.boardBorder(TableChars.dblPipe)
-              , ch.boardSp(Chars.sp)
+                ch.border(TableChars.dblPipe)
+              , ch(Chars.sp)
             )
         }
 
         b.add(
-            ch.boardSp(nchars(6 * this.PiecePad, Chars.sp))
-          , ch.boardBorder(TableChars.pipe)
+            ch(nchars(6 * this.PiecePad, Chars.sp))
+          , ch.border(TableChars.pipe)
         )
 
         return b
@@ -434,14 +435,14 @@ class DrawHelper {
 
     overflowStr(count, isFirst = false) {
 
+        const ch = this.theme.board
         const b = new StringBuilder
-        const {ch} = this.theme
 
         const countStr = count > 6 ? '' + count : Chars.empty
 
         b.add(
-            ch.boardSp(nchars(this.PiecePad - isFirst - countStr.length, Chars.sp))
-          , ch.textDim(countStr)
+            ch(nchars(this.PiecePad - isFirst - countStr.length, Chars.sp))
+          , ch.dim(countStr)
         )
 
         return b
@@ -450,15 +451,15 @@ class DrawHelper {
     // the string for the piece color, if any
     pieceStr(color, isFirst = false) {
 
+        const ch = this.theme.board
         const b = new StringBuilder
-        const {ch} = this.theme
 
-        b.add(ch.boardSp(nchars(this.PiecePad - isFirst - 1, Chars.sp)))
+        b.add(ch(nchars(this.PiecePad - isFirst - 1, Chars.sp)))
 
         if (color) {
-            b.add(ch.piece[color](ColorAbbr[color]))
+            b.add(ch.piece[color.toLowerCase()](ColorAbbr[color]))
         } else {
-            b.add(ch.boardSp(Chars.sp))
+            b.add(ch(Chars.sp))
         }
 
         return b
@@ -490,16 +491,18 @@ class DrawHelper {
 
     homeCountStr(color, count) {
 
-        const b = new StringBuilder
-        const {ch} = this.theme
+        const {theme} = this
 
-        b.add(ch.text(Chars.dblSp))
+        const ch = this.theme.text
+        const b = new StringBuilder
+
+        b.add(ch(Chars.dblSp))
 
         if (count) {
             b.add(
-                ch.piece[color](ColorAbbr[color])
-              , ch.text(Chars.sp)
-              , ch.textDim(count)
+                ch.piece[color.toLowerCase()](ColorAbbr[color])
+              , ch(Chars.sp)
+              , ch(count)
             )
         }
 
@@ -507,49 +510,50 @@ class DrawHelper {
     }
 
     pipCountStr(count) {
+        const ch = this.theme.text
         const b = new StringBuilder
-        const {ch} = this.theme
-        b.add(ch.text(Chars.sp), ch.pipCount(count))
-        b.add(ch.text(Chars.sp), ch.pipLabel('PIP'))
+        b.add(ch(Chars.sp), ch.pipCount(count))
+        b.add(ch(Chars.sp), ch.dim('PIP'))
         return b
     }
 
     matchScoreStr(score, total) {
+        const ch = this.theme.text
         const b = new StringBuilder
-        const {ch} = this.theme
-        b.add(ch.text(Chars.sp))
-        b.add(ch.text(score + '/' + total + 'pts'))
+        b.add(ch(Chars.sp))
+        b.add(ch(score + '/' + total + 'pts'))
         return b
     }
 
     cubePartStr(partIndex, cubeValue, isCrawford) {
 
-        const b = new StringBuilder
-        const {ch} = this.theme
+        const {theme} = this
 
-        const cubeChalk = isCrawford ? ch.cubeDisabled : ch.cubeActive
+        const b = new StringBuilder
+
+        const ch = isCrawford ? theme.cube.inactive : theme.cube.active
 
         switch (partIndex) {
             case 0:
-                b.add(cubeChalk(this.CubeTopBorder))
+                b.add(ch(this.CubeTopBorder))
                 break
             case 1:
                 b.add(
-                    cubeChalk(TableChars.pipe + Chars.sp)
+                    ch(TableChars.pipe + Chars.sp)
                 )
                 const valueStr = isCrawford ? 'CR' : cubeValue.toString()
                 b.add(
-                    cubeChalk(valueStr)
-                  , cubeChalk(nchars(2 - valueStr.length, Chars.sp))
-                  , cubeChalk(TableChars.pipe)
+                    ch(valueStr)
+                  , ch(nchars(2 - valueStr.length, Chars.sp))
+                  , ch(TableChars.pipe)
                 )
                 break
             case 2:
-                b.add(cubeChalk(this.CubeBottomBorder))
+                b.add(ch(this.CubeBottomBorder))
                 break
         }
 
-        return ch.text(Chars.sp) + b.toString()
+        return theme.text(Chars.sp) + b.toString()
     }
 
     len(str) {
@@ -605,15 +609,15 @@ class Reporter {
     }
 
     gameStart(num) {
-        const {ch} = this.inst.theme
+        const ch = this.inst.theme.text
         const b = new StringBuilder
         b.add(
             ch.gameStatus('Starting game')
         )
         if (num) {
             b.add(
-                ch.text(Chars.sp)
-              , ch.textBold(num)
+                ch(Chars.sp)
+              , ch(num)
             )
         }
         return b
@@ -621,15 +625,15 @@ class Reporter {
 
     firstRollWinner(color, dice) {
 
-        const {ch} = this.inst.theme
+        const ch = this.inst.theme.text
         const b = new StringBuilder
 
         b.add(
-            ch.colorText[color](color)
-          , ch.text(' goes first with ')
-          , ch.colorText.White(dice[0])
-          , ch.text(',')
-          , ch.colorText.Red(dice[1])
+            ch.piece[color.toLowerCase()](color)
+          , ch(' goes first with ')
+          , ch.piece.white(dice[0])
+          , ch(',')
+          , ch.piece.red(dice[1])
         )
 
         return b
@@ -637,14 +641,14 @@ class Reporter {
 
     turnStart(color) {
 
-        const {ch} = this.inst.theme
+        const ch = this.inst.theme.text
         const b = new StringBuilder
 
         b.add(
-            ch.textDim('---')
-          , ch.text(Chars.sp)
-          , ch.colorText[color](color)
-          , ch.text("'s turn")
+            ch.dim('---')
+          , ch(Chars.sp)
+          , ch.piece[color.toLowerCase()](color)
+          , ch("'s turn")
         )
 
         return b
@@ -652,15 +656,15 @@ class Reporter {
 
     playerRoll(color, dice) {
 
-        const {ch} = this.inst.theme
+        const ch = this.inst.theme.text
         const b = new StringBuilder
 
         b.add(
-            ch.colorText[color](color)
-          , ch.text(' rolls ')
-          , ch.diceRolled(dice[0])
-          , ch.text(',')
-          , ch.diceRolled(dice[1])
+            ch.piece[color.toLowerCase()](color)
+          , ch(' rolls ')
+          , ch.dice(dice[0])
+          , ch(',')
+          , ch.dice(dice[1])
         )
 
         return b
@@ -668,13 +672,13 @@ class Reporter {
 
     cantMove(color) {
 
-        const {ch} = this.inst.theme
+        const ch = this.inst.theme.text
         const b = new StringBuilder
 
         b.add(
-            ch.colorText[color](color)
-          , ch.text(Chars.sp)
-          , ch.noticeText('cannot move')
+            ch.piece[color.toLowerCase()](color)
+          , ch(Chars.sp)
+          , ch.notice('cannot move')
         )
 
         return b
@@ -682,17 +686,17 @@ class Reporter {
 
     forceMove(color, dice) {
 
-        const {ch} = this.inst.theme
+        const ch = this.inst.theme.text
         const b = new StringBuilder
 
         b.add(
-            ch.noticeText('Force move')
-          , ch.text(' for ')
-          , ch.colorText[color](color)
-          , ch.text(' with ')
-          , ch.diceRolled(dice[0])
-          , ch.text(',')
-          , ch.diceRolled(dice[1])
+            ch.notice('Force move')
+          , ch(' for ')
+          , ch.piece[color.toLowerCase()](color)
+          , ch(' with ')
+          , ch.dice(dice[0])
+          , ch(',')
+          , ch.dice(dice[1])
         )
 
         return b
@@ -712,12 +716,12 @@ class Reporter {
 
     comeInMove({color, face, isHit}) {
 
+        const ch = this.inst.theme.text
         const {persp} = this.inst
-        const {ch} = this.inst.theme
 
         return this._move(
             color
-          , ch.text('bar')
+          , ch('bar')
           , face
           , isHit
         )
@@ -737,34 +741,34 @@ class Reporter {
 
     bearoffMove({color, origin}) {
 
+        const ch = this.inst.theme.text
         const {persp} = this.inst
-        const {ch} = this.inst.theme
 
         return this._move(
             color
           , OriginPoints[persp][origin]
-          , ch.text('home')
+          , ch('home')
         )
     }
 
     _move(color, from, to, isHit) {
 
+        const ch = this.inst.theme.text
         const {persp} = this.inst
-        const {ch} = this.inst.theme
         const b = new StringBuilder
 
         b.add(
-            ch.colorText[color](color)
-          , ch.text(' moves ')
-          , ch.text(from)
-          , ch.text(' > ')
-          , ch.text(to)
+            ch.piece[color.toLowerCase()](color)
+          , ch(' moves ')
+          , ch(from)
+          , ch(' > ')
+          , ch(to)
         )
 
         if (isHit) {
             b.add(
-                ch.text(Chars.sp)
-              , ch.noticeText('HIT')
+                ch(Chars.sp)
+              , ch.notice('HIT')
             )
         }
 
@@ -773,13 +777,13 @@ class Reporter {
 
     doubleOffered(color) {
 
-        const {ch} = this.inst.theme
+        const ch = this.inst.theme.text
         const b = new StringBuilder
 
         b.add(
-            ch.colorText[color](color)
-          , ch.text(Chars.sp)
-          , ch.text('doubles')
+            ch.piece[color.toLowerCase()](color)
+          , ch(Chars.sp)
+          , ch('doubles')
         )
 
         return b
@@ -787,13 +791,13 @@ class Reporter {
 
     doubleDeclined(color) {
 
-        const {ch} = this.inst.theme
+        const ch = this.inst.theme.text
         const b = new StringBuilder
 
         b.add(
-            ch.colorText[color](color)
-          , ch.text(Chars.sp)
-          , ch.text('declines the double')
+            ch.piece[color.toLowerCase()](color)
+          , ch(Chars.sp)
+          , ch('declines the double')
         )
 
         return b
@@ -801,14 +805,14 @@ class Reporter {
 
     gameDoubled(cubeOwner, cubeValue) {
 
-        const {ch} = this.inst.theme
+        const ch = this.inst.theme.text
         const b = new StringBuilder
 
         b.add(
-            ch.colorText[cubeOwner](cubeOwner)
-          , ch.text(' owns the cube at ')
-          , ch.text(cubeValue)
-          , ch.text(' points')
+            ch.piece[cubeOwner.toLowerCase()](cubeOwner)
+          , ch(' owns the cube at ')
+          , ch(cubeValue)
+          , ch(' points')
         )
 
         return b
@@ -816,13 +820,13 @@ class Reporter {
 
     gameEnd(winner, finalValue) {
 
-        const {ch} = this.inst.theme
+        const ch = this.inst.theme.text
         const b = new StringBuilder
 
         b.add(
-            ch.colorText[winner](winner)
+            ch.piece[winner.toLowerCase()](winner)
           , ch.gameStatus(' wins game for ')
-          , ch.textBold(finalValue)
+          , ch.bold(finalValue)
           , ch.gameStatus(' points')
         )
 
@@ -831,15 +835,15 @@ class Reporter {
 
     matchEnd(winner, winnerPoints, loserPoints) {
 
-        const {ch} = this.inst.theme
+        const ch = this.inst.theme.text
         const b = new StringBuilder
 
         b.add(
-            ch.colorText[winner](winner)
+            ch.piece[winner.toLowerCase()](winner)
           , ch.gameStatus(' wins the match ')
-          , ch.textBold(winnerPoints)
-          , ch.text(' to ')
-          , ch.textBold(loserPoints)
+          , ch.bold(winnerPoints)
+          , ch(' to ')
+          , ch.bold(loserPoints)
         )
 
         return b
@@ -847,10 +851,10 @@ class Reporter {
 
     hr() {
 
-        const {ch} = this.inst.theme
+        const ch = this.inst.theme.hr
         const b = new StringBuilder
 
-        b.add(ch.hr('-----------'))
+        b.add(ch('-----------'))
 
         return b
     }

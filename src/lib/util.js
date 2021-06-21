@@ -750,6 +750,7 @@ const {
     CircularDependencyError
   , DependencyError
   , IllegalStateError
+  , IncompatibleKeysError
   , MissingDependencyError
   , UnresolvedDependencyError
 } = Errors

@@ -25,17 +25,16 @@
 const Errors = require('../lib/errors')
 const Util   = require('../lib/util')
 
-const chalk  = require('chalk')
 const fse    = require('fs-extra')
 const globby = require('globby')
 const path   = require('path')
+
+const ThemeConfig = require('./res/themes.config')
 
 const {
     DependencyHelper
   , StyleHelper
 } = Util
-
-const {ucfirst} = Util
 
 const {
     MaxDepthExceededError
@@ -45,73 +44,57 @@ const {
   , ThemeNotFoundError
 } = Errors
 
-const BuiltInThemes = {
-    Default : {
-        styles : {
-            'text.background'         : 'black'
-          , 'text.color'              : 'white'
-          , 'text.dice.color'         : 'magenta'
-          , 'text.dim.color'          : 'grey'
-          , 'text.notice.color'       : 'yellow bold'
-          , 'text.gameStatus.color'   : 'cyan'
-          , 'text.pipCount.color'     : 'grey bold'
-          , 'board.piece.red.color'   : 'red bold'
-          , 'board.piece.white.color' : 'white bold'
-          , 'board.border.color'      : 'grey'
-          , 'cube.inactive.color'     : 'grey'
-          , 'table.odd.color'         : 'cyan'
-        }
-    }
-  , Offbeat : {
-        extends: ['Default']
-      , styles : {
-            'board.pointLabel.background' : 'red bright'
-          , 'board.border.color'          : 'red dim'
-          , 'board.piece.red.color'       : 'orange bold'
-          , 'board.piece.white.color'     : '#0080ff bold'
-          , 'table.head.color'            : 'orange'
-        }
-    }
-}
-
-const CustomThemes = {}
-
-const Themes = {...BuiltInThemes}
+const {
+    Aliases
+  , Categories
+  , CategoriesMap
+  , Keys
+  , KeysMap
+} = ThemeConfig
 
 const MaxExtendsDepth = 10
+
+const Store = {
+    All       : {...ThemeConfig.BuiltIn}
+  , BuiltIn   : {...ThemeConfig.BuiltIn}
+  , Custom    : {}
+  , Instances : {}
+}
 
 class ThemeHelper {
 
     static register(name, config) {
-        if (Themes[name]) {
+        if (Store.All[name]) {
             throw new ThemeExistsError('Theme already exists: ' + name)
         }
         this.validateConfig(config)
-        CustomThemes[name] = config
-        Themes[name] = config
+        Store.Custom[name] = config
+        Store.All[name] = config
     }
 
     static update(name, config) {
-        if (BuiltInThemes[name]) {
+        if (Store.BuiltIn[name]) {
             throw new ThemeExistsError('Cannot update a built-in theme: ' + name)
         }
         this.validateConfig(config)
-        CustomThemes[name] = config
-        Themes[name] = config
+        Store.Custom[name] = config
+        Store.All[name] = config
+        delete Store.Instances[name]
     }
 
     static list() {
-        return Object.keys(Themes)
+        return Object.keys(Store.All)
     }
 
     static listCustom() {
-        return Object.keys(CustomThemes)
+        return Object.keys(Store.Custom)
     }
 
     static clearCustom() {
-        Object.keys(CustomThemes).forEach(name => {
-            delete CustomThemes[name]
-            delete Themes[name]
+        Object.keys(Store.Custom).forEach(name => {
+            delete Store.Custom[name]
+            delete Store.All[name]
+            delete Store.Instances[name]
         })
     }
 
@@ -119,8 +102,11 @@ class ThemeHelper {
         if (name instanceof Theme) {
             return name
         }
-        const styles = this.getStyles(name)
-        return Theme.forStyles(styles)
+        if (!Store.Instances[name]) {
+            const styles = this.getStyles(name)
+            Store.Instances[name] = ThemeBuilder.build(styles, name)
+        }
+        return Store.Instances[name]
     }
 
     static getDefaultInstance() {
@@ -128,10 +114,10 @@ class ThemeHelper {
     }
 
     static getConfig(name) {
-        if (!Themes[name]) {
+        if (!Store.All[name]) {
             throw new ThemeNotFoundError('Theme not found: ' + name)
         }
-        return Themes[name]
+        return Store.All[name]
     }
 
     static getStyles(name) {
@@ -141,33 +127,32 @@ class ThemeHelper {
 
     static validateConfig(config) {
         const styles = this.stylesForConfig(config)
-        Theme.validateStyles(styles)
+        this.validateStyles(styles)
     }
 
     static stylesForConfig(config) {
         const styles = {...config.styles}
-        this._extendStyles(styles, config.extends)
+        extendStyles(styles, config.extends)
         return styles
     }
 
-    static _extendStyles(styles, parents, depth = 0) {
-        if (!parents) {
-            return
+    static validateStyle(key, value) {
+        if (!KeysMap[key]) {
+            throw new StyleError('Unknown style key: ' + key)
         }
-        if (depth > MaxExtendsDepth) {
-            throw new MaxDepthExceededError('Too much theme inheritance')
-        }
-        parents.forEach(name => {
-            const config = this.getConfig(name)
-            this._extendStyles(styles, config.extends, depth + 1)
-            if (!config.styles) {
-                return
+        try {
+            StyleHelper.getChalk(value, keyIsBackground(key))
+        } catch (err) {
+            if (!err.isThemeError) {
+                err = new StyleError('Style validation failed for ' + key + ': ' + err.message, err)
             }
-            Object.keys(config.styles).forEach(key => {
-                if (!styles[key]) {
-                    styles[key] = config.styles[key]
-                }
-            })
+            throw err
+        }
+    }
+
+    static validateStyles(styles) {
+        Object.entries(styles).forEach(([key, value]) => {
+            this.validateStyle(key, value)
         })
     }
 
@@ -215,81 +200,6 @@ class ThemeHelper {
     }
 }
 
-const StyleKeys = [
-    'text.background'
-  , 'text.color'
-
-  , 'board.background'
-
-  , 'board.border.background'
-  , 'board.border.color'
-
-  , 'board.piece.white.background'
-  , 'board.piece.white.color'
-
-  , 'board.piece.red.background'
-  , 'board.piece.red.color'
-
-  , 'board.pointLabel.background'
-  , 'board.pointLabel.color'
-
-  , 'cube.active.background'
-  , 'cube.active.color'
-
-  , 'cube.inactive.background'
-  , 'cube.inactive.color'
-
-  , 'text.piece.red.color'
-  , 'text.piece.white.color'
-  , 'text.pipCount.color'
-  , 'text.dim.color'
-  , 'text.notice.color'
-  , 'text.gameStatus.color'
-  , 'text.dice.color'
-
-  , 'table.border.background'
-  , 'table.border.color'
-
-  , 'table.even.background'
-  , 'table.even.color'
-  , 'table.odd.background'
-  , 'table.odd.color'
-
-  , 'table.head.background'
-  , 'table.head.color'
-
-  , 'table.title.background'
-  , 'table.title.color'
-]
-
-const DefaultAliases = {
-    'board.background'        : 'text.background'
-  , 'text.piece.red.color'    : 'board.piece.red.color'
-  , 'text.piece.white.color'  : 'board.piece.white.color'
-  , 'table.border.background' : 'board.border.background'
-  , 'table.border.color'      : 'board.border.color'
-}
-
-const StyleKeysMap = {}
-// Without the background/color qualifier.
-// E.g. board.border.background and board.border.color reduce to board.border
-const Categories = []
-
-function populateStyleMaps() {
-    const categoriesMap = {}
-    StyleKeys.forEach(key => {
-        StyleKeysMap[key] = true
-        const keyParts = key.split('.')
-        keyParts.pop()
-        categoriesMap[keyParts.join('.')] = true
-    })
-    Object.keys(categoriesMap).forEach(category => {
-        Categories.push(category)
-    })
-}
-
-populateStyleMaps()
-
 function getStyleType(key) {
     return key.substring(key.lastIndexOf('.') + 1)
 }
@@ -302,45 +212,39 @@ function keyIsBackground(key) {
     return getStyleType(key) == 'background'
 }
 
-class Theme {
-
-    static forStyles(styles) {
-        const chalks = this.build(styles)
-        return new this(chalks)
+function extendStyles(styles, parents, depth = 0) {
+    if (!parents) {
+        return
     }
-
-    static validateStyles(styles) {
-        Object.entries(styles).forEach(([key, value]) => {
-            this.validateStyle(key, value)
-        })
+    if (depth > MaxExtendsDepth) {
+        throw new MaxDepthExceededError('Too much theme inheritance')
     }
-
-    static validateStyle(key, value) {
-        if (!StyleKeysMap[key]) {
-            throw new StyleError('Unknown style key: ' + key)
+    parents.forEach(name => {
+        const config = ThemeHelper.getConfig(name)
+        extendStyles(styles, config.extends, depth + 1)
+        if (!config.styles) {
+            return
         }
-        try {
-            const isBackground = keyIsBackground(key)
-            const theChalk = StyleHelper.getChalk(value, isBackground)
-            theChalk('')
-        } catch (err) {
-            if (!err.isThemeError) {
-                err = new StyleError('Style validation failed for ' + key + ': ' + err.message, err)
+        Object.keys(config.styles).forEach(key => {
+            if (!styles[key]) {
+                styles[key] = config.styles[key]
             }
-            throw err
-        }
+        })
+    })
+}
+
+class ThemeBuilder {
+
+    static build(_styles, name) {
+
+        const styles = this._buildStyles(_styles)
+        const defs   = this._buildDefs(styles)
+        const chalks = this._buildChalks(defs)
+
+        return this._create(chalks, name)
     }
 
-    static build(_styles) {
-
-        const styles = this.buildStyles(_styles)
-        const defs   = this.buildDefs(styles)
-        const chalks = this.buildChalks(defs)
-
-        return chalks
-    }
-
-    static buildStyles(_styles) {
+    static _buildStyles(_styles) {
 
         // Minimal defaults.
         const styles = {
@@ -350,14 +254,14 @@ class Theme {
         }
 
         // Default aliases.
-        Object.entries(DefaultAliases).forEach(([key, alias]) => {
+        Object.entries(Aliases).forEach(([key, alias]) => {
             if (!styles[key]) {
                 styles[key] = styles[alias]
             }
         })
 
         // Additional defaults for text/board sections.
-        StyleKeys.forEach(key => {
+        Keys.forEach(key => {
             const section = getStyleSection(key)
             const type  = getStyleType(key)
             if (!styles[key]) {
@@ -368,7 +272,11 @@ class Theme {
                         styles[key] = styles['text.background']
                     }
                 } else if (type == 'color') {
-                    styles[key] = styles['text.color']
+                    if (section == 'board') {
+                        styles[key] = styles['board.color']
+                    } else {
+                        styles[key] = styles['text.color']
+                    }
                 }
             }
         })
@@ -377,7 +285,7 @@ class Theme {
     }
 
     // Convert values into array definitions to construct chalk callables.
-    static buildDefs(styles) {
+    static _buildDefs(styles) {
 
         const defs = {}
 
@@ -392,7 +300,7 @@ class Theme {
     // and text.background, as well as a single chalk callable for each
     // category, e.g. text or board.piece.white, which includes both the
     // foreground and background styles.
-    static buildChalks(defs) {
+    static _buildChalks(defs) {
 
         const chalks = {}
 
@@ -400,17 +308,21 @@ class Theme {
 
             const bgKey = category + '.background'
             const fgKey = category + '.color'
-
+            const section = getStyleSection(category)
             var bgDef = defs[bgKey]
             var fgDef = defs[fgKey]
 
             if (!fgDef) {
-                // default to text color
-                fgDef = defs['text.color']
+                // default to board or text color
+                if (section == 'board') {
+                    fgDef = defs['board.color']
+                } else {
+                    fgDef = defs['text.color']
+                }
             }
             if (!bgDef) {
                 // default to board or text background
-                if (getStyleSection(category) == 'board') {
+                if (section == 'board') {
                     bgDef = defs['board.background']
                 } else {
                     bgDef = defs['text.background']
@@ -427,40 +339,28 @@ class Theme {
         return chalks
     }
 
-    constructor(chalks) {
-        this.chalks = chalks
-        // Index the chalk callables for use by DrawHelper/Reporter
-        this.ch = {
-              boardBorder  : chalks['board.border']
-            , boardSp      : chalks['board.background']
-            , noticeText   : chalks['text.notice']
-            , cubeActive   : chalks['cube.active']
-            , cubeDisabled : chalks['cube.inactive']
-            , diceRolled   : chalks['text.dice']
-            , textDim      : chalks['text.dim']
-            , gameStatus   : chalks['text.gameStatus']
-            , hr           : chalks['text.dim']
-            , pipLabel     : chalks['text.dim']
-            , pipCount     : chalks['text.pipCount']
-            , pointLabel   : chalks['board.pointLabel']
-            , text         : chalks['text']
-            , textBold     : chalks['text'].bold
-            , piece : {
-                  Red   : chalks['board.piece.red']
-                , White : chalks['board.piece.white']
-              }
-            , colorText : {
-                  Red   : chalks['text.piece.red']
-                , White : chalks['text.piece.white']
-              }
-            , table : {
-                  border : chalks['table.border']
-                , even   : chalks['table.even']
-                , odd    : chalks['table.odd']
-                , head   : chalks['table.head']
-              }
-        }
+    static _create(chalks, name) {
+        const theme = new Theme
+        theme.name = name
+        Categories.forEach(category => {
+            const parts = category.split('.')
+            var current = theme
+            parts.forEach((part, i) => {
+                const keyPath = parts.slice(0, i + 1).join('.')
+                if (!current[part]) {
+                    if (CategoriesMap[keyPath]) {
+                        current[part] = chalks[keyPath]
+                    } else {
+                        current[part] = {}
+                    }
+                }
+                current = current[part]
+            })
+        })
+        return theme
     }
 }
+
+class Theme {}
 
 module.exports = ThemeHelper
