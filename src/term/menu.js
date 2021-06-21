@@ -80,6 +80,10 @@ function chalkDiff(value, defaultValue) {
     return getDiffChalk(value, defaultValue)(value.toString())
 }
 
+function choiceQuestion(choices, value) {
+    return choices.find(choice => choice.value == value).question
+}
+
 // static questions
 const Questions = {
     join : [
@@ -97,8 +101,7 @@ class Menu {
     constructor(configDir) {
         this.logger = new Logger
         this.configDir = configDir
-        this.opts = Menu.defaults()
-        this.settings = this.opts
+        this.settings = Menu.defaults()
         this.credentials = Menu.credentialDefaults()
         this.isCredentialsLoaded = false
         this.isSettingsLoaded = false
@@ -106,6 +109,9 @@ class Menu {
         const hash = crypto.createHash('md5')
         hash.update('main-menu')
         this.chash = hash.digest('hex')
+
+        // legacy
+        this.opts = this.settings
     }
 
     async mainMenu() {
@@ -151,17 +157,18 @@ class Menu {
 
     async playMenu() {
 
+        const choices = this.getPlayChoices()
+
         while (true) {
 
             var isContinue = true
-            var playChoices = this.getPlayChoices()
 
             var answers = await this.prompt({
                 name     : 'playChoice'
               , message  : 'Play'
               , type     : 'rawlist'
-              , choices  : playChoices
-              , pageSize : playChoices.length + 1
+              , choices
+              , pageSize : choices.length + 1
             })
 
             var {playChoice} = answers
@@ -209,7 +216,7 @@ class Menu {
 
         await this.ensureSettingsLoaded()
 
-        const {opts} = this
+        const choices = this.getMatchChoices(isOnline)
 
         var message
         if (isRobots) {
@@ -228,14 +235,12 @@ class Menu {
 
             var isContinue = true
 
-            var matchChoices = this.getMatchChoices(isOnline)
-
             var answers = await this.prompt({
                 name     : 'matchChoice'
-              , message  : message
+              , message
               , type     : 'rawlist'
-              , choices  : matchChoices
-              , pageSize : matchChoices.length + 1
+              , choices
+              , pageSize : choices.length + 1
             })
 
             var {matchChoice} = answers
@@ -254,25 +259,30 @@ class Menu {
                 continue
             }
 
+            var {settings} = this
+
             if (matchChoice == 'start') {
                 if (isOnline) {
-                    await this.startOnlineMatch(opts.matchOpts)
-                } else if (isRobot) {
-                    await this.playRobot(opts, advancedOpts)
-                } else if (isRobots) {
-                    await this.playRobots(opts, advancedOpts)
+                    await this.startOnlineMatch(settings.matchOpts)
                 } else {
-                    await this.playLocalMatch(opts, advancedOpts)
+                    var matchOpts = await this.getMatchOpts(settings.matchOpts, advancedOpts)
+                    if (isRobot) {
+                        await this.playRobot(matchOpts)
+                    } else if (isRobots) {
+                        await this.playRobots(matchOpts)
+                    } else {
+                        await this.playHumans(matchOpts)
+                    }
                 }
                 continue
             }
 
-            var question = matchChoices.find(choice => choice.value == matchChoice).question
+            var question = choiceQuestion(choices, matchChoice)
 
             answers = await this.prompt(question)
 
-            opts.matchOpts[question.name] = answers[question.name]
-            opts.matchOpts.total = +opts.matchOpts.total
+            settings.matchOpts[question.name] = answers[question.name]
+            settings.matchOpts.total = +settings.matchOpts.total
 
             await this.saveSettings()
         }
@@ -355,7 +365,7 @@ class Menu {
 
             } else {
 
-                var question = accountChoices.find(choice => choice.value == accountChoice).question
+                var question = choiceQuestion(accountChoices, accountChoice)
 
                 answers = await this.prompt(question)
                 shouldLogin = answers[question.name] != credentials[question.name]
@@ -525,13 +535,13 @@ class Menu {
 
         while (true) {
 
-            var answers = await this.prompt([{
+            var answers = await this.prompt({
                 name     : 'settingChoice'
               , message  : 'Settings Menu'
               , type     : 'rawlist'
               , choices
               , pageSize : choices.length + 1
-            }])
+            })
 
             var {settingChoice} = answers
 
@@ -544,7 +554,7 @@ class Menu {
                 continue
             }
 
-            var question = choices.find(choice => choice.value == settingChoice).question
+            var question = choiceQuestion(choices, settingChoice)
 
             answers = await this.prompt(question)
 
@@ -643,7 +653,7 @@ class Menu {
             return
         }
 
-        const question = choices.find(choice => choice.value == robotChoice).question
+        const question = choiceQuestion(choices, robotChoice)
 
         answers = await this.prompt(question)
 
@@ -663,16 +673,6 @@ class Menu {
         return true
     }
 
-    async playLocalMatch(opts, advancedOpts) {
-        const matchOpts = await this.getMatchOpts(opts.matchOpts, advancedOpts)
-        const match = new Match(matchOpts.total, matchOpts)
-        const players = {
-            White : new TermPlayer(White, opts)
-          , Red   : new TermPlayer(Red, opts)
-        }
-        await this.runMatch(match, players)
-    }
-
     async startOnlineMatch(matchOpts) {
         await this._runOnlineMatch(matchOpts, true, null)
     }
@@ -681,22 +681,32 @@ class Menu {
         await this._runOnlineMatch(null, false, matchId)
     }
 
-    async playRobot(opts, advancedOpts) {
-        const matchOpts = await this.getMatchOpts(opts.matchOpts, advancedOpts)
+    async playRobot(matchOpts) {
+        await this.ensureSettingsLoaded()
         const match = new Match(matchOpts.total, matchOpts)
         const players = {
-            White : new TermPlayer(White, opts)
-          , Red   : new TermPlayer.Robot(this.newRobot(Red), opts)
+            White : new TermPlayer(White, this.settings)
+          , Red   : new TermPlayer.Robot(this.newRobot(Red), this.settings)
         }
         await this.runMatch(match, players)
     }
 
-    async playRobots(opts, advancedOpts) {
-        const matchOpts = await this.getMatchOpts(opts.matchOpts, advancedOpts)
+    async playRobots(matchOpts) {
+        await this.ensureSettingsLoaded()
         const match = new Match(matchOpts.total, matchOpts)
         const players = {
-            White : new TermPlayer.Robot(this.newRobot(White), opts)
-          , Red   : new TermPlayer.Robot(this.newDefaultRobot(Red), opts)
+            White : new TermPlayer.Robot(this.newRobot(White), this.settings)
+          , Red   : new TermPlayer.Robot(this.newDefaultRobot(Red), this.settings)
+        }
+        await this.runMatch(match, players)
+    }
+
+    async playHumans(matchOpts) {
+        await this.ensureSettingsLoaded()
+        const match = new Match(matchOpts.total, matchOpts)
+        const players = {
+            White : new TermPlayer(White, this.settings)
+          , Red   : new TermPlayer(Red, this.settings)
         }
         await this.runMatch(match, players)
     }
@@ -864,7 +874,7 @@ class Menu {
 
     getMatchChoices(isOnline) {
 
-        const choices = this.getBasicMatchInitialChoices(this.settings.matchOpts)
+        const choices = this.getBasicMatchInitialChoices()
         // only show advanced for local matches
         if (!isOnline) {
             choices.push({
@@ -883,7 +893,7 @@ class Menu {
         return Menu.formatChoices(choices)
     }
 
-    getBasicMatchInitialChoices(matchOpts) {
+    getBasicMatchInitialChoices() {
         return [
             {
                 value : 'start'
@@ -896,7 +906,7 @@ class Menu {
                     name     : 'total'
                   , message  : 'Match Total'
                   , type     : 'input'
-                  , default  : () => '' + matchOpts.total
+                  , default  : () => '' + this.settings.matchOpts.total
                   , validate : value => {
                         value = +value
                         return !isNaN(+value) && Number.isInteger(+value) && value > 0 || 'Please enter a number > 0'
@@ -910,7 +920,7 @@ class Menu {
                     name    : 'isCrawford'
                   , message : 'Crawford Rule'
                   , type    : 'confirm'
-                  , default : () => matchOpts.isCrawford
+                  , default : () => this.settings.matchOpts.isCrawford
                 }
             }
           , {
@@ -920,7 +930,7 @@ class Menu {
                     name    : 'isJacoby'
                   , message : 'Jacoby Rule'
                   , type    : 'confirm'
-                  , default : () => matchOpts.isJacoby
+                  , default : () => this.settings.matchOpts.isJacoby
                 }
             }
         ]
@@ -1161,6 +1171,7 @@ class Menu {
 
     getConfigureRobotChoices(name) {
         const {defaults, versions} = ConfidenceRobot.getClassMeta(name)
+        const config = () => this.settings.robots[name]
         return Menu.formatChoices([
             {
                 value : 'done'
@@ -1177,8 +1188,8 @@ class Menu {
                   name     : 'version'
                 , message  : 'Version'
                 , type     : 'list'
-                , default  : () => this.settings.robots[name].version
-                , display  : () => chalkDiff(this.settings.robots[name].version, defaults.version)
+                , default  : () => config().version
+                , display  : () => chalkDiff(config().version, defaults.version)
                 , choices  : () => Object.keys(versions)
               }
             }
@@ -1189,8 +1200,8 @@ class Menu {
                     name     : 'moveWeight'
                   , message  : 'Move Weight'
                   , type     : 'input'
-                  , default  : () => this.settings.robots[name].moveWeight
-                  , display  : () => chalkDiff(this.settings.robots[name].moveWeight, defaults.moveWeight)
+                  , default  : () => config().moveWeight
+                  , display  : () => chalkDiff(config().moveWeight, defaults.moveWeight)
                   , validate : value => Util.errMessage(() => RobotDelegator.validateWeight(+value))
                 }
             }
@@ -1201,16 +1212,12 @@ class Menu {
                     name     : 'doubleWeight'
                   , message  : 'Double Weight'
                   , type     : 'input'
-                  , default  : () => this.settings.robots[name].doubleWeight
-                  , display  : () => chalkDiff(this.settings.robots[name].doubleWeight, defaults.doubleWeight)
+                  , default  : () => config().doubleWeight
+                  , display  : () => chalkDiff(config().doubleWeight, defaults.doubleWeight)
                   , validate : value => Util.errMessage(() => RobotDelegator.validateWeight(+value))
                 }
             }
         ])
-    }
-
-    getDefaultOpts() {
-        return Menu.defaults()
     }
 
     async testCredentials(credentials, isDecrypt) {
@@ -1307,17 +1314,17 @@ class Menu {
         const settings = await fse.readJson(settingsFile)
 
         const defaults = Menu.defaults()
-        this.opts = Util.defaults(defaults, this.opts, settings)
-        this.opts.matchOpts = Util.defaults(defaults.matchOpts, settings.matchOpts)
+        this.settings = Util.defaults(defaults, this.settings, settings)
+        this.settings.matchOpts = Util.defaults(defaults.matchOpts, settings.matchOpts)
 
-        if (this.opts.isCustomRobot && Util.isEmptyObject(this.opts.robots)) {
+        if (this.settings.isCustomRobot && Util.isEmptyObject(this.settings.robots)) {
             // populate for legacy format
-            this.opts.robots = Menu.robotDefaults()
+            this.settings.robots = Menu.robotDefaults()
             this.logger.info('Migrating legacy robot config')
             await this.saveSettings()
         }
 
-        this.settings = this.opts
+        this.opts = this.settings
 
         this.isSettingsLoaded = true
     }
@@ -1335,7 +1342,6 @@ class Menu {
             await fse.ensureDir(path.dirname(settingsFile))
             const settings = Util.defaults(Menu.defaults(), this.opts)
             await fse.writeJson(settingsFile, settings, {spaces: 2})
-            //console.log('saveSettings')
         }
     }
 
@@ -1369,7 +1375,6 @@ class Menu {
         if (credentialsFile)  {
             await fse.ensureDir(path.dirname(credentialsFile))
             await fse.writeJson(credentialsFile, this.credentials, {spaces: 2})
-            //console.log('saveCredentials')
         }
     }
 
@@ -1489,7 +1494,7 @@ class Menu {
     }
 
     static defaults() {
-        const opts = {
+        return {
             delay         : 0.5
           , isRecord      : false
           , recordDir     : this.getDefaultRecordDir()
@@ -1503,7 +1508,6 @@ class Menu {
             }
           , robots        : {}
         }
-        return opts
     }
 
     static credentialDefaults() {

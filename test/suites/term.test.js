@@ -483,7 +483,7 @@ describe('Menu', () => {
             var isCalled = false
             menu.newClient = () => { return {connect : noop, joinMatch: noop, close: noop}}
             menu.newCoordinator = () => { return {runMatch: () => isCalled = true}}
-            await menu.joinOnlineMatch(menu.opts)
+            await menu.joinOnlineMatch('asdfasdf')
             expect(isCalled).to.equal(true)
         })
     })
@@ -543,7 +543,7 @@ describe('Menu', () => {
                 {matchChoice: 'quit'}
             ])
             await menu.matchMenu()
-            expect(menu.opts.matchOpts.total).to.equal(5)
+            expect(menu.settings.matchOpts.total).to.equal(5)
         })
 
         it('should invalidate total=-1', async () => {
@@ -562,7 +562,7 @@ describe('Menu', () => {
                 {matchChoice: 'quit'}
             ])
             await menu.matchMenu()
-            expect(menu.opts.matchOpts.isJacoby).to.equal(true)
+            expect(menu.settings.matchOpts.isJacoby).to.equal(true)
         })
 
         it('should set isCrawford to false', async () => {
@@ -572,7 +572,7 @@ describe('Menu', () => {
                 {matchChoice: 'quit'}
             ])
             await menu.matchMenu()
-            expect(menu.opts.matchOpts.isCrawford).to.equal(false)
+            expect(menu.settings.matchOpts.isCrawford).to.equal(false)
 
         })
 
@@ -616,13 +616,13 @@ describe('Menu', () => {
             expect(isCalled).to.equal(true)
         })
 
-        it('should go to playLocalMatch with mock method, then quit', async () => {
+        it('should go to playHumans with mock method, then quit', async () => {
             var isCalled = false
             menu.prompt = MockPrompter([
                 {matchChoice: 'start'},
                 {matchChoice: 'quit'}
             ])
-            menu.playLocalMatch = () => isCalled = true
+            menu.playHumans = () => isCalled = true
             await menu.matchMenu()
             expect(isCalled).to.equal(true)
         })
@@ -805,7 +805,7 @@ describe('Menu', () => {
                 {settingChoice: 'done'}
             ])
             await menu.settingsMenu()
-            expect(menu.opts.delay).to.equal(4)
+            expect(menu.settings.delay).to.equal(4)
         })
 
         it('should invalidate robot delay foo', async () => {
@@ -856,7 +856,7 @@ describe('Menu', () => {
                 {robotChoice: 'done'}
             ])
             await menu.robotConfigsMenu()
-            expect(menu.opts.robots.RandomRobot.moveWeight).to.equal(1)
+            expect(menu.settings.robots.RandomRobot.moveWeight).to.equal(1)
         })
 
         it('should set RandomRobot moveWeight to 1 then reset', async () => {
@@ -870,7 +870,7 @@ describe('Menu', () => {
                 {robotChoice: 'done'}
             ])
             await menu.robotConfigsMenu()
-            expect(menu.opts.robots.RandomRobot.moveWeight).to.equal(defaults.moveWeight)
+            expect(menu.settings.robots.RandomRobot.moveWeight).to.equal(defaults.moveWeight)
         })
 
         it('should set RandomRobot version to v2', async () => {
@@ -883,9 +883,9 @@ describe('Menu', () => {
                 {robotChoice: 'done'}
             ])
             await menu.robotConfigsMenu()
-            expect(menu.opts.robots.RandomRobot.version).to.equal('v2')
+            expect(menu.settings.robots.RandomRobot.version).to.equal('v2')
             // call .choices() for coverage
-            const question = menu.getConfigureRobotChoices('RandomRobot', menu.opts.robots.RandomRobot, defaults).find(it => it.value == 'version').question
+            const question = menu.getConfigureRobotChoices('RandomRobot', menu.settings.robots.RandomRobot, defaults).find(it => it.value == 'version').question
             const choices = question.choices()
             expect(choices).to.contain('v2')
         })
@@ -899,7 +899,7 @@ describe('Menu', () => {
                 {robotChoice: 'done'}
             ])
             await menu.robotConfigsMenu()
-            expect(menu.opts.robots.RandomRobot.doubleWeight).to.equal(1)
+            expect(menu.settings.robots.RandomRobot.doubleWeight).to.equal(1)
         })
     })
 
@@ -955,7 +955,7 @@ describe('Menu', () => {
         it('should merge settingsFile if specified', async () => {
             fse.writeJsonSync(settingsFile, {matchOpts: {total: 5}})
             await menu.loadSettings()
-            const result = menu.opts
+            const result = menu.settings
             expect(result.matchOpts.total).to.equal(5)
         })
 
@@ -1085,17 +1085,17 @@ describe('Menu', () => {
 
     describe('#newRobot', () => {
         it('should not throw when isCustomRobot', () => {
-            menu.opts.isCustomRobot = true
+            menu.settings.isCustomRobot = true
             menu.newRobot()
         })
     })
 
-    describe('#playLocalMatch', () => {
+    describe('#playHumans', () => {
 
         it('should call runMatch for mock coordinator', async () => {
             var isCalled = false
             menu.newCoordinator = () => {return {runMatch: () => isCalled = true}}
-            await menu.playLocalMatch(menu.opts)
+            await menu.playHumans(menu.settings.matchOpts)
             expect(isCalled).to.equal(true)
         })
 
@@ -1111,7 +1111,7 @@ describe('Menu', () => {
             }
             var warnStr = ''
             menu.logger.warn = (...args) => warnStr += args.join(' ')
-            await menu.playLocalMatch(menu.opts)
+            await menu.playHumans(menu.settings.matchOpts)
             expect(warnStr).to.contain('testMessage')
         })
 
@@ -1124,7 +1124,7 @@ describe('Menu', () => {
                 }
             }
 
-            const err = await getErrorAsync(() => menu.playLocalMatch(menu.opts))
+            const err = await getErrorAsync(() => menu.playHumans(menu.settings.matchOpts))
             expect(err.message).to.equal('testMessage')
         })
     })
@@ -1134,7 +1134,7 @@ describe('Menu', () => {
         it('should call runMatch for mock coordinator', async () => {
             var isCalled = false
             menu.newCoordinator = () => {return {runMatch: () => isCalled = true}}
-            await menu.playRobot(menu.opts)
+            await menu.playRobot(menu.settings.matchOpts)
             expect(isCalled).to.equal(true)
         })
     })
@@ -1144,7 +1144,7 @@ describe('Menu', () => {
         it('should call runMatch for mock coordinator', async () => {
             var isCalled = false
             menu.newCoordinator = () => {return {runMatch: () => isCalled = true}}
-            await menu.playRobots(menu.opts)
+            await menu.playRobots(menu.settings.matchOpts)
             expect(isCalled).to.equal(true)
         })
     })
@@ -1189,11 +1189,11 @@ describe('Menu', () => {
 
     describe('#saveSettings', () => {
 
-        it('should write default opts', async () => {
-            const opts = menu.getDefaultOpts()
+        it('should write default settings', async () => {
+            const settings = Menu.defaults()
             await menu.saveSettings()
             const result = JSON.parse(fs.readFileSync(settingsFile))
-            expect(JSON.stringify(result)).to.equal(JSON.stringify(opts))
+            expect(JSON.stringify(result)).to.equal(JSON.stringify(settings))
         })
     })
 
@@ -1203,7 +1203,7 @@ describe('Menu', () => {
             var isCalled = false
             menu.newClient = () => { return {connect : noop, createMatch: noop, close: noop}}
             menu.newCoordinator = () => { return {runMatch: () => isCalled = true}}
-            await menu.startOnlineMatch(menu.opts.matchOpts)
+            await menu.startOnlineMatch(menu.settings.matchOpts)
             expect(isCalled).to.equal(true)
         })
     })
