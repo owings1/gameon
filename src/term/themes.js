@@ -26,6 +26,8 @@ const chalk  = require('chalk')
 const Util   = require('../lib/util')
 const Errors = require('../lib/errors')
 
+const {StyleHelper} = Util
+
 const {ucfirst} = Util
 
 const {
@@ -128,7 +130,6 @@ class ThemeHelper {
     static validateConfig(config) {
         const styles = this.stylesForConfig(config)
         Theme.validateStyles(styles)
-        //Theme.forStyles(styles)
     }
 
     static stylesForConfig(config) {
@@ -226,11 +227,8 @@ function getStyleSection(key) {
     return key.substring(0, key.indexOf('.'))
 }
 
-function isValidHexColor(value) {
-    if (value[0] != '#') {
-        return false
-    }
-    return !isNaN(parseInt('0x' + value.substring(1)))
+function keyIsBackground(key) {
+    return getStyleType(key) == 'background'
 }
 
 class Theme {
@@ -251,15 +249,9 @@ class Theme {
             throw new StyleError('Unknown style key: ' + key)
         }
         try {
-            const def = this.buildDef(key, value)
-            const type = getStyleType(key)
-            if (type == 'background') {
-                var result = this.buildChalk(null, def)
-            } else {
-                var result = this.buildChalk(def, null)
-            }
-            // try to call the chalk
-            result[0]('')
+            const isBackground = keyIsBackground(key)
+            const theChalk = StyleHelper.getChalk(value, isBackground)
+            theChalk('')
         } catch (err) {
             if (!err.isThemeError) {
                 err = new StyleError('Style validation failed for ' + key + ': ' + err.message, err)
@@ -295,9 +287,8 @@ class Theme {
 
         // Additional defaults for text/board sections.
         StyleKeys.forEach(key => {
-            //const keyParts  = key.split('.')
-            const section = getStyleSection(key)//keyParts[0]
-            const type  = getStyleType(key)//keyParts[keyParts.length - 1]
+            const section = getStyleSection(key)
+            const type  = getStyleType(key)
             if (!styles[key]) {
                 if (type == 'background') {
                     if (section == 'board') {
@@ -320,7 +311,7 @@ class Theme {
         const defs = {}
 
         Object.entries(styles).forEach(([key, value]) => {
-            defs[key] = this.buildDef(key, value)
+            defs[key] = StyleHelper.buildDefFromStyle(value, keyIsBackground(key))
         })
 
         return defs
@@ -355,7 +346,7 @@ class Theme {
                 }
             }
 
-            const result = this.buildChalk(fgDef, bgDef)
+            const result = StyleHelper.buildChalkListFromDefs(fgDef, bgDef)
 
             chalks[category] = result[0]
             chalks[fgKey]    = result[1]
@@ -363,77 +354,6 @@ class Theme {
         })
 
         return chalks
-    }
-
-    // Examples:
-    //
-    //    text.color:
-    //          '#ffffff bold' --> ['hex', '#ffffff', 'bold']
-    //          'blue dim'     --> ['keyword', 'blue', 'dim']
-    //
-    //    text.background:
-    //          'orange'         -->  ['bgKeyword', 'orange']
-    //          'red bright'     -->  ['bgRedBright']
-    //          '#ffffff'        -->  ['bgHex', '#ffffff']
-    //          '#ffffff bright' -->  ['bgHex', '#ffffff'] 
-    //
-    static buildDef(key, value) {
-
-        const [color, mod] = value.split(' ')
-        const type         = getStyleType(key)
-        const isHex        = isValidHexColor(color)
-
-        if (type == 'background') {
-            if (isHex) {
-                return ['bgHex', color]
-            }
-            var builtInName = 'bg' + ucfirst(color)
-            if (mod) {
-                builtInName += ucfirst(mod)
-            }
-            if (chalk[builtInName]) {
-                return [builtInName]
-            }
-            return ['bgKeyword', color]
-        }
-
-        const def = [isHex ? 'hex' : 'keyword', color]
-        if (mod) {
-            def.push(mod)
-        }
-
-        return def
-    }
-
-    // construct chalk callables, returns array [combined, fg, bg]
-    static buildChalk(fgDef, bgDef) {
-        
-        var theChalk = chalk
-
-        var fgChalk
-        var bgChalk
-
-        if (bgDef) {
-            if (bgDef.length == 1) {
-                // native chalk method, e.g. bgRed or bgRedBright
-                theChalk = theChalk[bgDef[0]]
-            } else {
-                // hex or keyword construct
-                theChalk = theChalk[bgDef[0]](bgDef[1])
-            }
-            bgChalk = theChalk
-        }
-        if (fgDef) {
-            // always a hex or keyword construct
-            theChalk = theChalk[fgDef[0]](fgDef[1])
-            if (fgDef[2]) {
-                // modifier property, e.g. bold or dim
-                theChalk = theChalk[fgDef[2]]
-            }
-            fgChalk = theChalk
-        }
-
-        return [theChalk, fgChalk, bgChalk]
     }
 
     constructor(chalks) {
