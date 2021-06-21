@@ -26,6 +26,7 @@ const Api             = require('./api')
 const Auth            = require('./auth')
 const Constants       = require('../lib/constants')
 const Core            = require('../lib/core')
+const Errors          = require('../lib/errors')
 const Logger          = require('../lib/logger')
 const Util            = require('../lib/util')
 const Web             = require('./web')
@@ -587,20 +588,14 @@ class Server {
     }
 }
 
-
-class RequestError extends Error {
-    constructor(...args) {
-        super(...args)
-        this.name = this.constructor.name
-        this.isRequestError = true
-    }
-}
-
-class HandshakeError extends RequestError {}
-class ValidateError extends RequestError {}
-class MatchAlreadyExistsError extends RequestError {}
-class MatchNotFoundError extends RequestError {}
-class MatchAlreadyJoinedError extends RequestError {}
-class NotYourTurnError extends RequestError {}
+const {
+    HandshakeError
+  , MatchAlreadyExistsError
+  , MatchAlreadyJoinedError
+  , MatchNotFoundError
+  , NotYourTurnError
+  , RequestError
+  , ValidateError
+} = Errors
 
 module.exports = Server

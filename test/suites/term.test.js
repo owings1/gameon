@@ -673,16 +673,16 @@ describe('Menu', () => {
         it('should change password and authenticate', async () => {
             const username = 'nobody@nowhere.example'
             const oldPassword = '9YWS8b8F'
-            const password = '37GbrWAZ'
+            const newPassword = '37GbrWAZ'
             await server.auth.createUser(username, oldPassword, true)
             menu.credentials.username = username
             menu.prompt = MockPrompter([
                 {accountChoice: 'changePassword'},
-                {oldPassword, password, passwordConfirm: password},
+                {oldPassword, newPassword, passwordConfirm: newPassword},
                 {accountChoice: 'done'}
             ])
             await menu.accountMenu()
-            await server.auth.authenticate(username, password)
+            await server.auth.authenticate(username, newPassword)
         })
 
         it('should clear credentials', async () => {
@@ -1203,7 +1203,7 @@ describe('Menu', () => {
             var isCalled = false
             menu.newClient = () => { return {connect : noop, createMatch: noop, close: noop}}
             menu.newCoordinator = () => { return {runMatch: () => isCalled = true}}
-            await menu.startOnlineMatch(menu.opts)
+            await menu.startOnlineMatch(menu.opts.matchOpts)
             expect(isCalled).to.equal(true)
         })
     })
