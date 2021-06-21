@@ -22,15 +22,16 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-const {Command, flags} = require('@oclif/command')
-
-const Helper = require('../../robot/profile')
+const {flags} = require('@oclif/command')
+const Base    = require('../../lib/command').UserCommand
+const Helper  = require('../../robot/profile')
 
 const defaults = Helper.defaults()
 
-class RobotProfileCommand extends Command {
+class RobotProfileCommand extends Base {
 
-    async init() {
+    async init(...args) {
+        await super.init(...args)
         const {flags} = this.parse(RobotProfileCommand)
         this.flags = flags
         this.opts = {
@@ -42,9 +43,7 @@ class RobotProfileCommand extends Command {
           , rollsFile    : this.flags.rollsfile
           , gaugeRegex   : this.flags.filter
           , innerBorders : this.flags.inner
-          , colorHead    : this.flags.colorhead
-          , colorOdd     : this.flags.colorodd
-          , colorEven    : this.flags.coloreven
+          , theme        : this.Settings.theme
         }
         this.helper = this.helper || new Helper(this.opts)
     }
@@ -59,6 +58,7 @@ RobotProfileCommand.aliases = ['profile']
 RobotProfileCommand.description = `Run performance profiling`
 
 RobotProfileCommand.flags = {
+
     breadth: flags.boolean({
         char        : 'b'
       , description : 'generate breadthFirst trees'
@@ -92,18 +92,6 @@ RobotProfileCommand.flags = {
   , inner: flags.boolean({
         char        : 'i'
       , description : 'add inner borders'
-    })
-  , colorhead: flags.string({
-        description : 'header color'
-      , default     : defaults.colorHead
-    })
-  , colorodd: flags.string({
-        description : 'odd row color'
-      , default     : defaults.colorOdd
-    })
-  , coloreven: flags.string({
-        description : 'even row color'
-      , default     : defaults.colorEven
     })
 }
 

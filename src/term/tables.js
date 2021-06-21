@@ -23,11 +23,8 @@
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 const Constants = require('../lib/constants')
+const Themes    = require('./themes')
 const Util      = require('../lib/util')
-
-const chalk = require('chalk')
-
-const {StringBuilder} = Util
 
 const {TableChars} = Constants
 
@@ -45,14 +42,15 @@ function pad(str, align, width, chr = ' ') {
     return Util.padEnd(str, width, chr)
 }
 
+function wrapDash(str) {
+    return TableChars.dash + str + TableChars.dash
+}
+
 class Table {
 
     static defaults() {
         return {
-            colorBorder  : 'grey'
-          , colorHead    : 'white'
-          , colorEven    : 'white'
-          , colorOdd     : 'white'
+            theme        : 'Default'
           , footerAlign  : 'left'
           , innerBorders : false
           , name         : 'Table'
@@ -62,13 +60,13 @@ class Table {
 
     constructor(columns, data, opts) {
         this.opts = Util.defaults(Table.defaults(), opts)
-        Table.validateOpts(this.opts)
         this.name = this.opts.name
         this.columns = columns
         this.data = data
         this.rows = null
         this.footerLines = this.opts.footerLines || null
         this.lines = []
+        this.theme = Themes.getInstance(this.opts.theme)
     }
 
     build() {
@@ -93,15 +91,15 @@ class Table {
     }
 
     buildHeaderStrings() {
-        const ch = chalk[this.opts.colorHead]
+        const ch = this.theme.ch.table.head
         this.headerStrings = this.columns.map((column, i) =>
             pad(ch(column.title), column.align, column.width)
         )
     }
 
     buildRowStringParts() {
-        const chodd = chalk[this.opts.colorOdd]
-        const cheven = chalk[this.opts.colorEven]
+        const chodd = this.theme.ch.table.odd
+        const cheven = this.theme.ch.table.even
         this.rowStringParts = this.rows.map((row, i) => {
             const ch = i % 2 ? cheven : chodd
             return this.columns.map((column, i) =>
@@ -117,7 +115,7 @@ class Table {
     }
 
     buildBorderStrings() {
-        const bch = chalk[this.opts.colorBorder]
+        const bch = this.theme.ch.table.border
         const dashParts = this.columns.map(column =>
             pad('', 'left', column.width, TableChars.dash)
         )
@@ -125,37 +123,27 @@ class Table {
         this.borderStrings = {
             top : bch([
                 TableChars.topLeft
-              , dashParts.join(
-                    TableChars.dash + TableChars.topMiddle + TableChars.dash
-                )
+              , dashParts.join(wrapDash(TableChars.topMiddle))
               , TableChars.topRight
             ].join(TableChars.dash))
           , middle: bch([
                 TableChars.middleLeft
-              , dashParts.join(
-                    TableChars.dash + TableChars.middleMiddle + TableChars.dash
-                )
+              , dashParts.join(wrapDash(TableChars.middleMiddle))
               , TableChars.middleRight
             ].join(TableChars.dash))
           , prefoot: bch([
                 TableChars.bottomLeft
-              , dashParts.join(
-                    TableChars.dash + TableChars.bottomMiddle + TableChars.dash
-                )
+              , dashParts.join(wrapDash(TableChars.bottomMiddle))
               , TableChars.bottomRight
             ].join(TableChars.dash))
           , postfoot: bch([
                 TableChars.footerLeft
-              , dashParts.join(
-                    TableChars.dash + TableChars.footerMiddle + TableChars.dash
-                )
+              , dashParts.join(wrapDash(TableChars.footerMiddle))
               , TableChars.footerRight
             ].join(TableChars.dash))
           , bottom: bch([
                 TableChars.footerLeft
-              , dashParts.join(
-                    TableChars.dash + TableChars.bottomMiddle + TableChars.dash
-                )
+              , dashParts.join(wrapDash(TableChars.bottomMiddle))
               , TableChars.footerRight
             ].join(TableChars.dash))
           , topFootOnly : bch([
@@ -202,7 +190,7 @@ class Table {
 
     buildFinalStrings() {
 
-        const bch = chalk[this.opts.colorBorder]
+        const bch = this.theme.ch.table.border
 
         this.headerString = [
             bch(TableChars.pipe)
@@ -309,19 +297,6 @@ class Table {
                 column.format(column.get(info), info)
             )
         )
-    }
-
-    static validateOpts(opts) {
-        for (var opt of ['colorHead', 'colorOdd', 'colorEven']) {
-            try {
-                chalk[opts[opt]]('')
-            } catch (err) {
-                if (err.name == 'TypeError' && err.message.indexOf('not a function')) {
-                    throw new Error("Unsupported chalk color '" + opts[opt] + "' for option " + opt)
-                }
-                throw err
-            }
-        }
     }
 }
 

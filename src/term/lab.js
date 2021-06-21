@@ -30,7 +30,7 @@ const Logger       = require('../lib/logger')
 const Robot        = require('../robot/player')
 const Util         = require('../lib/util')
 const {Table}      = require('./tables')
-const ThemeHelper  = require('./themes')
+const Themes       = require('./themes')
 
 const chalk        = require('chalk')
 const fs           = require('fs')
@@ -73,8 +73,23 @@ class LabHelper {
         this.board  = opts.board
         this.persp  = opts.persp || White
         this.opts   = opts
+
         this.logs   = []
         this.logger = new Logger
+        if (!this.opts.theme) {
+            this.opts.theme = 'Default'
+        }
+        try {
+            this.theme = Themes.getInstance(this.opts.theme)
+        } catch (err) {
+            if (!err.isThemeError) {
+                throw err
+            }
+            this.logger.error(err.name, err.message)
+            this.logger.warn('Using default theme')
+            this.opts.theme = 'Default'
+            this.theme = Themes.getDefaultInstance()
+        }
         this.drawer = DrawHelper.forBoard(this.board, this.persp, this.logs, this.opts.theme)
         this.stateHistory = []
         this.fetchLastRecords = null
@@ -516,7 +531,7 @@ class LabHelper {
         const tables = delegateList.filter(it =>
             it.rankings[0] && it.rankings[0].myRank != null
         ).map(delegate =>
-            new Table(columns, delegate.rankings, {name: delegate.name}).build()
+            new Table(columns, delegate.rankings, {name: delegate.name, theme: this.opts.theme}).build()
         )
 
         const maxTableWidth = Math.max(...tables.map(table => table.outerWidth))
@@ -911,8 +926,8 @@ class LabHelper {
     }
 
     ccolor(color) {
-        const {chalks} = this.drawer.theme
-        return chalks.piece[color](color)
+        const {ch} = this.drawer.theme
+        return ch.piece[color](color)
     }
 
     draw(isPrint) {

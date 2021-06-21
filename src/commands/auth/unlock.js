@@ -22,19 +22,15 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-const {Command, flags} = require('@oclif/command')
+const {flags} = require('@oclif/command')
+const Base    = require('../../lib/command').AppCommand
 
 const Auth = require('../../net/auth')
-const Logger = require('../../lib/logger')
-const Util = require('../../lib/util')
 
-class AuthUnlockCommand extends Command {
+class AuthUnlockCommand extends Base {
 
-    async init() {
-        this.env = process.env
-        const {flags} = this.parse(this.constructor)
-        this.flags = flags
-        this.logger = this.logger || new Logger
+    async init(...args) {
+        await super.init(...args)
         this.helper = this.helper || new Auth(this.env.AUTH_TYPE)
     }
 

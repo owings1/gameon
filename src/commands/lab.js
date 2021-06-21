@@ -22,30 +22,17 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-const {Command, flags} = require('@oclif/command')
+const {flags} = require('@oclif/command')
+const Base    = require('../lib/command').UserCommand
 
-const Logger = require('../lib/logger')
-const Menu = require('../term/menu')
-
-class LabCommand extends Command {
-
-    async init() {
-        const {flags} = this.parse(LabCommand)
-        this.flags = flags
-        this.logger = new Logger
-        this.helper = new Menu(this.getConfigDir())
-    }
+class LabCommand extends Base {
 
     async run() {
-        await this.helper.runLab()
-    }
-
-    getConfigDir() {
-        return Menu.getDefaultConfigDir()
+        await this.menu.runLab()
     }
 }
 
-LabCommand.description = `Run lab`
+LabCommand.description = `Run lab experiments`
 
 LabCommand.flags = {
 

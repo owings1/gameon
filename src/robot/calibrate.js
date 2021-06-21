@@ -36,8 +36,9 @@ const {sp} = Util
 
 const {resolve} = path
 
-const {Match, Board, Colors} = Constants
+const {Colors} = Constants
 const {White, Red} = Colors
+const {Match, Board} = Core
 
 const {ConfidenceRobot} = Robot
 const {RobotDelegator} = Robot

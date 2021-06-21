@@ -81,12 +81,12 @@ class Coordinator {
 
             if (this.opts.isRecord) {
                 var gameFile = path.resolve(matchDir, 'game_' + gameCount.toString().padStart(gamePad, '0') + '.json')
-                await this.recordGame(match.thisGame, gameFile, players)
+                await this.recordGame(match.thisGame, gameFile)
             }
 
             match.updateScore()
 
-        } while (!match.hasWinner())
+        } while (!match.checkFinished())
 
         await this.emitAll(players, 'matchEnd', match)
 
@@ -153,25 +153,21 @@ class Coordinator {
         this.logger.info('Recording match to', homeTilde(dir))
         await fse.ensureDir(dir)
         const meta = {
-            players : {
+            ...match.meta()
+          , players : {
                 White : players.White.meta()
               , Red   : players.Red.meta()
             }
-          , ...match.meta()
         }
         await fse.writeJson(file, meta, {spaces: 2})
     }
 
-    async recordGame(game, file, players) {
+    async recordGame(game, file) {
         const dir = path.dirname(file)
         this.logger.info('Recording game')
         await fse.ensureDir(dir)
         const meta = {
-            players : {
-                White : players.White.meta()
-              , Red   : players.Red.meta()
-            }
-          , ...game.meta()
+            ...game.meta()
           , turnHistory : game.turnHistory
         }
         await fse.writeJson(file, meta, {spaces: 2})

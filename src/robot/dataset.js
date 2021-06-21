@@ -35,8 +35,9 @@ const path = require('path')
 
 const {resolve} = path
 
-const {Game, Board, Colors, Direction} = Constants
+const {Colors, Direction} = Constants
 const {White, Red} = Colors
+const {Game, Board} = Core
 
 class Helper {
 
@@ -97,18 +98,18 @@ class Helper {
             }
             this.logger.info('Done')
         } finally {
-            await Promise.all(parr.map(player => player.destroy()))
+            await Util.destroyAll(parr)
         }
     }
 
     prepTurnsData(turnDatas) {
         const trains = []
-        turnDatas.forEach(({startState, scores}) => {
-            const spreadScores = Util.spreadScore(scores)
+        turnDatas.forEach(({startState, totals}) => {
+            const spreadScores = Util.spreadScore(totals)
             const startStructure = Helper.boardStructure(Board.fromStateString(startState))
             const startPos = startStructure.map(i => 1 / (i + 15))
             const startSpread = Util.spreadScore(startStructure)
-            Object.entries(scores).forEach(([endState, score]) => {
+            Object.entries(totals).forEach(([endState, score]) => {
                 const endStructure = Helper.boardStructure(Board.fromStateString(endState))
                 const endPos = endStructure.map(i => 1 / (i + 15))
                 const endSpread = Util.spreadScore(endStructure)

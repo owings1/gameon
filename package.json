@@ -75,8 +75,14 @@
       "update": "./src/hooks/update"
     },
     "topics": {
+      "auth": {
+        "description": "Manage server users"
+      },
+      "match": {
+        "description": "Match play commands"
+      },
       "robot": {
-        "description": "Mess around with Robots"
+        "description": "Robot commands"
       }
     },
     "update": {

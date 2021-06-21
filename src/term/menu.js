@@ -1408,7 +1408,7 @@ class Menu {
         await fse.writeJson(configFile, data, {spaces: 2})
     }
 
-    async loadCustomThemes() {
+    async loadCustomThemes(isQuiet) {
 
         const themesDir = this.getThemesDir()
 
@@ -1416,44 +1416,11 @@ class Menu {
             return
         }
 
-        const configs = {}
-        const files = await globby(path.join(themesDir, '*.json'))
-        const helper = new DependencyHelper(ThemeHelper.list())
-
-        for (var file of files) {
-            try {
-                var config = await fse.readJson(file)
-                var name = Util.filenameWithoutExtension(file)
-                configs[name] = config
-                helper.add(name, config.extends)
-            } catch (err) {
-                this.logger.error('Failed to load custom theme file: ' + file, err.message)
-            }
-        }
-
-        try {
-            var order = helper.resolve()
-        } catch (err) {
-            if (!err.isDependencyError) {
-                throw err
-            }
-            this.logger.error(err.name, err.message)
-            // load what we can
-            var order = helper.order
-        }
-
-        const loaded = []
-
-        for (var name of order) {
-            try {
-                ThemeHelper.update(name, configs[name])
-                loaded.push(name)
-            } catch (err) {
-                this.logger.error('Failed to load theme ' + name, err.message)
-            }
-        }
-
-        if (loaded.length) {
+        const {loaded, errors} = await ThemeHelper.loadDirectory(themesDir)
+        errors.forEach(info => {
+            this.logger.error(info.error, {...info, error: undefined})
+        })
+        if (!isQuiet && loaded.length) {
             this.logger.info('Loaded', loaded.length, 'custom themes')
         }
 

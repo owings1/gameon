@@ -22,20 +22,19 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-const {Command, flags} = require('@oclif/command')
+const {flags} = require('@oclif/command')
+const Base    = require('../../../lib/command').AppCommand
 
 const Helper = require('../../../robot/calibrate').Helper
 
-class CalibrateRunCommand extends Command {
+class CalibrateRunCommand extends Base {
 
-    async init() {
-        const {flags} = this.parse(CalibrateRunCommand)
-        const {env} = process
-        this.flags = flags
+    async init(...args) {
+        await super.init(...args)
         this.opts = {
             action    : Helper.E_Action.Run
-          , outDir    : this.flags.outdir || env.CAL_OUTDIR
-          , chunkFile : this.flags.file   || env.CAL_FILE
+          , outDir    : this.flags.outdir || this.env.CAL_OUTDIR
+          , chunkFile : this.flags.file   || this.env.CAL_FILE
         }
         this.helper = this.helper || new Helper(this.opts)
     }

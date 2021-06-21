@@ -22,15 +22,15 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-const {Command, flags} = require('@oclif/command')
+const {flags} = require('@oclif/command')
+const Base    = require('../../../lib/command').AppCommand
 
 const Helper = require('../../../robot/dataset').Helper
 
-class CreateCommand extends Command {
+class CreateCommand extends Base {
 
-    async init() {
-        const {flags} = this.parse(CreateCommand)
-        this.flags = flags
+    async init(...args) {
+        await super.init(...args)
         this.opts = {
             outDir   : this.flags.outdir
           , numGames : +this.flags.games

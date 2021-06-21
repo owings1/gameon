@@ -442,7 +442,7 @@ class TermPlayer extends Base {
         if (!this.drawer) {
             return sp(...args)
         }
-        return this.drawer.theme.chalks.colorText[color](...args)
+        return this.drawer.theme.ch.colorText[color](...args)
     }
 
     ccolor(color) {

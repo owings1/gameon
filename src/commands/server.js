@@ -22,21 +22,20 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-const {Command, flags} = require('@oclif/command')
+const {flags} = require('@oclif/command')
+const Base    = require('../lib/command').AppCommand
 
 const Server = require('../net/server')
 
-class ServerCommand extends Command {
+class ServerCommand extends Base {
 
-    async init() {
-        this.env = process.env
-        const {flags} = this.parse(this.constructor)
-        this.flags = flags
-        this.helper = this.helper || new Server
+    async init(...args) {
+        await super.init(...args)
+        this.server = this.server || new Server
     }
 
     async run() {
-        this.helper.listen(this.getHttpPort(), this.getMetricsPort())
+        await this.server.listen(this.getHttpPort(), this.getMetricsPort())
     }
 
     getHttpPort() {
@@ -51,11 +50,11 @@ class ServerCommand extends Command {
 ServerCommand.description = `Server entrypoint`
 
 ServerCommand.flags = {
-    port : flags.string({
+    'http-port' : flags.string({
         char        : 'p'
       , description : 'the port to listen on. default is env HTTP_PORT or 8080'
     }),
-    metricsPort : flags.string({
+    'metrics-port' : flags.string({
         char        : 'm'
       , description : 'the port for metrics, default is METRICS_PORT or 8181'
     })

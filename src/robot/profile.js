@@ -176,6 +176,7 @@ class Helper {
           , innerBorders : false
           , breadthTrees : false
           , gaugeRegex   : null
+          , theme        : 'Default'
           , colorHead    : 'green'
           , colorOdd     : 'white'
           , colorEven    : 'cyan'

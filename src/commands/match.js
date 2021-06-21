@@ -22,31 +22,18 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-const {Command, flags} = require('@oclif/command')
+const {flags} = require('@oclif/command')
+const Base    = require('../lib/command').UserCommand
 
-const Menu = require('../term/menu')
-
-class MatchCommand extends Command {
-
-    async init() {
-        const {flags} = this.parse(this.constructor)
-        this.flags = flags
-        this.helper = this.helper || new Menu(this.getConfigDir())
-    }
+class MatchCommand extends Base {
 
     async run() {
-        await this.helper.mainMenu()
-    }
-
-    getConfigDir() {
-        return Menu.getDefaultConfigDir()
+        await this.menu.mainMenu()
     }
 }
 
-MatchCommand.description = `Match entrypoint`
+MatchCommand.description = `Gameon entrypoint`
 
-MatchCommand.flags = {
-
-}
+MatchCommand.flags = {}
 
 module.exports = MatchCommand

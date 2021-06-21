@@ -22,11 +22,18 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-const chalk  = require('chalk')
-const Util   = require('../lib/util')
 const Errors = require('../lib/errors')
+const Util   = require('../lib/util')
 
-const {StyleHelper} = Util
+const chalk  = require('chalk')
+const fse    = require('fs-extra')
+const globby = require('globby')
+const path   = require('path')
+
+const {
+    DependencyHelper
+  , StyleHelper
+} = Util
 
 const {ucfirst} = Util
 
@@ -52,6 +59,7 @@ const BuiltInThemes = {
           , 'board.piece.white.color' : 'white bold'
           , 'board.border.color'      : 'grey'
           , 'cube.inactive.color'     : 'grey'
+          , 'table.odd.color'         : 'cyan'
         }
     }
   , Offbeat : {
@@ -61,6 +69,7 @@ const BuiltInThemes = {
           , 'board.border.color'          : 'red dim'
           , 'board.piece.red.color'       : 'orange bold'
           , 'board.piece.white.color'     : '#0080ff bold'
+          , 'table.head.color'            : 'orange'
         }
     }
 }
@@ -107,6 +116,9 @@ class ThemeHelper {
     }
 
     static getInstance(name) {
+        if (name instanceof Theme) {
+            return name
+        }
         const styles = this.getStyles(name)
         return Theme.forStyles(styles)
     }
@@ -158,6 +170,49 @@ class ThemeHelper {
             })
         })
     }
+
+    static async loadDirectory(themesDir) {
+
+        const configs = {}
+        const files = await globby(path.join(themesDir, '*.json'))
+        const helper = new DependencyHelper(this.list())
+
+        const loaded = []
+        const errors = []
+
+        for (var file of files) {
+            try {
+                var config = await fse.readJson(file)
+                var name = Util.filenameWithoutExtension(file)
+                configs[name] = config
+                helper.add(name, config.extends)
+            } catch (error) {
+                errors.push({file, error})
+            }
+        }
+
+        try {
+            var order = helper.resolve()
+        } catch (error) {
+            if (!error.isDependencyError) {
+                throw error
+            }
+            errors.push({error})
+            // load what we can
+            var order = helper.order
+        }
+
+        for (var name of order) {
+            try {
+                this.update(name, configs[name])
+                loaded.push(name)
+            } catch (error) {
+                errors.push({name, error})
+            }
+        }
+
+        return {loaded, errors}
+    }
 }
 
 const StyleKeys = [
@@ -191,12 +246,28 @@ const StyleKeys = [
   , 'text.notice.color'
   , 'text.gameStatus.color'
   , 'text.dice.color'
+
+  , 'table.border.background'
+  , 'table.border.color'
+
+  , 'table.even.background'
+  , 'table.even.color'
+  , 'table.odd.background'
+  , 'table.odd.color'
+
+  , 'table.head.background'
+  , 'table.head.color'
+
+  , 'table.title.background'
+  , 'table.title.color'
 ]
 
 const DefaultAliases = {
-    'board.background'       : 'text.background'
-  , 'text.piece.red.color'   : 'board.piece.red.color'
-  , 'text.piece.white.color' : 'board.piece.white.color'
+    'board.background'        : 'text.background'
+  , 'text.piece.red.color'    : 'board.piece.red.color'
+  , 'text.piece.white.color'  : 'board.piece.white.color'
+  , 'table.border.background' : 'board.border.background'
+  , 'table.border.color'      : 'board.border.color'
 }
 
 const StyleKeysMap = {}
@@ -357,8 +428,9 @@ class Theme {
     }
 
     constructor(chalks) {
+        this.chalks = chalks
         // Index the chalk callables for use by DrawHelper/Reporter
-        this.chalks = {
+        this.ch = {
               boardBorder  : chalks['board.border']
             , boardSp      : chalks['board.background']
             , noticeText   : chalks['text.notice']
@@ -380,6 +452,12 @@ class Theme {
             , colorText : {
                   Red   : chalks['text.piece.red']
                 , White : chalks['text.piece.white']
+              }
+            , table : {
+                  border : chalks['table.border']
+                , even   : chalks['table.even']
+                , odd    : chalks['table.odd']
+                , head   : chalks['table.head']
               }
         }
     }
