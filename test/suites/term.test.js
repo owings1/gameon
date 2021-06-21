@@ -5,26 +5,24 @@ const {
     getErrorAsync,
     makeRandomMoves,
     parseKey,
-    randomElement,
     requireSrc,
     MockPrompter,
     noop,
-    tmpFile,
     tmpDir,
     States
 } = TestUtil
 
-const fs  = require('fs')
-const fse = require('fs-extra')
+const fs   = require('fs')
+const fse  = require('fs-extra')
 const path = require('path')
-const tmp = require('tmp')
 
 const {resolve} = path
-const Lab            = requireSrc('term/lab')
-const Menu           = requireSrc('term/menu')
-const {DrawInstance} = requireSrc('term/draw')
-const TermPlayer     = requireSrc('term/player')
-const ThemeHelper    = requireSrc('term/themes')
+
+const Lab          = requireSrc('term/lab')
+const Menu         = requireSrc('term/menu')
+const {DrawHelper} = requireSrc('term/draw')
+const TermPlayer   = requireSrc('term/player')
+const ThemeHelper  = requireSrc('term/themes')
 
 const Constants   = requireSrc('lib/constants')
 const Core        = requireSrc('lib/core')
@@ -55,7 +53,7 @@ describe('Draw', () => {
 
         beforeEach(() => {
             game = new Game
-            draw = DrawInstance.forGame(game)
+            draw = DrawHelper.forGame(game)
         })
 
         it('should not barf for initial board', () => {
@@ -386,6 +384,7 @@ describe('Menu', () => {
 
     var configDir
     var settingsFile
+    var credentialsFile
     var authDir
     var server
 
@@ -396,9 +395,11 @@ describe('Menu', () => {
             authType: 'directory',
             authDir
         })
+        //console.log({authDir})
         server.logger.loglevel = 0
         server.auth.logger.loglevel = 0
         settingsFile = configDir + '/settings.json'
+        credentialsFile = configDir + '/credentials.json'
         menu = new Menu(configDir)
         menu.logger.loglevel = 1
     })
@@ -491,7 +492,7 @@ describe('Menu', () => {
 
         beforeEach(async () => {
             await server.listen()
-            menu.opts.serverUrl = 'http://localhost:' + server.port
+            menu.credentials.serverUrl = 'http://localhost:' + server.port
         })
 
         afterEach(async () => {
@@ -509,8 +510,8 @@ describe('Menu', () => {
         })
 
         it('should warn then done when joinOnline throws BadCredentialsError', async () => {
-            menu.opts.username = 'nobody@nowhere.example'
-            menu.opts.password = menu.encryptPassword('s9GLdoe9')
+            menu.credentials.username = 'nobody@nowhere.example'
+            menu.credentials.password = menu.encryptPassword('s9GLdoe9')
             menu.prompt = MockPrompter([
                 {playChoice: 'joinOnline'},
                 {matchId: '12345678'},
@@ -542,7 +543,7 @@ describe('Menu', () => {
                 {matchChoice: 'quit'}
             ])
             await menu.matchMenu()
-            expect(menu.opts.total).to.equal(5)
+            expect(menu.opts.matchOpts.total).to.equal(5)
         })
 
         it('should invalidate total=-1', async () => {
@@ -561,7 +562,7 @@ describe('Menu', () => {
                 {matchChoice: 'quit'}
             ])
             await menu.matchMenu()
-            expect(menu.opts.isJacoby).to.equal(true)
+            expect(menu.opts.matchOpts.isJacoby).to.equal(true)
         })
 
         it('should set isCrawford to false', async () => {
@@ -571,7 +572,7 @@ describe('Menu', () => {
                 {matchChoice: 'quit'}
             ])
             await menu.matchMenu()
-            expect(menu.opts.isCrawford).to.equal(false)
+            expect(menu.opts.matchOpts.isCrawford).to.equal(false)
 
         })
 
@@ -631,7 +632,7 @@ describe('Menu', () => {
 
         beforeEach(async () => {
             await server.listen()
-            menu.opts.serverUrl = 'http://localhost:' + server.port
+            menu.credentials.serverUrl = 'http://localhost:' + server.port
         })
 
         afterEach(async () => {
@@ -641,6 +642,7 @@ describe('Menu', () => {
         it('should sign up, log in and confirm user', async () => {
             const username = 'nobody@nowhere.example'
             const password = '9Axf5kAR'
+            //console.log(menu.credentials)
             //server.logger.loglevel = 4
             menu.prompt = MockPrompter([
                 {accountChoice: 'createAccount'},
@@ -673,7 +675,7 @@ describe('Menu', () => {
             const oldPassword = '9YWS8b8F'
             const password = '37GbrWAZ'
             await server.auth.createUser(username, oldPassword, true)
-            menu.opts.username = username
+            menu.credentials.username = username
             menu.prompt = MockPrompter([
                 {accountChoice: 'changePassword'},
                 {oldPassword, password, passwordConfirm: password},
@@ -684,15 +686,15 @@ describe('Menu', () => {
         })
 
         it('should clear credentials', async () => {
-            menu.opts.username = 'nobody@nowhere.example'
-            menu.opts.password = menu.encryptPassword('qN3zUpVh')
+            menu.credentials.username = 'nobody@nowhere.example'
+            menu.credentials.password = menu.encryptPassword('qN3zUpVh')
             menu.prompt = MockPrompter([
                 {accountChoice: 'clearCredentials'},
                 {accountChoice: 'done'}
             ])
             await menu.accountMenu()
-            expect(!!menu.opts.username).to.equal(false)
-            expect(!!menu.opts.password).to.equal(false)
+            expect(!!menu.credentials.username).to.equal(false)
+            expect(!!menu.credentials.password).to.equal(false)
         })
 
         it('should change username', async () => {
@@ -703,7 +705,7 @@ describe('Menu', () => {
                 {accountChoice: 'done'}
             ])
             await menu.accountMenu()
-            expect(menu.opts.username).to.equal(username)
+            expect(menu.credentials.username).to.equal(username)
         })
 
         it('should change and encrypt password', async () => {
@@ -714,7 +716,7 @@ describe('Menu', () => {
                 {accountChoice: 'done'}
             ])
             await menu.accountMenu()
-            expect(menu.decryptPassword(menu.opts.password)).to.equal(password)
+            expect(menu.decryptPassword(menu.credentials.password)).to.equal(password)
         })
 
         it('should change serverUrl', async () => {
@@ -725,7 +727,7 @@ describe('Menu', () => {
                 {accountChoice: 'done'}
             ])
             await menu.accountMenu()
-            expect(menu.opts.serverUrl).to.equal(serverUrl)
+            expect(menu.credentials.serverUrl).to.equal(serverUrl)
         })
 
         it('should prompt forgot password then done when key not entered', async () => {
@@ -761,7 +763,7 @@ describe('Menu', () => {
             var err
             menu.logger.loglevel = 0
             menu.logger.error = e => err = e
-            menu.opts.username = 'nobody2@nowhere.example'
+            menu.credentials.username = 'nobody2@nowhere.example'
             const password = 'JUzrDc5k'
             menu.prompt = MockPrompter([
                 {accountChoice: 'password'},
@@ -781,30 +783,20 @@ describe('Menu', () => {
             const badPassword = 'etzF4Y8L'
             const password = 'fVvqK99g'
             await server.auth.createUser(username, oldPassword, true)
-            menu.opts.username = username
-            menu.opts.password = menu.encryptPassword(oldPassword)
+            menu.credentials.username = username
+            menu.credentials.password = menu.encryptPassword(oldPassword)
             menu.prompt = MockPrompter([
                 {accountChoice: 'changePassword'},
                 {oldPassword: badPassword, password, passwordConfirm: password},
                 {accountChoice: 'done'}
             ])
             await menu.accountMenu()
-            expect(!!menu.opts.password).to.equal(false)
+            expect(!!menu.credentials.password).to.equal(false)
             expect(!!err).to.equal(true)
         })
     })
 
     describe('#settingsMenu', () => {
-
-        it('should set serverUrl then done', async () => {
-            menu.prompt = MockPrompter([
-                {settingChoice: 'serverUrl'},
-                {serverUrl: 'ws://localhost:8811'},
-                {settingChoice: 'done'}
-            ])
-            await menu.settingsMenu()
-            expect(menu.opts.serverUrl).to.equal('ws://localhost:8811')
-        })
 
         it('should set robot delay to 4 then done', async () => {
             menu.prompt = MockPrompter([
@@ -917,11 +909,11 @@ describe('Menu', () => {
 
         beforeEach(async () => {
             await server.listen()
-            menu.opts.serverUrl = 'http://localhost:' + server.port
+            menu.credentials.serverUrl = 'http://localhost:' + server.port
         })
 
         afterEach(async () => {
-            server.close()
+            await server.close()
         })
 
         it('should unset password and throw cause BadCredentialsError for bad confirmKey', async () => {
@@ -929,12 +921,12 @@ describe('Menu', () => {
             const username = 'nobody@nowhere.example'
             const password = 'r2tW5aUn'
             const confirmKey = 'bad-confirm-key'
-            menu.opts.username = username
-            menu.opts.password = menu.encryptPassword(password)
+            menu.credentials.username = username
+            menu.credentials.password = menu.encryptPassword(password)
             await server.auth.createUser(username, password)
             menu.prompt = MockPrompter([{key: confirmKey}])
             const err = await getErrorAsync(() => menu.doLogin())
-            expect(!!menu.opts.password).to.equal(false)
+            expect(!!menu.credentials.password).to.equal(false)
             expect(err.cause.name).to.equal('BadCredentialsError')
         })
     })
@@ -947,14 +939,24 @@ describe('Menu', () => {
         })
     })
 
+    describe('#loadCredentials', () => {
+
+        it('should replace obsolete server url', async () => {
+            fse.writeJsonSync(settingsFile, {serverUrl: 'ws://bg.dougowings.net:8080'})
+            const exp = Menu.getDefaultServerUrl()
+            await menu.loadCredentials()
+            expect(menu.credentials.serverUrl).to.equal(exp)
+        })
+    })
+
     describe('#loadSettings', () => {
 
 
         it('should merge settingsFile if specified', async () => {
-            fse.writeJsonSync(settingsFile, {total: 5})
+            fse.writeJsonSync(settingsFile, {matchOpts: {total: 5}})
             await menu.loadSettings()
             const result = menu.opts
-            expect(result.total).to.equal(5)
+            expect(result.matchOpts.total).to.equal(5)
         })
 
         it('should normalize opts file if not exists', async () => {
@@ -962,13 +964,6 @@ describe('Menu', () => {
             await menu.loadSettings()
             const content = fs.readFileSync(settingsFile, 'utf-8')
             JSON.parse(content)
-        })
-
-        it('should replace obsolete server url', () => {
-            fse.writeJsonSync(settingsFile, {serverUrl: 'ws://bg.dougowings.net:8080'})
-            const exp = menu.getDefaultServerUrl()
-            const result = menu.getDefaultOpts()
-            expect(result.serverUrl).to.equal(exp)
         })
     })
 
@@ -1182,7 +1177,7 @@ describe('Menu', () => {
 
         beforeEach(async () => {
             await server.listen()
-            menu.opts.serverUrl = 'http://localhost:' + server.port
+            menu.credentials.serverUrl = 'http://localhost:' + server.port
         })
 
         afterEach(async () => {
@@ -1192,11 +1187,11 @@ describe('Menu', () => {
         it('should ')
     })
 
-    describe('#saveOpts', () => {
+    describe('#saveSettings', () => {
 
         it('should write default opts', async () => {
             const opts = menu.getDefaultOpts()
-            await menu.saveOpts()
+            await menu.saveSettings()
             const result = JSON.parse(fs.readFileSync(settingsFile))
             expect(JSON.stringify(result)).to.equal(JSON.stringify(opts))
         })
@@ -1402,7 +1397,7 @@ describe('Reporter', () => {
         it('should include \'bar\' if origin is -1', () => {
             const board = Board.fromStateString(States.WhiteCornerCase24)
             const move = board.buildMove(White, -1, 4)
-            const draw = DrawInstance.forBoard(board)
+            const draw = DrawHelper.forBoard(board)
             const {reporter} = draw
             const result = reporter.move(move).toString()
             expect(result).to.contain('bar')
@@ -1411,7 +1406,7 @@ describe('Reporter', () => {
         it('should include \'home\' for red if origin is 0 and face is 2', () => {
             const board = Board.fromStateString(States.EitherOneMoveWin)
             const move = board.buildMove(Red, 0, 2)
-            const draw = DrawInstance.forBoard(board)
+            const draw = DrawHelper.forBoard(board)
             const {reporter} = draw
             const result = reporter.move(move).toString()
             expect(result).to.contain('home')
@@ -1420,7 +1415,7 @@ describe('Reporter', () => {
         it('should include HIT for hit move', () => {
             const board = Board.fromStateString(States.EitherHitWith11)
             const move = board.buildMove(White, 22, 1)
-            const draw = DrawInstance.forBoard(board)
+            const draw = DrawHelper.forBoard(board)
             const {reporter} = draw
             const result = reporter.move(move).toString()
             expect(result).to.contain('HIT')

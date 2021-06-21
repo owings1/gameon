@@ -39,12 +39,10 @@ const Robot       = require('../robot/player')
 const {ConfidenceRobot} = Robot
 const {RobotDelegator}  = Robot
 
-const {White, Red, States} = Constants
 const {Match, Board, Dice} = Core
 const {DependencyHelper}   = Util
 const {StringBuilder}      = Util
 
-const assert   = require('assert')
 const chalk    = require('chalk')
 const crypto   = require('crypto')
 const fs       = require('fs')
@@ -54,13 +52,21 @@ const inquirer = require('inquirer')
 const os       = require('os')
 const path     = require('path')
 
-const {padStart} = Util
-const sp         = Util.joinSpace
+const {homeTilde, padStart, sp, tildeHome} = Util
 
 const {
     DefaultServerUrl
   , ObsoleteServerUrls
+  , Red
+  , States
+  , White
 } = Constants
+
+const {
+    MenuError
+  , RequestError
+  , ResetKeyNotEnteredError
+} = Errors
 
 function getDiffChalk(a, b) {
     if (a == b) {
@@ -74,35 +80,37 @@ function chalkDiff(value, defaultValue) {
     return getDiffChalk(value, defaultValue)(value.toString())
 }
 
-class Menu extends Logger {
+class Menu {
 
     constructor(configDir) {
-        super()
+        this.logger = new Logger
         this.configDir = configDir
-        this.opts = this.getDefaultOpts()
+        this.opts = Menu.defaults()
+        this.credentials = Menu.credentialDefaults()
+        this.isCredentialsLoaded = false
         this.isSettingsLoaded = false
         this.isThemesLoaded = false
         const hash = crypto.createHash('md5')
         hash.update('main-menu')
         this.chash = hash.digest('hex')
-        this.logger = new Logger
     }
 
     async mainMenu() {
 
         await this.loadSettings()
+        await this.loadCredentials()
         await this.loadCustomThemes()
 
         while (true) {
 
-            var mainChoices = this.getMainChoices()
+            var choices = this.getMainChoices()
 
             var answers = await this.prompt({
-                name    : 'mainChoice'
-              , message : 'Main Menu'
-              , type    : 'rawlist'
-              , choices : mainChoices
-              , pageSize : mainChoices.length + 1
+                name     : 'mainChoice'
+              , message  : 'Main Menu'
+              , type     : 'rawlist'
+              , choices
+              , pageSize : choices.length + 1
             })
 
             var {mainChoice} = answers
@@ -204,7 +212,7 @@ class Menu extends Logger {
 
             var isContinue = true
 
-            var matchChoices = this.getMatchChoices(opts, isOnline)
+            var matchChoices = this.getMatchChoices(opts.matchOpts, isOnline)
 
             var answers = await this.prompt({
                 name     : 'matchChoice'
@@ -247,10 +255,10 @@ class Menu extends Logger {
 
             answers = await this.prompt(question)
 
-            opts[question.name] = answers[question.name]
-            opts.total = +opts.total
+            opts.matchOpts[question.name] = answers[question.name]
+            opts.matchOpts.total = +opts.matchOpts.total
 
-            await this.saveOpts()
+            await this.saveSettings()
         }
 
         return isContinue
@@ -259,16 +267,21 @@ class Menu extends Logger {
     async promptMatchAdvancedOpts(advancedOpts) {
         const questions = this.getMatchAdvancedQuestions(advancedOpts)
         const answers = await this.prompt(questions)
+        if (answers.rollsFile) {
+            answers.rollsFile = tildeHome(answers.rollsFile)
+        }
         return answers
     }
 
     async accountMenu() {
 
-        const {opts} = this
+        await this.ensureCredentialsLoaded()
+
+        const {credentials} = this
 
         while (true) {
 
-            var accountChoices = this.getAccountChoices(opts)
+            var accountChoices = this.getAccountChoices(credentials)
 
             var answers = await this.prompt([{
                 name     : 'accountChoice'
@@ -306,7 +319,6 @@ class Menu extends Logger {
                         }
                         this.logger.info('Password reset')
                     } else {
-                        assert(accountChoice == 'changePassword')
                         await this.promptChangePassword()
                         this.logger.info('Password changed')
                     }
@@ -316,10 +328,10 @@ class Menu extends Logger {
                 }
             } else if (accountChoice == 'clearCredentials') {
 
-                opts.username = ''
-                opts.password = ''
+                credentials.username = ''
+                credentials.password = ''
 
-                await this.saveOpts()
+                await this.saveCredentials()
 
                 this.logger.info('Credentials cleared')
 
@@ -330,15 +342,15 @@ class Menu extends Logger {
                 var question = accountChoices.find(choice => choice.value == accountChoice).question
 
                 answers = await this.prompt(question)
-                shouldLogin = answers[question.name] != opts[question.name]
+                shouldLogin = answers[question.name] != credentials[question.name]
                 if (question.name == 'password') {
-                    opts[question.name] = this.encryptPassword(answers[question.name])
+                    credentials[question.name] = this.encryptPassword(answers[question.name])
                 } else {
-                    opts[question.name] = answers[question.name]
+                    credentials[question.name] = answers[question.name]
                 }
             }
 
-            shouldLogin = opts.username && opts.password && opts.serverUrl && shouldLogin
+            shouldLogin = credentials.username && credentials.password && credentials.serverUrl && shouldLogin
 
             if (shouldLogin) {
                 try {
@@ -349,7 +361,7 @@ class Menu extends Logger {
                 }
             }
 
-            await this.saveOpts()
+            await this.saveCredentials()
         }
 
         return true
@@ -357,30 +369,34 @@ class Menu extends Logger {
 
     async promptCreateAccount() {
 
-        const {opts} = this
+        await this.ensureCredentialsLoaded()
+
+        const {credentials} = this
 
         const answers = await this.prompt([
-            this.getUsernameQuestion()
-          , this.getPasswordQuestion()
+            this.getUsernameQuestion(credentials)
+          , this.getPasswordQuestion(credentials)
           , this.getPasswordConfirmQuestion()
         ])
         const body = await this.sendSignup(
-            opts.serverUrl
+            credentials.serverUrl
           , answers.username
           , answers.password
         )
-        opts.username = answers.username
-        opts.password = this.encryptPassword(body.passwordEncrypted)
+        credentials.username = answers.username
+        credentials.password = this.encryptPassword(body.passwordEncrypted)
     }
 
     async promptForgotPassword() {
 
-        const {opts} = this
+        await this.ensureCredentialsLoaded()
 
-        const forgotAnswers = await this.prompt(this.getUsernameQuestion())
+        const {credentials} = this
 
-        await this.sendForgotPassword(opts.serverUrl, forgotAnswers.username)
-        opts.username = forgotAnswers.username
+        const forgotAnswers = await this.prompt(this.getUsernameQuestion(credentials))
+
+        await this.sendForgotPassword(credentials.serverUrl, forgotAnswers.username)
+        credentials.username = forgotAnswers.username
 
         this.logger.info('Reset key sent, check email')
 
@@ -391,7 +407,7 @@ class Menu extends Logger {
               , type    : 'input'
             }
           , {
-                ...this.getPasswordQuestion()
+                ...this.getPasswordQuestion(credentials)
               , when: answers => answers.resetKey
             }
           , {
@@ -405,29 +421,31 @@ class Menu extends Logger {
         }
 
         const body = await this.sendResetPassword(
-            opts.serverUrl
-          , opts.username
+            credentials.serverUrl
+          , credentials.username
           , resetAnswers.password
           , resetAnswers.resetKey
         )
 
-        opts.password = this.encryptPassword(body.passwordEncrypted)
+        credentials.password = this.encryptPassword(body.passwordEncrypted)
     }
 
     async promptChangePassword() {
 
-        const {opts} = this
+        await this.ensureCredentialsLoaded()
 
-        opts.password = ''
+        const {credentials} = this
+
+        credentials.password = ''
 
         const answers = await this.prompt([
             {
-                ...this.getPasswordQuestion()
+                ...this.getPasswordQuestion(credentials)
               , name    : 'oldPassword'
               , message : 'Current password'
             }
           , {
-                ...this.getPasswordQuestion()
+                ...this.getPasswordQuestion(credentials)
               , message : 'New password'
             }
           , this.getPasswordConfirmQuestion()
@@ -435,35 +453,37 @@ class Menu extends Logger {
 
         try {
             const body = await this.sendChangePassword(
-                opts.serverUrl
-              , opts.username
+                credentials.serverUrl
+              , credentials.username
               , answers.oldPassword
               , answers.password
             )
-            opts.password = this.encryptPassword(body.passwordEncrypted)
+            credentials.password = this.encryptPassword(body.passwordEncrypted)
         } catch (err) {
-            opts.password = ''
-            await this.saveOpts()
+            credentials.password = ''
+            await this.saveCredentials()
             throw err
         }
     }
 
     async doLogin() {
 
-        const {opts} = this
+        await this.ensureCredentialsLoaded()
+
+        const {credentials} = this
 
         try {
 
-            this.logger.info('Logging into', opts.serverUrl)
+            this.logger.info('Logging into', credentials.serverUrl)
 
             const body = await this.testCredentials(
-                opts.serverUrl
-              , opts.username
-              , this.decryptPassword(opts.password)
+                credentials.serverUrl
+              , credentials.username
+              , this.decryptPassword(credentials.password)
             )
 
             this.logger.info(chalk.bold.green('Login succeeded.'))
-            opts.password = this.encryptPassword(body.passwordEncrypted)
+            credentials.password = this.encryptPassword(body.passwordEncrypted)
 
         } catch (err) {
 
@@ -478,19 +498,19 @@ class Menu extends Logger {
                 })
 
                 try {
-                    await this.sendConfirmKey(opts.serverUrl, opts.username, answers.key)
+                    await this.sendConfirmKey(credentials.serverUrl, credentials.username, answers.key)
                     this.logger.info(chalk.bold.green('Login succeeded.'))
                 } catch (err) {
-                    opts.password = ''
+                    credentials.password = ''
                     throw err
                 }
 
             } else {
-                opts.password = ''
+                credentials.password = ''
                 throw err
             }
         } finally {
-            await this.saveOpts()
+            await this.saveCredentials()
         }
     }
 
@@ -526,13 +546,21 @@ class Menu extends Logger {
 
             opts[question.name] = answers[question.name]
             opts.delay = +opts.delay
-
-            await this.saveOpts()
+            if (opts.recordDir) {
+                opts.recordDir = path.resolve(tildeHome(opts.recordDir))
+            }
 
             if (question.name == 'isCustomRobot' && opts.isCustomRobot) {
+                if (Util.isEmptyObject(opts.robots)) {
+                    this.logger.info('Loading robot defaults')
+                    opts.robots = Menu.robotDefaults()
+                }
+                await this.saveSettings()
                 await this.robotConfigsMenu()
                 continue
             }
+
+            await this.saveSettings()
         }
 
         return true
@@ -540,9 +568,9 @@ class Menu extends Logger {
 
     async robotConfigsMenu() {
 
-        var configs = this.opts.robots
-
         while (true) {
+
+            var configs = this.opts.robots
 
             var choices = this.getRobotConfigsChoices(configs)
             var answers = await this.prompt({
@@ -560,10 +588,8 @@ class Menu extends Logger {
             }
 
             if (robotChoice == 'reset') {
-                this.opts.robots = {}
-                configs = this.opts.robots
-                await this.saveOpts()
-                await this.loadSettings()
+                this.opts.robots = Menu.robotDefaults()
+                await this.saveSettings()
                 continue
             }
 
@@ -574,9 +600,18 @@ class Menu extends Logger {
     async configureRobotMenu(name) {
 
         const defaults = ConfidenceRobot.getClassMeta(name).defaults
-        const config = this.opts.robots[name] || defaults
 
+        if (Util.isEmptyObject(this.opts.robots[name])) {
+            this.opts.robots[name] = {
+                version      : defaults.version
+              , moveWeight   : 0
+              , doubleWeight : 0
+            }
+        }
+
+        const config = this.opts.robots[name]
         const choices = this.getConfigureRobotChoices(name, config, defaults)
+
         var answers = await this.prompt({
             name     : 'robotChoice'
           , message  : 'Configure ' + name
@@ -593,7 +628,7 @@ class Menu extends Logger {
 
         if (robotChoice == 'reset') {
             this.opts.robots[name] = {...defaults}
-            await this.saveOpts()
+            await this.saveSettings()
             return
         }
 
@@ -605,7 +640,7 @@ class Menu extends Logger {
         config.moveWeight     = +config.moveWeight
         config.doubleWeight   = +config.doubleWeight
 
-        await this.saveOpts()
+        await this.saveSettings()
     }
 
     async joinMenu() {
@@ -621,8 +656,8 @@ class Menu extends Logger {
     }
 
     async playLocalMatch(opts, advancedOpts) {
-        const matchOpts = this.getMatchOpts(opts, advancedOpts)
-        const match = new Match(opts.total, matchOpts)
+        const matchOpts = await this.getMatchOpts(opts.matchOpts, advancedOpts)
+        const match = new Match(matchOpts.total, matchOpts)
         const players = {
             White : new TermPlayer(White, opts)
           , Red   : new TermPlayer(Red, opts)
@@ -639,8 +674,8 @@ class Menu extends Logger {
     }
 
     async playRobot(opts, advancedOpts) {
-        const matchOpts = this.getMatchOpts(opts, advancedOpts)
-        const match = new Match(opts.total, matchOpts)
+        const matchOpts = await this.getMatchOpts(opts.matchOpts, advancedOpts)
+        const match = new Match(matchOpts.total, matchOpts)
         const players = {
             White : new TermPlayer(White, opts)
           , Red   : new TermPlayer.Robot(this.newRobot(Red), opts)
@@ -649,20 +684,22 @@ class Menu extends Logger {
     }
 
     async playRobots(opts, advancedOpts) {
-        const matchOpts = this.getMatchOpts(opts, advancedOpts)
-        const match = new Match(opts.total, matchOpts)
+        const matchOpts = await this.getMatchOpts(opts.matchOpts, advancedOpts)
+        const match = new Match(matchOpts.total, matchOpts)
         const players = {
-            White : new TermPlayer.Robot(this.newDefaultRobot(White), opts)
-          , Red   : new TermPlayer.Robot(this.newRobot(Red), opts)
+            White : new TermPlayer.Robot(this.newRobot(White), opts)
+          , Red   : new TermPlayer.Robot(this.newDefaultRobot(Red), opts)
         }
         await this.runMatch(match, players, opts)
     }
 
     async runOnlineMatch(opts, isStart) {
-        const client = this.newClient(opts.serverUrl, opts.username, this.decryptPassword(opts.password))
+        const matchOpts = await this.getMatchOpts(opts.matchOpts)
+        const {credentials} = this
+        const client = this.newClient(credentials.serverUrl, credentials.username, this.decryptPassword(credentials.password))
         try {
             await client.connect()
-            const promise = isStart ? client.createMatch(opts) : client.joinMatch(opts.matchId)
+            const promise = isStart ? client.createMatch(matchOpts) : client.joinMatch(opts.matchId)
             const match = await promise
             const termPlayer = new TermPlayer(isStart ? White : Red, opts)
             const netPlayer  = new NetPlayer(client, isStart ? Red : White)
@@ -720,15 +757,15 @@ class Menu extends Logger {
         return true
     }
 
-    getMatchOpts(opts, advancedOpts = {}) {
-        const matchOpts = {...opts}
+    async getMatchOpts(matchOpts, advancedOpts = {}) {
+        matchOpts = {...matchOpts}
         if (advancedOpts.startState) {
             this.logger.info('Setting initial state')
             matchOpts.startState = advancedOpts.startState
         }
         if (advancedOpts.rollsFile) {
             this.logger.info('Using custom rolls file')
-            const {rolls} = JSON.parse(fs.readFileSync(advancedOpts.rollsFile))
+            const {rolls} = await fse.readJson(tildeHome(advancedOpts.rollsFile))
             var rollIndex = 0
             var maxIndex = rolls.length - 1
             matchOpts.roller = () => {
@@ -814,8 +851,8 @@ class Menu extends Logger {
         ])
     }
 
-    getMatchChoices(opts, isOnline) {
-        const choices = this.getBasicMatchInitialChoices(opts)
+    getMatchChoices(matchOpts, isOnline) {
+        const choices = this.getBasicMatchInitialChoices(matchOpts)
         // only show advanced for local matches
         if (!isOnline) {
             choices.push({
@@ -834,7 +871,7 @@ class Menu extends Logger {
         return Menu.formatChoices(choices)
     }
 
-    getBasicMatchInitialChoices(opts) {
+    getBasicMatchInitialChoices(matchOpts) {
         return [
             {
                 value : 'start'
@@ -847,7 +884,7 @@ class Menu extends Logger {
                     name     : 'total'
                   , message  : 'Match Total'
                   , type     : 'input'
-                  , default  : () => '' + opts.total
+                  , default  : () => '' + matchOpts.total
                   , validate : value => {
                         value = +value
                         return !isNaN(+value) && Number.isInteger(+value) && value > 0 || 'Please enter a number > 0'
@@ -861,7 +898,7 @@ class Menu extends Logger {
                     name    : 'isCrawford'
                   , message : 'Crawford Rule'
                   , type    : 'confirm'
-                  , default : () => opts.isCrawford
+                  , default : () => matchOpts.isCrawford
                 }
             }
           , {
@@ -871,7 +908,7 @@ class Menu extends Logger {
                     name    : 'isJacoby'
                   , message : 'Jacoby Rule'
                   , type    : 'confirm'
-                  , default : () => opts.isJacoby
+                  , default : () => matchOpts.isJacoby
                 }
             }
         ]
@@ -912,18 +949,19 @@ class Menu extends Logger {
                 name    : 'rollsFile'
               , message : 'Rolls File'
               , type    : 'input'
-              , default  : () => advancedOpts.rollsFile
+              , default  : () => homeTilde(advancedOpts.rollsFile)
               , validate : value => {
                     if (!value.length) {
                         return true
                     }
+                    value = tildeHome(value)
                     return Dice.rollsFileError(value)
                 }
             }
         ]
     }
 
-    getAccountChoices(opts) {
+    getAccountChoices(credentials) {
         const choices = [
             {
                 value : 'done'
@@ -936,21 +974,21 @@ class Menu extends Logger {
                     name    : 'serverUrl'
                   , message : 'Server URL'
                   , type    : 'input'
-                  , default : () => opts.serverUrl
+                  , default : () => credentials.serverUrl
                 }
             }
           , {
                 value : 'username'
               , name  : 'Username'
-              , question : this.getUsernameQuestion()
+              , question : this.getUsernameQuestion(credentials)
             }
           , {
                 value : 'password'
               , name  : 'Password'
-              , question : this.getPasswordQuestion()
+              , question : this.getPasswordQuestion(credentials)
             }
         ]
-        if (!opts.username || !opts.password) {
+        if (!credentials.username || !credentials.password) {
             choices.push({
                 value : 'createAccount'
               , name  : 'Create Account'
@@ -965,7 +1003,7 @@ class Menu extends Logger {
               , name  : 'Change Password'
             })
         }
-        if (opts.username || opts.password) {
+        if (credentials.username || credentials.password) {
             choices.push({
                 value : 'clearCredentials'
               , name  : 'Clear Credentials'
@@ -974,22 +1012,22 @@ class Menu extends Logger {
         return Menu.formatChoices(choices)
     }
 
-    getUsernameQuestion() {
+    getUsernameQuestion(credentials) {
         return {
             name    : 'username'
           , message : 'Username'
           , type    : 'input'
-          , default : () => this.opts.username
+          , default : () => credentials.username
         }
     }
 
-    getPasswordQuestion() {
+    getPasswordQuestion(credentials) {
         return {
             name    : 'password'
           , message : 'Password'
           , type    : 'password'
-          , default : () => this.opts.password
-          , display : () => this.opts.password ? '******' : ''
+          , default : () => credentials.password
+          , display : () => credentials.password ? '******' : ''
         }
     }
 
@@ -1007,16 +1045,6 @@ class Menu extends Logger {
             {
                 value : 'done'
               , name  : 'Done'
-            }
-          , {
-                value : 'serverUrl'
-              , name  : 'Server URL'
-              , question : {
-                    name    : 'serverUrl'
-                  , message : 'Server URL'
-                  , type    : 'input'
-                  , default : () => opts.serverUrl
-                }
             }
           , {
                 value : 'theme'
@@ -1057,7 +1085,7 @@ class Menu extends Logger {
                     name    : 'recordDir'
                   , message : 'Record Dir'
                   , type    : 'input'
-                  , default : () => opts.recordDir
+                  , default : () => homeTilde(opts.recordDir)
                 }
             }
           , {
@@ -1101,14 +1129,17 @@ class Menu extends Logger {
             }
         ]
         RobotDelegator.listClassNames().forEach(name => {
-            const classMeta = ConfidenceRobot.getClassMeta(name)
-            const {defaults} = classMeta
+            const {defaults} = ConfidenceRobot.getClassMeta(name)
+            const config = configs[name] || {
+                version      : defaults.version
+              , moveWeight   : 0
+              , doubleWeight : 0
+            }
             const choice = {
                 value    : name
               , name     : name
               , question : {
                     display : () => {
-                        const config = configs[name] || defaults
                         const b = new StringBuilder
                         b.sp(
                             'version:'
@@ -1177,34 +1208,7 @@ class Menu extends Logger {
     }
 
     getDefaultOpts() {
-        const opts = {
-            total         : 1
-          , isJacoby      : false
-          , isCrawford    : true
-          , delay         : 0.5
-          , serverUrl     : this.getDefaultServerUrl()
-          , username      : ''
-          , password      : ''
-          , isRecord      : false
-          , recordDir     : this.getDefaultRecordDir()
-          , fastForced    : false
-          , isCustomRobot : false
-          , theme         : 'Default'
-          , robots        : {}
-        }
-        RobotDelegator.listClassNames().forEach(name => {
-            const {defaults} = ConfidenceRobot.getClassMeta(name)
-            opts.robots[name] = {...defaults, ...opts.robots[name]}
-        })
-        return opts
-    }
-
-    async saveOpts() {
-        const settingsFile = this.getSettingsFile()
-        if (settingsFile) {
-            await fse.ensureDir(path.dirname(settingsFile))
-            await fse.writeJson(settingsFile, this.opts, {spaces: 2})
-        }
+        return Menu.defaults()
     }
 
     async testCredentials(serverUrl, username, password) {
@@ -1256,14 +1260,6 @@ class Menu extends Logger {
         return body
     }
 
-    getDefaultServerUrl() {
-        return DefaultServerUrl
-    }
-
-    getDefaultRecordDir() {
-        return path.resolve(os.homedir(), 'gameon')
-    }
-
     newCoordinator(opts) {
         return new Coordinator(opts)
     }
@@ -1287,22 +1283,28 @@ class Menu extends Logger {
         return password ? Util.decrypt1(password, this.chash) : ''
     }
 
-    getSettingsFile() {
-        if (this.configDir) {
-            return path.resolve(this.configDir, 'settings.json')
+    async loadSettings() {
+        const settingsFile = this.getSettingsFile()
+        if (!settingsFile) {
+            return
         }
-    }
+        if (!fs.existsSync(settingsFile)) {
+            await this.saveSettings()
+        }
 
-    getLabConfigFile() {
-        if (this.configDir) {
-            return path.resolve(this.configDir, 'lab.json')
-        }
-    }
+        const settings = await fse.readJson(settingsFile)
 
-    getThemesDir() {
-        if (this.configDir) {
-            return path.resolve(this.configDir, 'themes')
+        const defaults = Menu.defaults()
+        this.opts = Util.defaults(defaults, this.opts, settings)
+        this.opts.matchOpts = Util.defaults(defaults.matchOpts, settings.matchOpts)
+
+        if (this.opts.isCustomRobot && Util.isEmptyObject(this.opts.robots)) {
+            // populate for legacy format
+            this.opts.robots = Menu.robotDefaults()
+            this.logger.info('Migrating legacy robot config')
+            await this.saveSettings()
         }
+        this.isSettingsLoaded = true
     }
 
     async ensureSettingsLoaded() {
@@ -1312,42 +1314,56 @@ class Menu extends Logger {
         await this.loadSettings()
     }
 
-    async ensureThemesLoaded() {
-        if (this.isThemesLoaded) {
-            return
+    async saveSettings() {
+        const settingsFile = this.getSettingsFile()
+        if (settingsFile) {
+            await fse.ensureDir(path.dirname(settingsFile))
+            const settings = Util.defaults(Menu.defaults(), this.opts)
+            await fse.writeJson(settingsFile, settings, {spaces: 2})
         }
-        await this.loadCustomThemes()
     }
 
-    async loadSettings() {
-        const settingsFile = this.getSettingsFile()
-        if (!settingsFile) {
+    async loadCredentials() {
+        const credentialsFile = this.getCredentialsFile()
+        if (!credentialsFile) {
             return
         }
-        if (!fs.existsSync(settingsFile)) {
-            await fse.ensureDir(path.dirname(settingsFile))
-            await fse.writeJson(settingsFile, {})
+        if (!fs.existsSync(credentialsFile)) {
+            await this.saveCredentials()
         }
-        const settings = await fse.readJson(settingsFile)
-        if (ObsoleteServerUrls.indexOf(settings.serverUrl) > -1) {
-            settings.serverUrl = this.getDefaultServerUrl()
+        const credentials = await fse.readJson(credentialsFile)
+        if (ObsoleteServerUrls.indexOf(credentials.serverUrl) > -1) {
+            credentials.serverUrl = Menu.getDefaultServerUrl()
         }
 
-        this.opts = {...this.opts, ...settings}
+        this.credentials = Util.defaults(Menu.credentialDefaults(), credentials)
 
-        RobotDelegator.listClassNames().forEach(name => {
-            const {defaults} = ConfidenceRobot.getClassMeta(name)
-            this.opts.robots[name] = {...defaults, ...this.opts.robots[name]}
-        })
+        this.isCredentialsLoaded = true
+    }
 
-        this.isSettingsLoaded = true
+    async ensureCredentialsLoaded() {
+        if (this.isCredentialsLoaded) {
+            return
+        }
+        await this.loadCredentials()
+    }
+
+    async saveCredentials() {
+        const credentialsFile = this.getCredentialsFile()
+        if (credentialsFile)  {
+            await fse.ensureDir(path.dirname(credentialsFile))
+            await fse.writeJson(credentialsFile, this.credentials, {spaces: 2})
+        }
     }
 
     async loadLabConfig() {
-        const stateFile = this.getLabConfigFile()
-        if (fs.existsSync(stateFile)) {
+        const configFile = this.getLabConfigFile()
+        if (!configFile) {
+            return
+        }
+        if (fs.existsSync(configFile)) {
             try {
-                const data = await fse.readJson(stateFile)
+                const data = await fse.readJson(configFile)
                 return data
             } catch (err) {
                 this.logger.debug(err)
@@ -1357,16 +1373,17 @@ class Menu extends Logger {
     }
 
     async saveLabConfig(helper) {
-        const stateFile = this.getLabConfigFile()
-        if (stateFile) {
-            const data = {
-                lastState : helper.board.state28()
-              , persp     : helper.persp
-              , rollsFile : helper.opts.rollsFile
-            }
-            await fse.ensureDir(path.dirname(stateFile))
-            await fse.writeJson(stateFile, data, {spaces: 2})
+        const configFile = this.getLabConfigFile()
+        if (!configFile) {
+            return
         }
+        const data = {
+            lastState : helper.board.state28()
+          , persp     : helper.persp
+          , rollsFile : helper.opts.rollsFile
+        }
+        await fse.ensureDir(path.dirname(configFile))
+        await fse.writeJson(configFile, data, {spaces: 2})
     }
 
     async loadCustomThemes() {
@@ -1423,6 +1440,72 @@ class Menu extends Logger {
         return loaded
     }
 
+    async ensureThemesLoaded() {
+        if (this.isThemesLoaded) {
+            return
+        }
+        await this.loadCustomThemes()
+    }
+
+    getSettingsFile() {
+        if (this.configDir) {
+            return path.resolve(this.configDir, 'settings.json')
+        }
+    }
+
+    getCredentialsFile() {
+        if (this.configDir) {
+            return path.resolve(this.configDir, 'credentials.json')
+        }
+    }
+
+    getLabConfigFile() {
+        if (this.configDir) {
+            return path.resolve(this.configDir, 'lab.json')
+        }
+    }
+
+    getThemesDir() {
+        if (this.configDir) {
+            return path.resolve(this.configDir, 'themes')
+        }
+    }
+
+    static defaults() {
+        const opts = {
+            delay         : 0.5
+          , isRecord      : false
+          , recordDir     : this.getDefaultRecordDir()
+          , fastForced    : false
+          , isCustomRobot : false
+          , theme         : 'Default'
+          , matchOpts     : {
+                total      : 1
+              , isJacoby   : false
+              , isCrawford : true
+            }
+          , robots        : {}
+        }
+        return opts
+    }
+
+    static credentialDefaults() {
+        return {
+            username  : ''
+          , password  : ''
+          , serverUrl : this.getDefaultServerUrl()
+        }
+    }
+
+    static robotDefaults() {
+        const defaults = {}
+        RobotDelegator.listClassNames().forEach(name => {
+            const meta = ConfidenceRobot.getClassMeta(name)
+            defaults[name] = {...meta.defaults}
+        })
+        return defaults
+    }
+
     static formatChoices(choices) {
         const maxLength = Math.max(...choices.map(choice => choice.name.length))
         var p = 1
@@ -1438,14 +1521,18 @@ class Menu extends Logger {
         })
         return choices.filter(choice => !('when' in choice) || choice.when())
     }
+
+    static getDefaultConfigDir() {
+        return path.resolve(os.homedir(), '.gameon')
+    }
+
+    static getDefaultServerUrl() {
+        return DefaultServerUrl
+    }
+
+    static getDefaultRecordDir() {
+        return path.resolve(os.homedir(), 'gameon')
+    }
 }
-
-Menu.DefaultConfigDir = path.resolve(os.homedir(), '.gameon')
-
-const {
-    MenuError
-  , RequestError
-  , ResetKeyNotEnteredError
-} = Errors
 
 module.exports = Menu

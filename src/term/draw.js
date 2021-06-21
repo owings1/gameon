@@ -22,21 +22,21 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-const Constants = require('../lib/constants')
-
-const chalk       = require('chalk')
-const inquirer    = require('inquirer')
+const Constants   = require('../lib/constants')
 const Coordinator = require('../lib/coordinator')
 const Core        = require('../lib/core')
 const Logger      = require('../lib/logger')
 const Robot       = require('../robot/player')
+const Themes      = require('./themes')
 const Util        = require('../lib/util')
-const ThemeHelper = require('./themes')
-const sp          = Util.joinSpace
+
+const chalk    = require('chalk')
+const inquirer = require('inquirer')
 
 const {RobotDelegator} = Robot
 const {StringBuilder}  = Util
-const {ucfirst}        = Util
+
+const {nchars, sp, ucfirst} = Util
 
 const {
     Board
@@ -60,16 +60,21 @@ const {
   , White
 } = Constants
 
-const {Chars} = Constants.Draw
+const Chars = {
+    empty : ''
+  , sp    : ' '
+  , dblSp : '  '
+  , br    : '\n'
+}
 
-class DrawInstance {
+class DrawHelper {
 
     static forBoard(board, persp, logs, themeName) {
-        return new DrawInstance(board, null, null, persp, logs, themeName)
+        return new DrawHelper(board, null, null, persp, logs, themeName)
     }
 
     static forGame(game, match, persp, logs, themeName) {
-        return new DrawInstance(game.board, game, match, persp, logs, themeName)
+        return new DrawHelper(game.board, game, match, persp, logs, themeName)
     }
 
     constructor(board, game, match, persp, logs, themeName) {
@@ -84,14 +89,14 @@ class DrawInstance {
 
         this.logger = new Logger
         try {
-            this.theme = ThemeHelper.getInstance(themeName)
+            this.theme = Themes.getInstance(themeName)
         } catch (err) {
             if (!err.isThemeError) {
                 throw err
             }
             this.logger.error(err.name, err.message)
             this.logger.warn('Using default theme')
-            this.theme = ThemeHelper.getDefaultInstance()
+            this.theme = Themes.getDefaultInstance()
         }
         
         this.reporter = new Reporter(this)
@@ -204,7 +209,7 @@ class DrawInstance {
         const {chalks} = this.theme
         b.add(
             this.numbers(points)
-          , chalks.text(this.nchars(this.AfterWidth, Chars.sp))
+          , chalks.text(nchars(this.AfterWidth, Chars.sp))
           , this.sideLog(0)
           , Chars.br
         )
@@ -216,7 +221,7 @@ class DrawInstance {
         const {chalks} = this.theme
         b.add(
             chalks.boardBorder(border)
-          , chalks.text(this.nchars(this.AfterWidth, Chars.sp))
+          , chalks.text(nchars(this.AfterWidth, Chars.sp))
           , this.sideLog(0)
           , Chars.br
         )
@@ -236,12 +241,12 @@ class DrawInstance {
             b.add(this.pieceStr(count > depth && color, i == 0 || i == 6))
             if (i == 5) {
                 b.add(
-                    chalks.boardSp(Chars.sp + Chars.sp)
+                    chalks.boardSp(Chars.dblSp)
                   , chalks.boardBorder(TableChars.dblPipe)
                 )
             }
         })
-        b.add(chalks.boardSp(Chars.sp + Chars.sp))
+        b.add(chalks.boardSp(Chars.dblSp))
 
         b.add(chalks.boardBorder(TableChars.pipe))
 
@@ -268,12 +273,12 @@ class DrawInstance {
             b.add(this.overflowStr(count, i == 0 || i == 6))
             if (i == 5) {
                 b.add(
-                    chalks.boardSp(Chars.sp + Chars.sp)
+                    chalks.boardSp(Chars.dblSp)
                   , chalks.boardBorder(TableChars.dblPipe)
                 )
             }
         })
-        b.add(chalks.boardSp(Chars.sp + Chars.sp))
+        b.add(chalks.boardSp(Chars.dblSp))
 
         b.add(chalks.boardBorder(TableChars.pipe))
 
@@ -316,9 +321,9 @@ class DrawInstance {
 
         b.add(
             chalks.boardBorder(TableChars.pipe)
-          , chalks.boardSp(this.nchars(6 * this.PiecePad + 1, Chars.sp))
+          , chalks.boardSp(nchars(6 * this.PiecePad + 1, Chars.sp))
           , chalks.boardBorder(TableChars.dblPipe)
-          , chalks.boardSp(this.nchars(6 * this.PiecePad, Chars.sp))
+          , chalks.boardSp(nchars(6 * this.PiecePad, Chars.sp))
           , chalks.boardSp(Chars.sp)
           , chalks.boardBorder(TableChars.pipe)
         )
@@ -352,7 +357,7 @@ class DrawInstance {
             maxWidth -= 1
         }
 
-        b.add(chalks.text(this.nchars(pad, Chars.sp)))
+        b.add(chalks.text(nchars(pad, Chars.sp)))
 
         if (this.logs[n]) {
             var message = this.logs[this.logs.length - n - 1]
@@ -366,7 +371,7 @@ class DrawInstance {
         }
 
         b.add(message)
-        b.add(chalks.text(this.nchars(maxWidth - this.len(message), Chars.sp)))
+        b.add(chalks.text(nchars(maxWidth - this.len(message), Chars.sp)))
 
         return b
     }
@@ -387,11 +392,11 @@ class DrawInstance {
                 chalks.pointLabel(point.toString().padStart(pad, Chars.sp))
             )
             if (i == 5) {
-                b.add(chalks.pointLabel(this.nchars(4, Chars.sp)))
+                b.add(chalks.pointLabel(nchars(4, Chars.sp)))
             }
         })
 
-        b.add(chalks.pointLabel(this.nchars(3, Chars.sp)))
+        b.add(chalks.pointLabel(nchars(3, Chars.sp)))
 
         return b
     }
@@ -403,7 +408,7 @@ class DrawInstance {
 
         b.add(
             chalks.boardBorder(TableChars.pipe)
-          , chalks.boardSp(this.nchars(6 * this.PiecePad + 1, Chars.sp))
+          , chalks.boardSp(nchars(6 * this.PiecePad + 1, Chars.sp))
         )
 
         if (count) {
@@ -420,7 +425,7 @@ class DrawInstance {
         }
 
         b.add(
-            chalks.boardSp(this.nchars(6 * this.PiecePad, Chars.sp))
+            chalks.boardSp(nchars(6 * this.PiecePad, Chars.sp))
           , chalks.boardBorder(TableChars.pipe)
         )
 
@@ -435,7 +440,7 @@ class DrawInstance {
         const countStr = count > 6 ? '' + count : Chars.empty
 
         b.add(
-            chalks.boardSp(this.nchars(this.PiecePad - isFirst - countStr.length, Chars.sp))
+            chalks.boardSp(nchars(this.PiecePad - isFirst - countStr.length, Chars.sp))
           , chalks.textDim(countStr)
         )
 
@@ -448,7 +453,7 @@ class DrawInstance {
         const b = new StringBuilder
         const {chalks} = this.theme
 
-        b.add(chalks.boardSp(this.nchars(this.PiecePad - isFirst - 1, Chars.sp)))
+        b.add(chalks.boardSp(nchars(this.PiecePad - isFirst - 1, Chars.sp)))
 
         if (color) {
             b.add(chalks.piece[color](ColorAbbr[color]))
@@ -488,7 +493,7 @@ class DrawInstance {
         const b = new StringBuilder
         const {chalks} = this.theme
 
-        b.add(chalks.text(Chars.sp + Chars.sp))
+        b.add(chalks.text(Chars.dblSp))
 
         if (count) {
             b.add(
@@ -535,7 +540,7 @@ class DrawInstance {
                 const valueStr = isCrawford ? 'CR' : cubeValue.toString()
                 b.add(
                     cubeChalk(valueStr)
-                  , cubeChalk(this.nchars(2 - valueStr.length, Chars.sp))
+                  , cubeChalk(nchars(2 - valueStr.length, Chars.sp))
                   , cubeChalk(TableChars.pipe)
                 )
                 break
@@ -551,10 +556,6 @@ class DrawInstance {
         return Util.stripAnsi(str.toString()).length
     }
 
-    nchars(n, char) {
-        return Chars.empty.padEnd(n, char)
-    }
-
     report(method, ...args) {
         const res = this.reporter[method](...args)
         this.logs.push(res.toString())
@@ -563,7 +564,7 @@ class DrawInstance {
     buildBorders() {
 
         const quadWidth = Math.floor(this.BoardWidth / 2 - 1)
-        const quadChars = this.nchars(quadWidth, TableChars.dash)
+        const quadChars = nchars(quadWidth, TableChars.dash)
 
         this.TopBorder = new StringBuilder(
             TableChars.topLeft
@@ -585,13 +586,13 @@ class DrawInstance {
 
         this.CubeTopBorder = new StringBuilder(
             TableChars.topLeft
-          , this.nchars(3, TableChars.dash)
+          , nchars(3, TableChars.dash)
           , TableChars.topRight
         ).toString()
 
         this.CubeBottomBorder = new StringBuilder(
             TableChars.footerLeft
-          , this.nchars(3, TableChars.dash)
+          , nchars(3, TableChars.dash)
           , TableChars.footerRight
         ).toString()
     }
@@ -857,6 +858,6 @@ class Reporter {
 
 
 module.exports = {
-    DrawInstance
+    DrawHelper
   , Reporter
 }

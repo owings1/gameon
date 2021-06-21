@@ -32,7 +32,7 @@ const Util        = require('../lib/util')
 const fs   = require('fs')
 const fse  = require('fs-extra')
 const path = require('path')
-const sp   = Util.joinSpace
+const {sp} = Util
 
 const {resolve} = path
 

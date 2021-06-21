@@ -41,7 +41,7 @@ class LabCommand extends Command {
     }
 
     getConfigDir() {
-        return Menu.DefaultConfigDir
+        return Menu.getDefaultConfigDir()
     }
 }
 

@@ -158,35 +158,6 @@ const ArrowChars = {
   , down  : '\u2193'
 }
 
-const Draw = {
-    Chars : {
-        empty : ''
-      , sp    : ' '
-      , dblSp : '  '
-      , br    : '\n'
-      //  topLeft      : '\u250f'
-      //, topMiddle    : '\u2533'
-      //, topRight     : '\u2513'
-      //, midLeft      : ''  // TODO
-      //, pipe         : '\u2503'
-      //, dblSep       : '\u2503\u2503'
-      //, midRight     : ''  // TODO
-      //, botLeft      : '\u2517'
-      //, botMiddle    : '\u253b'
-      //, botRight     : '\u251b'
-      //, dash         : '\u2501'
-      //, slash        : '/'
-      //, die          :  {
-      //      1  : '\u2680'
-      //    , 2  : '\u2681'
-      //    , 3  : '\u2682'
-      //    , 4  : '\u2683'
-      //    , 5  : '\u2684'
-      //    , 6  : '\u2685'
-      //  }
-    }
-}
-
 const DefaultServerUrl = 'https://gameon.dougowings.net'
 const ObsoleteServerUrls = [
     'ws://bg.dougowings.net:8080'
@@ -204,7 +175,6 @@ const Constants = {
   , Colors
   , DefaultServerUrl
   , Direction
-  , Draw
   , InsideOrigins
   , MoveCoords
   , MoveHashes

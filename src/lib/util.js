@@ -26,6 +26,7 @@ const crypto    = require('crypto')
 const emailval  = require('email-validator')
 const Errors    = require('./errors')
 const merge     = require('merge')
+const os        = require('os')
 const path      = require('path')
 const stripAnsi = require('strip-ansi')
 const uuid      = require('uuid')
@@ -85,7 +86,7 @@ class Util {
     }
 
     static defaults(defaults, ...opts) {
-        return this.propsFrom(Util.merge({}, defaults, ...opts), defaults)
+        return Util.propsFrom(Util.merge({}, defaults, ...opts), defaults)
     }
 
     static async destroyAll(obj) {
@@ -128,6 +129,17 @@ class Util {
         return str.replace(/\.[^/.]+$/, '')
     }
 
+    static homeTilde(str) {
+        if (str == null) {
+            return str
+        }
+        const homeDir = os.homedir()
+        if (str.indexOf(homeDir) != 0) {
+            return str
+        }
+        return '~' + str.substring(homeDir.length)
+    }
+
     static intRange(a, b) {
         const range = []
         for (var i = a; i <= b; i++) {
@@ -136,8 +148,20 @@ class Util {
         return range
     }
 
-    static joinSpace(...args) {
-        return args.join(' ')
+    static isEmptyObject(obj) {
+        if (obj == null) {
+            return true
+        }
+        for (var k in obj) {
+            return false
+        }
+        return true
+    }
+
+    static keyValuesTrue(input) {
+        const res = {}
+        Object.values(input).forEach(value => res[value] = true)
+        return res
     }
 
     static makeErrorObject(err) {
@@ -153,6 +177,10 @@ class Util {
 
     static merge(...args) {
         return merge(...args)
+    }
+
+    static nchars(n, char) {
+        return ''.padEnd(n, char)
     }
 
     static nmap(n, cb) {
@@ -219,6 +247,11 @@ class Util {
         return b - a
     }
 
+    // Join space
+    static sp(...args) {
+        return args.join(' ')
+    }
+
     static spreadScore(obj, isInverse) {
         const iobj = {}
         var size = 0
@@ -254,6 +287,16 @@ class Util {
 
     static sumArray(arr) {
         return arr.reduce((acc, cur) => acc + cur, 0)
+    }
+
+    static tildeHome(str) {
+        if (str == null) {
+            return str
+        }
+        if (str.indexOf('~') != 0) {
+            return str
+        }
+        return os.homedir() + str.substring(1)
     }
 
     static uniqueInts(arr) {

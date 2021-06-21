@@ -57,6 +57,8 @@ class Match {
             throw new ArgumentError('total must be integer > 0')
         }
 
+        this.createDate = new Date
+
         this.uuid  = Util.uuid()
         this.total = total
         this.opts  = Util.defaults(Match.defaults(), opts)
@@ -153,6 +155,7 @@ class Match {
     meta() {
         return {
             uuid          : this.uuid
+          , createDate    : this.createDate
           , total         : this.total
           , scores        : this.scores
           , winner        : this.getWinner()
@@ -178,6 +181,7 @@ class Match {
         const match = new Match(data.total, data.opts)
 
         match.uuid = data.uuid
+        match.createDate = data.createDate
 
         match.scores = data.scores
         match.winner = data.winner

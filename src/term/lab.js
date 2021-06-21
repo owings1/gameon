@@ -22,26 +22,26 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-const Constants = require('../lib/constants')
+const Constants    = require('../lib/constants')
+const Coordinator  = require('../lib/coordinator')
+const Core         = require('../lib/core')
+const {DrawHelper} = require('./draw')
+const Logger       = require('../lib/logger')
+const Robot        = require('../robot/player')
+const Util         = require('../lib/util')
+const {Table}      = require('./tables')
+const ThemeHelper  = require('./themes')
 
-const chalk       = require('chalk')
-const fs          = require('fs')
-const fse         = require('fs-extra')
-const inquirer    = require('inquirer')
-const path        = require('path')
-const Coordinator = require('../lib/coordinator')
-const Core        = require('../lib/core')
-const {DrawInstance} = require('./draw')
-const Logger      = require('../lib/logger')
-const Robot       = require('../robot/player')
-const Util        = require('../lib/util')
-const {Table}     = require('./tables')
-const ThemeHelper = require('./themes')
-const sp          = Util.joinSpace
+const chalk        = require('chalk')
+const fs           = require('fs')
+const fse          = require('fs-extra')
+const inquirer     = require('inquirer')
+const path         = require('path')
 
 const {RobotDelegator} = Robot
 const {StringBuilder}  = Util
-const {ucfirst}        = Util
+
+const {homeTilde, nchars, sp, tildeHome, ucfirst} = Util
 
 const {
     Board
@@ -66,8 +66,6 @@ const {
   , White
 } = Constants
 
-const {Chars} = Constants.Draw
-
 class LabHelper {
 
     constructor(opts = {}) {
@@ -77,7 +75,7 @@ class LabHelper {
         this.opts   = opts
         this.logs   = []
         this.logger = new Logger
-        this.inst = DrawInstance.forBoard(this.board, this.persp, this.logs, this.opts.theme)
+        this.drawer = DrawHelper.forBoard(this.board, this.persp, this.logs, this.opts.theme)
         this.stateHistory = []
         this.fetchLastRecords = null
     }
@@ -136,7 +134,7 @@ class LabHelper {
                 case 'f':
                     this.persp = Opponent[this.persp]
                     this.logs.push(sp('Perspective', this.ccolor(this.persp)))
-                    this.inst.persp = this.persp
+                    this.drawer.persp = this.persp
                     this.draw(true)
                     break
 
@@ -294,7 +292,7 @@ class LabHelper {
             cons.log(...args)
         }
 
-        const hr = this.nchars(39, TableChars.dash)
+        const hr = nchars(39, TableChars.dash)
 
         log(hr)
 
@@ -380,7 +378,7 @@ class LabHelper {
             }
         }
 
-        const hr = this.nchars(49, TableChars.dash)
+        const hr = nchars(49, TableChars.dash)
 
         var lastScore
 
@@ -522,7 +520,7 @@ class LabHelper {
         )
 
         const maxTableWidth = Math.max(...tables.map(table => table.outerWidth))
-        const hr = chalk.bgGrey.white(this.nchars(maxTableWidth, TableChars.dash))
+        const hr = chalk.bgGrey.white(nchars(maxTableWidth, TableChars.dash))
 
         tables.forEach(table => {
             indent = 2
@@ -548,18 +546,19 @@ class LabHelper {
                 name    : 'rollsFile'
               , message : 'Rolls File'
               , type    : 'input'
-              , default  : () => this.opts.rollsFile
+              , default  : () => homeTilde(this.opts.rollsFile)
               , validate : value => {
                     if (!value.length) {
                         return true
                     }
+                    value = tildeHome(value)
                     return Dice.rollsFileError(value)
                 }
             }
         ])
         if (answers.rollsFile) {
             this.logger.info('Using custom rolls file')
-            this.opts.rollsFile = path.resolve(answers.rollsFile)
+            this.opts.rollsFile = path.resolve(tildeHome(answers.rollsFile))
             const {rolls} = JSON.parse(fs.readFileSync(this.opts.rollsFile))
             var rollIndex = 0
             var maxIndex = rolls.length - 1
@@ -587,7 +586,7 @@ class LabHelper {
                 matches.push(match.meta())
             }
         } finally {
-            await Promise.all(Object.values(players).map(player => player.destroy()))
+            await Util.destroyAll(players)
         }
 
         const scores = {Red: 0, White: 0}
@@ -912,17 +911,13 @@ class LabHelper {
     }
 
     ccolor(color) {
-        const {chalks} = this.inst.theme
+        const {chalks} = this.drawer.theme
         return chalks.piece[color](color)
     }
 
-    nchars(n, char) {
-        return Chars.empty.padEnd(n, char)
-    }
-
     draw(isPrint) {
-        const {inst} = this
-        const output = inst.getString()
+        const {drawer} = this
+        const output = drawer.getString()
         if (isPrint) {
             this.logger.writeStdout(output)
         }
@@ -930,7 +925,7 @@ class LabHelper {
     }
 
     newRobot(...args) {
-        if (!this.opts.isCustomRobot) {
+        if (!this.opts.isCustomRobot || Util.isEmptyObject(this.opts.robots)) {
             var robot = RobotDelegator.forDefaults(...args)
         } else {
             const configs = Object.entries(this.opts.robots).map(([name, config]) => {
@@ -957,7 +952,7 @@ class LabHelper {
 
         const outDir = path.resolve(this.opts.recordDir, subDir, prefix)
 
-        this.logger.info('Saving to', path.join(this.opts.recordDir, subDir, prefix))
+        this.logger.info('Saving to', homeTilde(path.join(this.opts.recordDir, subDir, prefix)))
 
         await fse.ensureDir(outDir)
         

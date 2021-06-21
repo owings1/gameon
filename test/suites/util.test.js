@@ -164,16 +164,6 @@ describe('Util', () => {
     
     })
 
-    describe('#joinSpace', () => {
-
-        it('should join all three params with space', () => {
-            const input = ['a', 'b', 'c']
-            const exp = 'a b c'
-            const result = Util.joinSpace(...input)
-            expect(result).to.equal(exp)
-        })
-    })
-
     describe('#makeErrorObject', () => {
 
         it('should return constructor name if error has no name', () => {
@@ -254,19 +244,13 @@ describe('Util', () => {
         })
     })
 
-    describe('#sumArray', () => {
+    describe('#sp', () => {
 
-        const expCases = [
-            {input: [1, 2], exp: 3},
-            {input: [], exp: 0},
-            {input: [5, 5], exp: 10}
-        ]
-
-        expCases.forEach(({input, exp}) => {
-            it('should return ' + exp + ' for ' + JSON.stringify(input), () => {
-                const result = Util.sumArray(input)
-                expect(result).to.equal(exp)
-            })
+        it('should join all three params with space', () => {
+            const input = ['a', 'b', 'c']
+            const exp = 'a b c'
+            const result = Util.sp(...input)
+            expect(result).to.equal(exp)
         })
     })
 
@@ -345,6 +329,22 @@ describe('Util', () => {
         it('should return asdf for asdf/', () => {
             const res = Util.stripTrailingSlash('asdf/')
             expect(res).to.equal('asdf')
+        })
+    })
+
+    describe('#sumArray', () => {
+
+        const expCases = [
+            {input: [1, 2], exp: 3},
+            {input: [], exp: 0},
+            {input: [5, 5], exp: 10}
+        ]
+
+        expCases.forEach(({input, exp}) => {
+            it('should return ' + exp + ' for ' + JSON.stringify(input), () => {
+                const result = Util.sumArray(input)
+                expect(result).to.equal(exp)
+            })
         })
     })
 

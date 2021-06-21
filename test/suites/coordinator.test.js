@@ -18,6 +18,7 @@ const Constants   = requireSrc('lib/constants')
 const Core        = requireSrc('lib/core')
 const Coordinator = requireSrc('lib/coordinator')
 const Player      = requireSrc('lib/player')
+const Util        = requireSrc('lib/util')
 
 const {White, Red, PointOrigins} = Constants
 const {Match, Game, Dice} = Core
@@ -292,7 +293,7 @@ describe('#runMatch', () => {
         coordinator.opts.recordDir = recordDir
         await coordinator.runMatch(match, players.White, players.Red)
 
-        const matchDir = resolve(recordDir, 'match_' + match.uuid)
+        const matchDir = coordinator.getMatchDir(match)
         const matchFile = resolve(matchDir, 'match.json')
         const gameFile = resolve(matchDir, 'game_1.json')
         expect(fs.existsSync(matchFile)).to.equal(true)

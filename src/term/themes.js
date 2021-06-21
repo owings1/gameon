@@ -437,7 +437,7 @@ class Theme {
     }
 
     constructor(chalks) {
-        // Index the chalk callables for use by DrawInstance/Reporter
+        // Index the chalk callables for use by DrawHelper/Reporter
         this.chalks = {
               boardBorder  : chalks['board.border']
             , boardSp      : chalks['board.background']

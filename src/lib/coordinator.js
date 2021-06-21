@@ -32,6 +32,8 @@ const path  = require('path')
 
 const {InvalidDirError} = Errors
 
+const {fileDateString, homeTilde} = Util
+
 class Coordinator {
 
     static defaults() {
@@ -60,20 +62,26 @@ class Coordinator {
           , Red   : red
         }
 
-        if (this.opts.isRecord) {
-            await this.ensureMatchDir(match)
-        }
-
         await this.emitAll(players, 'matchStart', match)
 
+        if (this.opts.isRecord) {
+            var matchDir = this.getMatchDir(match)
+            var gamePad = (match.total * 2 - 1).toString().length
+        }
+
+        var gameCount = 0
+
         do {
+
+            gameCount += 1
 
             await this.emitAll(players, 'beforeNextGame', match, players)
 
             await this.runGame(players, match.nextGame(), match)
 
             if (this.opts.isRecord) {
-                await this.recordGame(match.thisGame, this.getThisGameFile(match), players)
+                var gameFile = path.resolve(matchDir, 'game_' + gameCount.toString().padStart(gamePad, '0') + '.json')
+                await this.recordGame(match.thisGame, gameFile, players)
             }
 
             match.updateScore()
@@ -83,7 +91,8 @@ class Coordinator {
         await this.emitAll(players, 'matchEnd', match)
 
         if (this.opts.isRecord) {
-            await this.recordMatch(match, this.getMatchFile(match), players)
+            const matchFile = path.resolve(matchDir, 'match.json')
+            await this.recordMatch(match, matchFile, players)
         }
     }
 
@@ -140,7 +149,9 @@ class Coordinator {
     }
 
     async recordMatch(match, file, players) {
-        this.logger.info('Recording match')
+        const dir = path.dirname(file)
+        this.logger.info('Recording match to', homeTilde(dir))
+        await fse.ensureDir(dir)
         const meta = {
             players : {
                 White : players.White.meta()
@@ -152,7 +163,9 @@ class Coordinator {
     }
 
     async recordGame(game, file, players) {
+        const dir = path.dirname(file)
         this.logger.info('Recording game')
+        await fse.ensureDir(dir)
         const meta = {
             players : {
                 White : players.White.meta()
@@ -180,22 +193,11 @@ class Coordinator {
         //await Promise.all(holds.splice(0))
     }
 
-    async ensureMatchDir(match) {
-        await fse.ensureDir(this.getMatchDir(match))
-    }
-
     getMatchDir(match) {
-        const dirname = ['match', match.uuid].join('_')
-        return path.resolve(this.opts.recordDir, dirname)
-    }
-
-    getMatchFile(match) {
-        return path.resolve(this.getMatchDir(match), 'match.json')
-    }
-
-    getThisGameFile(match) {
-        const filename = ['game', match.games.length].join('_') + '.json'
-        return path.resolve(this.getMatchDir(match), filename)
+        const dateString = fileDateString(match.createDate).substring(0, 19)
+        const idString = match.uuid.substring(0, 4)
+        const dirname = ['match', dateString, idString].join('_')
+        return path.resolve(this.opts.recordDir, 'matches', dirname)
     }
 }
 

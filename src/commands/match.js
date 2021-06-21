@@ -39,7 +39,7 @@ class MatchCommand extends Command {
     }
 
     getConfigDir() {
-        return Menu.DefaultConfigDir
+        return Menu.getDefaultConfigDir()
     }
 }
 

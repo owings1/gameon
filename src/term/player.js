@@ -22,20 +22,25 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-const Base           = require('../lib/player')
-const Constants      = require('../lib/constants')
-const {DrawInstance} = require('./draw')
-const Errors         = require('../lib/errors')
-const Util           = require('../lib/util')
+const Base         = require('../lib/player')
+const Constants    = require('../lib/constants')
+const {DrawHelper} = require('./draw')
+const Errors       = require('../lib/errors')
+const Util         = require('../lib/util')
 
 const chalk    = require('chalk')
 const inquirer = require('inquirer')
 
-const {White, Red, Opponent, OriginPoints, PointOrigins} = Constants
+const {
+    Colors
+  , Opponent
+  , OriginPoints
+  , PointOrigins
+} = Constants
+
 const {MatchCanceledError} = Errors
 
-const {merge} = Util
-const sp      = Util.joinSpace
+const {merge, sp} = Util
 
 class TermPlayer extends Base {
 
@@ -68,8 +73,8 @@ class TermPlayer extends Base {
             this.isDualTerm = this.opponent.isTerm
             this.isDualRobot = this.isRobot && this.opponent.isRobot
 
-            this.persp = this.isRobot ? White : this.color
-            this.draw = DrawInstance.forGame(game, match, this.persp, this.logs, this.opts.theme)
+            this.persp = this.isRobot ? Colors.White : this.color
+            this.drawer = DrawHelper.forGame(game, match, this.persp, this.logs, this.opts.theme)
 
             this.report('gameStart', match ? match.games.length : null)
         })
@@ -246,10 +251,10 @@ class TermPlayer extends Base {
     }
 
     report(...args) {
-        if (!this.draw) {
+        if (!this.drawer) {
             return
         }
-        this.draw.report(...args)
+        this.drawer.report(...args)
     }
 
     async promptTurnOption(turn) {
@@ -369,8 +374,8 @@ class TermPlayer extends Base {
             })
         } else if (action == '_f') {
             this.persp = Opponent[this.persp]
-            if (this.draw) {
-                this.draw.persp = this.persp
+            if (this.drawer) {
+                this.drawer.persp = this.persp
             }
             this.drawBoard()
         }
@@ -412,10 +417,10 @@ class TermPlayer extends Base {
     }
 
     drawBoard() {
-        if (!this.draw) {
+        if (!this.drawer) {
             return
         }
-        this.logger.writeStdout(this.draw.getString())
+        this.logger.writeStdout(this.drawer.getString())
     }
 
     originPoint(origin, color) {
@@ -434,10 +439,10 @@ class TermPlayer extends Base {
     }
 
     cchalk(color, ...args) {
-        if (!this.draw) {
+        if (!this.drawer) {
             return sp(...args)
         }
-        return this.draw.theme.chalks.colorText[color](...args)
+        return this.drawer.theme.chalks.colorText[color](...args)
     }
 
     ccolor(color) {
