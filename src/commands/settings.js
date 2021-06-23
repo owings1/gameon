@@ -1,5 +1,5 @@
 /**
- * gameon - command base class for oclif
+ * gameon - settings command
  *
  * Copyright (C) 2020-2021 Doug Owings
  *
@@ -22,44 +22,21 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-const {Command} = require('@oclif/command')
+const {flags} = require('@oclif/command')
+const Base    = require('../lib/command').UserCommand
 
-const Logger = require('./logger')
-const Menu   = require('../term/menu')
+class SettingsCommand extends Base {
 
-class AppCommand extends Command {
-
-    async init(..._args) {
-        await super.init(..._args)
-        this.logger = this.logger || new Logger
-        this.env = this.env || process.env
-        const {flags, args, argv} = this.parse(this.constructor)
-        this.flags = flags
-        this.args = args
-        this.argv = argv
+    async run() {
+        await this.menu.settingsMenu()
     }
 }
 
-class UserCommand extends AppCommand {
+SettingsCommand.aliases = ['config']
+SettingsCommand.description = `Settings menu`
 
-    async init(...args) {
-        await super.init(...args)
-        await this._loadConfigs()
-    }
+SettingsCommand.flags = {
 
-    async _loadConfigs() {
-        this.menu = this.menu || new Menu(this._getConfigDir())
-        await this.menu.loadSettings()
-        await this.menu.loadCustomThemes(true)
-        this.Settings = this.menu.settings
-    }
-
-    _getConfigDir() {
-        return Menu.getDefaultConfigDir()
-    }
 }
 
-module.exports = {
-    AppCommand
-  , UserCommand
-}
+module.exports = SettingsCommand

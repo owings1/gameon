@@ -1,5 +1,5 @@
 /**
- * gameon - command base class for oclif
+ * gameon - play:join command
  *
  * Copyright (C) 2020-2021 Doug Owings
  *
@@ -22,44 +22,39 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-const {Command} = require('@oclif/command')
+const {flags} = require('@oclif/command')
+const Base    = require('../../lib/command').UserCommand
 
-const Logger = require('./logger')
-const Menu   = require('../term/menu')
+class PlayJoinCommand extends Base {
 
-class AppCommand extends Command {
-
-    async init(..._args) {
-        await super.init(..._args)
-        this.logger = this.logger || new Logger
-        this.env = this.env || process.env
-        const {flags, args, argv} = this.parse(this.constructor)
-        this.flags = flags
-        this.args = args
-        this.argv = argv
+    async run() {
+        try {
+            await this.menu.joinMenu()
+        } catch (err) {
+            if (err.isAuthError) {
+                this.logger.warn(err)
+                this.logger.error('Authentication error, go to Account to sign up or log in.')   
+                return
+            }
+            throw err
+        }
     }
 }
 
-class UserCommand extends AppCommand {
+PlayJoinCommand.aliases = ['join']
 
-    async init(...args) {
-        await super.init(...args)
-        await this._loadConfigs()
-    }
+PlayJoinCommand.description = `Join an online match`
 
-    async _loadConfigs() {
-        this.menu = this.menu || new Menu(this._getConfigDir())
-        await this.menu.loadSettings()
-        await this.menu.loadCustomThemes(true)
-        this.Settings = this.menu.settings
-    }
-
-    _getConfigDir() {
-        return Menu.getDefaultConfigDir()
-    }
+PlayJoinCommand.flags = {
+    id : flags.string({
+        char: 'i'
+      , description: 'match id to join'
+    })
 }
 
-module.exports = {
-    AppCommand
-  , UserCommand
-}
+//MatchJoinCommand.args = [
+//    {name: 'matchId'}
+//]
+
+
+module.exports = PlayJoinCommand

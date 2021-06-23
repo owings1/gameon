@@ -78,7 +78,7 @@
       "auth": {
         "description": "Manage server users"
       },
-      "match": {
+      "play": {
         "description": "Match play commands"
       },
       "robot": {

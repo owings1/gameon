@@ -55,6 +55,8 @@ const {
   , Chars
   , ColorAbbr
   , ColorNorm
+  , Colors
+  , DefaultThemeName
   , Opponent
   , OriginPoints
   , PointOrigins
@@ -77,7 +79,7 @@ class LabHelper {
         this.logs   = []
         this.logger = new Logger
         if (!this.opts.theme) {
-            this.opts.theme = 'Default'
+            this.opts.theme = DefaultThemeName
         }
         this.theme = Themes.getInstance(this.opts.theme)
         this.drawer = DrawHelper.forBoard(this.board, this.persp, this.logs, this.opts.theme)

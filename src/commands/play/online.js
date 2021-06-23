@@ -1,5 +1,5 @@
 /**
- * gameon - match command
+ * gameon - play:online command
  *
  * Copyright (C) 2020-2021 Doug Owings
  *
@@ -23,17 +23,20 @@
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 const {flags} = require('@oclif/command')
-const Base    = require('../lib/command').UserCommand
+const Base    = require('../../lib/command').UserCommand
 
-class MatchCommand extends Base {
+class PlayOnlineCommand extends Base {
 
     async run() {
-        await this.menu.mainMenu()
+        await this.menu.matchMenu(true, false, false)
     }
 }
 
-MatchCommand.description = `Gameon entrypoint`
+PlayOnlineCommand.aliases = [
+    'online'
+]
+PlayOnlineCommand.description = `Play online`
 
-MatchCommand.flags = {}
+PlayOnlineCommand.flags = {}
 
-module.exports = MatchCommand
+module.exports = PlayOnlineCommand

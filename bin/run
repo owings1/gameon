@@ -4,7 +4,7 @@ if (process.argv.length > 2) {
     .then(require('@oclif/command/flush'))
     .catch(require('@oclif/errors/handle'))
 } else {
-    require('../src/commands/match').run()
+    require('../src/commands/menu').run()
     .catch(require('@oclif/errors/handle'))
 }
 

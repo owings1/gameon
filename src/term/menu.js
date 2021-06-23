@@ -56,6 +56,7 @@ const {homeTilde, padStart, sp, tildeHome} = Util
 
 const {
     DefaultServerUrl
+  , DefaultThemeName
   , ObsoleteServerUrls
   , Red
   , States
@@ -113,13 +114,13 @@ class Menu {
         const hash = crypto.createHash('md5')
         hash.update('main-menu')
         this.chash = hash.digest('hex')
+
+        this.bread = []
     }
 
     async mainMenu() {
 
-        await this.loadSettings()
-        await this.loadCredentials()
-        await this.loadCustomThemes()
+        this.bread.push('Main')
 
         while (true) {
 
@@ -154,13 +155,19 @@ class Menu {
                 break
             }
         }
+
+        this.bread.pop()
     }
 
     async playMenu() {
 
-        const choices = this.getPlayChoices()
+        await this.ensureSettingsLoaded()
+
+        this.bread.push('Play')
 
         while (true) {
+
+            var choices = this.getPlayChoices()
 
             var isContinue = true
 
@@ -211,6 +218,8 @@ class Menu {
             }
         }
 
+        this.bread.pop()
+
         return isContinue
     }
 
@@ -230,6 +239,8 @@ class Menu {
         }
 
         var advancedOpts
+
+        this.bread.push(message)
 
         while (true) {
 
@@ -289,21 +300,16 @@ class Menu {
             await this.saveSettings()
         }
 
-        return isContinue
-    }
+        this.bread.pop()
 
-    async promptMatchAdvancedOpts(advancedOpts) {
-        const questions = this.getMatchAdvancedQuestions(advancedOpts)
-        const answers = await this.prompt(questions)
-        if (answers.rollsFile) {
-            answers.rollsFile = tildeHome(answers.rollsFile)
-        }
-        return answers
+        return isContinue
     }
 
     async accountMenu() {
 
         await this.ensureCredentialsLoaded()
+
+        this.bread.push('Account')
 
         while (true) {
 
@@ -391,6 +397,185 @@ class Menu {
 
             await this.saveCredentials()
         }
+
+        this.bread.pop()
+
+        return true
+    }
+
+    async settingsMenu() {
+
+        await this.ensureSettingsLoaded()
+
+        this.bread.push('Settings')
+
+        while (true) {
+
+            var choices = this.getSettingsChoices()
+
+            var answers = await this.prompt({
+                name     : 'settingChoice'
+              , message  : 'Settings Menu'
+              , type     : 'rawlist'
+              , choices
+              , pageSize : choices.length + 1
+            })
+
+            var {settingChoice} = answers
+
+            if (settingChoice == 'done') {
+                break
+            }
+
+            if (settingChoice == 'robotConfigs') {
+                await this.robotConfigsMenu()
+                continue
+            }
+
+            var question = choiceQuestion(choices, settingChoice)
+
+            answers = await this.prompt(question)
+
+            var {settings} = this
+
+            settings[question.name] = answers[question.name]
+            settings.delay = +settings.delay
+            if (settings.recordDir) {
+                settings.recordDir = path.resolve(tildeHome(settings.recordDir))
+            }
+
+            if (question.name == 'isCustomRobot' && settings.isCustomRobot) {
+                if (Util.isEmptyObject(settings.robots)) {
+                    this.logger.info('Loading robot defaults')
+                    settings.robots = Menu.robotDefaults()
+                }
+                await this.saveSettings()
+                await this.robotConfigsMenu()
+                continue
+            }
+
+            await this.saveSettings()
+        }
+
+        this.bread.pop()
+
+        return true
+    }
+
+    async configureRobotMenu(name) {
+
+        await this.ensureSettingsLoaded()
+
+        this.bread.push('Robot:' + name)
+
+        const {defaults} = ConfidenceRobot.getClassMeta(name)
+
+        // always break, but put in loop for consistency
+        while (true) {
+
+            var {settings} = this
+
+            if (Util.isEmptyObject(settings.robots[name])) {
+                settings.robots[name] = {
+                    version      : defaults.version
+                  , moveWeight   : 0
+                  , doubleWeight : 0
+                }
+            }
+
+            var config = settings.robots[name]
+            var choices = this.getConfigureRobotChoices(name)
+
+            var answers = await this.prompt({
+                name     : 'robotChoice'
+              , message  : 'Configure ' + name
+              , type     : 'rawlist'
+              , choices
+              , pageSize : choices.length + 1
+            })
+
+            var {robotChoice} = answers
+
+            if (robotChoice == 'done') {
+                break
+            }
+
+            if (robotChoice == 'reset') {
+                settings.robots[name] = {...defaults}
+                await this.saveSettings()
+                break
+            }
+
+            var question = choiceQuestion(choices, robotChoice)
+
+            answers = await this.prompt(question)
+
+            config[question.name] = answers[question.name]
+            config.moveWeight     = +config.moveWeight
+            config.doubleWeight   = +config.doubleWeight
+
+            await this.saveSettings()
+
+            break
+        }
+
+        this.bread.pop()
+
+        return true
+    }
+
+    async robotConfigsMenu() {
+
+        await this.ensureSettingsLoaded()
+
+        this.bread.push('Robots')
+
+        while (true) {
+
+            var choices = this.getRobotConfigsChoices()
+
+            var answers = await this.prompt({
+                name     : 'robotChoice'
+              , message  : 'Configure Robots'
+              , type     : 'rawlist'
+              , choices
+              , pageSize : choices.length + 1
+            })
+
+            var {robotChoice} = answers
+
+            if (robotChoice == 'done') {
+                break
+            }
+
+            if (robotChoice == 'reset') {
+                this.settings.robots = Menu.robotDefaults()
+                await this.saveSettings()
+                continue
+            }
+
+            await this.configureRobotMenu(robotChoice)
+        }
+
+        this.bread.pop()
+
+        return true
+    }
+
+    async joinMenu() {
+
+        this.bread.push('Join')
+
+        // always break
+        while (true) {
+            var answers = await this.prompt(Questions.join)
+            if (answers.matchId) {
+                await this.joinOnlineMatch(answers.matchId)
+            }
+            break
+        }
+
+        this.bread.pop()
 
         return true
     }
@@ -485,6 +670,15 @@ class Menu {
         }
     }
 
+    async promptMatchAdvancedOpts(advancedOpts) {
+        const questions = this.getMatchAdvancedQuestions(advancedOpts)
+        const answers = await this.prompt(questions)
+        if (answers.rollsFile) {
+            answers.rollsFile = tildeHome(answers.rollsFile)
+        }
+        return answers
+    }
+
     async doLogin() {
 
         await this.ensureCredentialsLoaded()
@@ -529,152 +723,6 @@ class Menu {
         }
     }
 
-    async settingsMenu() {
-
-        await this.ensureSettingsLoaded()
-
-        while (true) {
-
-            var choices = this.getSettingsChoices()
-
-            var answers = await this.prompt({
-                name     : 'settingChoice'
-              , message  : 'Settings Menu'
-              , type     : 'rawlist'
-              , choices
-              , pageSize : choices.length + 1
-            })
-
-            var {settingChoice} = answers
-
-            if (settingChoice == 'done') {
-                break
-            }
-
-            if (settingChoice == 'robotConfigs') {
-                await this.robotConfigsMenu()
-                continue
-            }
-
-            var question = choiceQuestion(choices, settingChoice)
-
-            answers = await this.prompt(question)
-
-            var {settings} = this
-
-            settings[question.name] = answers[question.name]
-            settings.delay = +settings.delay
-            if (settings.recordDir) {
-                settings.recordDir = path.resolve(tildeHome(settings.recordDir))
-            }
-
-            if (question.name == 'isCustomRobot' && settings.isCustomRobot) {
-                if (Util.isEmptyObject(settings.robots)) {
-                    this.logger.info('Loading robot defaults')
-                    settings.robots = Menu.robotDefaults()
-                }
-                await this.saveSettings()
-                await this.robotConfigsMenu()
-                continue
-            }
-
-            await this.saveSettings()
-        }
-
-        return true
-    }
-
-    async robotConfigsMenu() {
-
-        await this.ensureSettingsLoaded()
-
-        while (true) {
-
-            var choices = this.getRobotConfigsChoices()
-
-            var answers = await this.prompt({
-                name     : 'robotChoice'
-              , message  : 'Configure Robots'
-              , type     : 'rawlist'
-              , choices
-              , pageSize : choices.length + 1
-            })
-
-            var {robotChoice} = answers
-
-            if (robotChoice == 'done') {
-                break
-            }
-
-            if (robotChoice == 'reset') {
-                this.settings.robots = Menu.robotDefaults()
-                await this.saveSettings()
-                continue
-            }
-
-            await this.configureRobotMenu(robotChoice)
-        }
-    }
-
-    async configureRobotMenu(name) {
-
-        await this.ensureSettingsLoaded()
-
-        const {defaults} = ConfidenceRobot.getClassMeta(name)
-
-        const {settings} = this
-
-        if (Util.isEmptyObject(settings.robots[name])) {
-            settings.robots[name] = {
-                version      : defaults.version
-              , moveWeight   : 0
-              , doubleWeight : 0
-            }
-        }
-
-        const config = settings.robots[name]
-        const choices = this.getConfigureRobotChoices(name)
-
-        var answers = await this.prompt({
-            name     : 'robotChoice'
-          , message  : 'Configure ' + name
-          , type     : 'rawlist'
-          , choices
-          , pageSize : choices.length + 1
-        })
-
-        const {robotChoice} = answers
-
-        if (robotChoice == 'done') {
-            return
-        }
-
-        if (robotChoice == 'reset') {
-            settings.robots[name] = {...defaults}
-            await this.saveSettings()
-            return
-        }
-
-        const question = choiceQuestion(choices, robotChoice)
-
-        answers = await this.prompt(question)
-
-        config[question.name] = answers[question.name]
-        config.moveWeight     = +config.moveWeight
-        config.doubleWeight   = +config.doubleWeight
-
-        await this.saveSettings()
-    }
-
-    async joinMenu() {
-        const answers = await this.prompt(Questions.join)
-        if (!answers.matchId) {
-            return true
-        }
-        await this.joinOnlineMatch(answers.matchId)
-        return true
-    }
-
     async startOnlineMatch(matchOpts) {
         await this._runOnlineMatch(matchOpts, true, null)
     }
@@ -685,6 +733,7 @@ class Menu {
 
     async playRobot(matchOpts) {
         await this.ensureSettingsLoaded()
+        await this.ensureThemesLoaded()
         const match = new Match(matchOpts.total, matchOpts)
         const players = {
             White : new TermPlayer(White, this.settings)
@@ -695,6 +744,7 @@ class Menu {
 
     async playRobots(matchOpts) {
         await this.ensureSettingsLoaded()
+        await this.ensureThemesLoaded()
         const match = new Match(matchOpts.total, matchOpts)
         const players = {
             White : new TermPlayer.Robot(this.newRobot(White), this.settings)
@@ -705,6 +755,7 @@ class Menu {
 
     async playHumans(matchOpts) {
         await this.ensureSettingsLoaded()
+        await this.ensureThemesLoaded()
         const match = new Match(matchOpts.total, matchOpts)
         const players = {
             White : new TermPlayer(White, this.settings)
@@ -716,6 +767,7 @@ class Menu {
     async _runOnlineMatch(matchOpts, isStart, matchId) {
 
         await this.ensureSettingsLoaded()
+        await this.ensureThemesLoaded()
         await this.ensureCredentialsLoaded()
 
         const client = this.newClient(this.credentials, true)
@@ -846,7 +898,7 @@ class Menu {
     }
 
     getPlayChoices() {
-        return Menu.formatChoices([
+        const choices = [
             {
                 value : 'newOnline'
               , name  : 'Create Online Match'
@@ -867,15 +919,18 @@ class Menu {
                 value : 'watchRobots'
               , name  : 'Robot vs Robot'
             }
-          , {
+        ]
+        if (this.bread.length > 1) {
+            choices.push({
                 value : 'back'
               , name  : 'Back'
-            }
-          , {
-                value : 'quit'
-              , name  : 'Quit'
-            }
-        ])
+            })
+        }
+        choices.push({
+              value : 'quit'
+            , name  : 'Quit'
+        })
+        return Menu.formatChoices(choices)
     }
 
     getMatchChoices(isOnline) {
@@ -888,10 +943,12 @@ class Menu {
               , name  : 'Advanced'
             })
         }
-        choices.push({
-            value : 'back'
-          , name  : 'Back'
-        })
+        if (this.bread.length > 1) {
+            choices.push({
+                value : 'back'
+              , name  : 'Back'
+            })
+        }
         choices.push({
             value : 'quit'
           , name  : 'Quit'
@@ -1472,7 +1529,7 @@ class Menu {
           , recordDir     : this.getDefaultRecordDir()
           , fastForced    : false
           , isCustomRobot : false
-          , theme         : 'Default'
+          , theme         : DefaultThemeName
           , matchOpts     : {
                 total      : 1
               , isJacoby   : false

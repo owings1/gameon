@@ -28,17 +28,15 @@ const Base    = require('../lib/command').UserCommand
 class LabCommand extends Base {
 
     async run() {
-        await this.menu.runLab()
+        await this.menu.runLab(this.argv.join(' '))
     }
 }
 
+LabCommand.strict = false
 LabCommand.description = `Run lab experiments`
 
-LabCommand.flags = {
-    cmd: flags.string({
-        char: 'c'
-      , description: 'run command string and exit'
-    })
-}
+LabCommand.args = [
+    {name: 'command...'}
+]
 
 module.exports = LabCommand

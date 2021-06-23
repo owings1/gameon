@@ -1,5 +1,5 @@
 /**
- * gameon - match:join command
+ * gameon - menu command
  *
  * Copyright (C) 2020-2021 Doug Owings
  *
@@ -23,38 +23,17 @@
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 const {flags} = require('@oclif/command')
-const Base    = require('../../lib/command').UserCommand
+const Base    = require('../lib/command').UserCommand
 
-class MatchJoinCommand extends Base {
+class MenuCommand extends Base {
 
     async run() {
-        try {
-            await this.menu.joinMenu()
-        } catch (err) {
-            if (err.isAuthError) {
-                this.logger.warn(err)
-                this.logger.error('Authentication error, go to Account to sign up or log in.')   
-                return
-            }
-            throw err
-        }
+        await this.menu.mainMenu()
     }
 }
 
-MatchJoinCommand.aliases = ['join']
+MenuCommand.description = `Gameon main menu`
 
-MatchJoinCommand.description = `Join an online match`
+MenuCommand.flags = {}
 
-MatchJoinCommand.flags = {
-    id : flags.string({
-        char: 'i'
-      , description: 'match id to join'
-    })
-}
-
-//MatchJoinCommand.args = [
-//    {name: 'matchId'}
-//]
-
-
-module.exports = MatchJoinCommand
+module.exports = MenuCommand
