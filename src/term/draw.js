@@ -686,28 +686,27 @@ class Reporter {
         }
     }
 
-    comeInMove({color, face, isHit}, isShort) {
+    comeInMove({color, dest, isHit}, isShort) {
 
-        const ch = this.inst.theme.text
         const {persp} = this.inst
 
         return this._move(
             color
-          , ch('bar')
-          , OriginPoints[persp][PointOrigins[color][25 - face]]
+          , 'bar'
+          , OriginPoints[persp][dest]
           , isHit
           , isShort
         )
     }
 
-    regularMove({color, origin, face, isHit}, isShort) {
+    regularMove({color, origin, dest, isHit}, isShort) {
 
         const {persp} = this.inst
 
         return this._move(
             color
           , OriginPoints[persp][origin]
-          , OriginPoints[persp][origin + face * Direction[color]]
+          , OriginPoints[persp][dest]
           , isHit
           , isShort
         )
@@ -715,13 +714,12 @@ class Reporter {
 
     bearoffMove({color, origin}, isShort) {
 
-        const ch = this.inst.theme.text
         const {persp} = this.inst
 
         return this._move(
             color
           , OriginPoints[persp][origin]
-          , ch('home')
+          , 'home'
           , false
           , isShort
         )
@@ -742,7 +740,9 @@ class Reporter {
 
         b.add(
             ch(from)
-          , ch(' > ')
+          , ch(Chars.sp)
+          , ch(Chars.arrow.right)
+          , ch(Chars.sp)
           , ch(to)
         )
 

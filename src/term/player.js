@@ -463,10 +463,8 @@ class TermPlayer extends Base {
 
     newRobot(...args) {
         if (!this.opts.isCustomRobot) {
-            console.log('default robot')
             return RobotDelegator.forDefaults(...args)
         }
-        console.log('custom robot')
         return RobotDelegator.forSettings(this.opts.robots, ...args)
     }
 
