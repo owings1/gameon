@@ -44,7 +44,7 @@ const {
 
 const {MatchCanceledError} = Errors
 
-const {merge, sp} = Util
+const {merge, nchars, sp} = Util
 
 class TermPlayer extends Base {
 
@@ -85,7 +85,9 @@ class TermPlayer extends Base {
 
         this.on('gameStart', (game, match, players) => {
 
-            this.term.clear()
+            if (this.opts.termEnabled) {
+                this.logger.writeStdout(nchars(21, '\n'))
+            }
 
             if (this.opponent.isNet) {
                 this.opponent.on('gameCanceled', (err, game) => {

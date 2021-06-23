@@ -218,10 +218,14 @@ class DrawHelper {
     pieceRow(depth, points, cubePart, owner) {
 
         const ch = this.theme.board
-        const b = new StringBuilder
         const {chars} = this
         const pipe = ch.border(chars.pipe)
         const dlbPipe = ch.border(chars.dblPipe)
+
+        const afterStr = this.afterPieceRowString(depth, cubePart, owner)
+        const pad = this.AfterWidth - strlen(afterStr)
+
+        const b = new StringBuilder
 
         b.add(pipe)
 
@@ -235,17 +239,14 @@ class DrawHelper {
                 )
             }
         })
-        b.add(ch(Chars.dblSp))
 
-        b.add(pipe)
-
-        const afterStr = this.afterPieceRowString(depth, cubePart, owner)
-        const pad = this.AfterWidth - strlen(afterStr)
-
-        b.add(afterStr)
-
-        b.add(this.sideLog(pad))
-        b.add(Chars.br)
+        b.add(
+            ch(Chars.dblSp)
+          , pipe
+          , afterStr
+          , this.sideLog(pad)
+          , Chars.br
+        )
 
         return b
     }
