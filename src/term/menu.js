@@ -803,7 +803,7 @@ class Menu {
         }
     }
 
-    async runLab(cmd) {
+    async runLab(cmds) {
         await this.ensureSettingsLoaded()
         await this.ensureThemesLoaded()
         const config = await this.loadLabConfig()
@@ -827,8 +827,11 @@ class Menu {
           , rollsFile
         }
         const helper = new LabHelper(labOpts)
-        if (cmd) {
-            await helper.runCommand(cmd, true)
+        if (cmds && cmds.length) {
+            cmds = Util.castToArray(cmds)
+            for (var i = 0; i < cmds.length; ++i) {
+                await helper.runCommand(cmds[i], i == 0)
+            }
         } else {
             await helper.interactive()
         }
