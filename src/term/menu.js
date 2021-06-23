@@ -884,10 +884,7 @@ class Menu extends EventEmitter {
         if (!settings.isCustomRobot) {
             return this.newDefaultRobot(...args)
         }
-        const configs = Object.entries(settings.robots).map(([name, config]) => {
-            return {name, ...config}
-        })
-        return RobotDelegator.forConfigs(configs, ...args)
+        return RobotDelegator.forSettings(settings.robots, ...args)
     }
 
     newDefaultRobot(...args) {

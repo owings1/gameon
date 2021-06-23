@@ -53,6 +53,7 @@ const {
   , ColorNorm
   , Colors
   , DefaultThemeName
+  , Direction
   , Opponent
   , OriginPoints
   , PointOrigins
@@ -673,19 +674,19 @@ class Reporter {
         )
     }
 
-    move(move) {
+    move(move, isShort) {
         if (move.isRegular) {
-            return this.regularMove(move)
+            return this.regularMove(move, isShort)
         }
         if (move.isComeIn) {
-            return this.comeInMove(move)
+            return this.comeInMove(move, isShort)
         }
         if (move.isBearoff) {
-            return this.bearoffMove(move)
+            return this.bearoffMove(move, isShort)
         }
     }
 
-    comeInMove({color, face, isHit}) {
+    comeInMove({color, face, isHit}, isShort) {
 
         const ch = this.inst.theme.text
         const {persp} = this.inst
@@ -693,24 +694,26 @@ class Reporter {
         return this._move(
             color
           , ch('bar')
-          , face
+          , OriginPoints[persp][PointOrigins[color][25 - face]]
           , isHit
+          , isShort
         )
     }
 
-    regularMove({color, origin, face, isHit}) {
+    regularMove({color, origin, face, isHit}, isShort) {
 
         const {persp} = this.inst
 
         return this._move(
             color
           , OriginPoints[persp][origin]
-          , OriginPoints[persp][origin] + face
+          , OriginPoints[persp][origin + face * Direction[color]]
           , isHit
+          , isShort
         )
     }
 
-    bearoffMove({color, origin}) {
+    bearoffMove({color, origin}, isShort) {
 
         const ch = this.inst.theme.text
         const {persp} = this.inst
@@ -719,19 +722,26 @@ class Reporter {
             color
           , OriginPoints[persp][origin]
           , ch('home')
+          , false
+          , isShort
         )
     }
 
-    _move(color, from, to, isHit) {
+    _move(color, from, to, isHit, isShort) {
 
         const ch = this.inst.theme.text
         const {persp} = this.inst
         const b = new StringBuilder
 
+        if (!isShort) {
+            b.add(
+                ch.piece[color.toLowerCase()](color)
+              , ch(' moves ')
+            )
+        }
+
         b.add(
-            ch.piece[color.toLowerCase()](color)
-          , ch(' moves ')
-          , ch(from)
+            ch(from)
           , ch(' > ')
           , ch(to)
         )

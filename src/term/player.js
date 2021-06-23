@@ -24,15 +24,19 @@
  */
 const Base      = require('../lib/player')
 const Constants = require('../lib/constants')
+const Core      = require('../lib/core')
 const Draw      = require('./draw')
 const Errors    = require('../lib/errors')
 const Logger    = require('../lib/logger')
+const Robot     = require('../robot/player')
 const Themes    = require('./themes')
 const Util      = require('../lib/util')
 
 const inquirer = require('inquirer')
 
+const {Board} = Core
 const {DrawHelper, TermHelper} = Draw
+const {RobotDelegator} = Robot
 
 const {
     Colors
@@ -53,6 +57,9 @@ class TermPlayer extends Base {
             fastForced  : false
           , theme       : DefaultThemeName
           , termEnabled : false
+            // for suggesting
+          , isCustomRobot : false
+          , robots        : null
         }
     }
 
@@ -399,21 +406,68 @@ class TermPlayer extends Base {
     }
 
     async doHiddenAction(action, turn) {
-        const {board} = turn
-        if (action == '_') {
-            this.logger.console.log({
-                board : {
-                    state28     : board.state28()
-                  , stateString : board.stateString()
+
+        const cons = this.logger.console
+
+        switch (action) {
+
+            case '_':
+                cons.log({
+                    board : {
+                        state28     : turn.board.state28()
+                      , stateString : turn.board.stateString()
+                    }
+                })
+                break
+
+            case '_f':
+                this.persp = Opponent[this.persp]
+                if (this.drawer) {
+                    this.drawer.persp = this.persp
                 }
-            })
-        } else if (action == '_f') {
-            this.persp = Opponent[this.persp]
-            if (this.drawer) {
-                this.drawer.persp = this.persp
-            }
-            this.drawBoard()
+                this.drawBoard()
+                break
+
+            case '_r':
+                if (!turn.isRolled) {
+                    this.logger.error('Turn is not rolled')
+                    break
+                }
+                if (turn.isCantMove) {
+                    this.logger.info('No moves available')
+                    break
+                }
+                try {
+                    var robot = this.newRobot(turn.color)
+                    try {
+                        var moves = await robot.getMoves(turn, this.thisGame, this.thisMatch)
+                        var board = Board.fromStateString(turn.startState)
+                        var moveStrs = moves.map(({origin, face}) => {
+                            const move = board.move(turn.color, origin, face)
+                            return this.drawer.reporter.move(move, true).toString()
+                        })
+                        cons.log('Robot says:', moveStrs.join(', '))
+                    } finally {
+                        await robot.destroy()
+                    }
+                } catch (err) {
+                    this.logger.err(err)
+                }
+                break
+
+            default:
+                this.logger.error('Unknown action')
+                break
         }
+    }
+
+    newRobot(...args) {
+        if (!this.opts.isCustomRobot) {
+            console.log('default robot')
+            return RobotDelegator.forDefaults(...args)
+        }
+        console.log('custom robot')
+        return RobotDelegator.forSettings(this.opts.robots, ...args)
     }
 
     getOriginQuestion(origins, canUndo) {

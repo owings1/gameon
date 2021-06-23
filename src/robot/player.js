@@ -34,6 +34,8 @@ const {HasNotRolledError} = Errors
 
 const ZERO_SCORES = 'ZERO_SCORES'
 
+const {KnownRobots} = require('./res/robots.config')
+
 class Robot extends Base {
 
     constructor(...args) {
@@ -80,86 +82,6 @@ class Robot extends Base {
 
     meta() {
         return {...super.meta(), isRobot: this.isRobot}
-    }
-}
-
-const KnownRobots = {
-    BearoffRobot   : {
-        filename : 'bearoff'
-      , defaults : {
-            moveWeight   : 0.6
-          , doubleWeight : 0
-          , version      : 'v1'
-        }   
-    }
-  , FirstTurnRobot : {
-        filename : 'first-turn'
-      , defaults : {
-            moveWeight   : 1.0
-          , doubleWeight : 0
-          , version      : 'v1'
-        }   
-    }
-  , HittingRobot   : {
-        filename    : 'hitting'
-      , isCalibrate : true
-      , defaults : {
-            moveWeight   : 0.4
-          , doubleWeight : 0
-          , version      : 'v1'
-        }   
-    }
-  , OccupyRobot    : {
-        filename    : 'occupy'
-      , isCalibrate : true
-      , defaults : {
-            moveWeight   : 0.45
-          , doubleWeight : 0
-          , version      : 'v1'
-        }   
-    }
-  , PrimeRobot     : {
-        filename    : 'prime'
-      , isCalibrate : true
-      , defaults : {
-            moveWeight   : 0.55
-          , doubleWeight : 0
-          , version      : 'v1'
-        }   
-    }
-  , RandomRobot    : {
-        filename : 'random'
-      , defaults : {
-            moveWeight   : 0
-          , doubleWeight : 0
-          , version      : 'v1'
-        }
-    }
-  , RunningRobot   : {
-        filename    : 'running'
-      , isCalibrate : true
-      , defaults : {
-            moveWeight   : 0.44
-          , doubleWeight : 0
-          , version      : 'v1'
-        }   
-    }
-  , SafetyRobot    : {
-        filename    : 'safety'
-      , isCalibrate : true
-      , defaults : {
-            moveWeight   : 0.5
-          , doubleWeight : 0
-          , version      : 'v2'
-        }   
-    }
-  , DoubleRobot    : {
-        filename   : 'double'
-      , defaults   : {
-            moveWeight   : 0
-          , doubleWeight : 1
-          , version      : 'v1'
-        }
     }
 }
 
@@ -286,6 +208,14 @@ class RobotDelegator extends Robot {
         })
         robot.logger.debug({configs})
         return robot
+    }
+
+    // accept object {name: config}
+    static forSettings(settings, ...args) {
+        const configs = Object.entries(settings).map(([name, config]) => {
+            return {name, ...config}
+        })
+        return RobotDelegator.forConfigs(configs, ...args)
     }
 
     static forDefaults(...args) {
