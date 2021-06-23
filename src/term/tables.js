@@ -23,10 +23,19 @@
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 const Constants = require('../lib/constants')
+const Draw      = require('./draw')
+const Logger    = require('../lib/logger')
 const Themes    = require('./themes')
 const Util      = require('../lib/util')
 
-const {Chars, DefaultThemeName} = Constants
+const inquirer = require('inquirer')
+
+const {
+    Chars
+  , DefaultTermEnabled
+  , DefaultThemeName
+} = Constants
+const {TermHelper} = Draw
 const {
     append
   , castToArray
@@ -36,6 +45,220 @@ const {
   , strlen
   , sumArray
 } = Util
+
+const Questions = {
+    interactive: {
+        name    : 'input'
+      , type    : 'expand'
+      , message : 'Option'
+      , choices : [
+            {
+                key   : 'f'
+              , name  : 'Filter string'
+              , value : 'filterFixed'
+            }
+          , {
+                key   : 'x'
+              , name  : 'Filter regex'
+              , value : 'filterRegex'
+            }
+          , {
+                key   : 's'
+              , name  : 'Sort'
+              , value : 'sort'
+            }
+          , {
+                key   : 'n'
+              , name  : 'Show only n rows'
+              , value : 'top'
+            }
+          , {
+                key   : 'r'
+              , name  : 'Restore table'
+              , value : 'restore'
+            }
+          , {
+                key   : 'q'
+              , name  : 'Quit'
+              , value : 'quit'
+            }
+        ]
+    }
+}
+
+class TableHelper {
+
+    static defaults() {
+        return {
+            indent      : 0
+          , termEnabled : DefaultTermEnabled
+        }
+    }
+
+    constructor(opts) {
+        this.opts = Util.defaults(TableHelper.defaults(), opts)
+        this.term = new TermHelper(this.opts.termEnabled)
+        this.logger = new Logger
+    }
+
+    async interactive(table) {
+        const allData = table.data.slice(0)
+        while (true) {
+            this.printTable(table)
+            var {input} = await this.prompt(Questions.interactive)
+            if (input == 'quit') {
+                break
+            }
+            switch (input) {
+                case 'filterRegex':
+                    var regex = await this.promptFilterRegex()
+                    if (regex === false) {
+                        break
+                    }
+                    table.data = table.data.filter(info =>
+                        table.columns.filter(it => it.isFilter).find(column => {
+                            const value = column.get(info)
+                            if (value == null) {
+                                return false
+                            }
+                            return regex.test(value.toString())
+                        })
+                    )
+                    table.rebuildData()
+                    break
+                case 'filterFixed':
+                    var fixed = await this.promptFilterFixed()
+                    if (fixed === false) {
+                        break
+                    }
+                    table.data = table.data.filter(info =>
+                        table.columns.filter(it => it.isFilter).find(column => {
+                            const value = column.get(info)
+                            if (value == null) {
+                                return false
+                            }
+                            return value.toString().toLowerCase().indexOf(fixed) > -1
+                        })
+                    )
+                    table.rebuildData()
+                    break
+                case 'sort':
+                    var {column, mult} = await this.promptSort(table)
+                    table.data.sort((a, b) => {
+                        const aval = column.get(a)
+                        const bval = column.get(b)
+                        if (aval == null) {
+                            if (bval == null) {
+                                return 0
+                            }
+                            return mult
+                        }
+                        if (bval == null) {
+                            return -1 * mult
+                        }
+                        if (typeof aval == 'number') {
+                            return (aval - bval) * mult
+                        }
+                        return aval.toString().localeCompare(bval.toString()) * mult
+                    })
+                    table.rebuildData()
+                    break
+                case 'top':
+                    var top = await this.promptTopRows()
+                    if (top === false) {
+                        break
+                    }
+                    table.data = table.data.filter((info, i) => i < top)
+                    table.rebuildData()
+                    break
+                case 'restore':
+                    table.data = allData.slice(0)
+                    table.rebuildData()
+                    break
+            }
+        }
+    }
+
+    async promptFilterRegex() {
+        const {regex} = await this.prompt({
+            name     : 'regex'
+          , type     : 'input'
+          , message  : 'Regex'
+          , validate : value => !value.length || Util.errMessage(() => new RegExp(value)) 
+        })
+        if (!regex.length) {
+            return false
+        }
+        return new RegExp(regex, 'i')
+    }
+
+    async promptFilterFixed() {
+        const {fixed} = await this.prompt({
+            name     : 'fixed'
+          , type     : 'input'
+          , message  : 'String'
+        })
+        if (!fixed.length) {
+            return false
+        }
+        return fixed
+    }
+
+    async promptSort(table) {
+        return await this.prompt([
+            {
+                name    : 'column'
+              , message : 'Column'
+              , type    : 'list'
+              , choices : table.columns.map(it => {
+                    return {name: it.name, value: it}
+                })
+            }
+          , {
+                name    : 'mult'
+              , message : 'Direction'
+              , type    : 'list'
+              , choices : [
+                  {name: 'asc', value: 1},
+                  {name: 'desc', value: -1}
+              ]
+            }
+        ])
+    }
+
+    async promptTopRows() {
+        const {top} = await this.prompt({
+            name     : 'top'
+          , type     : 'input'
+          , message  : 'Number of rows'
+          , validate : value => !value.length || !isNaN(+value) || 'Invalid number'
+        })
+        if (!top.length) {
+            return false
+        }
+        if (top < 0) {
+            return Infinity
+        }
+        return +top
+    }
+
+    printTable(table) {
+        table.lines.forEach(line => this.println(line))
+    }
+
+    println(line) {
+        const {logger} = this
+        logger.writeStdout(''.padEnd(this.opts.indent, ' '))
+        logger.writeStdout(line)
+        logger.writeStdout('\n')
+    }
+
+    prompt(questions) {
+        this._prompt = inquirer.prompt(castToArray(questions))
+        return this._prompt
+    }
+
+}
 
 class Table {
 
@@ -84,6 +307,14 @@ class Table {
 
         this.calculatePost()
 
+        return this
+    }
+
+    rebuildData() {
+        this.buildRows()
+        this.parts.rows = this.makePartsRows()
+        this.buildStrings()
+        this.buildLines()
         return this
     }
 
@@ -317,9 +548,10 @@ class Table {
             column.name = col
         }
         column = {
-            align : 'left'
-          , title : column.name
-          , key   : column.name
+            align    : 'left'
+          , title    : column.name
+          , key      : column.name
+          , isFilter : true
           , ...column
         }
         if (!column.get) {
@@ -334,4 +566,5 @@ class Table {
 
 module.exports = {
     Table
+  , TableHelper
 }

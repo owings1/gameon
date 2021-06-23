@@ -28,13 +28,14 @@ const Core        = require('../lib/core')
 const Errors      = require('../lib/errors')
 const Logger      = require('../lib/logger')
 const Robot       = require('./player')
-const {Table}     = require('../term/tables')
+const Tables      = require('../term/tables')
 const Util        = require('../lib/util')
 
 const fs    = require('fs')
 const fse   = require('fs-extra')
 const path  = require('path')
 
+const {Table, TableHelper} = Tables
 const {Timer}   = Util
 const {resolve} = path
 
@@ -85,10 +86,11 @@ const Columns = {
 
   , elapsed: {
         def : {
-            name   : 'elapsed'
-          , title  : 'Elapsed (ms)'
-          , align  : 'right'
-          , format : f_elapsed
+            name     : 'elapsed'
+          , title    : 'Elapsed (ms)'
+          , align    : 'right'
+          , format   : f_elapsed
+          , isFilter : false
         }
       , sortable   : true
       , defaultDir : 'desc'
@@ -99,10 +101,11 @@ const Columns = {
 
   , average: {
         def : {
-            name   : 'average'
-          , title  : 'Average (ms)'
-          , align  : 'right'
-          , format : value => value == null ? '' : value.toFixed(4) + ' ms'
+            name     : 'average'
+          , title    : 'Average (ms)'
+          , align    : 'right'
+          , format   : value => value == null ? '' : value.toFixed(4) + ' ms'
+          , isFilter : false
         }
       , sortable   : true
       , defaultDir : 'desc'
@@ -113,10 +116,11 @@ const Columns = {
 
   , count: {
         def : {
-            name   : 'count'
-          , title  : 'Count'
-          , align  : 'right'
-          , format : f_round
+            name     : 'count'
+          , title    : 'Count'
+          , align    : 'right'
+          , format   : f_round
+          , isFilter : false
         }
       , sortable   : true
       , defaultDir : 'desc'
@@ -127,10 +131,11 @@ const Columns = {
 
   , match: {
         def : {
-            name   : 'match'
-          , title  : 'Match (avg)'
-          , align  : 'right'
-          , format : f_round
+            name     : 'match'
+          , title    : 'Match (avg)'
+          , align    : 'right'
+          , format   : f_round
+          , isFilter : false
         }
       , sortable   : true
       , defaultDir : 'desc'
@@ -141,10 +146,11 @@ const Columns = {
 
   , game: {
         def : {
-            name   : 'game'
-          , title  : 'Game (avg)'
-          , align  : 'right'
-          , format : f_round
+            name     : 'game'
+          , title    : 'Game (avg)'
+          , align    : 'right'
+          , format   : f_round
+          , isFilter : false
         }
       , sortable   : true
       , defaultDir : 'desc'
@@ -155,10 +161,11 @@ const Columns = {
 
   , turn : {
         def : {
-            name   : 'turn'
-          , title  : 'Turn (avg)'
-          , align  : 'right'
-          , format : f_round
+            name     : 'turn'
+          , title    : 'Turn (avg)'
+          , align    : 'right'
+          , format   : f_round
+          , isFilter : false
         }
       , sortable   : true
       , defaultDir : 'desc'
@@ -181,6 +188,7 @@ class ProfileHelper {
           , numMatches   : 500
           , sortBy       : ['elapsed', 'count', 'name'].join(',')
           , innerBorders : false
+          , interactive  : false
           , title        : 'Profile Results'
           , breadthTrees : false
           , gaugeRegex   : null
@@ -320,7 +328,12 @@ class ProfileHelper {
             const data = this.buildData(Profiler, summary, filters)
             const table = this.buildTable(data, summary)
 
-            this.logTable(table)
+            if (this.opts.interactive) {
+                const helper = new TableHelper({termEnabled: true, ...this.opts})
+                await helper.interactive(table)
+            } else {
+                this.logTable(table)
+            }
 
         } finally {
             await Util.destroyAll(players)

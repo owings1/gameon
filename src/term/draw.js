@@ -829,49 +829,52 @@ class TermHelper {
 
     constructor(enabled) {
         this.enabled = enabled
+        this.term = term
     }
 
     clear(...args) {
         if (!this.enabled) {
             return
         }
-        term.clear(...args)
-    }
-
-    column(...args) {
-        if (!this.enabled) {
-            return
-        }
-        term.column(...args)
+        this.term.clear(...args)
     }
 
     eraseDisplayBelow(...args) {
         if (!this.enabled) {
             return
         }
-        term.eraseDisplayBelow(...args)
-    }
-
-    async getCursorLocation(...args) {
-        if (!this.enabled) {
-            return {x: 1, y: 1}
-        }
-        return term.getCursorLocation(...args)
+        this.term.eraseDisplayBelow(...args)
     }
 
     moveTo(...args) {
         if (!this.enabled) {
             return
         }
-        term.moveTo(...args)
+        this.term.moveTo(...args)
+    }
+
+    /*
+    async getCursorLocation(...args) {
+        if (!this.enabled) {
+            return {x: 1, y: 1}
+        }
+        return this.term.getCursorLocation(...args)
+    }
+
+    column(...args) {
+        if (!this.enabled) {
+            return
+        }
+        this.term.column(...args)
     }
 
     up(...args) {
         if (!this.enabled) {
             return
         }
-        term.up(...args)
+        this.term.up(...args)
     }
+    */
 }
 
 module.exports = {

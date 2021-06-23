@@ -42,6 +42,7 @@ class RobotProfileCommand extends Base {
           , gaugeRegex   : this.flags.filter
           , innerBorders : this.flags.inner
           , theme        : this.Settings.theme
+          , interactive  : this.flags.interactive
         }
         this.helper = this.helper || new Helper(this.opts)
     }
@@ -90,6 +91,10 @@ RobotProfileCommand.flags = {
   , inner: flags.boolean({
         char        : 'i'
       , description : 'add inner borders'
+    })
+  , interactive: flags.boolean({
+        char        : 'e'
+      , description : 'interactive mode'
     })
 }
 
