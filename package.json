@@ -7,7 +7,7 @@
     "postpack": "rm -f oclif.manifest.json",
     "lint": "eslint .",
     "prepack": "oclif-dev manifest && oclif-dev readme",
-    "test": "nyc --reporter=text-summary mocha test/test.js && nyc report --reporter=lcov",
+    "test": "GAMEON_TEST=1 nyc --reporter=text-summary mocha test/test.js && nyc report --reporter=lcov",
     "version": "oclif-dev readme && git add README.md",
     "install": "node scripts/install.js",
     "mac": "oclif-dev pack:macos",
@@ -36,6 +36,7 @@
     "node-fetch": "^2.6.1",
     "prom-client": "^13.1.0",
     "strip-ansi": "^6.0.0",
+    "terminal-kit": "^2.1.5",
     "uuid": "^8.3.1",
     "websocket": "^1.0.34"
   },

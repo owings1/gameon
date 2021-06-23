@@ -58,6 +58,7 @@ const {homeTilde, padStart, sp, tildeHome} = Util
 
 const {
     DefaultServerUrl
+  , DefaultTermEnabled
   , DefaultThemeName
   , ObsoleteServerUrls
   , Red
@@ -840,7 +841,7 @@ class Menu extends EventEmitter {
             var persp = White
             var rollsFile = null
         }
-        const {theme, isCustomRobot, robots, recordDir} = this.settings
+        const {theme, isCustomRobot, robots, recordDir, termEnabled} = this.settings
         const labOpts = {
             board
           , persp
@@ -849,6 +850,7 @@ class Menu extends EventEmitter {
           , robots
           , recordDir
           , rollsFile
+          , termEnabled
         }
         const helper = new LabHelper(labOpts)
         if (cmds && cmds.length) {
@@ -1149,6 +1151,16 @@ class Menu extends EventEmitter {
                   , type    : 'list'
                   , default : () => this.settings.theme
                   , choices : () => ThemeHelper.list()
+                }
+            }
+          , {
+                value  : 'termEnabled'
+              , name   : 'Term Cursoring'
+              , question : {
+                    name    : 'termEnabled'
+                  , message : 'Enable term cursoring'
+                  , type    : 'confirm'
+                  , default : () => this.settings.termEnabled
                 }
             }
           , {
@@ -1550,6 +1562,7 @@ class Menu extends EventEmitter {
           , fastForced    : false
           , isCustomRobot : false
           , theme         : DefaultThemeName
+          , termEnabled   : DefaultTermEnabled
           , matchOpts     : {
                 total      : 1
               , isJacoby   : false

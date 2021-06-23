@@ -24,13 +24,15 @@
  */
 const Base         = require('../lib/player')
 const Constants    = require('../lib/constants')
-const {DrawHelper} = require('./draw')
+const Draw         = require('./draw')
 const Errors       = require('../lib/errors')
 const Logger       = require('../lib/logger')
 const Util         = require('../lib/util')
 
 const chalk    = require('chalk')
 const inquirer = require('inquirer')
+
+const {DrawHelper, TermHelper} = Draw
 
 const {
     Colors
@@ -48,8 +50,9 @@ class TermPlayer extends Base {
 
     static defaults() {
         return {
-            fastForced: false
-          , theme     : DefaultThemeName
+            fastForced  : false
+          , theme       : DefaultThemeName
+          , termEnabled : false
         }
     }
 
@@ -58,6 +61,7 @@ class TermPlayer extends Base {
         super(color)
 
         this.opts = Util.defaults(TermPlayer.defaults(), opts)
+        this.term = new TermHelper(this.opts.termEnabled)
 
         this.logger = new Logger
         this.isTerm = true
@@ -80,6 +84,8 @@ class TermPlayer extends Base {
         })
 
         this.on('gameStart', (game, match, players) => {
+
+            this.term.clear()
 
             if (this.opponent.isNet) {
                 this.opponent.on('gameCanceled', (err, game) => {
@@ -445,6 +451,8 @@ class TermPlayer extends Base {
         if (!this.drawer) {
             return
         }
+        this.term.moveTo(1, 1)
+        this.term.eraseDisplayBelow()
         this.logger.writeStdout(this.drawer.getString())
     }
 
@@ -513,8 +521,8 @@ class TermPlayer extends Base {
 class TermRobot extends TermPlayer {
 
     constructor(robot, opts) {
-        super(robot.color)
-        this.opts = merge({delay: 0.5}, opts)
+        super(robot.color, opts)
+        merge(this.opts, {delay: 0.5}, opts)
         this.isRobot = true
         this.robot = robot
     }

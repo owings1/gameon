@@ -31,6 +31,7 @@ const Themes      = require('./themes')
 const Util        = require('../lib/util')
 
 const inquirer = require('inquirer')
+const term     = require('terminal-kit').terminal
 
 const {RobotDelegator} = Robot
 const {StringBuilder}  = Util
@@ -100,6 +101,7 @@ class DrawHelper {
         this.opersp = Opponent[this.persp]
 
         this.columns     = Math.max(this.logger.getStdout().columns, 0)
+        this.rows        = Math.max(this.logger.getStdout().rows, 0)
         this.maxLogWidth = Math.max(0, this.columns - this.BoardWidth - this.AfterWidth - 1)
         this.maxLogWidth = Math.min(this.maxLogWidth, 36)
 
@@ -818,8 +820,57 @@ class Reporter {
     }
 }
 
+class TermHelper {
+
+    constructor(enabled) {
+        this.enabled = enabled
+    }
+
+    clear(...args) {
+        if (!this.enabled) {
+            return
+        }
+        term.clear(...args)
+    }
+
+    column(...args) {
+        if (!this.enabled) {
+            return
+        }
+        term.column(...args)
+    }
+
+    eraseDisplayBelow(...args) {
+        if (!this.enabled) {
+            return
+        }
+        term.eraseDisplayBelow(...args)
+    }
+
+    async getCursorLocation(...args) {
+        if (!this.enabled) {
+            return {x: 1, y: 1}
+        }
+        return term.getCursorLocation(...args)
+    }
+
+    moveTo(...args) {
+        if (!this.enabled) {
+            return
+        }
+        term.moveTo(...args)
+    }
+
+    up(...args) {
+        if (!this.enabled) {
+            return
+        }
+        term.up(...args)
+    }
+}
 
 module.exports = {
     DrawHelper
   , Reporter
+  , TermHelper
 }

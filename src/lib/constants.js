@@ -185,6 +185,7 @@ const ObsoleteServerUrls = [
   , 'https://bg.dougowings.net'
 ]
 
+const DefaultTermEnabled = !process.env.GAMEON_TEST
 const DefaultThemeName = 'Default'
 
 const Constants = {

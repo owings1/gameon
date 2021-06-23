@@ -25,7 +25,7 @@
 const Constants    = require('../lib/constants')
 const Coordinator  = require('../lib/coordinator')
 const Core         = require('../lib/core')
-const {DrawHelper} = require('./draw')
+const Draw         = require('./draw')
 const Logger       = require('../lib/logger')
 const Robot        = require('../robot/player')
 const Util         = require('../lib/util')
@@ -38,6 +38,7 @@ const fse          = require('fs-extra')
 const inquirer     = require('inquirer')
 const path         = require('path')
 
+const {DrawHelper, TermHelper} = Draw
 const {RobotDelegator} = Robot
 const {StringBuilder}  = Util
 
@@ -85,11 +86,13 @@ class LabHelper {
         this.drawer = DrawHelper.forBoard(this.board, this.persp, this.logs, this.opts.theme)
         this.stateHistory = []
         this.fetchLastRecords = null
+        this.canErase = false
+        this.term = new TermHelper(!!this.opts.termEnabled)
     }
 
     async interactive() {
 
-        this.draw(true)
+        await this.draw(true)
 
         while (true) {
 
@@ -104,7 +107,8 @@ class LabHelper {
             var inputLc = input.toLowerCase()
 
             if (!input) {
-                this.draw(true)
+                await this.draw(true)
+                this.canErase = true
                 continue
             }
 
@@ -124,7 +128,7 @@ class LabHelper {
     async runCommand(input, isPrintFirst) {
 
         if (isPrintFirst) {
-            this.draw(true)
+            await this.draw(true)
         }
 
         var inputLc = input.toLowerCase()
@@ -140,46 +144,50 @@ class LabHelper {
 
             case 's':
                 await this.setStateCommand(params.join(' ').trim())
-                this.draw(true)
+                await this.draw(true)
                 break
 
             case 'd':
                 await this.diceCommand(false, params.join(' ').trim())
+                this.canErase = false
                 break
 
             case 'D':
                 await this.diceCommand(true, params.join(' ').trim())
+                this.canErase = false
                 break
 
             case 'f':
                 this.persp = Opponent[this.persp]
                 this.logs.push(sp('Perspective', this.ccolor(this.persp)))
                 this.drawer.persp = this.persp
-                this.draw(true)
+                await this.draw(true)
                 break
 
             case 'F':
                 this.board.setStateString(this.board.inverted().state28())
                 this.logs.push('Invert board')
-                this.draw(true)
+                await this.draw(true)
                 break
 
             case 'p':
                 await this.placeCommand()
-                this.draw(true)
+                await this.draw(true)
                 break
 
             case 'r':
                 await this.rolloutCommand(params.join(' ').trim())
+                this.canErase = false
                 break
 
             case 'u':
                 await this.undoCommand()
-                this.draw(true)
+                await this.draw(true)
                 break
 
             case 'w':
                 await this.writeLastResult()
+                this.canErase = false
                 break
 
             case 'x':
@@ -925,10 +933,15 @@ class LabHelper {
         return ch.piece[color.toLowerCase()](color)
     }
 
-    draw(isPrint) {
-        const {drawer} = this
-        const output = drawer.getString()
+    async draw(isPrint) {
+        const output = this.drawer.getString()
         if (isPrint) {
+            if (this.canErase) {
+                this.term.moveTo(1, 1)
+                this.term.eraseDisplayBelow()
+            } else {
+                this.term.clear()
+            }
             this.logger.writeStdout(output)
         }
         return output
