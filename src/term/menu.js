@@ -1366,16 +1366,16 @@ class Menu extends EventEmitter {
 
     newClient(...args) {
         if (typeof args[0] == 'object') {
-            const credentials = args[0]
+            var credentials = args[0]
             const isDecrypt = !!args[1]
-            var {serverUrl, username, password} = credentials
             if (isDecrypt) {
-                password = this.decryptPassword(password)
+                credentials.password = this.decryptPassword(credentials.password)
             }
         } else {
             var [serverUrl, username, password] = args
+            var credentials = {serverUrl, username, password}
         }
-        const client = new Client(serverUrl, username, password)
+        const client = new Client(credentials)
         client.logger.loglevel = this.logger.loglevel
         return client
     }

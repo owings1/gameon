@@ -47,9 +47,15 @@ const {
 
 class Client extends EventEmitter {
 
-    constructor(serverUrl, username, password) {
+    constructor(...args) {
 
         super()
+
+        if (typeof args[0] == 'object') {
+            var {serverUrl, username, password} = args[0]
+        } else {
+            var [serverUrl, username, password] = args
+        }
 
         this.serverSocketUrl = httpToWs(serverUrl)
         this.serverHttpUrl = stripTrailingSlash(wsToHttp(serverUrl))
