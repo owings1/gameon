@@ -29,7 +29,11 @@ class PlayJoinCommand extends Base {
 
     async run() {
         try {
-            await this.menu.joinMenu()
+            if (this.flags.id) {
+                await this.menu.joinOnlineMatch(this.flags.id)
+            } else {
+                await this.menu.joinMenu()
+            }
         } catch (err) {
             if (err.isAuthError) {
                 this.logger.warn(err)

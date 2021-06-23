@@ -28,12 +28,21 @@ const Base    = require('../../lib/command').UserCommand
 class PlayRobotCommand extends Base {
 
     async run() {
-        await this.menu.matchMenu(false, true, false)
+        if (this.flags.start) {
+            await this.menu.playRobot(this.Settings.matchOpts)
+        } else {
+            await this.menu.matchMenu(false, true, false)
+        }
     }
 }
 
 PlayRobotCommand.description = `Play robot`
 
-PlayRobotCommand.flags = {}
+PlayRobotCommand.flags = {
+    start : flags.boolean({
+        char: 's'
+      , description: 'start now with previous match settings'
+    })
+}
 
 module.exports = PlayRobotCommand

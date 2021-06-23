@@ -28,7 +28,11 @@ const Base    = require('../../lib/command').UserCommand
 class PlayHumansCommand extends Base {
 
     async run() {
-        await this.menu.matchMenu(false, false, false)
+        if (this.flags.start) {
+            await this.menu.playHumans(this.Settings.matchOpts)
+        } else {
+            await this.menu.matchMenu(false, false, false)
+        }
     }
 }
 
@@ -41,6 +45,11 @@ PlayHumansCommand.aliases = [
 ]
 PlayHumansCommand.description = `Play humans`
 
-PlayHumansCommand.flags = {}
+PlayHumansCommand.flags = {
+    start : flags.boolean({
+        char: 's'
+      , description: 'start now with previous match settings'
+    })
+}
 
 module.exports = PlayHumansCommand

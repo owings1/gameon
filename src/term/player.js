@@ -26,6 +26,7 @@ const Base         = require('../lib/player')
 const Constants    = require('../lib/constants')
 const {DrawHelper} = require('./draw')
 const Errors       = require('../lib/errors')
+const Logger       = require('../lib/logger')
 const Util         = require('../lib/util')
 
 const chalk    = require('chalk')
@@ -33,6 +34,7 @@ const inquirer = require('inquirer')
 
 const {
     Colors
+  , DefaultThemeName
   , Opponent
   , OriginPoints
   , PointOrigins
@@ -47,7 +49,7 @@ class TermPlayer extends Base {
     static defaults() {
         return {
             fastForced: false
-          , theme     : 'Default'
+          , theme     : DefaultThemeName
         }
     }
 
@@ -57,6 +59,7 @@ class TermPlayer extends Base {
 
         this.opts = Util.defaults(TermPlayer.defaults(), opts)
 
+        this.logger = new Logger
         this.isTerm = true
         this.logs = []
 
@@ -68,7 +71,21 @@ class TermPlayer extends Base {
 
     loadHandlers() {
 
+        this.on('matchStart', match => {
+            if (this.opponent.isNet) {
+                this.opponent.on('matchCanceled', (err, match) => {
+                    this.cancelPrompt(err)
+                })
+            }
+        })
+
         this.on('gameStart', (game, match, players) => {
+
+            if (this.opponent.isNet) {
+                this.opponent.on('gameCanceled', (err, game) => {
+                    this.cancelPrompt(err)
+                })
+            }
 
             this.isDualTerm = this.opponent.isTerm
             this.isDualRobot = this.isRobot && this.opponent.isRobot
@@ -163,6 +180,14 @@ class TermPlayer extends Base {
             if (!this.isDualTerm || winner == this.color) {
                 this.drawBoard()
             }
+        })
+
+        this.on('gameCanceled', (err, game) => {
+            this.cancelPrompt(err)
+        })
+
+        this.on('matchCanceled', (err, match) => {
+            this.cancelPrompt(err)
         })
     }
 
@@ -435,7 +460,30 @@ class TermPlayer extends Base {
 
     prompt(questions) {
         this._prompt = inquirer.prompt(Util.castToArray(questions))
-        return this._prompt
+        return new Promise((resolve, reject) => {
+            this.promptReject = reject
+            this._prompt.then(answers => {
+                this.promptReject = null
+                resolve(answers)
+            }).catch(err => {
+                this.promptReject = null
+                reject(err)
+            })
+        })
+    }
+
+    cancelPrompt(err) {
+        if (this.promptReject) {
+            if (this.opponent && this.opponent.isNet) {
+                // print an extra line
+                this.logger.console.log()
+            }
+            this.promptReject(err)
+            this.promptReject = null
+        }
+        if (this._prompt && this._prompt.ui) {
+            this._prompt.ui.close()
+        }
     }
 
     cchalk(color, ...args) {

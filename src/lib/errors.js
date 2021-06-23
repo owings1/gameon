@@ -34,6 +34,14 @@ class GameError extends Error {
     }
 }
 
+class ClientError extends Error {
+    constructor(...args) {
+        super(...args)
+        this.name = this.constructor.name
+        this.isClientError = true
+    }
+}
+
 class DependencyError extends Error {
     constructor(...args) {
         super(...args)
@@ -91,6 +99,8 @@ class RequestError extends GameError {
     }
 }
 
+class ConnectionClosedError extends ClientError {}
+
 class CircularDependencyError   extends DependencyError {}
 class MissingDependencyError    extends DependencyError {}
 class UnresolvedDependencyError extends DependencyError {}
@@ -101,6 +111,7 @@ class MatchCanceledError  extends GameError {}
 class NotImplementedError extends GameError {}
 
 class ResetKeyNotEnteredError extends MenuError {}
+class WaitingAbortedError     extends MenuError {}
 
 class IncompatibleKeysError extends ArgumentError {}
 class InvalidColorError     extends ArgumentError {}
@@ -150,6 +161,8 @@ module.exports = {
     AlreadyRolledError
   , ArgumentError
   , CircularDependencyError
+  , ClientError
+  , ConnectionClosedError
   , DependencyError
   , DoubleNotAllowedError
   , GameAlreadyStartedError
@@ -201,4 +214,5 @@ module.exports = {
   , TurnNotFinishedError
   , UnresolvedDependencyError
   , ValidateError
+  , WaitingAbortedError
 }

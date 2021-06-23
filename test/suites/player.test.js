@@ -93,7 +93,7 @@ describe('events', () => {
 
         it('should set thisMatch to match', () => {
             const match = new Match(1)
-            players.White.emit('matchStart', match)
+            players.White.emit('matchStart', match, players)
             expect(players.White.thisMatch).to.equal(match)
         })
     })

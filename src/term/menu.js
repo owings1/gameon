@@ -52,6 +52,8 @@ const inquirer = require('inquirer')
 const os       = require('os')
 const path     = require('path')
 
+const {EventEmitter} = require('events')
+
 const {homeTilde, padStart, sp, tildeHome} = Util
 
 const {
@@ -64,9 +66,11 @@ const {
 } = Constants
 
 const {
-    MenuError
+    MatchCanceledError
+  , MenuError
   , RequestError
   , ResetKeyNotEnteredError
+  , WaitingAbortedError
 } = Errors
 
 function getDiffChalk(a, b) {
@@ -97,9 +101,11 @@ const Questions = {
     ]
 }
 
-class Menu {
+class Menu extends EventEmitter {
 
     constructor(configDir) {
+
+        super()
 
         this.logger = new Logger
         this.configDir = configDir
@@ -775,7 +781,13 @@ class Menu {
         try {
             await client.connect()
             const promise = isStart ? client.createMatch(matchOpts) : client.joinMatch(matchId)
+            this.captureInterrupt = () => {
+                this.logger.warn('Aborting')
+                client.cancelWaiting(new WaitingAbortedError)
+                return true
+            }
             const match = await promise
+            this.captureInterrupt = null
             const termPlayer = new TermPlayer(isStart ? White : Red, this.settings)
             const netPlayer  = new NetPlayer(client, isStart ? Red : White)
             const players = {
@@ -783,7 +795,13 @@ class Menu {
               , Red   : isStart ? netPlayer  : termPlayer
             }
             await this.runMatch(match, players)
+        } catch (err) {
+            if (err.name == 'WaitingAbortedError') {
+                return
+            }
+            throw err
         } finally {
+            this.captureInterrupt = null
             await client.close()
         }
     }
@@ -791,6 +809,11 @@ class Menu {
     async runMatch(match, players) {
         try {
             const coordinator = this.newCoordinator()
+            this.captureInterrupt = () => {
+                this.logger.warn('Canceling')
+                coordinator.cancelMatch(match, players, new MatchCanceledError('Player quit'))
+                return true
+            }
             await coordinator.runMatch(match, players.White, players.Red)
         } catch (err) {
             if (err.name == 'MatchCanceledError') {
@@ -799,6 +822,7 @@ class Menu {
                 throw err
             }
         } finally {
+            this.captureInterrupt = null
             await Util.destroyAll(players)
         }
     }

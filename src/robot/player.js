@@ -26,6 +26,7 @@ const Constants = require('../lib/constants')
 const Core      = require('../lib/core')
 const Base      = require('../lib/player')
 const Errors    = require('../lib/errors')
+const Logger    = require('../lib/logger')
 const Util      = require('../lib/util')
 
 const {Profiler} = Core
@@ -38,6 +39,7 @@ class Robot extends Base {
     constructor(...args) {
         super(...args)
         this.isRobot = true
+        this.logger = new Logger
     }
 
     async playRoll(turn, game, match) {

@@ -1,5 +1,5 @@
 /**
- * gameon - play:online command
+ * gameon - play:robots command
  *
  * Copyright (C) 2020-2021 Doug Owings
  *
@@ -25,37 +25,24 @@
 const {flags} = require('@oclif/command')
 const Base    = require('../../lib/command').UserCommand
 
-class PlayOnlineCommand extends Base {
+class PlayRobotsCommand extends Base {
 
     async run() {
-        try {
-            if (this.flags.start) {
-                await this.menu.startOnlineMatch(this.Settings.matchOpts)
-            } else {
-                await this.menu.matchMenu(true, false, false)
-            }
-        } catch (err) {
-            if (err.isAuthError) {
-                this.logger.warn(err)
-                this.logger.error('Authentication error, go to Account to sign up or log in.')   
-                return
-            }
-            throw err
+        if (this.flags.start) {
+            await this.menu.playRobots(this.Settings.matchOpts)
+        } else {
+            await this.menu.matchMenu(false, false, true)
         }
     }
 }
 
-PlayOnlineCommand.aliases = [
-    'online'
-  , 'start'
-]
-PlayOnlineCommand.description = `Start an online match`
+PlayRobotsCommand.description = `Play robots`
 
-PlayOnlineCommand.flags = {
+PlayRobotsCommand.flags = {
     start : flags.boolean({
         char: 's'
       , description: 'start now with previous match settings'
     })
 }
 
-module.exports = PlayOnlineCommand
+module.exports = PlayRobotsCommand

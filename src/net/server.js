@@ -206,6 +206,7 @@ class Server {
                 this.cancelMatchId(conn.matchId, 'Peer disconnected')
                 delete server.conns[connId]
                 metrics.connections.labels().set(Object.keys(server.conns).length)
+                this.logActive()
             })
 
             conn.on('message', msg => {
@@ -531,7 +532,6 @@ class Server {
             this.sendMessage(Object.values(match.conns), {action: 'matchCanceled', reason})
             delete this.matches[id]
             metrics.matchesInProgress.labels().set(Object.keys(this.matches).length)
-            this.logActive()
         }
     }
 

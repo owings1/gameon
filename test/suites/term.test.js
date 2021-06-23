@@ -481,7 +481,7 @@ describe('Menu', () => {
 
         it('should get call runMatch with mock method and mock client', async () => {
             var isCalled = false
-            menu.newClient = () => { return {connect : noop, joinMatch: noop, close: noop}}
+            menu.newClient = () => { return {connect : noop, joinMatch: noop, close: noop, on: noop}}
             menu.newCoordinator = () => { return {runMatch: () => isCalled = true}}
             await menu.joinOnlineMatch('asdfasdf')
             expect(isCalled).to.equal(true)
@@ -1201,7 +1201,7 @@ describe('Menu', () => {
 
         it('should get call runMatch with mock method and mock client', async () => {
             var isCalled = false
-            menu.newClient = () => { return {connect : noop, createMatch: noop, close: noop}}
+            menu.newClient = () => { return {connect : noop, createMatch: noop, close: noop, on: noop}}
             menu.newCoordinator = () => { return {runMatch: () => isCalled = true}}
             await menu.startOnlineMatch(menu.settings.matchOpts)
             expect(isCalled).to.equal(true)
@@ -1519,7 +1519,10 @@ describe('TermPlayer', () => {
 
         it('should call inquirer.prompt with array and set player._prompt', () => {
             var q
-            inquirer.prompt = questions => q = questions
+            inquirer.prompt = questions => {
+                q = questions
+                return new Promise(() => {})
+            }
             player.prompt()
             expect(Array.isArray(q)).to.equal(true)
         })

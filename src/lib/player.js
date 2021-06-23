@@ -25,7 +25,6 @@
 const Constants = require('./constants')
 const Core      = require('./core')
 const Errors    = require('./errors')
-const Logger    = require('./logger')
 
 const {EventEmitter} = require('events')
 
@@ -40,11 +39,13 @@ class Player extends EventEmitter {
         super()
 
         this.name   = this.constructor.name
-        this.logger = new Logger
         this.color  = color
         this.holds  = []
 
-        this.on('matchStart', match => this.thisMatch = match)
+        this.on('matchStart', (match, players) => {
+            this.thisMatch = match
+            this.opponent = players[Opponent[this.color]]
+        })
         this.on('gameStart', (game, match, players) => {
             this.thisGame = game
             this.opponent = players[Opponent[this.color]]

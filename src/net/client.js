@@ -22,41 +22,47 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-const Constants       = require('../lib/constants')
-const Core            = require('../lib/core')
-const Logger          = require('../lib/logger')
-const Util            = require('../lib/util')
-const WebSocketClient = require('websocket').client
-
-const WebSocket = require('ws')
-//const ReconnectingWebSocket = require('reconnecting-websocket')
-
-
-const {merge} = Util
+const Constants = require('../lib/constants')
+const Core      = require('../lib/core')
+const Errors    = require('../lib/errors')
+const Logger    = require('../lib/logger')
+const Util      = require('../lib/util')
+const WsClient  = require('websocket').client
 
 const crypto = require('crypto')
 const fetch  = require('node-fetch')
 
+const {EventEmitter} = require('events')
+
 const {White, Red} = Constants
 const {Match} = Core
 
-const NewMode = false
+const {
+    httpToWs
+  , stripLeadingSlash
+  , stripTrailingSlash
+  , uuid
+  , wsToHttp
+} = Util
 
-class Client {
+class Client extends EventEmitter {
 
     constructor(serverUrl, username, password) {
-        this.logger = new Logger
-        this.serverSocketUrl = Util.httpToWs(serverUrl)
-        this.serverHttpUrl = Util.stripTrailingSlash(Util.wsToHttp(serverUrl))
+
+        super()
+
+        this.serverSocketUrl = httpToWs(serverUrl)
+        this.serverHttpUrl = stripTrailingSlash(wsToHttp(serverUrl))
         this.username = username
         this.password = password
+
+        this.logger = new Logger
+        this.socketClient = new WsClient
+        this.secret = Client.generateSecret()
+
         this.token = null
-        if (!NewMode) {
-            this.socketClient = new WebSocketClient
-        }
         this.conn = null
         this.isHandshake = null
-        this.secret = Client.generateSecret()
         this.match = null
         this.matchId = null
     }
@@ -68,65 +74,27 @@ class Client {
         }
 
         await new Promise((resolve, reject) => {
-            /*
-            this.rsc = new ReconnectingWebSocket(this.serverSocketUrl, [], {WebSocket: require('ws')})
-            this.rsc.addEventListener('error', err => {
-                console.log('rsc error', err)
+            this.socketClient.on('connectFailed', err => {
+                reject(err)
             })
-            this.rsc.addEventListener('open', event => {
-                console.log('rsc open')
-            })
-            this.rsc.addEventListener('message', msg => {
-                const data = JSON.parse(msg.data)
-                if (this.messageResolve) {
-                    this.messageResolve(data)
-                    this.messageResolve = null
-                } else {
-                    console.log('unresolved message', data)
-                }
-            })
-            */
-
-            if (NewMode) {
-                this.socketClient = new WebSocket(this.serverSocketUrl)
-                this.socketClient.on('error', err => {
-                    console.log('socketClientError')
-                    console.log(err.code)
+            this.socketClient.on('connect', conn => {
+                this.conn = conn
+                conn.on('error', err => {
                     this.logger.error(err)
                 })
-                this.socketClient.on('close', () => {
-                    console.log('socketClientClose')
-                    this.socketClient.removeAllListeners()
-                    this.socketClient.close()
-                    this.socketClient.terminate()
+                conn.on('close', () => {
                     this.conn = null
                     this.isHandshake = false
                 })
-                this.socketClient.on('open', () => {
-                    console.log('socketClientOpen')
-                    this.conn = this.socketClient
-                    resolve()
+                conn.on('message', msg => {
+                    this.handleMessage(JSON.parse(msg.utf8Data))
                 })
-            } else {
-                this.socketClient.on('connectFailed', err => {
-                    reject(err)
-                })
-                this.socketClient.on('connect', conn => {
-                    this.conn = conn
-                    conn.on('error', err => {
-                        this.logger.error(err)
-                    })
-                    conn.on('close', () => {
-                        this.conn = null
-                        this.isHandshake = false
-                    })
-                    resolve()
-                })
-                try {
-                    this.socketClient.connect(this.serverSocketUrl)
-                } catch (err) {
-                    reject(err)
-                }
+                resolve()
+            })
+            try {
+                this.socketClient.connect(this.serverSocketUrl)
+            } catch (err) {
+                reject(err)
             }
         })
 
@@ -134,6 +102,11 @@ class Client {
     }
 
     async close() {
+        if (this.isWaiting) {
+            // NB: this can throw an unhandled promise rejection if a caller of
+            //     waitForMessage does not handle the error.
+            this.cancelWaiting(new ConnectionClosedError)
+        }
         if (this.conn) {
             this.conn.close()
         }
@@ -141,44 +114,63 @@ class Client {
 
     async handshake() {
         const {username, password, token} = this
-        const res = await this.sendAndWaitForResponse({action: 'establishSecret', username, password, token}, 'acknowledgeSecret')
+        const req = {action: 'establishSecret', username, password, token}
+        const res = await this.sendAndWaitForResponse(req, 'acknowledgeSecret')
         this.logger.info('Server handshake success')
         this.isHandshake = true
         return res
     }
 
+    cancelWaiting(err) {
+        if (this.messageReject) {
+            this.messageReject(err)
+            this.messageReject = null
+        }
+    }
+
     async createMatch(opts) {
-        const {total} = opts
+
         await this.connect()
-        const {id} = await this.sendAndWaitForResponse({action: 'createMatch', total, opts}, 'matchCreated')
-        this.logger.info('Started new match', id)
-        this.logger.info('Waiting for opponent to join')
+
+        const {total} = opts
+        const req = {action: 'createMatch', total, opts}
+        const {id} = await this.sendAndWaitForResponse(req, 'matchCreated')
         this.matchId = id
+        this.logger.info('Created new match', id)
+
+        this.logger.info('Waiting for opponent to join')        
         await this.waitForResponse('opponentJoined')
         this.logger.info('Opponent joined', id)
+
         this.match = new Match(total, opts)
         this.color = White
+
         return this.match
     }
 
     async joinMatch(id) {
+
         await this.connect()
+
         this.logger.info('Joining match', id)
-        const res = await this.sendAndWaitForResponse({action: 'joinMatch', id}, 'matchJoined')
+        const req = {action: 'joinMatch', id}
+        const res = await this.sendAndWaitForResponse(req, 'matchJoined')
         this.matchId = res.id
         const {total, opts} = res
         this.logger.info('Joined match', res.id, 'to', total, 'points')
+
         this.match = new Match(total, opts)
         this.color = Red
+
         return this.match
     }
 
-    async matchRequest(action, params) {
-        const req = merge({}, this.matchParams(action), params)
-        return await this.sendAndWaitForResponse(req, action)
+    matchRequest(action, params) {
+        const req = {...this.matchParams(action), ...params}
+        return this.sendAndWaitForResponse(req, action)
     }
 
-    async sendAndWaitForResponse(msg, action) {
+    sendAndWaitForResponse(msg, action) {
         try {
             var p = this.waitForResponse(action)
         } catch (err) {
@@ -190,7 +182,7 @@ class Client {
             this.logger.debug(['catch sendMessage', 'throwing'])
             throw err
         }
-        return await p
+        return p
     }
 
     async waitForResponse(action) {
@@ -208,32 +200,47 @@ class Client {
     }
 
     async waitForMessage() {
-        return await new Promise((resolve, reject) => {
-            if (!this.conn) {
-                reject(new MatchCanceledError('Connection lost'))
-                return
-            }
-            //try {
-                this.conn.once('message', msg => {
-                    if (NewMode) {
-                        resolve(JSON.parse(msg))
-                    } else {
-                        resolve(JSON.parse(msg.utf8Data))
-                    }
-                })
-            //} catch (err) {
-            //    reject(err)
-            //}
-        })
+
+        if (!this.conn) {
+            throw new ConnectionClosedError('Connection lost')
+        }
+
+        this.isWaiting = true
+        try {
+            return await new Promise((resolve, reject) => {                
+                this.messageReject = reject
+                this.messageResolve = resolve
+            })
+        } finally {
+            this.isWaiting = false
+            this.messageReject = null
+            this.messageResolve = null
+        }
     }
 
-    async postJson(uri, data) {
-        const url = [this.serverHttpUrl, Util.stripLeadingSlash(uri)].join('/')
+    handleMessage(data) {
+        if (this.messageResolve) {
+            this.messageResolve(data)
+            this.messageResolve = null
+        } else {
+            if (data.action == 'matchCanceled') {
+                const err = new MatchCanceledError(data.reason)
+                if (!this.emit('matchCanceled', err)) {
+                    // NB: this can throw an unhandled promise rejection.
+                    // TODO: try other handlers conn error, this error
+                    throw err
+                }
+            } else {
+                this.logger.warn('Unhandled message', data)
+            }
+        }
+    }
+
+    postJson(uri, data) {
+        const url = [this.serverHttpUrl, stripLeadingSlash(uri)].join('/')
         const params = {
             method  : 'post'
-          , headers : {
-                'content-type': 'application/json'
-            }
+          , headers : {'content-type': 'application/json'}
           , body    : JSON.stringify(data)
         }
         return this.fetch(url, params)
@@ -244,24 +251,20 @@ class Client {
     }
 
     matchParams(params) {
-        if (typeof(params) == 'string') {
+        if (typeof params == 'string') {
             params = {action: params}
         }
-        return merge({}, {id: this.matchId, color: this.color}, params)
+        return {id: this.matchId, color: this.color, ...params}
     }
 
     sendMessage(msg) {
-        msg = merge({secret: this.secret}, msg)
+        msg = {secret: this.secret, ...msg}
         this.logger.debug('sendMessage', msg)
-        if (NewMode) {
-            this.conn.send(JSON.stringify(msg))
-        } else {
-            this.conn.sendUTF(JSON.stringify(msg))
-        }
+        this.conn.sendUTF(JSON.stringify(msg))
     }
 
     static generateSecret() {
-        return crypto.createHash('sha256').update(Util.uuid()).digest('hex')
+        return crypto.createHash('sha256').update(uuid()).digest('hex')
     }
 
     static buildError(msg, fallbackMessage) {
@@ -273,14 +276,11 @@ class Client {
     }
 }
 
-class ClientError extends Error {
-    constructor(...args) {
-        super(...args)
-        this.name = this.constructor.name
-    }
-}
-
-class MatchCanceledError extends ClientError {}
+const {
+    ClientError
+  , ConnectionClosedError
+  , MatchCanceledError
+} = Errors
 
 Client.Errors = {
     MatchCanceledError

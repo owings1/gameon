@@ -32,7 +32,8 @@ class AppCommand extends Command {
     async init(..._args) {
         await super.init(..._args)
         this.logger = this.logger || new Logger
-        this.env = this.env || process.env
+        this.proc = this.proc || process
+        this.env = this.env || this.proc.env
         const {flags, args, argv} = this.parse(this.constructor)
         this.flags = flags
         this.args = args
@@ -45,6 +46,12 @@ class UserCommand extends AppCommand {
     async init(...args) {
         await super.init(...args)
         await this._loadConfigs()
+        this._loadInterruptHandlers()
+    }
+
+    async finally(...args) {
+        clearInterval(this._hackInterval)
+        return super.finally(...args)
     }
 
     async _loadConfigs() {
@@ -52,6 +59,29 @@ class UserCommand extends AppCommand {
         await this.menu.loadSettings()
         await this.menu.loadCustomThemes(true)
         this.Settings = this.menu.settings
+    }
+
+    _loadInterruptHandlers() {
+        // For some reason we need an interval otherwise somebody else is
+        // exiting first. So we set it to max 32 bit signed integer, which is
+        // about every 25 days.
+        this._hackInterval = setInterval(() => {}, 2147483647)
+        this.proc.on('SIGINT', () => {
+            this.logger.debug('SIGINT handler')
+            var code = 1
+            if (this.menu.captureInterrupt) {
+                code = this.menu.captureInterrupt()
+                this.menu.captureInterrupt = null
+            }
+            if (code !== true) {
+                code = Math.abs(+code)
+                if (isNaN(code) || code > 127) {
+                    code = 1
+                }
+                clearInterval(this._hackInterval)
+                this.proc.exit(code)
+            }
+        })
     }
 
     _getConfigDir() {

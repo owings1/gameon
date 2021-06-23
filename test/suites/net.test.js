@@ -187,12 +187,12 @@ describe('Client', () => {
     })
 
     describe('#waitForMessage', () => {
-        it('should reject with MatchCanceledError when conn is lost', async () => {
+        it('should reject with ConnectionClosedError when conn is lost', async () => {
             const conn = client.conn
             client.conn = null
             try {
                 const err = await getErrorAsync(() => client.waitForMessage())
-                expect(err.name).to.equal('MatchCanceledError')
+                expect(err.name).to.equal('ConnectionClosedError')
             } finally {
                 client.conn = conn
             }
@@ -418,6 +418,15 @@ describe('Server', () => {
             async function bareConn(client) {
                 const p = new Promise(resolve => client.socketClient.on('connect', conn => {
                     client.conn = conn
+                    conn.on('message', msg => {
+                        const data = JSON.parse(msg.utf8Data)
+                        if (client.messageResolve) {
+                            client.messageResolve(data)
+                            client.messageResolve = null
+                        } else {
+                            throw new Error('unhandled message', msg)
+                        }
+                    })
                     resolve()
                 }))
                 client.socketClient.connect(client.serverSocketUrl)
@@ -436,7 +445,7 @@ describe('Server', () => {
             it('should return HandshakeError for missing secret on server', async () => {
                 server.api.logger.loglevel = -1
                 server.logger.loglevel = -1
-                await bareConn(client)
+                await bareConn(client)                
                 const res = await client.sendAndWait({secret: 'abc'})
                 expect(res.isError).to.equal(true)
                 expect(res.name).to.equal('HandshakeError')
@@ -554,11 +563,24 @@ describe('Server', () => {
                 })
 
                 it('should return GameNotFinishedError when both make second call', async () => {
-                    client.sendAndWait({action: 'nextGame', color: White, id})
+                    const pr1 = client.sendAndWait({action: 'nextGame', color: White, id})
                     await client2.sendAndWait({action: 'nextGame', color: Red, id})
-                    client.sendAndWait({action: 'nextGame', color: White, id})
+                    const pr2 = client.sendAndWait({action: 'nextGame', color: White, id})
                     server.logger.loglevel = -1
                     const res = await client2.sendAndWait({action: 'nextGame', color: Red, id})
+                    await pr1
+                    const errOk = new Error
+                    try {
+                        client.cancelWaiting(errOk)
+                        await pr2
+                    } catch (err) {
+                        if (err !== errOk) {
+                            throw err
+                        }
+                    }
+                    // alternative to try/await/catch
+                    //client.messageReject = null
+
                     expect(res.name).to.equal('GameNotFinishedError')
                 })
             })

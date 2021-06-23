@@ -67,6 +67,7 @@ class Match {
         this.winner = null
         this.isFinished = false
         this.hasCrawforded = false
+        this.isCanceled = false
 
         this.games = []
         this.thisGame = null
@@ -118,6 +119,17 @@ class Match {
         }
     }
 
+    cancel() {
+        if (this.checkFinished()) {
+            return
+        }
+        this.isCanceled = true
+        this.isFinished = true
+        if (this.thisGame) {
+            this.thisGame.cancel()
+        }
+    }
+
     checkFinished() {
         if (this.isFinished) {
             return true
@@ -161,6 +173,7 @@ class Match {
           , winner        : this.getWinner()
           , loser         : this.getLoser()
           , hasCrawforded : this.hasCrawforded
+          , isCanceled    : this.isCanceled
           , isFinished    : this.isFinished
           , gameCount     : this.games.length
         }
@@ -187,6 +200,7 @@ class Match {
         match.winner = data.winner
 
         match.isFinished    = data.isFinished
+        match.isCanceled    = data.isCanceled
         match.hasCrawforded = data.hasCrawforded
 
         match.games    = data.games.map(Game.unserialize)
@@ -224,6 +238,7 @@ class Game {
         this.endState   = null
         this.finalValue = null
         this.isFinished = false
+        this.isCanceled = false
         this.isPass     = false
         this.winner     = null
 
@@ -323,6 +338,18 @@ class Game {
         return winner ? Opponent[winner] : null
     }
 
+    cancel() {
+        if (this.checkFinished()) {
+            return
+        }
+        this.isCanceled = true
+        this.isFinished = true
+        this.endState = this.board.state28()
+        if (this.thisTurn) {
+            this.turnHistory.push(this.thisTurn.meta())
+        }
+    }
+
     checkFinished() {
         if (this.isFinished) {
             return true
@@ -378,6 +405,7 @@ class Game {
           , cubeOwner  : this.cubeOwner
           , cubeValue  : this.cubeValue
           , isFinished : this.isFinished
+          , isCanceled : this.isCanceled
           , isPass     : this.isPass
           , endState   : this.endState
           , turnCount  : this.getTurnCount()
@@ -408,6 +436,7 @@ class Game {
         game.endState    = data.endState
         game.finalValue  = data.finalValue
         game.isFinished  = data.isFinished
+        game.isCanceld   = data.isCanceled
         game.isPass      = data.isPass
         game.winner      = data.winner
         game.turnHistory = data.turnHistory
@@ -441,6 +470,7 @@ class Turn {
         this.diceSorted       = null
         this.endState         = null
         this.faces            = null
+        this.isCanceled       = false
         this.isCantMove       = false
         this.isDoubleDeclined = false
         this.isDoubleOffered  = false
@@ -658,6 +688,18 @@ class Turn {
         return this
     }
 
+    cancel() {
+        if (this.isFinished) {
+            return
+        }
+        this.endState = this.board.state28()
+        this.isFinished = true
+        this.isCanceled = true
+
+        this.boardCache = {}
+        this.builder = null
+    }
+
     // Fetch cached. Cache is cleared on turn finish.
     fetchBoard(state28) {
         if (!this.boardCache[state28]) {
@@ -692,6 +734,7 @@ class Turn {
           , startState       : this.startState
           , endState         : this.endState
           , isForceMove      : this.isForceMove
+          , isCanceled       : this.isCanceled
           , isCantMove       : this.isCantMove
           , isDoubleOffered  : this.isDoubleOffered
           , isDoubleDeclined : this.isDoubleDeclined
@@ -733,7 +776,9 @@ class Turn {
         turn.isDoubleOffered  = data.isDoubleOffered
         turn.isFirstTurn      = data.isFirstTurn
 
-        if (data.isFinished) {
+        if (data.isCanceled) {
+            turn.cancel()
+        } else if (data.isFinished) {
             turn.finish()
         }
 

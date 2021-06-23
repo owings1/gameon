@@ -62,7 +62,7 @@ class Coordinator {
           , Red   : red
         }
 
-        await this.emitAll(players, 'matchStart', match)
+        await this.emitAll(players, 'matchStart', match, players)
 
         if (this.opts.isRecord) {
             var matchDir = this.getMatchDir(match)
@@ -88,7 +88,9 @@ class Coordinator {
 
         } while (!match.checkFinished())
 
-        await this.emitAll(players, 'matchEnd', match)
+        if (!match.isCanceled) {
+            await this.emitAll(players, 'matchEnd', match)
+        }
 
         if (this.opts.isRecord) {
             const matchFile = path.resolve(matchDir, 'match.json')
@@ -145,7 +147,19 @@ class Coordinator {
             await this.emitAll(players, 'turnEnd', turn, game, match)
         }
 
-        await this.emitAll(players, 'gameEnd', game, match)
+        if (!game.isCanceled) {
+            await this.emitAll(players, 'gameEnd', game, match)
+        }
+    }
+
+    cancelGame(game, players, err) {
+        this.emitAll(players, 'gameCanceled', err, game)
+        game.cancel()
+    }
+
+    cancelMatch(match, players, err) {
+        this.emitAll(players, 'matchCanceled', err, match)
+        match.cancel()
     }
 
     async recordMatch(match, file, players) {

@@ -1,5 +1,5 @@
 /**
- * gameon - play:online command
+ * gameon - account command
  *
  * Copyright (C) 2020-2021 Doug Owings
  *
@@ -23,39 +23,20 @@
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 const {flags} = require('@oclif/command')
-const Base    = require('../../lib/command').UserCommand
+const Base    = require('../lib/command').UserCommand
 
-class PlayOnlineCommand extends Base {
+class AccountCommand extends Base {
 
     async run() {
-        try {
-            if (this.flags.start) {
-                await this.menu.startOnlineMatch(this.Settings.matchOpts)
-            } else {
-                await this.menu.matchMenu(true, false, false)
-            }
-        } catch (err) {
-            if (err.isAuthError) {
-                this.logger.warn(err)
-                this.logger.error('Authentication error, go to Account to sign up or log in.')   
-                return
-            }
-            throw err
-        }
+        await this.menu.accountMenu()
     }
 }
 
-PlayOnlineCommand.aliases = [
-    'online'
-  , 'start'
-]
-PlayOnlineCommand.description = `Start an online match`
+AccountCommand.aliases = ['credentials']
+AccountCommand.description = `Account menu`
 
-PlayOnlineCommand.flags = {
-    start : flags.boolean({
-        char: 's'
-      , description: 'start now with previous match settings'
-    })
+AccountCommand.flags = {
+
 }
 
-module.exports = PlayOnlineCommand
+module.exports = AccountCommand

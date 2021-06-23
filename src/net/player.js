@@ -34,6 +34,7 @@ class NetPlayer extends Base {
     
     constructor(client, ...args) {
         super(...args)
+        this.logger = new Logger
         this.client = client
         this.isNet = true
 
@@ -53,9 +54,6 @@ class NetPlayer extends Base {
         })
 
         this.on('turnEnd', (turn, game, match) => {
-            //if (game.checkFinished()) {
-            //    return
-            //}
             if (!turn.isDoubleDeclined && turn.color == this.opponent.color) {
                 const moves = turn.moves.map(move => move.coords)
                 this.logger.debug(['on turnEnd', 'before holds push', 'playRoll'])
@@ -91,6 +89,21 @@ class NetPlayer extends Base {
             if (turn.color == this.color) {
                 this.holds.push(this.client.matchRequest('doubleResponse', {isAccept: false}))
             }
+        })
+
+        this.client.on('matchCanceled', (err, match) => {
+            this.emit('matchCanceled', err, match)
+            if (match.thisGame) {
+                this.emit('gameCanceled', err, match.thisGame)
+            }
+        })
+
+        this.on('gameCanceled', (err, match) => {
+            this.client.cancelWaiting(err)
+        })
+
+        this.on('matchCanceled', (err, match) => {
+            this.client.cancelWaiting(err)
         })
     }
 
