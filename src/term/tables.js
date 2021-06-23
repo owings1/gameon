@@ -23,7 +23,6 @@
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 const Constants = require('../lib/constants')
-const Draw      = require('./draw')
 const Logger    = require('../lib/logger')
 const Themes    = require('./themes')
 const Util      = require('../lib/util')
@@ -35,7 +34,7 @@ const {
   , DefaultTermEnabled
   , DefaultThemeName
 } = Constants
-const {TermHelper} = Draw
+
 const {
     append
   , castToArray
@@ -90,26 +89,31 @@ class TableHelper {
 
     static defaults() {
         return {
-            indent      : 0
-          , termEnabled : DefaultTermEnabled
+            indent : 0
         }
     }
 
     constructor(opts) {
         this.opts = Util.defaults(TableHelper.defaults(), opts)
-        this.term = new TermHelper(this.opts.termEnabled)
         this.logger = new Logger
     }
 
     async interactive(table) {
+
         const allData = table.data.slice(0)
+
         while (true) {
+
             this.printTable(table)
+
             var {input} = await this.prompt(Questions.interactive)
+
             if (input == 'quit') {
                 break
             }
+
             switch (input) {
+
                 case 'filterRegex':
                     var regex = await this.promptFilterRegex()
                     if (regex === false) {
@@ -126,6 +130,7 @@ class TableHelper {
                     )
                     table.rebuildData()
                     break
+
                 case 'filterFixed':
                     var fixed = await this.promptFilterFixed()
                     if (fixed === false) {
@@ -142,6 +147,7 @@ class TableHelper {
                     )
                     table.rebuildData()
                     break
+
                 case 'sort':
                     var {column, mult} = await this.promptSort(table)
                     table.data.sort((a, b) => {
@@ -163,6 +169,7 @@ class TableHelper {
                     })
                     table.rebuildData()
                     break
+
                 case 'top':
                     var top = await this.promptTopRows()
                     if (top === false) {
@@ -171,6 +178,7 @@ class TableHelper {
                     table.data = table.data.filter((info, i) => i < top)
                     table.rebuildData()
                     break
+
                 case 'restore':
                     table.data = allData.slice(0)
                     table.rebuildData()
