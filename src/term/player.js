@@ -22,14 +22,14 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-const Base         = require('../lib/player')
-const Constants    = require('../lib/constants')
-const Draw         = require('./draw')
-const Errors       = require('../lib/errors')
-const Logger       = require('../lib/logger')
-const Util         = require('../lib/util')
+const Base      = require('../lib/player')
+const Constants = require('../lib/constants')
+const Draw      = require('./draw')
+const Errors    = require('../lib/errors')
+const Logger    = require('../lib/logger')
+const Themes    = require('./themes')
+const Util      = require('../lib/util')
 
-const chalk    = require('chalk')
 const inquirer = require('inquirer')
 
 const {DrawHelper, TermHelper} = Draw
@@ -44,7 +44,7 @@ const {
 
 const {MatchCanceledError} = Errors
 
-const {merge, nchars, sp} = Util
+const {merge, nchars, sp, uniqueInts} = Util
 
 class TermPlayer extends Base {
 
@@ -62,12 +62,13 @@ class TermPlayer extends Base {
 
         this.opts = Util.defaults(TermPlayer.defaults(), opts)
         this.term = new TermHelper(this.opts.termEnabled)
+        this.theme = Themes.getInstance(this.opts.theme)
 
         this.logger = new Logger
         this.isTerm = true
         this.logs = []
 
-        // provide defaults in case gameStart is not called
+        // provide default in case gameStart is not called
         this.persp = color
 
         this.loadHandlers()
@@ -99,7 +100,7 @@ class TermPlayer extends Base {
             this.isDualRobot = this.isRobot && this.opponent.isRobot
 
             this.persp = this.isRobot ? Colors.White : this.color
-            this.drawer = DrawHelper.forGame(game, match, this.persp, this.logs, this.opts.theme)
+            this.drawer = DrawHelper.forGame(game, match, this.persp, this.logs, this.theme)
 
             this.report('gameStart', match ? match.games.length : null)
         })
@@ -316,8 +317,9 @@ class TermPlayer extends Base {
     }
 
     async promptDecideDouble() {
+        const chlk = this.theme.text
         const choices = ['y', 'n']
-        const message = sp('Does', this.ccolor(this.color), 'accept the double?', chalk.grey('(y/n)'))
+        const message = sp('Does', this.ccolor(this.color), 'accept the double?', chlk.dim('(y/n)'))
         const answers = await this.prompt({
             name     : 'accept'
           , type     : 'input'
@@ -350,7 +352,7 @@ class TermPlayer extends Base {
     }
 
     async promptFace(turn, faces) {
-        faces = Util.uniqueInts(faces).sort(Util.sortNumericDesc)
+        faces = uniqueInts(faces).sort(Util.sortNumericDesc)
         if (faces.length == 1) {
             return faces[0]
         }
@@ -416,7 +418,7 @@ class TermPlayer extends Base {
 
     getOriginQuestion(origins, canUndo) {
 
-        const points = Util.uniqueInts(origins).map(origin => this.originPoint(origin))
+        const points = uniqueInts(origins).map(origin => this.originPoint(origin))
         points.sort(Util.sortNumericAsc)
 
         const choices = points.map(p => p.toString())
