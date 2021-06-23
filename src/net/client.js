@@ -142,7 +142,8 @@ class Client extends EventEmitter {
         await this.waitForResponse('opponentJoined')
         this.logger.info('Opponent joined', id)
 
-        this.match = new Match(total, opts)
+        this.match = Match.unserialize(match)
+        //this.match = new Match(total, opts)
         this.color = White
 
         return this.match

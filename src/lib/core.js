@@ -28,7 +28,7 @@ const Util      = require('./util')
 
 const fs = require('fs')
 
-const {nmap} = Util
+const {castToArray, nmap} = Util
 
 const CacheKeys = {
     state28     : 'state28'
@@ -203,7 +203,7 @@ class Match {
         match.isCanceled    = data.isCanceled
         match.hasCrawforded = data.hasCrawforded
 
-        match.games    = data.games.map(Game.unserialize)
+        match.games    = castToArray(data.games).map(Game.unserialize)
         match.thisGame = match.games[match.games.length - 1] || null
 
         return match
