@@ -25,12 +25,12 @@
 const Constants   = require('../lib/constants')
 const Coordinator = require('../lib/coordinator')
 const Core        = require('../lib/core')
+const Errors      = require('../lib/errors')
 const Logger      = require('../lib/logger')
 const Robot       = require('./player')
 const {Table}     = require('../term/tables')
 const Util        = require('../lib/util')
 
-const chalk = require('chalk')
 const fs    = require('fs')
 const fse   = require('fs-extra')
 const path  = require('path')
@@ -38,11 +38,17 @@ const path  = require('path')
 const {Timer}   = Util
 const {resolve} = path
 
-const {Colors, White, Red} = Constants
+const {Colors, DefaultThemeName} = Constants
 
-const {Match, Profiler} = Core
+const {Dice, Match, Profiler} = Core
 
 const {RobotDelegator} = Robot
+
+const {
+    InvalidColumnError
+  , InvalidRegexError
+  , InvalidSortDirError
+} = Errors
 
 function f_round(value) {
     return Math.round(value).toLocaleString()
@@ -174,12 +180,10 @@ class Helper {
           , numMatches   : 500
           , sortBy       : 'elapsed,count,name'
           , innerBorders : false
+          , title        : 'Profile Results'
           , breadthTrees : false
           , gaugeRegex   : null
-          , theme        : 'Default'
-          , colorHead    : 'green'
-          , colorOdd     : 'white'
-          , colorEven    : 'cyan'
+          , theme        : DefaultThemeName
           , indent       : 4
           , rollsFile    : null
           , columns      : [
@@ -202,7 +206,7 @@ class Helper {
         
         this.columns.forEach(name => {
             if (!Columns[name]) {
-                throw new Error('Invalid column: ' + name)
+                throw new InvalidColumnError('Invalid column: ' + name)
             }
         })
 
@@ -212,11 +216,11 @@ class Helper {
         this.opts.sortBy.toLowerCase().split(',').forEach(sortBy => {
             var [name, dir] = sortBy.split(':')
             if (Columns[name].sortabe) {
-                throw new Error('Invalid sort column: ' + name)
+                throw new InvalidColumnError('Invalid sort column: ' + name)
             }
             dir = dir || Columns[name].defaultDir
             if (dir != 'asc' && dir != 'desc') {
-                throw new Error("Invalid sort direction '" + dir + "' for column " + name)
+                throw new InvalidSortDirError("Invalid sort direction '" + dir + "' for column " + name)
             }
             this.sortColumns.push(name)
             this.sortDirs.push(dir == 'asc' ? 1 : -1)
@@ -233,7 +237,7 @@ class Helper {
                 this.opts.gaugeRegex = new RegExp(str, flags)
             }
             if (!(this.opts.gaugeRegex instanceof RegExp)) {
-                throw new Error('gauge regex must be a RegExp')
+                throw new InvalidRegexError('gauge regex must be a RegExp')
             }
             
         }
@@ -263,8 +267,10 @@ class Helper {
         Profiler.enabled = true
         Profiler.resetAll()
 
-        const white = RobotDelegator.forDefaults(White)
-        const red = RobotDelegator.forDefaults(Red)
+        const players = [
+            RobotDelegator.forDefaults(Colors.White)
+          , RobotDelegator.forDefaults(Colors.Red)
+        ]
 
         try {
 
@@ -284,7 +290,7 @@ class Helper {
 
                 var match = new Match(this.opts.matchTotal, matchOpts)
 
-                await this.coordinator.runMatch(match, white, red)
+                await this.coordinator.runMatch(match, ...players)
 
                 matchCount += 1
                 gameCount += match.games.length
@@ -310,8 +316,7 @@ class Helper {
             this.logTable(table)
 
         } finally {
-            white.destroy()
-            red.destroy()
+            await Util.destroyAll(players)
             Profiler.resetAll()
         }
     }
@@ -401,28 +406,9 @@ class Helper {
     }
 
     loadRollsFile(file) {
-        const data = JSON.parse(fs.readFileSync(resolve(file), 'utf-8'))
-        if (!Array.isArray(data.rolls)) {
-            throw new Error('Invalid rolls data, expects rolls key to be an array')
-        }
-        this.loadRolls(data.rolls)
-    }
-
-    loadRolls(rolls) {
+        const {rolls} = Dice.validateRollsFile(resolve(file))
         if (!rolls.length) {
             throw new Error('Rolls cannot be empty')
-        }
-        // check for at least one valid first roll
-        var isFound = false
-        for (var i = 0; i < rolls.length; ++i) {
-            var dice = rolls[i]
-            if (dice[0] != dice[1]) {
-                isFound = true
-                break
-            }
-        }
-        if (!isFound) {
-            throw new Error('Cannot find one unique roll')
         }
         var rollIndex = 0
         var maxIndex = rolls.length - 1

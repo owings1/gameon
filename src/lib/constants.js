@@ -22,7 +22,6 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-const chalk = require('chalk')
 const Pkg = require('../../package.json')
 const Version = Pkg.version
 
@@ -130,33 +129,54 @@ const BoardStrings = {
     Initial: '0|0|2:W|0:|0:|0:|0:|5:R|0:|3:R|0:|0:|0:|5:W|5:R|0:|0:|0:|3:W|0:|5:W|0:|0:|0:|0:|2:R|0|0'
 }
 
-
-// https://codepoints.net/box_drawing
-const TableChars = {
-    topLeft      : '\u250f'
-  , topMiddle    : '\u2533'
-  , topRight     : '\u2513'
-  , middleLeft   : '\u2523'
-  , middleMiddle : '\u254b'
-  , middleRight  : '\u252b'
-  , bottomLeft   : '\u2523'//'\u2517'
-  , bottomMiddle : '\u253b'
-  , bottomRight  : '\u252b'//'\u251b'
-  , footerLeft   : '\u2517'
-  , footerMiddle : '\u2501'
-  , footerRight  : '\u251b'
-  , dash         : '\u2501'
-  , pipe         : '\u2503'
-  , dblPipe      : '\u2503\u2503'
+const Chars = {
+    empty : ''
+  , sp    : ' '
+  , dblSp : '  '
+  , br    : '\n'
+    //https://unicode-table.com/en/sets/arrow-symbols/#down-arrows
+  , arrow : {
+        left  : '\u2190'
+      , up    : '\u2191'
+      , right : '\u2192'
+      , down  : '\u2193'
+    }
+    // https://codepoints.net/box_drawing
+  , table: {
+        dash    : '\u2501'
+      , pipe    : '\u2503'
+      , dblPipe : '\u2503\u2503'
+      , top     : {
+            left   : '\u250f'
+          , middle : '\u2533'
+          , right  : '\u2513'
+        }
+      , middle  : {
+            left   : '\u2523'
+          , middle : '\u254b'
+          , right  : '\u252b'
+        }
+      , bottom  : {
+            left   : '\u2523'//'\u2517'
+          , middle : '\u253b'
+          , right  : '\u252b'//'\u251b'
+        }
+      , footer  : {
+            left   : '\u2517'
+          , middle : '\u2501'
+          , right  : '\u251b'
+        }
+    }
 }
+// Convenience aliases
+Chars.table.top.mid    = Chars.table.top.middle
+Chars.table.middle.mid = Chars.table.middle.middle
+Chars.table.bottom.mid = Chars.table.bottom.middle
+Chars.table.footer.mid = Chars.table.footer.middle
+Chars.table.mid  = Chars.table.middle
+Chars.table.foot = Chars.table.footer
+Chars.table.bot  = Chars.table.bottom
 
-//https://unicode-table.com/en/sets/arrow-symbols/#down-arrows
-const ArrowChars = {
-    left  : '\u2190'
-  , up    : '\u2191'
-  , right : '\u2192'
-  , down  : '\u2193'
-}
 
 const DefaultServerUrl = 'https://gameon.dougowings.net'
 const ObsoleteServerUrls = [
@@ -165,15 +185,17 @@ const ObsoleteServerUrls = [
   , 'https://bg.dougowings.net'
 ]
 
+const DefaultThemeName = 'Default'
 
 const Constants = {
-    ArrowChars
-  , BoardStrings
+    BoardStrings
   , BottomPoints
+  , Chars
   , ColorAbbr
   , ColorNorm
   , Colors
   , DefaultServerUrl
+  , DefaultThemeName
   , Direction
   , InsideOrigins
   , MoveCoords
@@ -185,7 +207,6 @@ const Constants = {
   , Pkg
   , PointOrigins
   , Red
-  , TableChars
   , TopPoints
   , Version
   , White

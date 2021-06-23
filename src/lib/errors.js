@@ -42,6 +42,13 @@ class DependencyError extends Error {
     }
 }
 
+class ArgumentError extends GameError {
+    constructor(...args) {
+        super(...args)
+        this.isArgumentError = true
+    }
+}
+
 class IllegalStateError extends GameError {
     constructor(...args) {
         super(...args)
@@ -84,21 +91,24 @@ class RequestError extends GameError {
     }
 }
 
-class MenuError               extends GameError {}
-class ResetKeyNotEnteredError extends MenuError {}
-
 class CircularDependencyError   extends DependencyError {}
 class MissingDependencyError    extends DependencyError {}
 class UnresolvedDependencyError extends DependencyError {}
 
-class ArgumentError       extends GameError {}
+class MenuError           extends GameError {}
 class InvalidRollError    extends GameError {}
 class MatchCanceledError  extends GameError {}
 class NotImplementedError extends GameError {}
 
+class ResetKeyNotEnteredError extends MenuError {}
+
 class IncompatibleKeysError extends ArgumentError {}
 class InvalidColorError     extends ArgumentError {}
+class InvalidColumnError    extends ArgumentError {}
 class InvalidDirError       extends ArgumentError {}
+class InvalidRegexError     extends ArgumentError {}
+class InvalidRollDataError  extends ArgumentError {}
+class InvalidSortDirError   extends ArgumentError {}
 class MaxDepthExceededError extends ArgumentError {}
 
 class ThemeExistsError   extends ThemeError {}
@@ -155,8 +165,12 @@ module.exports = {
   , IllegalStateError
   , IncompatibleKeysError
   , InvalidColorError
+  , InvalidColumnError
   , InvalidDirError
+  , InvalidRegexError
   , InvalidRollError
+  , InvalidRollDataError
+  , InvalidSortDirError
   , MatchAlreadyExistsError
   , MatchAlreadyJoinedError
   , MatchCanceledError

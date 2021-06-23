@@ -36,7 +36,7 @@ const BuiltIn = {
           , 'board.piece.white.color' : 'white bold'
           , 'board.border.color'      : 'grey'
           , 'cube.inactive.color'     : 'grey'
-          , 'table.odd.color'         : '#66fffc'
+          , 'table.even.color'        : '#66fffc'
           , 'table.title.color'       : '#ff6bb3 bold'
         }
     }

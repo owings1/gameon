@@ -34,6 +34,11 @@ const uuid      = require('uuid')
 
 class Util {
 
+    static append(arr, values) {
+        values.forEach(value => arr.push(value))
+        return arr
+    }
+
     static arrayIncrement(arr, inc, min, max, place) {
         const precision = Util.countDecimalPlaces(inc)
         if (typeof place == 'undefined') {
@@ -86,12 +91,39 @@ class Util {
         return num.toString().split('.')[1].length //|| 0
     }
 
+    // from:  https://stackoverflow.com/questions/60369148/how-do-i-replace-deprecated-crypto-createcipher-in-nodejs
+    static decrypt1(text, key) {
+        const textParts = text.split(':')
+        const iv = Buffer.from(textParts.shift(), 'hex')
+        const encryptedText = Buffer.from(textParts.join(':'), 'hex')
+        const decipher = crypto.createDecipheriv('aes-256-ctr', Buffer.from(key), iv)
+        const decrypted = Buffer.concat([decipher.update(encryptedText), decipher.final()])
+        return decrypted.toString()
+    }
+
     static defaults(defaults, ...opts) {
         return Util.propsFrom(Util.merge({}, defaults, ...opts), defaults)
     }
 
-    static async destroyAll(obj) {
-        await Promise.all(Object.values(obj).map(it => it.destroy()))
+    static destroyAll(obj) {
+        return Promise.all(Object.values(obj).map(it => it.destroy()))
+    }
+
+    // from:  https://stackoverflow.com/questions/60369148/how-do-i-replace-deprecated-crypto-createcipher-in-nodejs
+    static encrypt1(text, key) {
+        const iv = crypto.randomBytes(16)
+        const cipher = crypto.createCipheriv('aes-256-ctr', Buffer.from(key), iv)
+        const encrypted = Buffer.concat([cipher.update(text), cipher.final()])
+        return [iv.toString('hex'), encrypted.toString('hex')].join(':')
+    }
+
+    static errMessage(cb) {
+        try {
+            cb()
+        } catch (err) {
+            return err.message || false
+        }
+        return true
     }
 
     static escapeRegex(str) {
@@ -141,6 +173,10 @@ class Util {
         return '~' + str.substring(homeDir.length)
     }
 
+    static httpToWs(str) {
+        return str.replace(/^(http)/, 'ws')
+    }
+
     static intRange(a, b) {
         const range = []
         for (var i = a; i <= b; i++) {
@@ -157,6 +193,10 @@ class Util {
             return false
         }
         return true
+    }
+
+    static isValidEmail(str) {
+        return emailval.validate(str)
     }
 
     static keyValuesTrue(input) {
@@ -184,6 +224,16 @@ class Util {
         return ''.padEnd(n, char)
     }
 
+    // returns a new object with the same keys, transforming
+    // values with cb.
+    static mapValues(obj, cb) {
+        return Object.fromEntries(
+            Object.entries(obj).map(([k, v]) =>
+                [k, cb(v)]
+            )
+        )
+    }
+
     static nmap(n, cb) {
         const arr = []
         for (var i = 0; i < n; ++i) {
@@ -192,6 +242,15 @@ class Util {
         return arr
     }
 
+    // ansi safe
+    static pad(str, align, width, chr = ' ') {
+        if (align == 'right') {
+            return Util.padStart(str, width, chr)
+        }
+        return Util.padEnd(str, width, chr)
+    }
+
+    // ansi safe
     static padEnd(str, n, chr) {
         while (Util.stripAnsi(str).length < n) {
             str += chr
@@ -199,6 +258,7 @@ class Util {
         return str
     }
 
+    // ansi safe
     static padStart(str, n, chr) {
         while (Util.stripAnsi(str).length < n) {
             str = chr + str
@@ -286,6 +346,28 @@ class Util {
         return stripAnsi(str)
     }
 
+    static stripLeadingSlash(str) {
+        if (str && str[0] == '/') {
+            return str.substring(1)
+        }
+        return str
+    }
+
+    static stripTrailingSlash(str) {
+        if (str && str[str.length - 1] == '/') {
+            return str.substring(0, str.length - 1)
+        }
+        return str
+    }
+
+    // ansi safe
+    static strlen(str) {
+        if (str == null) {
+            return 0
+        }
+        return Util.stripAnsi(str.toString()).length
+    }
+
     static sumArray(arr) {
         return arr.reduce((acc, cur) => acc + cur, 0)
     }
@@ -298,6 +380,18 @@ class Util {
             return str
         }
         return os.homedir() + str.substring(1)
+    }
+
+    static timestamp(date) {
+        date = date || new Date
+        return Math.floor(+date / 1000)
+    }
+
+    static ucfirst(str) {
+        if (!str.length) {
+            return str
+        }
+        return str.substring(0, 1).toUpperCase() + str.substring(1)
     }
 
     static uniqueInts(arr) {
@@ -318,76 +412,38 @@ class Util {
         return uuid.v4()
     }
 
-    static errMessage(cb) {
-        try {
-            cb()
-        } catch (err) {
-            return err.message || false
-        }
-        return true
-    }
-
-    static isValidEmail(str) {
-        return emailval.validate(str)
-    }
-
-    static timestamp() {
-        return Math.floor(+new Date / 1000)
-    }
-
-    // from:  https://stackoverflow.com/questions/60369148/how-do-i-replace-deprecated-crypto-createcipher-in-nodejs
-    static encrypt1(text, key) {
-        const iv = crypto.randomBytes(16)
-        const cipher = crypto.createCipheriv('aes-256-ctr', Buffer.from(key), iv)
-        const encrypted = Buffer.concat([cipher.update(text), cipher.final()])
-        return [iv.toString('hex'), encrypted.toString('hex')].join(':')
-    }
-
-    static decrypt1(text, key) {
-        const textParts = text.split(':')
-        const iv = Buffer.from(textParts.shift(), 'hex')
-        const encryptedText = Buffer.from(textParts.join(':'), 'hex')
-        const decipher = crypto.createDecipheriv('aes-256-ctr', Buffer.from(key), iv)
-        const decrypted = Buffer.concat([decipher.update(encryptedText), decipher.final()])
-        return decrypted.toString()
-    }
-
     static wsToHttp(str) {
         return str.replace(/^(ws)/, 'http')
     }
+}
 
-    static httpToWs(str) {
-        return str.replace(/^(http)/, 'ws')
+class Counter {
+
+    constructor(name) {
+        this.name = name || 'Counter' + CounterCounter.inc().value
+        this.value = 0
     }
 
-    static stripLeadingSlash(str) {
-        if (str && str[0] == '/') {
-            return str.substring(1)
-        }
-        return str
+    inc(amount = 1) {
+        this.value += amount
+        return this
     }
 
-    static stripTrailingSlash(str) {
-        if (str && str[str.length - 1] == '/') {
-            return str.substring(0, str.length - 1)
-        }
-        return str
-    }
-
-    static ucfirst(str) {
-        return str.substring(0, 1).toUpperCase() + str.substring(1)
+    zero() {
+        this.value = 0
+        return this
     }
 }
 
-var timerSuffix = 0
-var counterSuffix = 0
+const CounterCounter = new Counter('CounterCounter')
+const TimerCounter   = new Counter('TimerCounter')
 
 class Timer {
 
     // For more resolution, see https://stackoverflow.com/a/18197438/794513
 
     constructor(name) {
-        this.name = name || 'Timer' + ++timerSuffix
+        this.name = name || 'Timer' + TimerCounter.inc().value
         this.startTime = null
         this.isRunning = false
         this.elapsed = 0
@@ -401,6 +457,7 @@ class Timer {
         this.startTime = +new Date
         this.isRunning = true
         this.startCount += 1
+        return this
     }
 
     stop() {
@@ -409,29 +466,16 @@ class Timer {
         }
         this.elapsed += +new Date - this.startTime
         this.isRunning = false
+        return this
     }
 
     reset() {
         this.elapsed = 0
         this.startCount = 0
+        return this
     }
 }
 
-class Counter {
-
-    constructor(name) {
-        this.name = name || 'Counter' + ++counterSuffix
-        this.value = 0
-    }
-
-    inc(amount = 1) {
-        this.value += amount
-    }
-
-    zero() {
-        this.value = 0
-    }
-}
 
 class Profiler {
 
@@ -459,6 +503,7 @@ class Profiler {
             this.timers[name] = new Timer(name)
         }
         this.timers[name].start()
+        return this
     }
 
     stop(name) {
@@ -466,6 +511,7 @@ class Profiler {
             return
         }
         this.timers[name].stop()
+        return this
     }
 
     reset(name) {
@@ -473,6 +519,7 @@ class Profiler {
             return
         }
         this.timers[name].reset()
+        return this
     }
 
     resetAll() {
@@ -485,6 +532,7 @@ class Profiler {
         for (var name in this.counters) {
             this.zero(name)
         }
+        return this
     }
 
     inc(name, amount) {
@@ -495,6 +543,7 @@ class Profiler {
             this.counters[name] = new Counter(name)
         }
         this.counters[name].inc(amount)
+        return this
     }
 
     zero(name) {
@@ -502,6 +551,7 @@ class Profiler {
             return
         }
         this.counters[name].zero()
+        return this
     }
 }
 
@@ -604,7 +654,7 @@ class DependencyHelper {
         }
 
         do {
-            var count = this.resolveLoop()
+            var count = this._resolveLoop()
         } while (count > 0)
 
         const unresolvedNames = Object.keys(this.unresolved)
@@ -615,7 +665,7 @@ class DependencyHelper {
         return this.order
     }
 
-    resolveLoop() {
+    _resolveLoop() {
 
         var count = 0
 
@@ -656,7 +706,7 @@ class StyleHelper {
     static buildDefFromStyle(value, isBackground) {
 
         const [color, mod] = value.split(' ')
-        const isHex        = this.isValidHexColor(color)
+        const isHex        = StyleHelper.isValidHexColor(color)
 
         if (isBackground) {
             if (isHex) {
@@ -719,18 +769,18 @@ class StyleHelper {
         } else {
             args[0] = def
         }
-        return this.buildChalkListFromDefs(...args)[0]
+        return StyleHelper.buildChalkListFromDefs(...args)[0]
     }
 
     // get single chalk callable from style
     static buildChalkFromStyle(style, isBackground) {
-        const def = this.buildDefFromStyle(style, isBackground)
-        return this.buildChalkFromDef(def, isBackground)
+        const def = StyleHelper.buildDefFromStyle(style, isBackground)
+        return StyleHelper.buildChalkFromDef(def, isBackground)
     }
 
     static getChalk(style, isBackground) {
         try {
-            const theChalk = this.buildChalkFromStyle(style, isBackground)
+            const theChalk = StyleHelper.buildChalkFromStyle(style, isBackground)
             theChalk('')
             return theChalk
         } catch (err) {
@@ -744,8 +794,8 @@ class StyleHelper {
         }
         return !isNaN(parseInt('0x' + value.substring(1)))
     }
-
 }
+
 const {
     CircularDependencyError
   , DependencyError
@@ -755,11 +805,11 @@ const {
   , UnresolvedDependencyError
 } = Errors
 
-Util.Counter = Counter
-Util.Timer = Timer
-Util.Profiler = Profiler
-Util.StringBuilder = StringBuilder
+Util.Counter          = Counter
 Util.DependencyHelper = DependencyHelper
-Util.StyleHelper = StyleHelper
+Util.Profiler         = Profiler
+Util.Timer            = Timer
+Util.StringBuilder    = StringBuilder
+Util.StyleHelper      = StyleHelper
 
 module.exports = Util

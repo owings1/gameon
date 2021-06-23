@@ -26,136 +26,168 @@ const Constants = require('../lib/constants')
 const Themes    = require('./themes')
 const Util      = require('../lib/util')
 
-const {TableChars} = Constants
-
-function strlen(str) {
-    if (str == null) {
-        return 0
-    }
-    return Util.stripAnsi(str.toString()).length
-}
-
-function pad(str, align, width, chr = ' ') {
-    if (align == 'right') {
-        return Util.padStart(str, width, chr)
-    }
-    return Util.padEnd(str, width, chr)
-}
-
-function wrapDash(str) {
-    return TableChars.dash + str + TableChars.dash
-}
+const {Chars, DefaultThemeName} = Constants
+const {
+    append
+  , castToArray
+  , mapValues
+  , nchars
+  , pad
+  , strlen
+  , sumArray
+} = Util
 
 class Table {
 
     static defaults() {
         return {
-            theme        : 'Default'
+            theme        : DefaultThemeName
+          , name         : 'Table'
+          , title        : null
+          , titleAlign   : 'left'
+          , footerLines  : null
           , footerAlign  : 'left'
           , innerBorders : false
-          , name         : 'Table'
-          , footerLines  : null
         }
     }
 
     constructor(columns, data, opts) {
+
         this.opts = Util.defaults(Table.defaults(), opts)
-        this.name = this.opts.name
         this.columns = columns
         this.data = data
-        this.rows = null
-        this.footerLines = this.opts.footerLines || null
-        this.lines = []
+
+        this.name = this.opts.name
+        this.footerLines = castToArray(this.opts.footerLines)
+        this.title = this.opts.title || ''
+
         this.theme = Themes.getInstance(this.opts.theme)
+        this.chlk  = this.theme.table
+        this.chars = Chars.table
+
+        this.rows    = null
+        this.parts   = null
+        this.strings = null
+        this.lines   = []
     }
 
     build() {
 
-        this.columns = Table.buildColumns(this.columns)
-        this.rows = Table.buildRows(this.columns, this.data)
+        this.buildColumns()
+        this.buildRows()
 
-        this.calculateColumnWidths()
-        this.calculateTableInnerWidth()
+        this.calculatePre()
 
-        this.buildHeaderStrings()
-        this.buildRowStringParts()
-        this.buildFooterInnerStrings()
-        this.buildBorderStrings()
-
-        this.buildFinalStrings()
+        this.buildParts()
+        this.buildStrings()
         this.buildLines()
 
-        this.outerWidth = strlen(this.lines[0])
+        this.calculatePost()
 
         return this
     }
 
-    buildHeaderStrings() {
-        const ch = this.theme.table.head
-        this.headerStrings = this.columns.map((column, i) =>
-            pad(ch(column.title), column.align, column.width, ch(' '))
-        )
+    buildColumns() {
+        this.columns = this.columns.map(Table.makeColumn)
     }
 
-    buildRowStringParts() {
-        const ch = this.theme.table
-        this.rowStringParts = this.rows.map((row, i) => {
-            const chn = i % 2 ? ch.even : ch.odd
-            return this.columns.map((column, i) =>
-                pad(chn(row[i]), column.align, column.width, chn(' '))
+    buildRows() {
+        this.rows = this.data.map(info =>
+            this.columns.map(column =>
+                column.format(column.get(info), info)
             )
-        })
-    }
-
-    buildFooterInnerStrings() {
-        const ch = this.theme.table.foot
-        this.footerInnerStrings = (this.footerLines || []).map(footerLine =>
-            pad(ch(footerLine), this.opts.footerAlign, this.innerWidth, ch(' '))
         )
     }
 
-    buildBorderStrings() {
-        const ch = this.theme.table.border
-        const dashParts = this.columns.map(column =>
-            pad('', 'left', column.width, TableChars.dash)
+    calculatePre() {
+        this.calculateColumnWidths()
+        this.calculateInnerWidth()
+    }
+
+    buildParts() {
+        this.parts = {
+            title  : this.makePartsTitle()
+          , head   : this.makePartsHead()
+          , rows   : this.makePartsRows()
+          , foot   : this.makePartsFoot()
+          , border : this.makePartsBorder()
+        }
+    }
+
+    buildStrings() {
+        this.strings = this.makeStrings()
+    }
+
+    buildLines() {
+        if (this.columns.length) {
+            this.lines = this.makeLinesNormal()
+        } else if (this.strings.foot.length || this.strings.title.length) {
+            // corner case of no columns
+            this.lines = this.makeLinesExtraOnly()
+        } else {
+            // corner case of no columns, no footer, no title
+            this.lines = []
+        }
+    }
+
+    calculatePost() {
+        this.outerWidth = strlen(this.lines[0])
+    }
+
+    makePartsTitle() {
+        const {chlk} = this
+        if (!this.title) {
+            return ''
+        }
+        return pad(chlk.title(this.title), this.opts.titleAlign, this.innerWidth, chlk.title(' '))
+    }
+
+    makePartsHead() {
+        const {chlk} = this
+        return this.columns.map((column, i) =>
+            pad(chlk.head(column.title), column.align, column.width, chlk.head(' '))
         )
-        const dashesFootOnly = pad('', 'left', this.innerWidth, TableChars.dash)
-        this.borderStrings = {
-            top : ch([
-                TableChars.topLeft
-              , dashParts.join(wrapDash(TableChars.topMiddle))
-              , TableChars.topRight
-            ].join(TableChars.dash))
-          , middle: ch([
-                TableChars.middleLeft
-              , dashParts.join(wrapDash(TableChars.middleMiddle))
-              , TableChars.middleRight
-            ].join(TableChars.dash))
-          , prefoot: ch([
-                TableChars.bottomLeft
-              , dashParts.join(wrapDash(TableChars.bottomMiddle))
-              , TableChars.bottomRight
-            ].join(TableChars.dash))
-          , postfoot: ch([
-                TableChars.footerLeft
-              , dashParts.join(wrapDash(TableChars.footerMiddle))
-              , TableChars.footerRight
-            ].join(TableChars.dash))
-          , bottom: ch([
-                TableChars.footerLeft
-              , dashParts.join(wrapDash(TableChars.bottomMiddle))
-              , TableChars.footerRight
-            ].join(TableChars.dash))
-          , topFootOnly : ch([
-                TableChars.topLeft
-              , dashesFootOnly
-              , TableChars.topRight
-            ].join(TableChars.dash))
-          , bottomFootOnly : ch([
-                TableChars.footerLeft
-              , dashesFootOnly
-              , TableChars.footerRight
-            ].join(TableChars.dash))
+    }
+
+    makePartsRows() {
+        const {chlk} = this
+        const chlkn = i => [chlk.odd, chlk.even][i % 2]
+        return this.rows.map((row, i) =>
+            this.columns.map((column, j) =>
+                pad(chlkn(i)(row[j]), column.align, column.width, chlkn(i)(' '))
+            )
+        )
+    }
+
+    makePartsFoot() {
+        const {chlk} = this
+        return this.footerLines.map(line =>
+            pad(chlk.foot(line), this.opts.footerAlign, this.innerWidth, chlk.foot(' '))
+        )
+    }
+
+    makePartsBorder() {
+
+        const {top, mid, bot, foot, dash} = this.chars
+
+        const ndashes = n => nchars(n, dash)
+
+        const dashParts = this.columns.map(column => ndashes(column.width))
+        const dashLine = ndashes(this.innerWidth)
+
+        const jp = chr => dashParts.join(dash + chr + dash)
+
+        return {
+            top          : [top.left  , jp(top.mid)  , top.right  ]
+          , mid          : [mid.left  , jp(mid.mid)  , mid.right  ]
+          , bot          : [foot.left , jp(bot.mid)  , foot.right ]
+          , pretitle     : [top.left  , dashLine     , top.right  ]
+          , posttitle    : [mid.left  , jp(top.mid)  , mid.right  ]
+          , prefoot      : [bot.left  , jp(bot.mid)  , bot.right  ]
+          , postfoot     : [foot.left , jp(foot.mid) , foot.right ]
+          , footOnlyTop  : [top.left  , dashLine     , top.right  ]
+          , footOnlyBot  : [foot.left , dashLine     , foot.right ]
+          , extraOnlyMid : [mid.left  , dashLine     , mid.right  ]
         }
     }
 
@@ -168,109 +200,116 @@ class Table {
         })
     }
 
-    calculateTableInnerWidth() {
+    calculateInnerWidth() {
+        const {columns, footerLines, title} = this
         // start with column inner widths
-        this.innerWidth = Util.sumArray(this.columns.map(column => column.width))
+        this.innerWidth = sumArray(columns.map(column => column.width))
         // add inner borders/padding
-        this.innerWidth += Math.max(this.columns.length - 1, 0) * 3
-        if (this.footerLines && this.footerLines.length) {
-            // check if footers will fit
-            const minFooterWidth = Math.max(...this.footerLines.map(strlen))
-            if (minFooterWidth > this.innerWidth) {
-                const deficit = minFooterWidth - this.innerWidth
-                // adjust innerWidth
-                this.innerWidth += deficit
-                if (this.columns.length) {
-                    // adjust width of last column
-                    this.columns[this.columns.length - 1].width += deficit
-                }
-            }
+        this.innerWidth += Math.max(columns.length - 1, 0) * 3
+        if (!footerLines.length && !title.length) {
+            return
+        }
+        // check if footers/title will fit
+        const otherWidth = Math.max(...footerLines.map(strlen), strlen(title))
+        const deficit = otherWidth - this.innerWidth
+        if (deficit <= 0) {
+            return
+        }
+        // adjust innerWidth
+        this.innerWidth += deficit
+        if (columns.length) {
+            // adjust width of last column
+            columns[columns.length - 1].width += deficit
         }
     }
 
-    buildFinalStrings() {
+    makeStrings() {
 
-        const ch = this.theme.table
+        const {chlk, chars, parts} = this
+        const pipe = chlk.border(chars.pipe)
+        const space = {
+            f : chlk.foot(' ')
+          , h : chlk.head(' ')
+          , t : chlk.title(' ')
+          , n : i => [chlk.odd, chlk.even][i % 2](' ')
+        }
+        // join parts (p) with pipe wrapped with space (s)
+        const jps = (p, s) => p.join(s + pipe + s)
 
-        this.headerString = [
-            ch.border(TableChars.pipe)
-          , ch.head(' ')
-          , this.headerStrings.join(ch.head(' ') + ch.border(TableChars.pipe) + ch.head(' '))
-          , ch.head(' ')
-          , ch.border(TableChars.pipe)
-        ].join('')
-
-        this.rowStrings = this.rowStringParts.map((parts, i) => {
-            const chn = i % 2 ? ch.even : ch.odd
-            return [
-                ch.border(TableChars.pipe)
-              , chn(' ')
-              , parts.join(chn(' ') + ch.border(TableChars.pipe) + chn(' '))
-              , chn(' ')
-              , ch.border(TableChars.pipe)
-            ].join('')
-        })
-
-        this.footerStrings = this.footerInnerStrings.map(innerStr =>
-            [
-                ch.border(TableChars.pipe)
-              , ch.foot(' ')
-              , innerStr
-              , ch.foot(' ')
-              , ch.border(TableChars.pipe)
-            ].join('')
-        )
+        return {
+            title : parts.title ? [pipe, parts.title, pipe].join(space.t) : ''
+          , head  : [pipe, jps(parts.head, space.h), pipe].join(space.h)
+          , rows  : parts.rows.map((p, i) =>
+                [pipe, jps(p, space.n(i)), pipe].join(space.n(i))
+            )
+          , foot : parts.foot.map(innerStr =>
+                [pipe, innerStr, pipe].join(space.f)
+            )
+          , border : mapValues(parts.border, p =>
+                chlk.border(p.join(chars.dash))
+            )
+        }
     }
 
-    buildLines() {
-        if (this.columns.length) {
-            this.buildLinesNormal()
-        } else if (this.footerStrings.length) {
-            // corner case of no columns
-            this.buildLinesFooterOnly()
+    makeLinesNormal() {
+        const {strings, opts} = this
+        const lines = []
+
+        if (strings.title.length) {
+            append(lines, [
+                strings.border.pretitle
+              , strings.title
+              , strings.border.posttitle
+            ])
         } else {
-            // corner case of no columns, no footerLines
-            this.lines = []
+            lines.push(strings.border.top)
         }
-    }
-
-    buildLinesNormal() {
-        this.lines = [
-            this.borderStrings.top
-          , this.headerString
-          , this.borderStrings.middle
-        ]
-        this.rowStrings.forEach((rowStr, i) => {
-            if (this.opts.innerBorders && i > 0) {
-                this.lines.push(this.borderStrings.middle)
+        append(lines, [
+            strings.head
+          , strings.border.mid
+        ])
+        strings.rows.forEach((str, i) => {
+            if (opts.innerBorders && i > 0) {
+                lines.push(strings.border.mid)
             }
-            this.lines.push(rowStr)
+            lines.push(str)
         })
-        if (this.footerStrings.length) {
-            this.lines.push(this.borderStrings.prefoot)
-            this.footerStrings.forEach(footerStr => this.lines.push(footerStr))
-            this.lines.push(this.borderStrings.postfoot)
+        if (strings.foot.length) {
+            lines.push(strings.border.prefoot)
+            append(lines, strings.foot)
+            lines.push(strings.border.postfoot)
         } else {
-            this.lines.push(this.borderStrings.bottom)
+            lines.push(strings.border.bot)
         }
+        return lines
     }
 
-    buildLinesFooterOnly() {
-        this.lines = []
-        this.lines.push(this.borderStrings.topFootOnly)
-        this.footerStrings.forEach(footerStr => this.lines.push(footerStr))
-        this.lines.push(this.borderStrings.bottomFootOnly)
+    makeLinesExtraOnly() {
+        const {strings, title} = this
+        const lines = []
+        if (strings.title.length) {
+            append(lines, [
+                strings.border.pretitle
+              , strings.title
+            ])
+            if (strings.foot.length) {
+                lines.push(strings.border.extraOnlyMid)
+            }
+        } else {
+            lines.push(strings.border.footOnlyTop)
+        }
+        if (strings.foot.length) {
+            append(lines, strings.foot)
+        }
+        lines.push(strings.border.footOnlyBot)
+        return lines
     }
 
     toString() {
         return this.lines.join('\n')
     }
 
-    static buildColumns(arr) {
-        return arr.map(col => this.buildColumn(col))
-    }
-
-    static buildColumn(col) {
+    static makeColumn(col) {
         var column = {}
         if (typeof(col) == 'object') {
             column = {...col}
@@ -290,14 +329,6 @@ class Table {
             column.format = (value, info) => '' + value
         }
         return column
-    }
-
-    static buildRows(columns, data) {
-        return data.map(info =>
-            columns.map(column =>
-                column.format(column.get(info), info)
-            )
-        )
     }
 }
 

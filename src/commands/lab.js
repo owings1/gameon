@@ -35,7 +35,10 @@ class LabCommand extends Base {
 LabCommand.description = `Run lab experiments`
 
 LabCommand.flags = {
-
+    cmd: flags.string({
+        char: 'c'
+      , description: 'run command string and exit'
+    })
 }
 
 module.exports = LabCommand

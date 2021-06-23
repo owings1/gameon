@@ -1159,35 +1159,7 @@ class Dice {
     }
 
     static rollsFileError(file) {
-        var data
-        try {
-            data = JSON.parse(fs.readFileSync(file))
-        } catch (err) {
-            return err.message
-        }
-        if (!Array.isArray(data.rolls)) {
-            return 'Invalid rolls data, expects rolls key to be an array'
-        }
-        if (!data.rolls.length) {
-            return 'Rolls cannot be empty'
-        }
-        // check for at least one valid first roll
-        var isUniqueFound = false
-        for (var i = 0; i < data.rolls.length; ++i) {
-            var dice = data.rolls[i]
-            try {
-                Dice.checkTwo(dice)
-            } catch (err) {
-                return 'Invalid roll found at index ' + i + ': ' + err.message
-            }
-            if (dice[0] != dice[1]) {
-                isUniqueFound = true
-            }
-        }
-        if (!isUniqueFound) {
-            return 'Cannot find one unique roll'
-        }
-        return true
+        return Util.errMessage(() => Dice.validateRollsFile(file))
     }
 
     static sequencesForFaces(faces) {
@@ -1200,6 +1172,33 @@ class Dice {
         return [
             [faces[0], faces[1], faces[2], faces[3]]
         ]
+    }
+
+    static validateRollsFile(file) {
+        const data = JSON.parse(fs.readFileSync(file, 'utf-8'))
+        if (!Array.isArray(data.rolls)) {
+            throw new InvalidRollDataError('Rolls key must be an array')
+        }
+        if (!data.rolls.length) {
+            throw new InvalidRollDataError('Rolls cannot be empty')
+        }
+        // check for at least one valid first roll
+        var isUniqueFound = false
+        for (var i = 0; i < data.rolls.length; ++i) {
+            var dice = data.rolls[i]
+            try {
+                Dice.checkTwo(dice)
+            } catch (err) {
+                throw new InvalidRollDataError('Invalid roll found at index ' + i + ': ' + err.message, err)
+            }
+            if (dice[0] != dice[1]) {
+                isUniqueFound = true
+            }
+        }
+        if (!isUniqueFound) {
+            throw new InvalidRollDataError('Cannot find one unique roll')
+        }
+        return data
     }
 }
 
@@ -1231,6 +1230,7 @@ const {
   , HasNotRolledError
   , IllegalMoveError
   , InvalidRollError
+  , InvalidRollDataError
   , MatchFinishedError
   , MovesRemainingError
   , NoMovesMadeError

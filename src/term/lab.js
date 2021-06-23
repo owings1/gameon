@@ -51,15 +51,14 @@ const {
 } = Core
 
 const {
-    ArrowChars
-  , BoardStrings
+    BoardStrings
+  , Chars
   , ColorAbbr
   , ColorNorm
   , Opponent
   , OriginPoints
   , PointOrigins
   , Red
-  , TableChars
   , White
 } = Constants
 
@@ -80,17 +79,7 @@ class LabHelper {
         if (!this.opts.theme) {
             this.opts.theme = 'Default'
         }
-        try {
-            this.theme = Themes.getInstance(this.opts.theme)
-        } catch (err) {
-            if (!err.isThemeError) {
-                throw err
-            }
-            this.logger.error(err.name, err.message)
-            this.logger.warn('Using default theme')
-            this.opts.theme = 'Default'
-            this.theme = Themes.getDefaultInstance()
-        }
+        this.theme = Themes.getInstance(this.opts.theme)
         this.drawer = DrawHelper.forBoard(this.board, this.persp, this.logs, this.opts.theme)
         this.stateHistory = []
         this.fetchLastRecords = null
@@ -109,6 +98,7 @@ class LabHelper {
             })
 
             var {input} = answers
+
             var inputLc = input.toLowerCase()
 
             if (!input) {
@@ -121,74 +111,85 @@ class LabHelper {
             }
 
             if (inputLc == '?') {
-                this.logger.console.log(this.commandHelp())
+                this.logger.console.log(LabHelper.commandHelp())
                 continue
             }
 
-            var [cmd, ...params] = input.split(' ')
-            var cmdLc = cmd.toLowerCase()
+            await this.runCommand(input)
+        }
+    }
 
-            switch (cmd) {
+    async runCommand(input, isPrintFirst) {
 
-                case 'i':
-                    this.logger.console.log(this.boardInfo())
-                    break
+        if (isPrintFirst) {
+            this.draw(true)
+        }
 
-                case 's':
-                    await this.setStateCommand(params.join(' ').trim())
-                    this.draw(true)
-                    break
+        var inputLc = input.toLowerCase()
 
-                case 'd':
-                    await this.diceCommand(false, params.join(' ').trim())
-                    break
+        var [cmd, ...params] = input.split(' ')
+        var cmdLc = cmd.toLowerCase()
 
-                case 'D':
-                    await this.diceCommand(true, params.join(' ').trim())
-                    break
+        switch (cmd) {
 
-                case 'f':
-                    this.persp = Opponent[this.persp]
-                    this.logs.push(sp('Perspective', this.ccolor(this.persp)))
-                    this.drawer.persp = this.persp
-                    this.draw(true)
-                    break
+            case 'i':
+                this.logger.console.log(this.boardInfo())
+                break
 
-                case 'F':
-                    this.board.setStateString(this.board.inverted().state28())
-                    this.logs.push('Invert board')
-                    this.draw(true)
-                    break
+            case 's':
+                await this.setStateCommand(params.join(' ').trim())
+                this.draw(true)
+                break
 
-                case 'p':
-                    await this.placeCommand()
-                    this.draw(true)
-                    break
+            case 'd':
+                await this.diceCommand(false, params.join(' ').trim())
+                break
 
-                case 'r':
-                    await this.rolloutCommand(params.join(' ').trim())
-                    break
+            case 'D':
+                await this.diceCommand(true, params.join(' ').trim())
+                break
 
-                case 'u':
-                    await this.undoCommand()
-                    this.draw(true)
-                    break
+            case 'f':
+                this.persp = Opponent[this.persp]
+                this.logs.push(sp('Perspective', this.ccolor(this.persp)))
+                this.drawer.persp = this.persp
+                this.draw(true)
+                break
 
-                case 'w':
-                    await this.writeLastResult()
-                    break
+            case 'F':
+                this.board.setStateString(this.board.inverted().state28())
+                this.logs.push('Invert board')
+                this.draw(true)
+                break
 
-                case 'x':
-                    this.opts.breadthTrees = !this.opts.breadthTrees
-                    var treeStyle = this.opts.breadthTrees ? 'breadth' : 'depth'
-                    this.logger.info('Using', treeStyle, 'trees')
-                    break
+            case 'p':
+                await this.placeCommand()
+                this.draw(true)
+                break
 
-                default:
-                    this.logger.warn('Invalid command', input)
-                    this.logger.console.log(this.commandHelp())
-                    break
-            }
+            case 'r':
+                await this.rolloutCommand(params.join(' ').trim())
+                break
+
+            case 'u':
+                await this.undoCommand()
+                this.draw(true)
+                break
+
+            case 'w':
+                await this.writeLastResult()
+                break
+
+            case 'x':
+                this.opts.breadthTrees = !this.opts.breadthTrees
+                var treeStyle = this.opts.breadthTrees ? 'breadth' : 'depth'
+                this.logger.info('Using', treeStyle, 'trees')
+                break
+
+            default:
+                this.logger.warn('Invalid command', input)
+                this.logger.console.log(LabHelper.commandHelp())
+                break
         }
     }
 
@@ -308,7 +309,7 @@ class LabHelper {
             cons.log(...args)
         }
 
-        const hr = nchars(39, TableChars.dash)
+        const hr = nchars(39, Chars.table.dash)
 
         log(hr)
 
@@ -352,18 +353,20 @@ class LabHelper {
 
         const {rankList, delegateList} = explain
 
-        const b_rankList  = this.showRobotTurnRankList(rankList, delegateWidth)
-        const b_delegates = this.showRobotTurnDelegates(delegateList)
+        const sb = {
+            rankList  : this.showRobotTurnRankList(rankList, delegateWidth)
+          , delegates : this.showRobotTurnDelegates(delegateList)
+        }
 
         const turnData = turn.serialize()
 
         this.fetchLastRecords = () => {
             return {
                 'explain.json'      : stringify(explain)
-              , 'ranklist.ans.txt'  : b_rankList.toString()
-              , 'ranklist.txt'      : Util.stripAnsi(b_rankList.toString())
-              , 'delegates.ans.txt' : b_delegates.toString()
-              , 'delegates.txt'     : Util.stripAnsi(b_delegates.toString())
+              , 'ranklist.ans.txt'  : sb.rankList.toString()
+              , 'ranklist.txt'      : Util.stripAnsi(sb.rankList.toString())
+              , 'delegates.ans.txt' : sb.delegates.toString()
+              , 'delegates.txt'     : Util.stripAnsi(sb.delegates.toString())
               , 'results.json'      : stringify({results: result.results})
               , 'robot.json'        : stringify({robot: robotMeta})
               , 'turn.json'         : stringify({turn: turnData})
@@ -394,7 +397,8 @@ class LabHelper {
             }
         }
 
-        const hr = nchars(49, TableChars.dash)
+        const hr = nchars(49, Chars.table.dash)
+        const rankPad = rankList.length.toString().length
 
         var lastScore
 
@@ -408,20 +412,31 @@ class LabHelper {
             log()
 
             const mstr = new StringBuilder(
-                chalk.grey('['), info.moves.map(move => this.moveDesc(move, true)).join(', '), chalk.grey(']')
+                chalk.grey('[')
+              , info.moves.map(move => this.moveDesc(move, true)).join(', ')
+              , chalk.grey(']')
             ).toString()
 
             const b = new StringBuilder
 
             var decreasePct = 0
             if (info.isChosen) {
-                b.add(chalk.bold.green('#1 Winner'), '  ', chalk.bold(mstr))
+                b.add(
+                    chalk.bold.green('#1 Winner')
+                  , '  '
+                  , chalk.bold(mstr)
+                )
             } else {
                 if (lastScore > 0) {
                     decreasePct = Math.round(100 * (lastScore - info.finalScore) / lastScore)
                 }
-                b.add(chalk.bold.cyan(info.rank), chalk.grey('/'), chalk.yellow(rankList.length))
-                b.add('  ', mstr)
+                b.add(
+                    chalk.bold.cyan(info.rank)
+                  , chalk.grey('/')
+                  , chalk.yellow(rankList.length)
+                  , '  '
+                  , mstr
+                )
             }
             lastScore = info.finalScore
             log(b.toString())
@@ -430,34 +445,42 @@ class LabHelper {
             indent += 2
 
             const sb = new StringBuilder
-            sb.sp(chalk.bold('Score'), chalk.bold.cyan(info.finalScore.toFixed(4)))
+            sb.sp(
+                chalk.bold('Score')
+              , chalk.bold.cyan(info.finalScore.toFixed(4))
+            )
             if (decreasePct) {
-                sb.add(''.padEnd(3, ' '), chalk.red(ArrowChars.down + decreasePct + '%'))
+                sb.add(
+                    ''.padEnd(3, ' ')
+                  , chalk.red(Chars.arrow.down + decreasePct + '%')
+                )
             }
             log(sb.toString())
 
             indent += 2
 
-            log(''.padEnd(delegateWidth + 3, ' '), chalk.grey('weighted'), chalk.grey('myScore'.padStart(9, ' ')), ' ', chalk.grey('myRank'))
+            log(
+                ''.padEnd(delegateWidth + 3, ' ')
+              , chalk.grey('weighted')
+              , chalk.grey('myScore'.padStart(9, ' '))
+              , ' '
+              , chalk.grey('myRank')
+            )
 
-            info.delegates.forEach(it => {
+            info.delegates.filter(it =>
+                it.myScore + it.weightedScore != 0
+            ).forEach(it => {
 
-                if (it.myScore + it.weightedScore == 0) {
-                    return
-                }
-
-                const bd = new StringBuilder
-
-                bd.add(
+                log(new StringBuilder(
                     it.name.padEnd(delegateWidth + 6, ' ')
                   , chalk.cyan(it.weightedScore.toFixed(4).padEnd(7, ' '))
-                  , chalk.grey(TableChars.pipe) + '  '
+                  , chalk.grey(Chars.table.pipe)
+                  , '  '
                   , chalk.yellow(it.myScore.toFixed(4).padEnd(6, ' '))
-                  , ' ' + chalk.grey(TableChars.pipe) + ' '
-                  , chalk.yellow(it.myRank.toString().padStart(rankList.length.toString().length, ' '))
-                )
-
-                log(bd.toString())
+                  , ' ' + chalk.grey(Chars.table.pipe)
+                  , ' '
+                  , chalk.yellow(it.myRank.toString().padStart(rankPad, ' '))
+                ).toString())
             })
 
             log()
@@ -534,17 +557,15 @@ class LabHelper {
         const tables = delegateList.filter(it =>
             it.rankings[0] && it.rankings[0].myRank != null
         ).map(({name, rankings}) =>
-            new Table(columns, rankings, {name, theme}).build()
+            new Table(columns, rankings, {name, theme, title: name}).build()
         )
 
         const maxTableWidth = Math.max(...tables.map(table => table.outerWidth))
-        const hr = theme.hr(nchars(maxTableWidth, TableChars.dash))
+        const hr = theme.hr(nchars(maxTableWidth, Chars.table.dash))
 
         tables.forEach(table => {
             indent = 2
             log(hr)
-            log()
-            log(ch.title(table.name))
             log()
             table.lines.forEach(line => log(line))
             log()
@@ -706,32 +727,6 @@ class LabHelper {
         }
 
         this.logs.push(b.join(' '))
-    }
-
-    commandHelp() {
-        const helps = {
-            'i' : 'board info'
-          , 's' : 'set state of board'
-          , 'd' : 'show moves for dice'
-          , 'D' : 'show robot info for dice'
-          , 'f' : 'flip perspective'
-          , 'F' : 'flip (invert) board'
-          , 'p' : 'place piece'
-          , 'r' : 'rollout'
-          , 'u' : 'undo move'
-          , 'w' : 'write last results'
-          , 'x' : 'toggle tree mode'
-          , '?' : 'command help'
-        }
-        const b = new StringBuilder(
-            'Commands:'
-          , '---------'
-        )
-        Object.entries(helps).forEach(it =>
-            b.sp(it[0] + ':', it[1])
-        )
-        b.add('---------')
-        return b.join('\n')
     }
 
     boardInfo() {
@@ -1021,6 +1016,31 @@ class LabHelper {
         return turnMeta.endState
     }
 
+    static commandHelp() {
+        const helps = {
+            'i' : 'board info'
+          , 's' : 'set state of board'
+          , 'd' : 'show moves for dice'
+          , 'D' : 'show robot info for dice'
+          , 'f' : 'flip perspective'
+          , 'F' : 'flip (invert) board'
+          , 'p' : 'place piece'
+          , 'r' : 'rollout'
+          , 'u' : 'undo move'
+          , 'w' : 'write last results'
+          , 'x' : 'toggle tree mode'
+          , '?' : 'command help'
+        }
+        const b = new StringBuilder(
+            'Commands:'
+          , '---------'
+        )
+        Object.entries(helps).forEach(it =>
+            b.sp(it[0] + ':', it[1])
+        )
+        b.add('---------')
+        return b.join('\n')
+    }
 }
 
 module.exports = LabHelper
