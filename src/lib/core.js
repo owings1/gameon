@@ -28,7 +28,7 @@ const Util      = require('./util')
 
 const fs = require('fs')
 
-const {castToArray, nmap} = Util
+const {castToArray, nmap, uuid} = Util
 
 const CacheKeys = {
     state28     : 'state28'
@@ -42,7 +42,8 @@ class Match {
 
     static defaults() {
         return {
-            isCrawford   : true
+            cubeEnabled  : true
+          , isCrawford   : true
           , isJacoby     : false
           , breadthTrees : false
           , roller       : null
@@ -59,7 +60,7 @@ class Match {
 
         this.createDate = new Date
 
-        this.uuid  = Util.uuid()
+        this.uuid  = uuid()
         this.total = total
         this.opts  = Util.defaults(Match.defaults(), opts)
 
@@ -176,6 +177,7 @@ class Match {
           , isCanceled    : this.isCanceled
           , isFinished    : this.isFinished
           , gameCount     : this.games.length
+          , opts          : this.opts
         }
     }
 
@@ -217,7 +219,8 @@ class Game {
 
     static defaults() {
         return {
-            isCrawford   : false
+            cubeEnabled  : true
+          , isCrawford   : false
           , isJacoby     : false
           , breadthTrees : false
           , roller       : null
@@ -234,7 +237,7 @@ class Game {
             this.opts.roller = Dice.rollTwo
         }
 
-        this.uuid  = Util.uuid()
+        this.uuid  = uuid()
 
         this.cubeOwner  = null
         this.cubeValue  = 1
@@ -256,6 +259,9 @@ class Game {
     }
 
     canDouble(color) {
+        if (!this.opts.cubeEnabled) {
+            return false
+        }
         if (this.opts.isCrawford) {
             return false
         }

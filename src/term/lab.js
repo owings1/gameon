@@ -84,10 +84,10 @@ class LabHelper {
         }
         this.theme = Themes.getInstance(this.opts.theme)
         this.drawer = DrawHelper.forBoard(this.board, this.persp, this.logs, this.opts.theme)
+        this.term = new TermHelper(!!this.opts.termEnabled)
         this.stateHistory = []
         this.fetchLastRecords = null
         this.canErase = false
-        this.term = new TermHelper(!!this.opts.termEnabled)
     }
 
     async interactive() {

@@ -36,7 +36,7 @@ const term     = require('terminal-kit').terminal
 const {RobotDelegator} = Robot
 const {StringBuilder}  = Util
 
-const {nchars, sp, strlen, ucfirst} = Util
+const {nchars, sp, stripAnsi, strlen, ucfirst} = Util
 
 const {
     Board
@@ -82,10 +82,9 @@ class DrawHelper {
         this.persp = persp || White
         this.logs  = logs || []
 
-        this.logger = new Logger
-        this.theme = Themes.getInstance(themeName)
-        this.chars = Chars.table
-        
+        this.logger   = new Logger
+        this.theme    = Themes.getInstance(themeName)
+        this.chars    = Chars.table
         this.reporter = new Reporter(this)
 
         this.BoardWidth = 53
@@ -98,6 +97,7 @@ class DrawHelper {
     reload() {
 
         const {analyzer} = this.board
+
         this.opersp = Opponent[this.persp]
 
         this.columns     = Math.max(this.logger.getStdout().columns, 0)
@@ -131,9 +131,10 @@ class DrawHelper {
         }
 
         if (game) {
-            this.cubeOwner  = game.cubeOwner
-            this.cubeValue  = game.cubeValue
-            this.isCrawford = game.opts.isCrawford
+            this.cubeOwner   = game.cubeOwner
+            this.cubeValue   = game.cubeValue
+            this.isCrawford  = game.opts.isCrawford
+            this.cubeEnabled = game.opts.cubeEnabled
         }
 
         this.logIndex = 20
@@ -269,14 +270,13 @@ class DrawHelper {
                 )
             }
         })
-        b.add(ch(Chars.dblSp))
 
-        b.add(pipe)
-
-        const pad = this.AfterWidth
-
-        b.add(this.sideLog(pad))
-        b.add(Chars.br)
+        b.add(
+            ch(Chars.dblSp)
+          , pipe
+          , this.sideLog(this.AfterWidth)
+          , Chars.br
+        )
 
         return b
     }
@@ -290,7 +290,7 @@ class DrawHelper {
         b.add(this.barRowStr(color, count))
 
         if (this.cubeValue && !this.cubeOwner) {
-            var cubeStr = this.cubePartStr(cubePart, this.cubeValue, this.isCrawford)            
+            var cubeStr = this.cubePartStr(cubePart)
         } else {
             var cubeStr = Chars.empty
         }
@@ -308,34 +308,27 @@ class DrawHelper {
     middleRow() {
 
         const ch = this.theme.board
-        const b = new StringBuilder
-        const {chars} = this
-        const pipe = ch.border(chars.pipe)
-        const dlbPipe = ch.border(chars.dblPipe)
-
-        b.add(
-            pipe
-          , ch(nchars(6 * this.PiecePad + 1, Chars.sp))
-          , dlbPipe
-          , ch(nchars(6 * this.PiecePad, Chars.sp))
-          , ch(Chars.sp)
-          , pipe
-        )
+        const {chars, PiecePad} = this
 
         if (this.cubeValue && !this.cubeOwner) {
-            var cubeStr = this.cubePartStr(1, this.cubeValue, this.isCrawford)
+            var cubeStr = this.cubePartStr(1)
         } else {
             var cubeStr = Chars.empty
         }
 
-        b.add(cubeStr)
-
         const pad = this.AfterWidth - strlen(cubeStr)
 
-        b.add(this.sideLog(pad))
-        b.add(Chars.br)
-
-        return b
+        return new StringBuilder(
+            ch.border(chars.pipe)
+          , ch(nchars(6 * PiecePad + 1, Chars.sp))
+          , ch.border(chars.dblPipe)
+          , ch(nchars(6 * PiecePad, Chars.sp))
+          , ch(Chars.sp)
+          , ch.border(chars.pipe)
+          , cubeStr
+          , this.sideLog(pad)
+          , Chars.br
+        )
     }
 
     sideLog(pad) {
@@ -343,31 +336,27 @@ class DrawHelper {
         const ch = this.theme.text
         const n = this.logIndex--
 
-        const b = new StringBuilder
-
         var maxWidth = this.maxLogWidth
         if (this.columns > 97) {
             pad += 1
             maxWidth -= 1
         }
-
-        b.add(ch(nchars(pad, Chars.sp)))
-
         if (this.logs[n]) {
             var message = this.logs[this.logs.length - n - 1]
             if (strlen(message) > this.maxLogWidth) {
                 message = ch(
-                    Util.stripAnsi(message).substring(0, this.maxLogWidth)
+                    stripAnsi(message).substring(0, this.maxLogWidth)
                 )
             }
         } else {
             var message = Chars.empty
         }
 
-        b.add(message)
-        b.add(ch(nchars(maxWidth - strlen(message), Chars.sp)))
-
-        return b
+        return new StringBuilder(
+            ch(nchars(pad, Chars.sp))
+          , message
+          , ch(nchars(maxWidth - strlen(message), Chars.sp))
+        )
     }
 
     numbers(points) {
@@ -435,9 +424,10 @@ class DrawHelper {
         const ch = this.theme.board
 
         const countStr = count > 6 ? '' + count : Chars.empty
+        const pad = this.PiecePad - isFirst - countStr.length
 
         return new StringBuilder(
-            ch(nchars(this.PiecePad - isFirst - countStr.length, Chars.sp))
+            ch(nchars(pad, Chars.sp))
           , ch.dim(countStr)
         )
     }
@@ -477,7 +467,7 @@ class DrawHelper {
             default:
                 // Cube part
                 if (this.cubeValue && this.cubeOwner == owner) {
-                    return this.cubePartStr(cubePart, this.cubeValue, this.isCrawford)
+                    return this.cubePartStr(cubePart)
                 }
                 return Chars.empty
         }
@@ -519,15 +509,19 @@ class DrawHelper {
         )
     }
 
-    cubePartStr(partIndex, cubeValue, isCrawford) {
+    cubePartStr(cubePart) {
 
-        const {chars, theme} = this
+        const {chars, theme, cubeValue, isCrawford, cubeEnabled} = this
+
+        if (!cubeEnabled) {
+            return theme.text(nchars(6, Chars.sp))
+        }
 
         const b = new StringBuilder
 
         const ch = isCrawford ? theme.cube.inactive : theme.cube.active
 
-        switch (partIndex) {
+        switch (cubePart) {
             case 0:
                 b.add(ch(this.CubeTopBorder))
                 break

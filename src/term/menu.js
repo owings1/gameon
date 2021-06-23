@@ -999,8 +999,19 @@ class Menu extends EventEmitter {
                 }
             }
           , {
+                value : 'cubeEnabled'
+              , name  : 'Cube Enabled'
+              , question : {
+                    name    : 'cubeEnabled'
+                  , message : 'Cube Enabled'
+                  , type    : 'confirm'
+                  , default : () => this.settings.matchOpts.cubeEnabled
+                }
+            }
+          , {
                 value : 'isCrawford'
               , name  : 'Crawford Rule'
+              , when  : () => this.settings.matchOpts.cubeEnabled
               , question : {
                     name    : 'isCrawford'
                   , message : 'Crawford Rule'
@@ -1555,6 +1566,7 @@ class Menu extends EventEmitter {
     }
 
     static settingsDefaults() {
+        const matchDefaults = Match.defaults()
         return {
             delay         : 0.5
           , isRecord      : false
@@ -1564,9 +1576,10 @@ class Menu extends EventEmitter {
           , theme         : DefaultThemeName
           , termEnabled   : DefaultTermEnabled
           , matchOpts     : {
-                total      : 1
-              , isJacoby   : false
-              , isCrawford : true
+                total       : 1
+              , isJacoby    : matchDefaults.isJacoby
+              , isCrawford  : matchDefaults.isCrawford
+              , cubeEnabled : matchDefaults.cubeEnabled
             }
           , robots        : {}
         }
