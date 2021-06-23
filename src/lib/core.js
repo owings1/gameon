@@ -194,7 +194,10 @@ class Match {
         const match = new Match(data.total, data.opts)
 
         match.uuid = data.uuid
-        match.createDate = data.createDate
+        match.createDate = new Date(data.createDate)
+        if (isNaN(+match.createDate)) {
+            match.createDate = new Date
+        }
 
         match.scores = data.scores
         match.winner = data.winner
