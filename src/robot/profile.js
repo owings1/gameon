@@ -69,11 +69,12 @@ function numCmp(a, b) {
 }
 
 const Columns = {
+
     name: {
         def : {
-            name       : 'name'
-          , title      : 'Name'
-          , align      : 'left'
+            name  : 'name'
+          , title : 'Name'
+          , align : 'left'
         }
       , sortable   : true
       , defaultDir : 'asc'
@@ -84,10 +85,10 @@ const Columns = {
 
   , elapsed: {
         def : {
-            name       : 'elapsed'
-          , title      : 'Elapsed (ms)'
-          , align      : 'right'
-          , format     : f_elapsed
+            name   : 'elapsed'
+          , title  : 'Elapsed (ms)'
+          , align  : 'right'
+          , format : f_elapsed
         }
       , sortable   : true
       , defaultDir : 'desc'
@@ -98,10 +99,10 @@ const Columns = {
 
   , average: {
         def : {
-            name       : 'average'
-          , title      : 'Average (ms)'
-          , align      : 'right'
-          , format     : value => value == null ? '' : value.toFixed(4) + ' ms'
+            name   : 'average'
+          , title  : 'Average (ms)'
+          , align  : 'right'
+          , format : value => value == null ? '' : value.toFixed(4) + ' ms'
         }
       , sortable   : true
       , defaultDir : 'desc'
@@ -112,10 +113,10 @@ const Columns = {
 
   , count: {
         def : {
-            name       : 'count'
-          , title      : 'Count'
-          , align      : 'right'
-          , format     : f_round
+            name   : 'count'
+          , title  : 'Count'
+          , align  : 'right'
+          , format : f_round
         }
       , sortable   : true
       , defaultDir : 'desc'
@@ -126,10 +127,10 @@ const Columns = {
 
   , match: {
         def : {
-            name       : 'match'
-          , title      : 'Match (avg)'
-          , align      : 'right'
-          , format     : f_round
+            name   : 'match'
+          , title  : 'Match (avg)'
+          , align  : 'right'
+          , format : f_round
         }
       , sortable   : true
       , defaultDir : 'desc'
@@ -140,10 +141,10 @@ const Columns = {
 
   , game: {
         def : {
-            name       : 'game'
-          , title      : 'Game (avg)'
-          , align      : 'right'
-          , format     : f_round
+            name   : 'game'
+          , title  : 'Game (avg)'
+          , align  : 'right'
+          , format : f_round
         }
       , sortable   : true
       , defaultDir : 'desc'
@@ -154,10 +155,10 @@ const Columns = {
 
   , turn : {
         def : {
-            name       : 'turn'
-          , title      : 'Turn (avg)'
-          , align      : 'right'
-          , format     : f_round
+            name   : 'turn'
+          , title  : 'Turn (avg)'
+          , align  : 'right'
+          , format : f_round
         }
       , sortable   : true
       , defaultDir : 'desc'
@@ -167,7 +168,7 @@ const Columns = {
     }
 }
 
-class Helper {
+class ProfileHelper {
 
     static sortableColumns() {
         return Object.values(Columns).filter(column => column.sortable).map(column => column.name)
@@ -178,7 +179,7 @@ class Helper {
             outDir       : null
           , matchTotal   : 1
           , numMatches   : 500
-          , sortBy       : 'elapsed,count,name'
+          , sortBy       : ['elapsed', 'count', 'name'].join(',')
           , innerBorders : false
           , title        : 'Profile Results'
           , breadthTrees : false
@@ -200,7 +201,9 @@ class Helper {
 
     constructor(opts) {
 
-        this.opts = Util.defaults(Helper.defaults(), opts)
+        this.opts = Util.defaults(ProfileHelper.defaults(), opts)
+
+        this.logger = new Logger
 
         this.columns = this.opts.columns.toLowerCase().split(',').map(it => it.trim()).filter(it => it.length)
         
@@ -239,33 +242,45 @@ class Helper {
             if (!(this.opts.gaugeRegex instanceof RegExp)) {
                 throw new InvalidRegexError('gauge regex must be a RegExp')
             }
-            
         }
-
-        this.logger = new Logger
-        this.coordinator = new Coordinator
-        this.roller = null
     }
 
     async run() {
 
-        if (this.opts.breadthTrees) {
+        const {
+            breadthTrees
+          , gaugeRegex
+          , matchTotal
+          , numMatches
+          , rollsFile
+        } = this.opts
+
+        const matchOpts = {breadthTrees}
+
+        if (breadthTrees) {
             this.logger.info('Using breadth trees')
         }
 
-        if (this.opts.rollsFile) {
-            this.logger.info('Loading rolls file', path.basename(this.opts.rollsFile))
-            await this.loadRollsFile(this.opts.rollsFile)
+        if (rollsFile) {
+            this.logger.info('Loading rolls file', path.basename(rollsFile))
+            matchOpts.roller = await this.loadRollsFile(rollsFile)
         }
 
         const filters = []
-        if (this.opts.gaugeRegex) {
-            this.logger.info('Using regex filter', this.opts.gaugeRegex.toString())
-            filters.push(gauge => this.opts.gaugeRegex.test(gauge.name))
+        if (gaugeRegex) {
+            this.logger.info('Using regex filter', gaugeRegex.toString())
+            filters.push(gauge => gaugeRegex.test(gauge.name))
         }
 
         Profiler.enabled = true
         Profiler.resetAll()
+
+        const summaryTimer = new Timer
+        const coordinator = new Coordinator
+
+        var matchCount = 0
+        var gameCount  = 0
+        var turnCount  = 0
 
         const players = [
             RobotDelegator.forDefaults(Colors.White)
@@ -274,23 +289,15 @@ class Helper {
 
         try {
 
-            this.logger.info('Running', this.opts.numMatches, 'matches of', this.opts.matchTotal, 'points each')
-
-            var matchCount = 0
-            var gameCount  = 0
-            var turnCount  = 0
-
-            const matchOpts = {breadthTrees: this.opts.breadthTrees, roller: this.roller}
-
-            const summaryTimer = new Timer
+            this.logger.info('Running', numMatches, 'matches of', matchTotal, 'points each')
 
             summaryTimer.start()
 
-            for (var i = 0; i < this.opts.numMatches; ++i) {
+            for (var i = 0; i < numMatches; ++i) {
 
-                var match = new Match(this.opts.matchTotal, matchOpts)
+                var match = new Match(matchTotal, matchOpts)
 
-                await this.coordinator.runMatch(match, ...players)
+                await coordinator.runMatch(match, ...players)
 
                 matchCount += 1
                 gameCount += match.games.length
@@ -329,10 +336,7 @@ class Helper {
 
         const data = []
 
-        Object.values(profiler.timers).forEach(timer => {
-            if (!filter(timer)) {
-                return
-            }
+        Object.values(profiler.timers).filter(filter).forEach(timer => {
             const row = {}
             columns.forEach(name => {
                 row[name] = Columns[name].g_timer(timer, summary)
@@ -340,10 +344,7 @@ class Helper {
             data.push(row)
         })
 
-        Object.values(profiler.counters).forEach(counter => {
-            if (!filter(counter)) {
-                return
-            }
+        Object.values(profiler.counters).filter(filter).forEach(counter => {
             const row = {}
             columns.forEach(name => {
                 row[name] = Columns[name].g_counter(counter, summary)
@@ -352,16 +353,16 @@ class Helper {
         })
 
         data.sort((a, b) => {
-            var res = 0
+            var cmp = 0
             for (var i = 0; i < sortColumns.length; ++i) {
                 var name = sortColumns[i]
                 var dir = sortDirs[i]
-                res = Columns[name].sorter(a, b) * dir
-                if (res) {
+                cmp = Columns[name].sorter(a, b) * dir
+                if (cmp) {
                     break
                 }
             }
-            return res
+            return cmp
         })
 
         return data
@@ -407,18 +408,8 @@ class Helper {
 
     loadRollsFile(file) {
         const {rolls} = Dice.validateRollsFile(resolve(file))
-        if (!rolls.length) {
-            throw new Error('Rolls cannot be empty')
-        }
-        var rollIndex = 0
-        var maxIndex = rolls.length - 1
-        this.roller = () => {
-            if (rollIndex > maxIndex) {
-                rollIndex = 0
-            }
-            return rolls[rollIndex++]
-        }
+        return Dice.createRoller(rolls)
     }
 }
 
-module.exports = Helper
+module.exports = ProfileHelper

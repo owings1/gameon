@@ -593,22 +593,15 @@ class LabHelper {
                         return true
                     }
                     value = tildeHome(value)
-                    return Dice.rollsFileError(value)
+                    return Util.errMessage(() => Dice.validateRollsFile(value))
                 }
             }
         ])
         if (answers.rollsFile) {
             this.logger.info('Using custom rolls file')
             this.opts.rollsFile = path.resolve(tildeHome(answers.rollsFile))
-            const {rolls} = JSON.parse(fs.readFileSync(this.opts.rollsFile))
-            var rollIndex = 0
-            var maxIndex = rolls.length - 1
-            matchOpts.roller = () => {
-                if (rollIndex > maxIndex) {
-                    rollIndex = 0
-                }
-                return rolls[rollIndex++]
-            }
+            const {rolls} = await fse.readJson(this.opts.rollsFile)
+            matchOpts.roller = Dice.createRoller(rolls)
         } else {
             this.opts.rollsFile = null
         }

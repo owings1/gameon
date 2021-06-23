@@ -115,6 +115,7 @@ class Client extends EventEmitter {
         if (this.conn) {
             this.conn.close()
         }
+        this.removeAllListeners()
     }
 
     async handshake() {

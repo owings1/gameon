@@ -18,6 +18,7 @@ const Client = requireSrc('net/client')
 const NetPlayer = requireSrc('net/player')
 const Robot = requireSrc('robot/player')
 const Auth  = requireSrc('net/auth')
+const Util = requireSrc('lib/util')
 
 const Coordinator = requireSrc('lib/coordinator')
 
@@ -927,9 +928,7 @@ describe('Server', () => {
                 const res = await authClient.postJson('/api/v1/reset-password', {username, password, resetKey})
                 expect(res.status).to.equal(400)
             })
-        })
-
-        
+        })        
     })
 
     describe('metrics', () => {
@@ -1198,10 +1197,16 @@ describe('NetPlayer', () => {
 
         const {east, west} = await eastAndWest({total: 1})
 
-        await Promise.all([
-            east.coord.runMatch(east.match, east.players.White, east.players.Red),
-            west.coord.runMatch(west.match, west.players.White, west.players.Red)
-        ])
+        try {
+            await Promise.all([
+                east.coord.runMatch(east.match, east.players.White, east.players.Red),
+                west.coord.runMatch(west.match, west.players.White, west.players.Red)
+            ])
+        } finally {
+            await Util.destroyAll(east.players)
+            await Util.destroyAll(west.players)
+        }
+        
     })
 
     it('should play robot v robot over net with double accept, decline', async function() {
@@ -1214,10 +1219,20 @@ describe('NetPlayer', () => {
         east.players.Red.turnOption = turn => turn.setDoubleOffered()
         east.players.Red.decideDouble = turn => turn.setDoubleDeclined()
 
-        await Promise.all([
-            east.coord.runMatch(east.match, east.players.White, east.players.Red),
-            west.coord.runMatch(west.match, west.players.White, west.players.Red)
-        ])
+        const p1 = east.coord.runMatch(east.match, east.players.White, east.players.Red)
+        const p2 = west.coord.runMatch(west.match, west.players.White, west.players.Red)
+
+        try {
+            //console.log('a')
+            await p1
+            //console.log('b')
+            await p2
+            //console.log('c')
+        } finally {
+            await Util.destroyAll(east.players)
+            await Util.destroyAll(west.players)
+        }
+        
     })
 
 
@@ -1228,21 +1243,33 @@ describe('NetPlayer', () => {
         const {east, west} = await eastAndWest({total: 2, isCrawford: false})
 
         west.players.White.turnOption = (turn, game) => {
+            //console.log(game.getTurnCount())
             if (game.getTurnCount() > 3) {
                 turn.setDoubleOffered()
             }
         }
         east.players.Red.turnOption = (turn, game) => {
+            //console.log(game.getTurnCount())
             if (game.getTurnCount() > 3) {
                 turn.setDoubleOffered()
             }
         }
         east.players.Red.decideDouble = turn => turn.setDoubleDeclined()
 
-        await Promise.all([
-            east.coord.runMatch(east.match, east.players.White, east.players.Red),
-            west.coord.runMatch(west.match, west.players.White, west.players.Red)
-        ])
+        const p1 = east.coord.runMatch(east.match, east.players.White, east.players.Red)
+        const p2 = west.coord.runMatch(west.match, west.players.White, west.players.Red)
+
+        try {
+            //console.log('a')
+            await p1
+            //console.log('b')
+            await p2
+            //console.log('c')
+        } finally {
+            await Util.destroyAll(east.players)
+            await Util.destroyAll(west.players)
+        }
+        
     })
 })
 

@@ -1203,10 +1203,6 @@ class Dice {
         return dice[0] > dice[1] ? White : Red
     }
 
-    static rollsFileError(file) {
-        return Util.errMessage(() => Dice.validateRollsFile(file))
-    }
-
     static sequencesForFaces(faces) {
         if (faces.length == 2) {
             return [
@@ -1217,6 +1213,17 @@ class Dice {
         return [
             [faces[0], faces[1], faces[2], faces[3]]
         ]
+    }
+
+    static createRoller(rolls) {
+        var rollIndex = 0
+        var maxIndex = rolls.length - 1
+        return () => {
+            if (rollIndex > maxIndex) {
+                rollIndex = 0
+            }
+            return rolls[rollIndex++]
+        }
     }
 
     static validateRollsFile(file) {

@@ -31,6 +31,7 @@ const defaults = Helper.defaults()
 class RobotProfileCommand extends Base {
 
     async init(...args) {
+        await super.init(...args)
         this.opts = {
             outDir       : this.flags.outdir
           , matchTotal   : +this.flags.matchtotal

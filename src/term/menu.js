@@ -872,14 +872,7 @@ class Menu extends EventEmitter {
         if (advancedOpts.rollsFile) {
             this.logger.info('Using custom rolls file')
             const {rolls} = await fse.readJson(tildeHome(advancedOpts.rollsFile))
-            var rollIndex = 0
-            var maxIndex = rolls.length - 1
-            matchOpts.roller = () => {
-                if (rollIndex > maxIndex) {
-                    rollIndex = 0
-                }
-                return rolls[rollIndex++]
-            }
+            matchOpts.roller = Dice.createRoller(rolls)
         }
         return matchOpts
     }
@@ -1056,7 +1049,7 @@ class Menu extends EventEmitter {
                         return true
                     }
                     value = tildeHome(value)
-                    return Dice.rollsFileError(value)
+                    return Util.errMessage(() => Dice.validateRollsFile(value))
                 }
             }
         ]
