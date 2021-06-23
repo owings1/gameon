@@ -300,6 +300,10 @@ class Util {
         return +n
     }
 
+    static secret1() {
+        return crypto.createHash('sha256').update(Util.uuid()).digest('hex')
+    }
+
     static sortNumericAsc(a, b) {
         return a - b
     }

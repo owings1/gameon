@@ -29,7 +29,6 @@ const Logger    = require('../lib/logger')
 const Util      = require('../lib/util')
 const WsClient  = require('websocket').client
 
-const crypto = require('crypto')
 const fetch  = require('node-fetch')
 
 const {EventEmitter} = require('events')
@@ -39,9 +38,9 @@ const {Match} = Core
 
 const {
     httpToWs
+  , secret1
   , stripLeadingSlash
   , stripTrailingSlash
-  , uuid
   , wsToHttp
 } = Util
 
@@ -140,7 +139,7 @@ class Client extends EventEmitter {
 
         const {total} = opts
         const req = {action: 'createMatch', total, opts}
-        const {id} = await this.sendAndWaitForResponse(req, 'matchCreated')
+        const {id, match} = await this.sendAndWaitForResponse(req, 'matchCreated')
         this.matchId = id
         this.logger.info('Created new match', id)
 
@@ -177,33 +176,33 @@ class Client extends EventEmitter {
         return this.sendAndWaitForResponse(req, action)
     }
 
-    sendAndWaitForResponse(msg, action) {
+    sendAndWaitForResponse(req, action) {
         try {
-            var p = this.waitForResponse(action)
+            var promise = this.waitForResponse(action)
         } catch (err) {
             throw err
         }
         try {
-            this.sendMessage(msg)
+            this.sendMessage(req)
         } catch (err) {
             this.logger.debug(['catch sendMessage', 'throwing'])
             throw err
         }
-        return p
+        return promise
     }
 
     async waitForResponse(action) {
-        const msg = await this.waitForMessage()
-        if (msg.error) {
-            throw Client.buildError(msg)
+        const res = await this.waitForMessage()
+        if (res.error) {
+            throw Client.buildError(res)
         }
-        if (action && msg.action != action) {
-            if (msg.action == 'matchCanceled') {
-                throw new MatchCanceledError(msg.reason)
+        if (action && res.action != action) {
+            if (res.action == 'matchCanceled') {
+                throw new MatchCanceledError(res.reason)
             }
-            throw new ClientError('Expecting response ' + action + ', but got ' + msg.action + ' instead')
+            throw new ClientError('Expecting response ' + action + ', but got ' + res.action + ' instead')
         }
-        return msg
+        return res
     }
 
     async waitForMessage() {
@@ -225,20 +224,20 @@ class Client extends EventEmitter {
         }
     }
 
-    handleMessage(data) {
+    handleMessage(res) {
         if (this.messageResolve) {
-            this.messageResolve(data)
+            this.messageResolve(res)
             this.messageResolve = null
         } else {
-            if (data.action == 'matchCanceled') {
-                const err = new MatchCanceledError(data.reason)
+            if (res.action == 'matchCanceled') {
+                const err = new MatchCanceledError(res.reason)
                 if (!this.emit('matchCanceled', err)) {
                     // NB: this can throw an unhandled promise rejection.
                     // TODO: try other handlers conn error, this error
                     throw err
                 }
             } else {
-                this.logger.warn('Unhandled message', data)
+                this.logger.warn('Unhandled message', res)
             }
         }
     }
@@ -264,20 +263,21 @@ class Client extends EventEmitter {
         return {id: this.matchId, color: this.color, ...params}
     }
 
-    sendMessage(msg) {
-        msg = {secret: this.secret, ...msg}
-        this.logger.debug('sendMessage', msg)
-        this.conn.sendUTF(JSON.stringify(msg))
+    sendMessage(req) {
+        req = {secret: this.secret, ...req}
+        this.logger.debug('sendMessage', req)
+        this.conn.sendUTF(JSON.stringify(req))
     }
 
     static generateSecret() {
-        return crypto.createHash('sha256').update(uuid()).digest('hex')
+        return Util.secret1()
     }
 
-    static buildError(msg, fallbackMessage) {
-        const err = new ClientError(msg.error || fallbackMessage || 'Unknown server error')
-        for (var k in msg) {
-            err[k] = msg[k]
+    static buildError(data, fallbackMessage) {
+        const message = data.error || fallbackMessage || 'Unknown server error'
+        const err = new ClientError(message)
+        for (var k in data) {
+            err[k] = data[k]
         }
         return err
     }
