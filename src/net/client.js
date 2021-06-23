@@ -28,6 +28,10 @@ const Logger          = require('../lib/logger')
 const Util            = require('../lib/util')
 const WebSocketClient = require('websocket').client
 
+const WebSocket = require('ws')
+//const ReconnectingWebSocket = require('reconnecting-websocket')
+
+
 const {merge} = Util
 
 const crypto = require('crypto')
@@ -35,6 +39,9 @@ const fetch  = require('node-fetch')
 
 const {White, Red} = Constants
 const {Match} = Core
+
+const NewMode = false
+
 class Client {
 
     constructor(serverUrl, username, password) {
@@ -44,7 +51,9 @@ class Client {
         this.username = username
         this.password = password
         this.token = null
-        this.socketClient = new WebSocketClient
+        if (!NewMode) {
+            this.socketClient = new WebSocketClient
+        }
         this.conn = null
         this.isHandshake = null
         this.secret = Client.generateSecret()
@@ -59,21 +68,65 @@ class Client {
         }
 
         await new Promise((resolve, reject) => {
-            this.socketClient.on('error', reject)
-            this.socketClient.on('connectFailed', reject)
-            this.socketClient.on('connect', conn => {
-                this.conn = conn
-                conn.on('error', err => this.logger.error(err))
-                conn.on('close', () => {
+            /*
+            this.rsc = new ReconnectingWebSocket(this.serverSocketUrl, [], {WebSocket: require('ws')})
+            this.rsc.addEventListener('error', err => {
+                console.log('rsc error', err)
+            })
+            this.rsc.addEventListener('open', event => {
+                console.log('rsc open')
+            })
+            this.rsc.addEventListener('message', msg => {
+                const data = JSON.parse(msg.data)
+                if (this.messageResolve) {
+                    this.messageResolve(data)
+                    this.messageResolve = null
+                } else {
+                    console.log('unresolved message', data)
+                }
+            })
+            */
+
+            if (NewMode) {
+                this.socketClient = new WebSocket(this.serverSocketUrl)
+                this.socketClient.on('error', err => {
+                    console.log('socketClientError')
+                    console.log(err.code)
+                    this.logger.error(err)
+                })
+                this.socketClient.on('close', () => {
+                    console.log('socketClientClose')
+                    this.socketClient.removeAllListeners()
+                    this.socketClient.close()
+                    this.socketClient.terminate()
                     this.conn = null
                     this.isHandshake = false
                 })
-                resolve()
-            })
-            try {
-                this.socketClient.connect(this.serverSocketUrl)
-            } catch (err) {
-                reject(err)
+                this.socketClient.on('open', () => {
+                    console.log('socketClientOpen')
+                    this.conn = this.socketClient
+                    resolve()
+                })
+            } else {
+                this.socketClient.on('connectFailed', err => {
+                    reject(err)
+                })
+                this.socketClient.on('connect', conn => {
+                    this.conn = conn
+                    conn.on('error', err => {
+                        this.logger.error(err)
+                    })
+                    conn.on('close', () => {
+                        this.conn = null
+                        this.isHandshake = false
+                    })
+                    resolve()
+                })
+                try {
+                    this.socketClient.connect(this.serverSocketUrl)
+                } catch (err) {
+                    reject(err)
+                }
             }
         })
 
@@ -162,7 +215,11 @@ class Client {
             }
             //try {
                 this.conn.once('message', msg => {
-                    resolve(JSON.parse(msg.utf8Data))
+                    if (NewMode) {
+                        resolve(JSON.parse(msg))
+                    } else {
+                        resolve(JSON.parse(msg.utf8Data))
+                    }
                 })
             //} catch (err) {
             //    reject(err)
@@ -196,7 +253,11 @@ class Client {
     sendMessage(msg) {
         msg = merge({secret: this.secret}, msg)
         this.logger.debug('sendMessage', msg)
-        this.conn.sendUTF(JSON.stringify(msg))
+        if (NewMode) {
+            this.conn.send(JSON.stringify(msg))
+        } else {
+            this.conn.sendUTF(JSON.stringify(msg))
+        }
     }
 
     static generateSecret() {
