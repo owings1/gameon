@@ -534,6 +534,25 @@ describe('RobotDelegator', () => {
         })
     })
 
+    describe('#explainResult', () => {
+
+        it('should return object with rankList and delegateList for lastResult with isStoreLastResult=true', async () => {
+            const match = new Match(1, {roller: () => [6, 1]})
+            const game = match.nextGame()
+            const robot = Robot.RobotDelegator.forDefaults(White)
+            try {
+                robot.isStoreLastResult = true
+                await robot.getMoves(game.firstTurn(), game, match)
+                const res = robot.explainResult(robot.lastResult)
+                const keys = Object.keys(res)
+                expect(keys).to.contain('rankList')
+                expect(keys).to.contain('delegateList')
+            } finally {
+                await robot.destroy()
+            }
+        })
+    })
+
     describe('#getMoves', () => {
 
         it('should throw NoDelegatesError with empty delegates', async () => {

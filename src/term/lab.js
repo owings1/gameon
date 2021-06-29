@@ -423,7 +423,7 @@ class LabHelper {
 
             const mstr = new StringBuilder(
                 chalk.grey('[')
-              , info.moves.map(move => this.moveDesc(move, true)).join(', ')
+              , info.moves.map(move => this.moveDesc(move)).join(', ')
               , chalk.grey(']')
             ).toString()
 
@@ -559,7 +559,7 @@ class LabHelper {
           , {
                 name: 'moves'
               , format: moves => ch.dim('[') + moves.map(move =>
-                    this.moveDesc(move, true).padEnd(5, ' ')
+                    this.moveDesc(move).padEnd(5, ' ')
                 ).join(ch.dim(',') + ' ') + ch.dim(']')
             }
         ]
@@ -740,30 +740,27 @@ class LabHelper {
         }
     }
 
-    moveDesc(move, isShort) {
+    moveDesc({origin, face}) {
 
         const b = new StringBuilder
 
-        if (move.origin == -1) {
+        if (origin == -1) {
             var startPoint = 25
             b.add('bar')
         } else {
-            var startPoint = OriginPoints[this.persp][move.origin]
+            var startPoint = OriginPoints[this.persp][origin]
             b.add(startPoint)
         }
 
-        var destPoint = startPoint - move.face
+        var destPoint = startPoint - face
 
         if (destPoint < 1) {
             destPoint = 'home'
         }
 
         b.add(destPoint)
-        if (!isShort) {
-            b.add('[' + move.face + ']')
-        }
 
-        return b.join(':')
+        return b.join(Chars.arrow.right)
     }
 
     getBuiltInStateString(name) {

@@ -1142,7 +1142,7 @@ describe('Server', () => {
     })
 })
 
-describe.skip('NetPlayer -- TODO: fix', () => {
+describe('NetPlayer -- TODO: fix', () => {
 
     var serverUrl
     var client
@@ -1261,6 +1261,7 @@ describe.skip('NetPlayer -- TODO: fix', () => {
 
         try {
             //console.log('a')
+            //await new Promise(resolve => setTimeout(resolve, 1000))
             await p1
             //console.log('b')
             await p2

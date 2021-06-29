@@ -265,7 +265,6 @@ class TableHelper {
         this._prompt = inquirer.prompt(castToArray(questions))
         return this._prompt
     }
-
 }
 
 class Table {
@@ -374,11 +373,12 @@ class Table {
     }
 
     makePartsTitle() {
-        const {chlk} = this
-        if (!this.title) {
+        const {chlk, title, innerWidth} = this
+        const {titleAlign} = this.opts
+        if (!title) {
             return ''
         }
-        return pad(chlk.title(this.title), this.opts.titleAlign, this.innerWidth, chlk.title(' '))
+        return pad(chlk.title(title), titleAlign, innerWidth, chlk.title(' '))
     }
 
     makePartsHead() {
@@ -399,9 +399,9 @@ class Table {
     }
 
     makePartsFoot() {
-        const {chlk} = this
+        const {chlk, innerWidth} = this
         return this.footerLines.map(line =>
-            pad(chlk.foot(line), this.opts.footerAlign, this.innerWidth, chlk.foot(' '))
+            pad(chlk.foot(line), this.opts.footerAlign, innerWidth, chlk.foot(' '))
         )
     }
 
@@ -449,8 +449,8 @@ class Table {
             return
         }
         // check if footers/title will fit
-        const otherWidth = Math.max(...footerLines.map(strlen), strlen(title))
-        const deficit = otherWidth - this.innerWidth
+        const extrasWidth = Math.max(...footerLines.map(strlen), strlen(title))
+        const deficit = extrasWidth - this.innerWidth
         if (deficit <= 0) {
             return
         }
