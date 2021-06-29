@@ -1,4 +1,14 @@
-const {expect} = require('@oclif/test')
+const chai = require('chai')
+const {expect} = chai
+
+// https://www.chaijs.com/guide/helpers/
+function assertJsonEqual(b) {
+    const exp = JSON.stringify(this._obj)
+    const res = JSON.stringify(b)
+    this.assert(exp == res, "expected #{exp} to equal #{act}", "expected #{exp} to not equal #{act}", exp, res)
+}
+
+chai.Assertion.addMethod('jsonEqual', assertJsonEqual)
 
 const Util = require('../src/lib/util')
 const Core = require('../src/lib/core')
