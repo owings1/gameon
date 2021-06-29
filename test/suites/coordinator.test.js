@@ -49,7 +49,7 @@ beforeEach(() => {
 })
 
 afterEach(async () => {
-    await Promise.all(Object.values(players).map(player => player.destroy()))
+    await Util.destroyAll(players)
 })
 
 
@@ -72,6 +72,53 @@ describe('#constructor', () => {
 
     it('should accept recordDir when isRecord=true', () => {
         new Coordinator({isRecord: true, recordDir})
+    })
+})
+
+describe('#buildPlayers', () => {
+    it('should accept keyed object', () => {
+        const res = Coordinator.buildPlayers(players)
+        expect(res.White).to.equal(players.White)
+        expect(res.Red).to.equal(players.Red)
+    })
+
+    it('should accept white,red args', () => {
+        const res = Coordinator.buildPlayers(players.White, players.Red)
+        expect(res.White).to.equal(players.White)
+        expect(res.Red).to.equal(players.Red)
+    })
+
+    it('should accept array', () => {
+        const res = Coordinator.buildPlayers([players.White, players.Red])
+        expect(res.White).to.equal(players.White)
+        expect(res.Red).to.equal(players.Red)
+    })
+})
+describe('#cancelGame', () => {
+
+    it('should emit gameCanceled on both players', async () => {
+        var isCalled1 = false
+        var isCalled2 = false
+        players.White.on('gameCanceled', () => isCalled1 = true)
+        players.Red.on('gameCanceled', () => isCalled2 = true)
+        const game = new Game
+        await coordinator.cancelGame(game, players, new Error)
+        expect(isCalled1).to.equal(true)
+        expect(isCalled2).to.equal(true)
+    })
+})
+
+describe('#cancelMatch', () => {
+
+    it('should emit matchCanceled on both players', async () => {
+        var isCalled1 = false
+        var isCalled2 = false
+        players.White.on('matchCanceled', () => isCalled1 = true)
+        players.Red.on('matchCanceled', () => isCalled2 = true)
+        const match = new Match(1)
+        await coordinator.cancelMatch(match, players, new Error)
+        expect(isCalled1).to.equal(true)
+        expect(isCalled2).to.equal(true)
     })
 })
 

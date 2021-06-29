@@ -7,9 +7,22 @@ const {
 } = TestUtil
 
 const Util = requireSrc('lib/util')
-const {Profiler, Counter, Timer, DependencyHelper} = Util
+const {Profiler, Counter, Timer, DependencyHelper, StringBuilder} = Util
+
+const chalk = require('chalk')
+const os    = require('os')
 
 describe('Util', () => {
+
+    describe('#append', () => {
+
+        it('should append [3,4] to [1]', () => {
+            const arr = [1]
+            Util.append(arr, [3,4])
+            expect(arr).to.jsonEqual([1,3,4])
+        })
+    })
+
     describe('#arrayIncrement', () => {
 
         var inc
@@ -164,6 +177,51 @@ describe('Util', () => {
     
     })
 
+    describe('#fileDateString', () => {
+
+        it('should use new dat if no date passed', () => {
+            const d = new Date
+            const res = Util.fileDateString()
+            expect(res.substring(0, 4)).to.equal(d.getFullYear().toString())
+        })
+
+        it('should use date argument', () => {
+            const d = new Date('2011-02-01')
+            const res = Util.fileDateString(d)
+            expect(res.substring(0, 4)).to.equal('2011')
+        })
+    })
+
+    describe('#homeTilde', () => {
+
+        it('should return null for null', () => {
+            const res = Util.homeTilde(null)
+            expect(res).to.equal(null)
+        })
+
+        it('should return undefined for undefined', () => {
+            const res = Util.homeTilde(undefined)
+            expect(res).to.equal(undefined)
+        })
+    })
+
+    describe('#isEmptyObject', () => {
+
+        it('should return true for {}', () => {
+            const res = Util.isEmptyObject({})
+            expect(res).to.equal(true)
+        })
+    })
+
+    describe('#keyValuesTrue', () => {
+
+        it('should make arr values keys with true', () => {
+            const res = Util.keyValuesTrue(['a', 'b', 'b', 'c'])
+            const exp = {a: true, b: true, c: true}
+            expect(res).to.jsonEqual(exp)
+        })
+    })
+
     describe('#makeErrorObject', () => {
 
         it('should return constructor name if error has no name', () => {
@@ -171,6 +229,36 @@ describe('Util', () => {
             err.name = null
             const result = Util.makeErrorObject(err)
             expect(result.name).to.equal('Error')
+        })
+    })
+
+    describe('#mapValues', () => {
+
+        it('should map values with +1', () => {
+            const res = Util.mapValues({a: 1, b: 2}, value => value + 1)
+            const exp = {a: 2, b: 3}
+            expect(res).to.jsonEqual(exp)
+        })
+    })
+
+    describe('#pad', () => {
+
+        it('should pad left with 2 spaces with chalked input', () => {
+            const res = Util.pad(chalk.green('a'), 'left', 3)
+            const exp = chalk.green('a') + '  '
+            expect(res).to.equal(exp)
+        })
+
+        it('should pad right with 2 spaces with chalked input', () => {
+            const res = Util.pad(chalk.green('a'), 'right', 3)
+            const exp = '  ' + chalk.green('a')
+            expect(res).to.equal(exp)
+        })
+
+        it('should pad right with xx with chalked input', () => {
+            const res = Util.pad(chalk.green('a'), 'right', 3, 'x')
+            const exp = 'xx' + chalk.green('a')
+            expect(res).to.equal(exp)
         })
     })
 
@@ -332,6 +420,19 @@ describe('Util', () => {
         })
     })
 
+    describe('#strlen', () => {
+
+        it('should return 0 for null', () => {
+            const res = Util.strlen(null)
+            expect(res).to.equal(0)
+        })
+
+        it('should return 4 for chalked input', () => {
+            const res = Util.strlen(chalk.green('asdf'))
+            expect(res).to.equal(4)
+        })
+    })
+
     describe('#sumArray', () => {
 
         const expCases = [
@@ -345,6 +446,37 @@ describe('Util', () => {
                 const result = Util.sumArray(input)
                 expect(result).to.equal(exp)
             })
+        })
+    })
+
+    describe('#tildeHome', () => {
+
+        it('should return null for null', () => {
+            const res = Util.tildeHome(null)
+            expect(res).to.equal(null)
+        })
+
+        it('should replace ~ with home dir', () => {
+            const res = Util.tildeHome('~/foo')
+            expect(res).to.equal(os.homedir() + '/foo')
+        })
+    })
+
+    describe('#ucfirst', () => {
+
+        it('should return null for null', () => {
+            const res = Util.ucfirst(null)
+            expect(res).to.equal(null)
+        })
+
+        it('should return empty for empty', () => {
+            const res = Util.ucfirst('')
+            expect(res).to.equal('')
+        })
+
+        it('should return Foo for foo', () => {
+            const res = Util.ucfirst('foo')
+            expect(res).to.equal('Foo')
         })
     })
 
@@ -564,5 +696,26 @@ describe('DependencyHelper', () => {
         helper.add('a', ['b'])
         const err = getError(() => helper.add('a', ['c']))
         expect(err.isDependencyError).to.equal(true)
+    })
+})
+
+describe('StringBuilder', () => {
+
+    describe('#length', () => {
+        it('should return 5 with add one char five times', () => {
+            const b = new StringBuilder
+            b.add('a', 'b', 'c', 'd', 'e')
+            const res = b.length()
+            expect(res).to.equal(5)
+        })
+    })
+
+    describe('#replace', () => {
+        it('should replace arr', () => {
+            const b = new StringBuilder
+            b.add('a', 'b', 'c')
+            b.replace('c')
+            expect(b.toString()).to.equal('c')
+        })
     })
 })

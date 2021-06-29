@@ -1059,7 +1059,8 @@ class Menu extends EventEmitter {
                         return true
                     }
                     value = tildeHome(value)
-                    return Util.errMessage(() => Dice.validateRollsFile(value))
+                    const data = fse.readJsonSync(value)
+                    return Util.errMessage(() => Dice.validateRollsData(data))
                 }
             }
         ]

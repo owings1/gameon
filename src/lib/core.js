@@ -26,9 +26,14 @@ const Constants = require('./constants')
 const Errors    = require('./errors')
 const Util      = require('./util')
 
-const fs = require('fs')
-
-const {castToArray, nmap, uuid} = Util
+const {
+    castToArray
+  , defaults
+  , nmap
+  , sortNumericDesc
+  , sumArray
+  , uuid
+} = Util
 
 const CacheKeys = {
     state28     : 'state28'
@@ -55,20 +60,20 @@ class Match {
     constructor(total, opts) {
 
         if (!Number.isInteger(total) || total < 1) {
-            throw new ArgumentError('total must be integer > 0')
+            throw new ArgumentError('Total must be integer > 0')
         }
 
         this.createDate = new Date
 
         this.uuid  = uuid()
         this.total = total
-        this.opts  = Util.defaults(Match.defaults(), opts)
+        this.opts  = defaults(Match.defaults(), opts)
 
         this.scores = {Red: 0, White: 0}
         this.winner = null
+        this.isCanceled = false
         this.isFinished = false
         this.hasCrawforded = false
-        this.isCanceled = false
 
         this.games = []
         this.thisGame = null
@@ -110,7 +115,7 @@ class Match {
 
     updateScore() {
         for (var color in Colors) {
-            this.scores[color] = Util.sumArray(
+            this.scores[color] = sumArray(
                 this.games.filter(
                     game => game.getWinner() == color
                 ).map(game =>
@@ -186,10 +191,8 @@ class Match {
     }
 
     static serialize(match) {
-        return {
-            ...match.meta()
-          , games : match.games.map(Game.serialize)
-        }
+        const games = match.games.map(Game.serialize)
+        return {...match.meta(), games}
     }
 
     static unserialize(data) {
@@ -220,18 +223,18 @@ class Game {
     static defaults() {
         return {
             cubeEnabled  : true
+          , breadthTrees : false
+          , forceFirst   : null
           , isCrawford   : false
           , isJacoby     : false
-          , breadthTrees : false
           , roller       : null
           , startState   : null
-          , forceFirst   : null
         }
     }
 
     constructor(opts) {
 
-        this.opts  = Util.defaults(Game.defaults(), opts)
+        this.opts  = defaults(Game.defaults(), opts)
 
         if (!this.opts.roller) {
             this.opts.roller = Dice.rollTwo
@@ -355,6 +358,7 @@ class Game {
         this.isFinished = true
         this.endState = this.board.state28()
         if (this.thisTurn) {
+            this.thisTurn.cancel()
             this.turnHistory.push(this.thisTurn.meta())
         }
     }
@@ -495,7 +499,7 @@ class Turn {
         this.moves = []
         this.boardCache = {}
 
-        this.opts = Util.defaults(Turn.defaults(), opts)
+        this.opts = defaults(Turn.defaults(), opts)
         if (!this.opts.roller) {
             this.opts.roller = Dice.rollTwo
         }
@@ -567,7 +571,7 @@ class Turn {
         this.assertNotFinished()
         this.assertIsRolled()
 
-        this.diceSorted = this.dice.slice(0).sort(Util.sortNumericDesc)
+        this.diceSorted = this.dice.slice(0).sort(sortNumericDesc)
         this.faces = Dice.faces(this.diceSorted)
 
         Profiler.start('Turn.compute')
@@ -669,7 +673,7 @@ class Turn {
         move.undo()
 
         this.remainingFaces.push(move.face)
-        this.remainingFaces.sort(Util.sortNumericDesc)
+        this.remainingFaces.sort(sortNumericDesc)
 
         return move
     }
@@ -738,19 +742,19 @@ class Turn {
     meta() {
         return {
             color            : this.color
-          , opts             : this.opts
           , dice             : this.dice
-          , startState       : this.startState
-          , endState         : this.endState
-          , isForceMove      : this.isForceMove
           , isCanceled       : this.isCanceled
           , isCantMove       : this.isCantMove
-          , isDoubleOffered  : this.isDoubleOffered
           , isDoubleDeclined : this.isDoubleDeclined
-          , isFirstTurn      : this.isFirstTurn
+          , isDoubleOffered  : this.isDoubleOffered
           , isFinished       : this.isFinished
+          , isFirstTurn      : this.isFirstTurn
+          , isForceMove      : this.isForceMove
           , isRolled         : this.isRolled
+          , startState       : this.startState
+          , endState         : this.endState
           , moves            : this.moves.map(move => move.coords)
+          , opts             : this.opts
         }
     }
 
@@ -1235,8 +1239,7 @@ class Dice {
         }
     }
 
-    static validateRollsFile(file) {
-        const data = JSON.parse(fs.readFileSync(file, 'utf-8'))
+    static validateRollsData(data) {
         if (!Array.isArray(data.rolls)) {
             throw new InvalidRollDataError('Rolls key must be an array')
         }

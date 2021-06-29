@@ -392,7 +392,7 @@ class Util {
     }
 
     static ucfirst(str) {
-        if (!str.length) {
+        if (str == null || !str.length) {
             return str
         }
         return str.substring(0, 1).toUpperCase() + str.substring(1)

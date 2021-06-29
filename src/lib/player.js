@@ -38,6 +38,8 @@ class Player extends EventEmitter {
 
         super()
 
+        this.isPlayer = true
+
         this.name   = this.constructor.name
         this.color  = color
         this.holds  = []

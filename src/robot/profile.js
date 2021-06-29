@@ -419,8 +419,9 @@ class ProfileHelper {
         logger.writeStdout('\n')
     }
 
-    loadRollsFile(file) {
-        const {rolls} = Dice.validateRollsFile(resolve(file))
+    async loadRollsFile(file) {
+        const data = await fse.readJson(resolve(file))
+        const {rolls} = Dice.validateRollsData(data)
         return Dice.createRoller(rolls)
     }
 }

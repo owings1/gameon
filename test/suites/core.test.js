@@ -35,6 +35,30 @@ describe('Match', () => {
         })
     })
 
+    describe('#cancel', () => {
+
+        it('should set isCanceled when not already finished', () => {
+            const match = new Match(1)
+            match.cancel()
+            expect(match.isCanceled).to.equal(true)
+        })
+
+        it('should set isCanceled on thisGame', () => {
+            const match = new Match(1)
+            const game = match.nextGame()
+            match.cancel()
+            expect(match.thisGame.isCanceled).to.equal(true)
+        })
+
+        it('should not set isCanceled when already finished', () => {
+            const match = new Match(1)
+            // force
+            match.isFinished = true
+            match.cancel()
+            expect(match.isCanceled).to.equal(false)
+        })
+    })
+
     describe('#checkFinished', () => {
 
         it('should return false when match not started', () => {
@@ -182,6 +206,14 @@ describe('Match', () => {
             const t2 = g2.nextTurn()
             expect(t2.color).to.equal(Red)
         })
+
+        it('should fix bad createDate', () => {
+            const match = new Match(1)
+            const data = match.serialize()
+            data.createDate = 'bad date'
+            const res = Match.unserialize(data)
+            expect(res.createDate.toString()).to.not.equal('Invalid Date')
+        })
     })
 
     describe('#updateScore', () => {
@@ -207,6 +239,31 @@ describe('Game', () => {
         it('should set board to startState in opts', () => {
             const game = new Game({startState: States.BlotsMinSkip1})
             expect(game.board.stateString()).to.equal(States.BlotsMinSkip1)
+        })
+    })
+
+    describe('#cancel', () => {
+
+        it('should not set isCanceled when isFinished', () => {
+            const game = new Game
+            // force
+            game.isFinished = true
+            game.cancel()
+            expect(game.isCanceled).to.equal(false)
+        })
+
+        it('should set isCanceled when not isFinished', () => {
+            const game = new Game
+            game.cancel()
+            expect(game.isCanceled).to.equal(true)
+        })
+
+        it('should add thisTurn to turn history', () => {
+            const game = new Game
+            const turn = game.firstTurn()
+            game.cancel()
+            expect(game.turnHistory).to.have.length(1)
+            expect(game.turnHistory[0].uuid).to.equal(turn.uuid)
         })
     })
 
@@ -242,6 +299,12 @@ describe('Game', () => {
             game.cubeOwner = Red
             const result = game.canDouble(Red)
             expect(result).to.equal(false)
+        })
+
+        it('should return false when cubeEnabled = false', () => {
+            const game = new Game({cubeEnabled: false})
+            const res = game.canDouble()
+            expect(res).to.equal(false)
         })
     })
 
@@ -523,6 +586,24 @@ describe('Turn', () => {
             turn.roll()
             const err = getError(() => turn.assertNotRolled())
             expect(err.name).to.equal('AlreadyRolledError')
+        })
+    })
+
+    describe('#cancel', () => {
+
+        it('should not set isCanceled when already finished', () => {
+            const turn = new Turn(Board.setup(), White)
+            turn.roll()
+            makeRandomMoves(turn).finish()
+            turn.cancel()
+            expect(turn.isCanceled).to.equal(false)
+        })
+
+        it('should set isCanceled when not already finished', () => {
+            const turn = new Turn(Board.setup(), White)
+            turn.roll()
+            turn.cancel()
+            expect(turn.isCanceled).to.equal(true)
         })
     })
 
@@ -817,30 +898,6 @@ describe('Turn', () => {
         })
     })
 
-    describe('#unserialize', () => {
-
-        it('should make new board with state if not passed', () => {
-            const game = new Game
-            const t1 = makeRandomMoves(game.firstTurn(), true)
-            const t2 = Turn.unserialize(Turn.serialize(t1))
-            expect(t2.board.stateString()).to.equal(t1.board.stateString())
-            expect(t2).to.not.equal(t1)
-        })
-
-        it('should leave second turn unrolled, then continue play', () => {
-            const rolls = [[6, 1]]
-            const game = new Game({roller: () => rolls.shift() || Dice.rollTwo()})
-            makeRandomMoves(game.firstTurn(), true)
-            game.nextTurn()
-            const t2 = Turn.unserialize(Turn.serialize(game.thisTurn))
-            expect(t2.color).to.equal(Red)
-            expect(t2.isRolled).to.equal(false)
-            t2.roll()
-            makeRandomMoves(t2, true)
-            expect(t2.isFinished).to.equal(true)
-        })
-    })
-
     describe('#unmove', () => {
 
         it('should throw NoMovesMadeError before any move is made', () => {
@@ -875,6 +932,38 @@ describe('Turn', () => {
         })
     })
 
+    describe('#unserialize', () => {
+
+        it('should make new board with state if not passed', () => {
+            const game = new Game
+            const t1 = makeRandomMoves(game.firstTurn(), true)
+            const t2 = Turn.unserialize(Turn.serialize(t1))
+            expect(t2.board.stateString()).to.equal(t1.board.stateString())
+            expect(t2).to.not.equal(t1)
+        })
+
+        it('should leave second turn unrolled, then continue play', () => {
+            const rolls = [[6, 1]]
+            const game = new Game({roller: () => rolls.shift() || Dice.rollTwo()})
+            makeRandomMoves(game.firstTurn(), true)
+            game.nextTurn()
+            const t2 = Turn.unserialize(Turn.serialize(game.thisTurn))
+            expect(t2.color).to.equal(Red)
+            expect(t2.isRolled).to.equal(false)
+            t2.roll()
+            makeRandomMoves(t2, true)
+            expect(t2.isFinished).to.equal(true)
+        })
+
+        it('should set isCanceled', () => {
+            const turn = new Turn(Board.setup(), White)
+            turn.roll()
+            turn.cancel()
+            const res = Turn.unserialize(turn.serialize())
+            expect(res.isCanceled).to.equal(true)
+        })
+    })
+
     describe('endStatesToSeries', () => {
 
         it('should have expected value for sparse board with 2,1 roll', () => {
@@ -896,7 +985,7 @@ describe('Turn', () => {
             const statesActual = Object.keys(result).sort()
             const statesExp = [b1.state28(), b2.state28()].sort()
             //const statesExp = [b1.stateString(), b2.stateString()].sort()
-            expect(JSON.stringify(statesActual)).to.equal(JSON.stringify(statesExp))
+            expect(statesActual).to.jsonEqual(statesExp)
 
             const b1MovesActual = result[b1.state28()]
             //const b1MovesActual = result[b1.stateString()]
@@ -904,8 +993,8 @@ describe('Turn', () => {
             const b2MovesAcutal = result[b2.state28()]
             //const b2MovesAcutal = result[b2.stateString()]
             const b2MovesExp = [{origin: 0, face: 2}, {origin: 2, face: 1}] // could be 0:1|1:2
-            expect(JSON.stringify(b1MovesActual)).to.equal(JSON.stringify(b1MovesExp))
-            expect(JSON.stringify(b2MovesAcutal)).to.equal(JSON.stringify(b2MovesExp))
+            expect(b1MovesActual).to.jsonEqual(b1MovesExp)
+            expect(b2MovesAcutal).to.jsonEqual(b2MovesExp)
         })
     })
 })
@@ -1418,16 +1507,24 @@ describe('Dice', () => {
         })
     })
 
+    describe('#createRoller', () => {
+        it('should toggle for 2 rolls', () => {
+            const roller = Dice.createRoller([[1,2], [3,4]])
+            const res = [roller(), roller(), roller(), roller()]
+            const exp = [[1,2], [3,4], [1,2], [3,4]]
+            expect(res).to.jsonEqual(exp)
+        })
+    })
     describe('#faces', () => {
 
         it('should return [1, 2] for [1, 2]', () => {
             const result = Dice.faces([1, 2])
-            expect(JSON.stringify(result)).to.equal(JSON.stringify([1, 2]))
+            expect(result).to.jsonEqual([1, 2])
         })
 
         it('should return [5, 5, 5, 5] for [5, 5]', () => {
             const result = Dice.faces([5, 5])
-            expect(JSON.stringify(result)).to.equal(JSON.stringify([5, 5, 5, 5]))
+            expect(result).to.jsonEqual([5, 5, 5, 5])
         })
     })
 
@@ -1492,5 +1589,32 @@ describe('Dice', () => {
 			expect(JSON.stringify(result)).to.equal(JSON.stringify(exp))
 		})
 	})
+
+    describe('#validateRollsData', () => {
+
+        it('should pass for [6,1]', () => {
+            Dice.validateRollsData({rolls: [[6,1]]})
+        })
+
+        it('should throw for empty object', () => {
+            const err = getError(() => Dice.validateRollsData({}))
+            expect(err.name).to.equal('InvalidRollDataError')
+        })
+
+        it('should throw for empty rolls', () => {
+            const err = getError(() => Dice.validateRollsData({rolls: []}))
+            expect(err.name).to.equal('InvalidRollDataError')
+        })
+
+        it('should throw for only [1,1]', () => {
+            const err = getError(() => Dice.validateRollsData({rolls: [[1,1]]}))
+            expect(err.name).to.equal('InvalidRollDataError')
+        })
+
+        it('should throw for [1,2], [7,1]', () => {
+            const err = getError(() => Dice.validateRollsData({rolls: [[1,2], [7,1]]}))
+            expect(err.name).to.equal('InvalidRollDataError')
+        })
+    })
 })
 

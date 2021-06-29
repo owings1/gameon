@@ -57,10 +57,7 @@ class Coordinator {
 
     async runMatch(match, white, red) {
 
-        const players = {
-            White : white
-          , Red   : red
-        }
+        const players = Coordinator.buildPlayers(white, red)
 
         await this.emitAll(players, 'matchStart', match, players)
 
@@ -152,13 +149,13 @@ class Coordinator {
         }
     }
 
-    cancelGame(game, players, err) {
-        this.emitAll(players, 'gameCanceled', err, game)
+    async cancelGame(game, players, err) {
+        await this.emitAll(players, 'gameCanceled', err, game)
         game.cancel()
     }
 
-    cancelMatch(match, players, err) {
-        this.emitAll(players, 'matchCanceled', err, match)
+    async cancelMatch(match, players, err) {
+        await this.emitAll(players, 'matchCanceled', err, match)
         match.cancel()
     }
 
@@ -208,6 +205,21 @@ class Coordinator {
         const idString = match.uuid.substring(0, 4)
         const dirname = ['match', dateString, idString].join('_')
         return path.resolve(this.opts.recordDir, 'matches', dirname)
+    }
+
+    static buildPlayers(white, red) {
+        const players = {}
+        if (Array.isArray(white)) {
+            players.White = white[0]
+            players.Red = white[1]
+        } else if (white.isPlayer) {
+            players.White = white
+            players.Red = red
+        } else {
+            players.White = white.White
+            players.Red = white.Red
+        }
+        return players
     }
 }
 
