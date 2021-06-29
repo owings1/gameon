@@ -32,8 +32,6 @@ const {Colors, PointOrigins} = Constants
 const {Board} = Core
 const {ZERO_SCORES} = Base
 
-const {UndecidedMoveError} = Robot
-
 const PointMoves = {
     '6,1': [{point: 13, face: 6}, {point:  8, face: 1}]
   , '5,1': [{point: 13, face: 5}, {point: 24, face: 1}]

@@ -30,7 +30,15 @@ const Logger    = require('../lib/logger')
 const Util      = require('../lib/util')
 
 const {Profiler} = Core
-const {HasNotRolledError} = Errors
+const {
+    HasNotRolledError
+  , InvalidRobotError
+  , InvalidRobotVersionError
+  , InvalidWeightError
+  , NoDelegatesError
+  , RobotError
+  , UndecidedMoveError
+} = Errors
 
 const ZERO_SCORES = 'ZERO_SCORES'
 
@@ -346,9 +354,11 @@ class RobotDelegator extends Robot {
     }
 
     async destroy() {
-        await Promise.all([super.destroy()].concat(this.delegates.map(delegate =>
+        const promises = this.delegates.map(delegate =>
             delegate.robot.destroy()
-        )))
+        )
+        promises.push(super.destroy())
+        await Promise.all(promises)
         this.delegates.splice(0)
     }
 
@@ -588,27 +598,9 @@ class RobotDelegator extends Robot {
    }
 }
 
-class RobotError extends Error {
-
-    constructor(...args){
-        super(...args)
-        this.name = this.constructor.name
-        this.isRobotError = true
-    }
-}
-
-class InvalidRobotError extends RobotError {}
-class InvalidWeightError extends RobotError {}
-class NoDelegatesError extends RobotError {}
-class UndecidedMoveError extends RobotError {}
-
-class InvalidRobotVersionError extends InvalidRobotError {}
-
 module.exports = {
     Robot
   , ConfidenceRobot
   , RobotDelegator
-  , UndecidedMoveError
-  , InvalidRobotError
   , ZERO_SCORES
 }
