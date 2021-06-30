@@ -597,7 +597,7 @@ describe('BoardAnalyzer', () => {
 			board.setup()
 			const result = board.analyzer.originsOccupied(Red)
 			const exp = [5, 7, 12, 23]
-			expect(JSON.stringify(result)).to.equal(JSON.stringify(exp))
+			expect(result).to.jsonEqual(exp)
 		})
 	})
 
@@ -661,8 +661,8 @@ describe('BoardAnalyzer', () => {
             const {analyzer} = Board.setup()
             const r1 = analyzer.pointsHeld(White)
             const r2 = analyzer.pointsHeld(Red)
-            expect(JSON.stringify(r1)).to.equal(JSON.stringify(exp))
-            expect(JSON.stringify(r2)).to.equal(JSON.stringify(exp))
+            expect(r1).to.jsonEqual(exp)
+            expect(r2).to.jsonEqual(exp)
         })
 
         it('should return empty list on empty board', () => {
@@ -679,7 +679,7 @@ describe('BoardAnalyzer', () => {
             analyzer.board.move(White, 0, 1)
             const r1 = analyzer.pointsHeld(White)
             const r2 = analyzer.pointsHeld(White)
-            expect(JSON.stringify(r1)).to.equal(JSON.stringify(exp))
+            expect(r1).to.jsonEqual(exp)
             expect(r1).to.equal(r2)
         })
     })
@@ -690,14 +690,14 @@ describe('BoardAnalyzer', () => {
             const exp = [6, 8, 13, 24]
             const {analyzer} = Board.setup()
             const result = analyzer.pointsOccupied(White)
-            expect(JSON.stringify(result)).to.equal(JSON.stringify(exp))
+            expect(result).to.jsonEqual(exp)
         })
 
         it('should be sorted and return expected for Red at initial state', () => {
             const exp = [6, 8, 13, 24]
             const {analyzer} = Board.setup()
             const result = analyzer.pointsOccupied(Red)
-            expect(JSON.stringify(result)).to.equal(JSON.stringify(exp))
+            expect(result).to.jsonEqual(exp)
         })
     })
 

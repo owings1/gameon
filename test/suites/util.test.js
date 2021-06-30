@@ -39,7 +39,7 @@ describe('Util', () => {
             const arr = [0.1, 0.1, 0.1]
             const exp = [0.1, 0.1, 0.2]
             const result = Util.arrayIncrement(arr, inc, min, max)
-            expect(JSON.stringify(arr)).to.equal(JSON.stringify(exp))
+            expect(arr).to.jsonEqual(exp)
             expect(result).to.equal(true)
         })
 
@@ -47,7 +47,7 @@ describe('Util', () => {
             const arr = [0.1, 0.1, 1.0]
             const exp = [0.1, 0.2, 0.1]
             const result = Util.arrayIncrement(arr, inc, min, max)
-            expect(JSON.stringify(arr)).to.equal(JSON.stringify(exp))
+            expect(arr).to.jsonEqual(exp)
             expect(result).to.equal(true)
         })
 
@@ -55,7 +55,7 @@ describe('Util', () => {
             const arr = [1.0, 1.0, 1.0]
             const exp = arr.slice(0)
             const result = Util.arrayIncrement(arr, inc, min, max)
-            expect(JSON.stringify(arr)).to.equal(JSON.stringify(exp))
+            expect(arr).to.jsonEqual(exp)
             expect(result).to.equal(false)
         })
 
@@ -65,7 +65,7 @@ describe('Util', () => {
             do {
                 var result = Util.arrayIncrement(arr, inc, min, max)
             } while (result)
-            expect(JSON.stringify(arr)).to.equal(JSON.stringify(exp))
+            expect(arr).to.jsonEqual(exp)
             expect(result).to.equal(false)
         })
     })
@@ -74,27 +74,27 @@ describe('Util', () => {
 
         it('should return singleton [1] for input 1', () => {
             const result = Util.castToArray(1)
-            expect(JSON.stringify(result)).to.equal(JSON.stringify([1]))
+            expect(result).to.jsonEqual([1])
         })
 
         it('should return empty list for undefined', () => {
             const result = Util.castToArray(undefined)
-            expect(JSON.stringify(result)).to.equal(JSON.stringify([]))
+            expect(result).to.jsonEqual([])
         })
 
         it('should return empty list for null', () => {
             const result = Util.castToArray(null)
-            expect(JSON.stringify(result)).to.equal(JSON.stringify([]))
+            expect(result).to.jsonEqual([])
         })
 
         it('should return singleton false for input false', () => {
             const result = Util.castToArray(false)
-            expect(JSON.stringify(result)).to.equal(JSON.stringify([false]))
+            expect(result).to.jsonEqual([false])
         })
 
         it('should return singleton 0 for input 0', () => {
             const result = Util.castToArray(0)
-            expect(JSON.stringify(result)).to.equal(JSON.stringify([0]))
+            expect(result).to.jsonEqual([0])
         })
 
         it('should return same reference for array input', () => {
@@ -108,7 +108,7 @@ describe('Util', () => {
 
         it('should chunk [1, 2] to [1], [2]', () => {
             const res = Util.chunkArray([1, 2], 2)
-            expect(JSON.stringify(res)).to.equal(JSON.stringify([[1], [2]]))
+            expect(res).to.jsonEqual([[1], [2]])
         })
     })
 
@@ -136,14 +136,14 @@ describe('Util', () => {
             const defaults = {a: 1, b: 2}
             const opts = {a: 1, c: 3}
             const result = Util.defaults(defaults, opts)
-            expect(JSON.stringify(result)).to.equal(JSON.stringify(defaults))
+            expect(result).to.jsonEqual(defaults)
         })
 
         it('should override default with opts', () => {
             const defaults = {a: 1, b: 2}
             const opts = {a: 1, b: 3}
             const result = Util.defaults(defaults, opts)
-            expect(JSON.stringify(result)).to.equal(JSON.stringify(opts))
+            expect(result).to.jsonEqual(opts)
         })
     })
 
@@ -269,7 +269,7 @@ describe('Util', () => {
             const keys = ['a', 'c']
             const exp = {a: 1, c: 3}
             const result = Util.propsFrom(input, keys)
-            expect(JSON.stringify(result)).to.equal(JSON.stringify(exp))
+            expect(result).to.jsonEqual(exp)
         })
 
         it('should accept empty first para', () => {
@@ -277,7 +277,7 @@ describe('Util', () => {
             const keys = ['a']
             const exp = {a: undefined}
             const result = Util.propsFrom(input, keys)
-            expect(JSON.stringify(result)).to.equal(JSON.stringify(exp))
+            expect(result).to.jsonEqual(exp)
         })
     })
 
@@ -318,7 +318,7 @@ describe('Util', () => {
             const input = [32, 4, 1, 7]
             const exp = [1, 4, 7, 32]
             const result = input.sort(Util.sortNumericAsc)
-            expect(JSON.stringify(result)).to.equal(JSON.stringify(exp))
+            expect(result).to.jsonEqual(exp)
         })
     })
 
@@ -328,7 +328,7 @@ describe('Util', () => {
             const input = [32, 4, 1, 7]
             const exp = [32, 7, 4, 1]
             const result = input.sort(Util.sortNumericDesc)
-            expect(JSON.stringify(result)).to.equal(JSON.stringify(exp))
+            expect(result).to.jsonEqual(exp)
         })
     })
 
@@ -377,19 +377,19 @@ describe('Util', () => {
 
             it(desc, () => {
                 const result = Util.spreadScore(input, isInverse)
-                expect(JSON.stringify(result)).to.equal(JSON.stringify(exp))
+                expect(result).to.jsonEqual(exp)
             })
 
             it('should return same value after 2 calls for ' + JSON.stringify(input), () => {
                 const result1 = Util.spreadScore(input)
                 const result2 = Util.spreadScore(result1)
-                expect(JSON.stringify(result1)).to.equal(JSON.stringify(result2))
+                expect(result1).to.jsonEqual(result2)
             })
 
             it('should invert and back again for 2 invert calls for ' + JSON.stringify(input), () => {
                 const result1 = Util.spreadScore(input)
                 const result2 = Util.spreadScore(Util.spreadScore(result1, true), true)
-                expect(JSON.stringify(result1)).to.equal(JSON.stringify(result2))
+                expect(result1).to.jsonEqual(result2)
             })
         })
     })
@@ -486,7 +486,7 @@ describe('Util', () => {
             const input = [1, 1, 2, 2, 3, 3]
             const exp = [1, 2, 3]
             const result = Util.uniqueInts(input)
-            expect(JSON.stringify(result)).to.equal(JSON.stringify(exp))
+            expect(result).to.jsonEqual(exp)
         })
     })
 
@@ -495,7 +495,7 @@ describe('Util', () => {
         it('should return [a, b] for [a, a, b]', () => {
             const input = ['a', 'a', 'b']
             const result = Util.uniqueStrings(input)
-            expect(JSON.stringify(result)).to.equal(JSON.stringify(['a', 'b']))
+            expect(result).to.jsonEqual(['a', 'b'])
         })
     })
 
@@ -663,7 +663,7 @@ describe('DependencyHelper', () => {
         const exp = ['e', 'c', 'a', 'd', 'b', 'f']
         const result = helper.resolve()
 
-        expect(JSON.stringify(result)).to.equal(JSON.stringify(exp))
+        expect(result).to.jsonEqual(exp)
     })
 
     it('should throw CircularDependencyError for tight circle', () => {

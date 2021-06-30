@@ -496,7 +496,7 @@ describe('Game', () => {
             const game = new Game({badOpt: true})
             const result = Object.keys(game.meta().opts).sort()
             const exp = Object.keys(Game.defaults()).sort()
-            expect(JSON.stringify(result)).to.equal(JSON.stringify(exp))
+            expect(result).to.jsonEqual(exp)
         })
 
         it('should turnCount = 1 after firstTurn is called', () => {
@@ -553,7 +553,7 @@ describe('Game', () => {
             const firstTurn = game.firstTurn()
             const result = game.serialize()
             expect(!!result.thisTurn).to.equal(true)
-            expect(JSON.stringify(result.thisTurn.dice)).to.equal(JSON.stringify(firstTurn.dice))
+            expect(result.thisTurn.dice).to.jsonEqual(firstTurn.dice)
         })
     })
 })
@@ -844,7 +844,7 @@ describe('Turn', () => {
             const exp1 = Object.keys(t1.allowedMoveIndex).sort()
             const res = t1.serialize()
             const exp2 = Object.keys(res.allowedMoveIndex).sort()
-            expect(JSON.stringify(exp1)).to.equal(JSON.stringify(exp2))
+            expect(exp1).to.jsonEqual(exp2)
         })
 
         it('should convert to json when opts with circular references are passed', () => {
@@ -1580,13 +1580,13 @@ describe('Dice', () => {
 		it('should return [[1, 2], [2, 1]] for faces [1, 2]', () => {
 			const result = Dice.sequencesForFaces([1, 2])
 			const exp = [[1, 2], [2, 1]]
-			expect(JSON.stringify(result)).to.equal(JSON.stringify(exp))
+			expect(result).to.jsonEqual(exp)
 		})
 
 		it('should return [[5, 5, 5, 5]] for faces [5, 5, 5, 5]', () => {
 			const result = Dice.sequencesForFaces([5, 5, 5, 5])
 			const exp = [[5, 5, 5, 5]]
-			expect(JSON.stringify(result)).to.equal(JSON.stringify(exp))
+			expect(result).to.jsonEqual(exp)
 		})
 	})
 

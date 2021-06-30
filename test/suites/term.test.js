@@ -1193,7 +1193,7 @@ describe('Menu', () => {
             const settings = Menu.settingsDefaults()
             await menu.saveSettings()
             const result = JSON.parse(fs.readFileSync(settingsFile))
-            expect(JSON.stringify(result)).to.equal(JSON.stringify(settings))
+            expect(result).to.jsonEqual(settings)
         })
     })
 

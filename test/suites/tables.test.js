@@ -299,6 +299,31 @@ describe('Table', () => {
             const err = getError(() => table.build())
             expect(err.name).to.equal('DuplicateColumnError')
         })
+
+        it('should throw InvalidColumnError when contains ,', () => {
+            const columns = ['name,']
+            const data = []
+            const opts = {}
+            const table = new Table(columns, data, opts)
+            const err = getError(() => table.build())
+            expect(err.name).to.equal('InvalidColumnError')
+        })
+
+        it('should throw InvalidColumnError when contains :', () => {
+            const columns = ['name:']
+            const data = []
+            const opts = {}
+            const table = new Table(columns, data, opts)
+            const err = getError(() => table.build())
+            expect(err.name).to.equal('InvalidColumnError')
+        })
+
+        it('should not throw InvalidColumnError when contains : and dirSeparator=|', () => {
+            const columns = ['name:']
+            const data = []
+            const opts = {dirSeparator: '|'}
+            const table = new Table(columns, data, opts).build()
+        })
     })
 
     describe('#makeColumn', () => {

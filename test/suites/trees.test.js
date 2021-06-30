@@ -286,7 +286,7 @@ describe('SequenceTree', () => {
             const base1 = result.index
             const keys1 = Object.keys(base1)
 
-            expect(JSON.stringify(keys1)).to.equal(JSON.stringify(keys1_exp))
+            expect(keys1).to.jsonEqual(keys1_exp)
 
 
             const base2_exp = base1_exp[keys1[0]].index
@@ -295,7 +295,7 @@ describe('SequenceTree', () => {
             const base2 = base1[keys1[0]].index
             const keys2 = Object.keys(base2)
 
-            expect(JSON.stringify(keys2)).to.equal(JSON.stringify(keys2_exp))
+            expect(keys2).to.jsonEqual(keys2_exp)
 
 
             const base3_exp = base2_exp[keys2[0]].index
@@ -304,7 +304,7 @@ describe('SequenceTree', () => {
             const base3 = base2[keys2[0]].index
             const keys3 = Object.keys(base3)
 
-            expect(JSON.stringify(keys3)).to.equal(JSON.stringify(keys3_exp))
+            expect(keys3).to.jsonEqual(keys3_exp)
 
 
             const base4_exp = base3_exp[keys3[0]].index
@@ -313,7 +313,7 @@ describe('SequenceTree', () => {
             const base4 = base3[keys3[0]].index
             const keys4 = Object.keys(base4)
 
-            expect(JSON.stringify(keys4)).to.equal(JSON.stringify(keys4_exp))
+            expect(keys4).to.jsonEqual(keys4_exp)
         })
     })
 
@@ -373,15 +373,15 @@ describe('SequenceTree', () => {
                 const states1 = t1.allowedEndStates.slice(0).sort()
                 const states2 = t2.allowedEndStates.slice(0).sort()
 
-                expect(JSON.stringify(t1.allowedFaces)).to.equal(JSON.stringify(t2.allowedFaces))
-                expect(JSON.stringify(amKeys1)).to.equal(JSON.stringify(amKeys2))
-                expect(JSON.stringify(stKeys1)).to.equal(JSON.stringify(stKeys2))
-                expect(JSON.stringify(states1)).to.equal(JSON.stringify(states2))
+                expect(t1.allowedFaces).to.jsonEqual(t2.allowedFaces)
+                expect(amKeys1).to.jsonEqual(amKeys2)
+                expect(stKeys1).to.jsonEqual(stKeys2)
+                expect(states1).to.jsonEqual(states2)
 
                 // check deep equivalence of index
                 const ser1 = SequenceTree.serializeIndex(t1.allowedMoveIndex, (a, b) => b.localeCompare(a))
                 const ser2 = SequenceTree.serializeIndex(t2.allowedMoveIndex, (a, b) => b.localeCompare(a))
-                expect(JSON.stringify(ser1)).to.equal(JSON.stringify(ser2))
+                expect(ser1).to.jsonEqual(ser2)
 
                 // the series selected for an end state can be different, and often are,
                 // since depth strategy uses flagKey optimization, which sorts the series
@@ -395,7 +395,7 @@ describe('SequenceTree', () => {
                             return cmp != 0 ? cmp : Util.sortNumericAsc(a.face, b.face)
                         })
                     }
-                    expect(JSON.stringify(series1)).to.equal(JSON.stringify(series2))
+                    expect(series1).to.jsonEqual(series2)
                 }
                 */
             }

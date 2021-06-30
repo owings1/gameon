@@ -112,7 +112,7 @@ class TableHelper {
                         break
                     }
                     var {column, dir} = await this.prompt(Questions.sort(table))
-                    table.opts.sortBy = [column.name, dir].join(':')
+                    table.opts.sortBy = [column.name, dir].join(table.opts.dirSeparator)
                     break
 
                 case 'maxRows':
@@ -246,6 +246,18 @@ class Table {
         this.columns.map(Table.makeColumn).forEach(column => {
             if (nameMap[column.name]) {
                 throw new DuplicateColumnError('Duplicate column name: ' + column.name)
+            }
+            for (var opt of ['dirSeparator', 'arrSeparator']) {
+                var chr = this.opts[opt]
+                if (column.name.indexOf(chr) > -1) {
+                    var msg = [
+                        'Column name cannot contain'
+                      , opt
+                      , '(' + chr + '):'
+                      , column.name
+                    ].join(' ')
+                    throw new InvalidColumnError(msg)
+                }
             }
             columns.push(column)
             nameMap[column.name] = true

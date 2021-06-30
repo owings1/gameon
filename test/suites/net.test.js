@@ -594,7 +594,7 @@ describe('Server', () => {
                     const res = await client2.sendAndWait({action: 'firstTurn', color: Red, id})
                     const res2 = await p
                     expect(res.dice).to.have.length(2)
-                    expect(JSON.stringify(res.dice)).to.equal(JSON.stringify(res2.dice))
+                    expect(res.dice).to.jsonEqual(res2.dice)
                 })
             })
 
@@ -610,7 +610,7 @@ describe('Server', () => {
                         {origin: 0, face: 2}
                     ]
                     const res = await client.sendAndWait({action: 'playRoll', color: White, id, moves})
-                    expect(JSON.stringify(res.moves)).to.equal(JSON.stringify(moves))
+                    expect(res.moves).to.jsonEqual(moves)
                 })
 
                 it('should return RequestError for missing moves', async () => {
@@ -687,7 +687,7 @@ describe('Server', () => {
                     const res = await client.sendAndWait({action: 'rollTurn', color: White, id})
                     const res2 = await p
                     expect(res.dice.length).to.equal(2)
-                    expect(JSON.stringify(res.dice)).to.equal(JSON.stringify(res2.dice))
+                    expect(res.dice).to.jsonEqual(res2.dice)
                 })
             })
         })

@@ -309,7 +309,7 @@ describe('FirstTurnRobot', () => {
             turn.setRoll([6, 5])
             const result = await robot.getScores(turn, game)
             const uniqueVals = Util.uniqueInts(Object.values(result))
-            expect(JSON.stringify(uniqueVals)).to.equal(JSON.stringify([0]))
+            expect(uniqueVals).to.jsonEqual([0])
         })
     })
 
