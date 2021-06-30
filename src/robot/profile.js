@@ -241,7 +241,7 @@ class ProfileHelper {
 
             table.build()
 
-            const helper = new TableHelper(this.opts)
+            const helper = this.newTableHelper(this.opts)
 
             if (this.opts.interactive) {
                 await helper.interactive(table)
@@ -280,6 +280,10 @@ class ProfileHelper {
             return [title, value].join(' : ')
         })
         return footerLines
+    }
+
+    newTableHelper(...args) {
+        return new TableHelper(...args)
     }
 
     async loadRollsFile(file) {

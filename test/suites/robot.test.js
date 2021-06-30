@@ -28,12 +28,16 @@ const {
     getError,
     getErrorAsync,
     makeRandomMoves,
+    noop,
     randomElement,
     requireSrc,
     normState,
     States,
     States28
 } = Test
+
+const path = require('path')
+const {resolve} = path
 
 const Constants   = requireSrc('lib/constants')
 const Coordinator = requireSrc('lib/coordinator')
@@ -862,7 +866,6 @@ describe('RobotDelegator', () => {
     })
 })
 
-
 describe('BestRobot', () => {
 
     function newBestRobot(...args) {
@@ -877,5 +880,80 @@ describe('BestRobot', () => {
         await coordinator.runMatch(match, ...players)
         await players[0].destroy()
         await players[1].destroy()
+    })
+})
+
+describe('ProfileHelper', () => {
+
+    const ProfileHelper = requireSrc('robot/profile')
+    const {TableHelper} = requireSrc('term/tables')
+    var helper
+
+    beforeEach(() => {
+        const opts = {numMatches: 1}
+        helper = new ProfileHelper(opts)
+        helper.logger.loglevel = 1
+        helper.newTableHelper = (...args) => {
+            const h = new TableHelper(...args)
+            h.println = noop
+            h.interactive = noop
+            return h
+        }
+    })
+
+    describe('#run', () => {
+
+        it('should run with basic opts', async () => {
+            await helper.run()
+        })
+
+        it('should run with match column', async () => {
+            helper.opts.columns += ',match'
+            await helper.run()
+        })
+
+        it('should run with breadthTrees', async () => {
+            helper.opts.numMatches = 0
+            helper.opts.breadthTrees = true
+            await helper.run()
+        })
+
+        it('should run with filterRegex', async () => {
+            helper.opts.numMatches = 0
+            helper.opts.filterRegex = 'a'
+            await helper.run()
+        })
+
+        it('should run with interactive', async () => {
+            helper.opts.numMatches = 0
+            helper.opts.interactive = true
+            await helper.run()
+        })
+
+        it('should run with rollsFile', async () => {
+            helper.opts.numMatches = 0
+            helper.opts.rollsFile = resolve(__dirname, '../rolls.json')
+            await helper.run()
+        })
+    })
+
+    describe('#newTableHelper', () => {
+
+        describe('coverage', () => {
+
+            it('run', () => {
+                new ProfileHelper().newTableHelper()
+            })
+        })
+    })
+
+    describe('#sortableColumns', () => {
+
+        describe('coverage', () => {
+
+            it('run', () => {
+                ProfileHelper.sortableColumns()
+            })
+        })
     })
 })
