@@ -25,28 +25,28 @@
 const BuiltIn = {
     Default : {
         styles : {
-            'text.background'         : 'black'
-          , 'text.color'              : 'white'
-          , 'text.dice.color'         : 'magenta'
-          , 'text.dim.color'          : 'grey'
-          , 'text.notice.color'       : 'yellow bold'
-          , 'text.gameStatus.color'   : 'cyan'
-          , 'text.pipCount.color'     : 'grey bold'
+            'board.border.color'      : 'grey'
           , 'board.piece.red.color'   : 'red bold'
           , 'board.piece.white.color' : 'white bold'
-          , 'board.border.color'      : 'grey'
           , 'cube.inactive.color'     : 'grey'
+          , 'hr.color'                : 'grey'
           , 'table.even.color'        : '#66fffc'
           , 'table.title.color'       : '#ff6bb3 bold'
+          , 'text.background'         : 'black'
+          , 'text.color'              : 'white'
+          , 'text.dice.color'         : 'magenta'
+          , 'text.gameStatus.color'   : 'cyan'
+          , 'text.notice.color'       : 'yellow bold'
+          , 'text.pipCount.color'     : 'grey bold'
         }
     }
   , Offbeat : {
         extends: ['Default']
       , styles : {
-            'board.pointLabel.background' : 'red bright'
-          , 'board.border.color'          : 'red dim'
+            'board.border.color'          : 'red dim'
           , 'board.piece.red.color'       : 'orange bold'
           , 'board.piece.white.color'     : '#0080ff bold'
+          , 'board.pointLabel.background' : 'red bright'
           , 'table.head.color'            : 'orange'
           //, 'table.background'            : '#a19299'
           //, 'table.border.background'     : 'blue'
@@ -55,103 +55,70 @@ const BuiltIn = {
     }
 }
 
-const Keys = [
-    'text.background'
-  , 'text.color'
-
-  , 'board.background'
-  , 'board.color'
-
-  , 'board.border.background'
-  , 'board.border.color'
-
-  , 'board.piece.white.background'
-  , 'board.piece.white.color'
-
-  , 'board.piece.red.background'
-  , 'board.piece.red.color'
-
-  , 'board.pointLabel.background'
-  , 'board.pointLabel.color'
-
-  , 'cube.active.background'
-  , 'cube.active.color'
-
-  , 'cube.inactive.background'
-  , 'cube.inactive.color'
-
-  , 'text.piece.red.color'
-  , 'text.piece.white.color'
-  , 'text.pipCount.color'
-  , 'text.dim.color'
-  , 'text.notice.color'
-  , 'text.gameStatus.color'
-  , 'text.dice.color'
-
-  , 'hr.background'
-  , 'hr.color'
-
-  , 'table.background'
-  , 'table.color'
-
-  , 'table.border.background'
-  , 'table.border.color'
-
-  , 'table.even.background'
-  , 'table.even.color'
-  , 'table.odd.background'
-  , 'table.odd.color'
-
-  , 'table.head.background'
-  , 'table.head.color'
-
-  , 'table.foot.background'
-  , 'table.foot.color'
-
-  , 'table.title.background'
-  , 'table.title.color'
-
-  , 'table.dim.background'
-  , 'table.dim.color'
+const Categories = [
+    'board'
+  , 'board.border'
+  , 'board.piece.red'
+  , 'board.piece.white'
+  , 'board.pointLabel'
+  , 'cube.active'
+  , 'cube.inactive'
+  , 'hr'
+  , 'table'
+  , 'table.border'
+  , 'table.even'
+  , 'table.foot'
+  , 'table.head'
+  , 'table.odd'
+  , 'table.title'
+  , 'text'
+  , 'text.dice'
+  , 'text.gameStatus'
+  , 'text.notice'
+  , 'text.piece.red'
+  , 'text.piece.white'
+  , 'text.pipCount'
 ]
-
-const Aliases = {
-    'board.background'        : 'text.background'
-  , 'board.color'             : 'text.color'
-  , 'text.piece.red.color'    : 'board.piece.red.color'
-  , 'text.piece.white.color'  : 'board.piece.white.color'
-  , 'hr.color'                : 'text.dim.color'
-  , 'table.background'        : 'text.background'
-  , 'table.color'             : 'text.color'
-  , 'table.border.background' : 'board.border.background'
-  , 'table.border.color'      : 'board.border.color'
-  , 'table.even.background'   : 'table.background'
-  , 'table.odd.background'    : 'table.background'
-  , 'table.head.background'   : 'table.background'
-  , 'table.foot.background'   : 'table.background'
-  , 'table.dim.background'    : 'table.background'
-  , 'table.dim.color'         : 'text.dim.color'
+const CategoryAliases = {
+    'board'        : 'text'
+  , 'table'        : 'text'
+  , 'table.border' : 'board.border'
 }
 
-// Without the background/color qualifier.
-// E.g. board.border.background and board.border.color reduce to board.border
-const Categories = []
+const Aliases = {
+    'text.piece.red.color'   : 'board.piece.red.color'
+  , 'text.piece.white.color' : 'board.piece.white.color'
+  , 'table.even.background'  : 'table.background'
+  , 'table.foot.background'  : 'table.background'
+  , 'table.head.background'  : 'table.background'
+  , 'table.odd.background'   : 'table.background'
+  , 'table.title.background' : 'table.background'
+}
+
 const CategoriesMap = {}
+const Keys = []
 const KeysMap = {}
 
 function _populate() {
-    Keys.forEach(key => {
-        KeysMap[key] = true
-        const keyParts = key.split('.')
-        keyParts.pop()
-        CategoriesMap[keyParts.join('.')] = true
+    const types = ['background', 'color']
+    Categories.forEach(category => {
+        CategoriesMap[category] = true
+        types.forEach(type => {
+            const key = [category, type].join('.')
+            Keys.push(key)
+            KeysMap[key] = true
+        })
     })
-    Object.keys(CategoriesMap).forEach(category => {
-        Categories.push(category)
+    Object.entries(CategoryAliases).forEach(([targetCategory, sourceCategory]) => {
+        types.forEach(type => {
+            const sourceKey = [sourceCategory, type].join('.')
+            const targetKey = [targetCategory, type].join('.')
+            if (!Aliases[targetKey]) {
+                Aliases[targetKey] = sourceKey
+            }
+        })
     })
-    Categories.sort()
 }
-
 _populate()
 
 module.exports = {
