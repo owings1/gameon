@@ -30,6 +30,10 @@ describe('Robot', () => {
     require('./suites/robot.test')
 })
 
+describe('Tables', () => {
+    require('./suites/tables.test')
+})
+
 describe('Term', () => {
     require('./suites/term.test')
 })

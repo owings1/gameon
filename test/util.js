@@ -5,7 +5,7 @@ const {expect} = chai
 function assertJsonEqual(b) {
     const exp = JSON.stringify(this._obj)
     const res = JSON.stringify(b)
-    this.assert(exp == res, "expected #{exp} to equal #{act}", "expected #{exp} to not equal #{act}", exp, res)
+    this.assert(exp == res, "expected #{act} to equal #{exp}", "expected #{exp} to not equal #{act}", res, exp)
 }
 
 chai.Assertion.addMethod('jsonEqual', assertJsonEqual)
@@ -111,8 +111,15 @@ function MockPrompter(responses, isSkipAssertAsked, isSkipAssertAnswered, isSkip
                 const alerts = []
 
                 questions.forEach(question => {
-                    if (question.when && !question.when(answers)) {
-                        return
+                    if ('when' in question) {
+                        if (typeof question.when == 'function') {
+                            if (!question.when(answers)) {
+                                return
+                            }
+                        }
+                        if (!question.when) {
+                            return
+                        }
                     }
                     const opt = question.name
                     delete unasked[opt]

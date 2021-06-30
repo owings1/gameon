@@ -38,7 +38,6 @@ const {
 const {
     append
   , castToArray
-  , errMessage
   , keyValuesTrue
   , mapValues
   , nchars
@@ -53,100 +52,7 @@ const {
   , InvalidRegexError
 } = Errors
 
-const Questions = {
-    interactive: {
-        name     : 'input'
-      , type     : 'expand'
-      , message  : 'Option'
-      , pageSize : 8
-      , choices  : [
-            {
-                key   : 'f'
-              , name  : 'Filter string'
-              , value : 'filterFixed'
-            }
-          , {
-                key   : 'x'
-              , name  : 'Filter regex'
-              , value : 'filterRegex'
-            }
-          , {
-                key   : 's'
-              , name  : 'Sort'
-              , value : 'sort'
-            }
-          , {
-                key   : 'c'
-              , name  : 'Columns'
-              , value : 'columns'
-            }
-          , {
-                key   : 'n'
-              , name  : 'Max rows'
-              , value : 'maxRows'
-            }
-          , {
-                key   : 'r'
-              , name  : 'Restore table'
-              , value : 'restore'
-            }
-          , {
-                key   : 'q'
-              , name  : 'Quit'
-              , value : 'quit'
-            }
-        ]
-    }
-  , filterFixed: {
-        name     : 'fixed'
-      , type     : 'input'
-      , message  : 'String'
-    }
-  , filterRegex: {
-        name     : 'regex'
-      , type     : 'input'
-      , message  : 'Regex'
-      , validate : value => !value.length || errMessage(() => new RegExp(value))
-    }
-  , sort : ({columns}) => [
-        {
-            name    : 'column'
-          , message : 'Column'
-          , type    : 'list'
-          , when    : columns.find(it => it.sortable)
-          , choices : columns.filter(it => it.sortable).map(it => {
-                return {name: it.name, value: it}
-            })
-        }
-      , {
-            name    : 'dir'
-          , message : 'Direction'
-          , type    : 'list'
-          , default : answers => answers.column.defaultDir
-          , choices : ['asc', 'desc']
-        }
-    ]
-  , maxRows : ({opts}) => [
-        {
-            name     : 'maxRows'
-          , type     : 'input'
-          , message  : 'Number of rows'
-          , default  : opts.maxRows
-          , validate : value => !value.length || !isNaN(+value) || 'Invalid number'
-        }
-    ]
-  , columns : ({columns, showColums}) => {
-        const showMap = keyValuesTrue(showColumns.map(it => it.name))
-        return {
-              name    : 'columns'
-            , type    : 'checkbox'
-            , message : 'Columns'
-            , choices : columns.map(({name}) => {
-                  return {name, checked: showMap[name]}
-              })
-        }
-    }
-}
+const Questions = require('./res/tables.questions')
 
 class TableHelper {
 
@@ -159,6 +65,7 @@ class TableHelper {
     constructor(opts) {
         this.opts = Util.defaults(TableHelper.defaults(), opts)
         this.logger = new Logger
+        this._inquirer = inquirer
     }
 
     async interactive(table) {
@@ -183,7 +90,7 @@ class TableHelper {
 
                 case 'filterRegex':
                     var {regex} = await this.prompt(Questions.filterRegex)
-                    if (regex === false) {
+                    if (!regex.length) {
                         break
                     }
                     table.opts.filterRegex = table.opts.filterRegex.slice(0)
@@ -192,7 +99,7 @@ class TableHelper {
 
                 case 'filterFixed':
                     var {fixed} = await this.prompt(Questions.filterFixed)
-                    if (fixed === false) {
+                    if (!fixed.length) {
                         break
                     }
                     table.opts.filterFixed = table.opts.filterFixed.slice(0)
@@ -242,7 +149,7 @@ class TableHelper {
     }
 
     prompt(questions) {
-        this._prompt = inquirer.prompt(castToArray(questions))
+        this._prompt = this._inquirer.prompt(castToArray(questions))
         return this._prompt
     }
 }
@@ -264,6 +171,7 @@ class Table {
           , filterRegex  : null
           , filterFixed  : null
           , arrSeparator : ','
+          , dirSeparator : ':'
         }
     }
 
@@ -375,7 +283,7 @@ class Table {
     buildRows() {
         const {filter} = this
         this.rows = this.data.filter(filter).map(info =>
-            this.columns.map(column =>
+            this.showColumns.map(column =>
                 column.format(column.get(info, this), info, this)
             )
         )
@@ -431,7 +339,7 @@ class Table {
         }
         const sortBys = []
         sortByOpts.forEach(opt => {
-            var [name, dir] = opt.split(':')
+            var [name, dir] = opt.split(this.opts.dirSeparator)
             var column = this.columns.find(it => it.name == name && it.sortable)
             if (!column) {
                 column = this.columns.find(it => it.name.trim() == name.trim() && it.sortable)
@@ -728,6 +636,8 @@ class Table {
             column = {...col}
         } else if (typeof(col) == 'string') {
             column.name = col
+        } else {
+            throw new InvalidColumnError('Column def must be object or string')
         }
         column = {
             align       : 'left'
@@ -738,6 +648,9 @@ class Table {
           , sortable    : true
           , defaultDir : 'asc'
           , ...column
+        }
+        if (!column.name) {
+            throw new InvalidColumnError('Column must have a name')
         }
         if (!column.get) {
             column.get = info => info[column.key]
