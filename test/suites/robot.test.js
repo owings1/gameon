@@ -140,7 +140,6 @@ describe('Robot', () => {
 
 describe('ConfidenceRobot', () => {
 
-
     beforeEach(() => robot = new ConfidenceRobot(White))
 
     describe('#getClassMeta', () => {
@@ -576,6 +575,46 @@ describe('SafetyRobot', () => {
             expect(result[States28.SafetyCase1Med]).to.be.lessThan(1)
         })
     })
+
+    describe('v3', () => {
+
+        describe('coverage', () => {
+
+            it('getScores', async () => {
+                const robot = ConfidenceRobot.getVersionInstance('SafetyRobot', 'v3', White)
+                const turn = game.nextTurn().roll()
+                await robot.getScores(turn, game)
+                await robot.destroy()
+            })
+        })
+    })
+})
+
+describe('DoubleRobot', () => {
+
+    beforeEach(() => {
+        robot = getRobot('DoubleRobot', White)
+        doFirstTurn()
+    })
+
+    it('should not double after first turn', async () => {
+        const turn = game.nextTurn()
+        const res = await robot.shouldDouble(turn, game)
+        expect(res).to.equal(false)
+    })
+
+    it('should accept double one third turn', async () => {
+        makeRandomMoves(game.nextTurn().roll(), true)
+        const turn = game.nextTurn()
+        const res = await robot.shouldAcceptDouble(turn, game)
+        expect(res).to.equal(true)
+    })
+
+    describe('coverage', () => {
+        it('getScores', async () => {
+            await robot.getScores()
+        })
+    })
 })
 
 describe('RobotDelegator', () => {
@@ -822,6 +861,7 @@ describe('RobotDelegator', () => {
         })
     })
 })
+
 
 describe('BestRobot', () => {
 
