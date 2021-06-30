@@ -160,19 +160,19 @@ class ThemeHelper {
 
         const configs = {}
         const files = await globby(path.join(themesDir, '*.json'))
-        const helper = new DependencyHelper(this.list())
+        const helper = this._newDependencyHelper(this.list())
 
         const loaded = []
         const errors = []
 
         for (var file of files) {
+            var name = Util.filenameWithoutExtension(file)
             try {
                 var config = await fse.readJson(file)
-                var name = Util.filenameWithoutExtension(file)
                 configs[name] = config
                 helper.add(name, config.extends)
             } catch (error) {
-                errors.push({file, error})
+                errors.push({name, file, error})
             }
         }
 
@@ -197,6 +197,11 @@ class ThemeHelper {
         }
 
         return {loaded, errors}
+    }
+
+    // allow override for testing
+    static _newDependencyHelper(...args) {
+        return new DependencyHelper(...args)
     }
 }
 

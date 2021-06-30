@@ -1874,6 +1874,10 @@ describe('ThemeHelper', () => {
         ThemeHelper.clearCustom()
     })
 
+    afterEach(() => {
+        ThemeHelper.clearCustom()
+    })
+
     describe('extends', () => {
 
         it('child should inherit from parent', () => {
@@ -2018,6 +2022,12 @@ describe('ThemeHelper', () => {
             const theme = ThemeHelper.getInstance('Default')
             expect(theme.constructor.name).to.equal('Theme')
         })
+
+        it('should accept theme object', () => {
+            const theme = ThemeHelper.getInstance('Default')
+            const res = ThemeHelper.getInstance(theme)
+            expect(res).to.equal(theme)
+        })
     })
 
     describe('#list', () => {
@@ -2026,6 +2036,82 @@ describe('ThemeHelper', () => {
             const result = ThemeHelper.list()
             expect(result).to.contain('Default')
             expect(result).to.contain('MyCustom')
+        })
+    })
+
+    describe('#loadDirectory', () => {
+
+        const realNewDependencyHelper = ThemeHelper._newDependencyHelper
+
+        var dir
+
+        beforeEach(() => {
+            dir = tmpDir()
+        })
+
+        afterEach(async () => {
+            await fse.remove(dir)
+            ThemeHelper._newDependencyHelper = realNewDependencyHelper
+        })
+
+        async function writeTheme(name, config) {
+            const file = resolve(dir, name + '.json')
+            await fse.writeJson(file, config, {spaces: 2})
+            return file
+        }
+
+        async function writeThemeRaw(name, data) {
+            const file = resolve(dir, name + '.json')
+            fs.writeFileSync(file, data)
+            return file
+        }
+
+        it('should load two custom themes', async () => {
+            await writeTheme('custom1', {extends: ['Default']})
+            await writeTheme('custom2', {extends: ['Default']})
+            const res = await ThemeHelper.loadDirectory(dir)
+            expect(res.loaded).to.jsonEqual(['custom1', 'custom2'])
+            expect(res.errors).to.have.length(0)
+        })
+
+        it('should load custom1 but have json error for custom2 with bad json', async () => {
+            await writeTheme('custom1', {extends: ['Default']})
+            const file2 = await writeThemeRaw('custom2', 'asdf')
+            const res = await ThemeHelper.loadDirectory(dir)
+            expect(res.loaded).to.jsonEqual(['custom1'])
+            expect(res.errors).to.have.length(1)
+            expect(res.errors[0].file).to.equal(file2)
+            expect(res.errors[0].error.message).to.contain('JSON')
+        })
+
+        it('should load custom1 but have dependency error for custom2 with unresolved dependency', async () => {
+            await writeTheme('custom1', {extends: ['Default']})
+            await writeTheme('custom2', {extends: ['unknown']})
+            const res = await ThemeHelper.loadDirectory(dir)
+            expect(res.loaded).to.jsonEqual(['custom1'])
+            expect(res.errors).to.have.length(1)
+            expect(res.errors[0].error.isDependencyError).to.equal(true)
+        })
+
+        it('should have error for bad style', async () => {
+            await writeTheme('custom1', {styles: {'asdf.asdf': 'asdf'}})
+            const res = await ThemeHelper.loadDirectory(dir)
+            expect(res.errors).to.have.length(1)
+            expect(res.errors[0].error.isStyleError).to.equal(true)
+        })
+
+        it('should throw when dependency helper throws non dependency error', async () => {
+            const exp = new Error
+            // override
+            ThemeHelper._newDependencyHelper = (...args) => {
+                const helper = realNewDependencyHelper(...args)
+                helper.resolve = () => {throw exp}
+                return helper
+            }
+            await writeTheme('custom1', {extends: ['Default']})
+            await writeTheme('custom2', {extends: ['custom1']})
+            const res = await getErrorAsync(() => ThemeHelper.loadDirectory(dir))
+            expect(res).to.equal(exp)
         })
     })
 
@@ -2099,6 +2185,13 @@ describe('ThemeHelper', () => {
             }
             const err = getError(() => ThemeHelper.validateConfig(config))
             expect(err.isThemeError).to.equal(true)
+        })
+    })
+
+    describe('#validateStyle', () => {
+        it('should throw StyleError for unknown key', () => {
+            const err = getError(() => ThemeHelper.validateStyle('foo'))
+            expect(err.name).to.equal('StyleError')
         })
     })
 })
