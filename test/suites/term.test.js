@@ -161,25 +161,120 @@ describe('Reporter', () => {
 describe('TermPlayer', () => {
 
     var player
+    var conslogs
+    var game
+    var rolls
+    var roller
+    var p2
 
     beforeEach(() => {
+        conslogs = []
         player = new TermPlayer(White)
+        p2 = Robot.RobotDelegator.forDefaults(Red)
         player.logger.loglevel = 1
         player.logger.stdout = {write: () => {}}
+        player.logger.console = {log: (...args) => args.forEach(it => conslogs.push(it))}
+        rolls = []
+        roller = () => rolls.shift() || Dice.rollTwo()
+        game = new Game({roller})
+        player.emit('gameStart', game, null, {White: player, Red: p2})
+        //player.thisGame = game
+    })
+
+    afterEach(async () => {
+        await p2.destroy()
+        await player.destroy()
+    })
+
+    describe('#cchalk', () => {
+
+        describe('coverage', () => {
+
+            it('drawer=null', () => {
+                player.drawer = null
+                player.cchalk()
+            })
+        })
+    })
+
+    describe('#doHiddenAction', () => {
+
+        it('should log board states with _', async () => {
+            rolls.push([6, 1])
+            const turn = game.firstTurn()
+            await player.doHiddenAction('_', turn)
+            expect(conslogs[0].board.state28).to.equal(game.board.state28())
+        })
+
+        it('should flip persp with _f', async () => {
+            rolls.push([6, 1])
+            const turn = game.firstTurn()
+            await player.doHiddenAction('_f', turn)
+            expect(player.persp).to.equal(Red)
+        })
+
+        it('should flip persp with _f when drawer null', async () => {
+            rolls.push([6, 1])
+            const turn = game.firstTurn()
+            player.drawer = null
+            await player.doHiddenAction('_f', turn)
+            expect(player.persp).to.equal(Red)
+        })
+
+        it('should suggest with _r', async () => {
+            rolls.push([6, 1])
+            const turn = game.firstTurn()
+            await player.doHiddenAction('_r', turn)
+        })
+
+        it('should pass with _r when not rolled', async () => {
+            rolls.push([6, 1])
+            makeRandomMoves(game.firstTurn(), true)
+            makeRandomMoves(game.nextTurn().roll(), true)
+            player.logger.loglevel = -1
+            const turn = game.nextTurn()
+            await player.doHiddenAction('_r', turn)
+        })
+
+        it('should pass with _r when no moves', async () => {
+            rolls.push([6, 1])
+            makeRandomMoves(game.firstTurn(), true)
+            makeRandomMoves(game.nextTurn().roll(), true)
+            game.board.setStateString(States.WhiteCantMove)
+            player.logger.loglevel = -1
+            const turn = game.nextTurn().roll()
+            await player.doHiddenAction('_r', turn)
+        })
+
+        it('should pass with _r when robot throws', async () => {
+            rolls.push([6, 1])
+            player.newRobot = {getMoves: () => {throw new Error}}
+            const turn = game.firstTurn()
+            player.logger.loglevel = -1
+            await player.doHiddenAction('_r', turn)
+        })
+
+        it('should pass with _unknown', async () => {
+            rolls.push([6, 1])
+            const turn = game.firstTurn()
+            player.logger.loglevel = -1
+            await player.doHiddenAction('_unknown', turn)
+        })
+    })
+
+    describe('#newRobot', () => {
+
+        const Menu = requireSrc('term/menu')
+
+        it('should return instance when isCustomRobot and robots are configs', () => {
+            player.opts.isCustomRobot = true
+            player.opts.robots = Menu.robotDefaults()
+            const res = player.newRobot(Red)
+            expect(res.isRobot).to.equal(true)
+        })
     })
 
     describe('#playRoll', () => {
-
-        var game
-        var rolls
-        var roller
-
-        beforeEach(() => {
-            rolls = []
-            roller = () => rolls.shift() || Dice.rollTwo()
-            game = new Game({roller})
-            player.thisGame = game
-        })
 
         it('should return without prompting if turn.isCantMove', async () => {
             const turn = game.firstTurn()
@@ -240,23 +335,13 @@ describe('TermPlayer', () => {
 
         // coverage tricks
 
-        const inquirer = require('inquirer')
-
-        var oldPrompt
-
-        before(() => {
-            oldPrompt = inquirer.prompt
-        })
-
-        afterEach(() => {
-            inquirer.prompt = oldPrompt
-        })
-
         it('should call inquirer.prompt with array and set player._prompt', () => {
             var q
-            inquirer.prompt = questions => {
-                q = questions
-                return new Promise(() => {})
+            player._inquirer = {
+                prompt : questions => {
+                    q = questions
+                    return new Promise(() => {})
+                }
             }
             player.prompt()
             expect(Array.isArray(q)).to.equal(true)
@@ -327,6 +412,15 @@ describe('TermPlayer', () => {
             player.prompt = MockPrompter([
                 {action: 'q'},
                 {confirm: false},
+                {action: 'r'}
+            ])
+            const result = await player.promptTurnOption(turn)
+            expect(result).to.equal(false)
+        })
+
+        it('should do hidden action _f then roll', async () => {
+            player.prompt = MockPrompter([
+                {action: '_f'},
                 {action: 'r'}
             ])
             const result = await player.promptTurnOption(turn)
@@ -432,6 +526,27 @@ describe('TermPlayer', () => {
             ])
             const result = await player.promptOrigin(turn, [-1])
             expect(result).to.equal(-1)
+        })
+
+        it('should do hidden action _f then quit with MatchCanceledError', async () => {
+            player.prompt = MockPrompter([
+                {origin: '_f'},
+                {origin: 'q'},
+                {confirm: true}
+            ])
+            const err = await getErrorAsync(() => player.promptOrigin(turn, [1]))
+            expect(err.name).to.equal('MatchCanceledError')
+        })
+    })
+
+    describe('#report', () => {
+
+        describe('coverage', () => {
+
+            it('drawer=null', () => {
+                player.drawer = null
+                player.report()
+            })
         })
     })
 

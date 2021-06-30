@@ -452,7 +452,7 @@ class TermPlayer extends Base {
                         await robot.destroy()
                     }
                 } catch (err) {
-                    this.logger.err(err)
+                    this.logger.error(err)
                 }
                 break
 
