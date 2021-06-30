@@ -81,6 +81,10 @@ module.exports = {
     // with 2,4 white has to come in on the 4
   , WhiteCornerCase24 : '1|0|0:|0:|2:R|0:|0:|2:R|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|1:W|0:|0:|13|11'
   , RedHasWinner12    : '0|0|2:R|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|3:W|3:W|1:W|8|13'
+    // white has lots of moves with 1,2
+  , WhiteManyMoves12  : '0|0|0:|0:|1:R|2:R|0:|5:R|2:W|3:R|2:R|0:|0:|0:|2:R|1:W|0:|2:W|2:W|2:W|3:W|2:W|0:|0:|0:|1:W|0|0'
+    // white can't move from bar with any roll
+  , WhiteCantMove     : '2|0|2:R|2:R|2:R|2:R|2:R|3:R|0:|0:|0:|0:|0:|5:W|0:|0:|0:|0:|3:W|0:|5:W|0:|0:|0:|0:|2:R|0|0'
 
     // ------------------
     // Not Legal Boards

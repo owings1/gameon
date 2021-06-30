@@ -42,7 +42,20 @@ const {DrawHelper, TermHelper} = Draw
 const {RobotDelegator} = Robot
 const {StringBuilder}  = Util
 
-const {homeTilde, nchars, sp, tildeHome, ucfirst} = Util
+const {
+    castToArray
+  , defaults
+  , destroyAll
+  , errMessage
+  , fileDateString
+  , homeTilde
+  , isEmptyObject
+  , nchars
+  , sp
+  , stripAnsi
+  , tildeHome
+  , ucfirst
+} = Util
 
 const {
     Board
@@ -58,6 +71,7 @@ const {
   , ColorNorm
   , Colors
   , DefaultThemeName
+  , DefaultTermEnabled
   , Opponent
   , OriginPoints
   , PointOrigins
@@ -71,23 +85,34 @@ function stringify(data, indent = 2) {
 
 class LabHelper {
 
+    static defaults() {
+        return {
+            breadthTrees  : false
+          , recordDir     : null
+          , persp         : White
+          , theme         : DefaultThemeName
+          , termEnabled   : DefaultTermEnabled
+          , rollsFile     : null
+          , isCustomRobot : false
+          , robots        : {}
+        }
+    }
     constructor(opts = {}) {
 
-        this.board  = opts.board
-        this.persp  = opts.persp || White
-        this.opts   = opts
+        this.board = opts.board
 
-        this.logs   = []
-        this.logger = new Logger
-        if (!this.opts.theme) {
-            this.opts.theme = DefaultThemeName
-        }
-        this.theme = Themes.getInstance(this.opts.theme)
-        this.drawer = DrawHelper.forBoard(this.board, this.persp, this.logs, this.opts.theme)
-        this.term = new TermHelper(!!this.opts.termEnabled)
+        this.opts = defaults(LabHelper.defaults(), opts)
+        this.persp = this.opts.persp
+
+        this.logs   = []        
         this.stateHistory = []
         this.fetchLastRecords = null
         this.canErase = false
+
+        this.logger = new Logger
+        this.theme = Themes.getInstance(this.opts.theme)
+        this.drawer = DrawHelper.forBoard(this.board, this.persp, this.logs, this.opts.theme)
+        this.term = new TermHelper(this.opts.termEnabled)
     }
 
     async interactive() {
@@ -363,9 +388,9 @@ class LabHelper {
 
         const {rankList, delegateList} = explain
 
-        const sb = {
-            rankList  : this.showRobotTurnRankList(rankList, delegateWidth)
-          , delegates : this.showRobotTurnDelegates(delegateList)
+        const strings = {
+            rankList  : this.showRobotTurnRankList(rankList, delegateWidth).toString()
+          , delegates : this.showRobotTurnDelegates(delegateList).toString()
         }
 
         const turnData = turn.serialize()
@@ -373,10 +398,10 @@ class LabHelper {
         this.fetchLastRecords = () => {
             return {
                 'explain.json'      : stringify(explain)
-              , 'ranklist.ans.txt'  : sb.rankList.toString()
-              , 'ranklist.txt'      : Util.stripAnsi(sb.rankList.toString())
-              , 'delegates.ans.txt' : sb.delegates.toString()
-              , 'delegates.txt'     : Util.stripAnsi(sb.delegates.toString())
+              , 'ranklist.ans.txt'  : strings.rankList
+              , 'ranklist.txt'      : stripAnsi(strings.rankList)
+              , 'delegates.ans.txt' : strings.delegates
+              , 'delegates.txt'     : stripAnsi(strings.delegates)
               , 'results.json'      : stringify({results: result.results})
               , 'robot.json'        : stringify({robot: robotMeta})
               , 'turn.json'         : stringify({turn: turnData})
@@ -522,34 +547,19 @@ class LabHelper {
             {
                 name   : 'myRank'
               , align  : 'right'
-              , format : value => value == null ? '' : value.toString()
+              //, format : value => value == null ? '' : value.toString()
             }
           , {
                 name   : 'rank'
               , align  : 'right'
               , key    : 'actualRank'
-              , format : value => value == null ? '' : value.toString()
+              //, format : value => value == null ? '' : value.toString()
             }
           , {
                 name   : 'diff'
               , align  : 'right'
-              , get    : info => info.myRank == null ? null : info.actualRank - info.myRank
-              , format : value => {
-                    if (value == null) {
-                        return ''
-                    }
-                    var str = value.toString()
-                    if (value == 0) {
-                        return chalk.bold.green(str)
-                    }
-                    if (value > 0) {
-                        str = '+' + str
-                    }
-                    if (Math.abs(value) == 1) {
-                        return chalk.green(str)
-                    }
-                    return str
-                }
+              , get    : info => this.getRankDiff(info)
+              , format : value => this.formatRankDiff(value)
             }
           , {
                 name   : 'myScore'
@@ -585,7 +595,7 @@ class LabHelper {
     }
 
     async rolloutCommand(param) {
-        const numMatches = parseInt(param) || 100
+        const numMatches = this.parseNumRollouts(param)
         const matchOpts = {
             forceFirst : this.persp
           , startState : this.board.state28()
@@ -602,7 +612,7 @@ class LabHelper {
                     }
                     value = tildeHome(value)
                     const data = fse.readJsonSync(value)
-                    return Util.errMessage(() => Dice.validateRollsData(data))
+                    return errMessage(() => Dice.validateRollsData(data))
                 }
             }
         ])
@@ -625,11 +635,11 @@ class LabHelper {
             this.logger.info('Running', numMatches, 'matches', this.persp, 'goes first')
             for (var i = 0; i < numMatches; ++i) {
                 var match = new Match(1, matchOpts)
-                await coordinator.runMatch(match, players.White, players.Red)
+                await coordinator.runMatch(match, players)
                 matches.push(match.meta())
             }
         } finally {
-            await Util.destroyAll(players)
+            await destroyAll(players)
         }
 
         const scores = {Red: 0, White: 0}
@@ -640,14 +650,7 @@ class LabHelper {
 
         this.logger.info('scores', scores)
         const diff = scores[this.persp] - scores[Opponent[this.persp]]
-        if (diff > 0) {
-            var diffStr = chalk.green('+' + diff.toString())
-        } else if (diff < 0) {
-            var diffStr = chalk.red(diff.toString())
-        } else {
-            var diffStr = chalk.yellow(diff.toString())
-        }
-        this.logger.info('diff:', diffStr)
+        this.logger.info('diff:', this.chalkDiff(diff))
     }
 
     async placeCommand() {
@@ -922,7 +925,7 @@ class LabHelper {
     }
 
     prompt(questions) {
-        this._prompt = inquirer.prompt(Util.castToArray(questions))
+        this._prompt = inquirer.prompt(castToArray(questions))
         return this._prompt
     }
 
@@ -946,13 +949,10 @@ class LabHelper {
     }
 
     newRobot(...args) {
-        if (!this.opts.isCustomRobot || Util.isEmptyObject(this.opts.robots)) {
+        if (!this.opts.isCustomRobot || isEmptyObject(this.opts.robots)) {
             var robot = RobotDelegator.forDefaults(...args)
         } else {
-            const configs = Object.entries(this.opts.robots).map(([name, config]) => {
-                return {name, ...config}
-            })
-            var robot = RobotDelegator.forConfigs(configs, ...args)
+            var robot = RobotDelegator.forSettings(this.opts.robots, ...args)
         }
         return robot
     }
@@ -961,19 +961,20 @@ class LabHelper {
 
         if (!this.opts.recordDir) {
             this.logger.warn('No recordDir set')
-            return
+            return false
         }
+        this.lastOutDir = null
         if (!this.fetchLastRecords) {
             this.logger.info('No result to save')
-            return
+            return false
         }
 
         const subDir = 'labs'
-        const prefix = 'lab-' + Util.fileDateString()
+        const prefix = 'lab-' + fileDateString()
 
         const outDir = path.resolve(this.opts.recordDir, subDir, prefix)
 
-        this.logger.info('Saving to', homeTilde(path.join(this.opts.recordDir, subDir, prefix)))
+        this.logger.info('Saving to', homeTilde(outDir))
 
         await fse.ensureDir(outDir)
         
@@ -997,6 +998,8 @@ class LabHelper {
         const labFile = path.resolve(outDir, basename)
         await fse.writeJson(labFile, lab, {spaces: 2})
         this.logger.info('   ', basename)
+        this.lastOutDir = outDir
+        return true
     }
 
     async generateStateString() {
@@ -1020,6 +1023,46 @@ class LabHelper {
         const turnMeta   = game.turnHistory[turnNumber]
 
         return turnMeta.endState
+    }
+
+    // abstracted for coverage only
+    chalkDiff(diff) {
+        if (diff > 0) {
+            var diffStr = chalk.green('+' + diff.toString())
+        } else if (diff < 0) {
+            var diffStr = chalk.red(diff.toString())
+        } else {
+            var diffStr = chalk.yellow(diff.toString())
+        }
+        return diffStr
+    }
+
+    // abstracted for coverage only
+    getRankDiff(info) {
+        return info.myRank == null ? null : info.actualRank - info.myRank
+    }
+
+    // abstracted for coverage only
+    formatRankDiff(value) {
+        if (value == null) {
+            return ''
+        }
+        var str = value.toString()
+        if (value == 0) {
+            return chalk.bold.green(str)
+        }
+        if (value > 0) {
+            str = '+' + str
+        }
+        if (Math.abs(value) == 1) {
+            return chalk.green(str)
+        }
+        return str
+    }
+
+    // abstracted for coverage only
+    parseNumRollouts(param) {
+        return parseInt(param) || 100
     }
 
     static commandHelp() {

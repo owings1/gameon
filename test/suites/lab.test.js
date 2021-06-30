@@ -34,9 +34,10 @@ const {
     States
 } = TestUtil
 
-const fs   = require('fs')
-const fse  = require('fs-extra')
-const path = require('path')
+const chalk = require('chalk')
+const fs    = require('fs')
+const fse   = require('fs-extra')
+const path  = require('path')
 
 const {resolve} = path
 
@@ -45,6 +46,7 @@ describe('Lab', () => {
     const Constants = requireSrc('lib/constants')
     const Core      = requireSrc('lib/core')
     const Lab       = requireSrc('term/lab')
+    const Menu      = requireSrc('term/menu')
 
     const {Red, White} = Constants
 
@@ -52,17 +54,30 @@ describe('Lab', () => {
 
     var board
     var lab
+    var recordDir
 
     beforeEach(() => {
         board = Board.setup()
-        lab = new Lab({board})
+        recordDir = tmpDir()
+        const opts = {
+            board
+          , recordDir
+        }
+        lab = new Lab(opts)
         lab.logger.loglevel = 0
         lab.logger.writeStdout = () => {}
         lab.logger.console = {log: () => {}}
     })
 
-    it('should construct', () => {
-        expect(!!lab).to.equal(true)
+    afterEach(async () => {
+        await fse.remove(recordDir)
+    })
+
+    describe('#constructor', () => {
+
+        it('should construct with no opts', () => {
+            new Lab
+        })
     })
 
     describe('#interactive', () => {
@@ -227,6 +242,17 @@ describe('Lab', () => {
             await lab.interactive()
         })
 
+        it('should roll dice with d then 1,2, then record last result', async () => {
+            lab.prompt = MockPrompter([
+                {input: 'd'},
+                {dice: '1,2'},
+                {input: 'w'},
+                {input: 'q'}
+            ])
+            await lab.interactive()
+            expect(lab.lastOutDir).to.contain('lab-')
+        })
+
         it('should place 6 to bar', async () => {
             lab.prompt = MockPrompter([
                 {input: 'p'},
@@ -247,6 +273,92 @@ describe('Lab', () => {
             expect(board.stateString()).to.equal(States.Initial)
         })
 
+        it('should place 6 to bar then bar to 6 and be back to initial', async () => {
+            lab.prompt = MockPrompter([
+                {input: 'p'},
+                {from: '6', dest: 'b'},
+                {input: 'p'},
+                {from: 'b', dest: '6'},
+                {input: 'q'}
+            ])
+            await lab.interactive()
+            expect(board.stateString()).to.equal(States.Initial)
+        })
+
+        it('should place 6 to bar, 12 to bar then bar w to 6, bar to 12 and be back to initial', async () => {
+            lab.prompt = MockPrompter([
+                {input: 'p'},
+                {from: '6', dest: 'b'},
+                {input: 'p'},
+                {from: '12', dest: 'b'},
+                {input: 'p'},
+                {from: 'b', color: 'w', dest: '6'},
+                {input: 'p'},
+                {from: 'b', dest: '12'},
+                {input: 'q'}
+            ])
+            await lab.interactive()
+            expect(board.stateString()).to.equal(States.Initial)
+        })
+
+        it('should place 6 to home, 12 to home then home w to 6, home to 12 and be back to initial', async () => {
+            lab.prompt = MockPrompter([
+                {input: 'p'},
+                {from: '6', dest: 'h'},
+                {input: 'p'},
+                {from: '12', dest: 'h'},
+                {input: 'p'},
+                {from: 'h', color: 'w', dest: '6'},
+                {input: 'p'},
+                {from: 'h', dest: '12'},
+                {input: 'q'}
+            ])
+            await lab.interactive()
+            expect(board.stateString()).to.equal(States.Initial)
+        })
+
+        it('should place 6 to home, 12 to home then home r to 12, home to 6 and be back to initial', async () => {
+            lab.prompt = MockPrompter([
+                {input: 'p'},
+                {from: '6', dest: 'h'},
+                {input: 'p'},
+                {from: '12', dest: 'h'},
+                {input: 'p'},
+                {from: 'h', color: 'r', dest: '12'},
+                {input: 'p'},
+                {from: 'h', dest: '6'},
+                {input: 'q'}
+            ])
+            await lab.interactive()
+            expect(board.stateString()).to.equal(States.Initial)
+        })
+
+        it('should place 6 to bar, 12 to bar, start bar w but quit', async () => {
+            lab.prompt = MockPrompter([
+                {input: 'p'},
+                {from: '6', dest: 'b'},
+                {input: 'p'},
+                {from: '12', dest: 'b'},
+                {input: 'p'},
+                {from: 'b', color: 'q'},
+                {input: 'q'}
+            ])
+            await lab.interactive()
+        })
+
+        it('should place 6 to bar, 12 to bar, start bar but throw with bad color', async () => {
+            lab.prompt = MockPrompter([
+                {input: 'p'},
+                {from: '6', dest: 'b'},
+                {input: 'p'},
+                {from: '12', dest: 'b'},
+                {input: 'p'},
+                {from: 'b', color: 'x'}
+            ])
+            const err = await getErrorAsync(() => lab.interactive())
+            expect(err.message.toLowerCase()).to.contain('color')
+        })
+
         it('should place 6 to home, 19 to home, then home white 2', async () => {
             lab.prompt = MockPrompter([
                 {input: 'p'},
@@ -258,6 +370,208 @@ describe('Lab', () => {
                 {input: 'q'}
             ])
             await lab.interactive()
+        })
+
+        it('should roll robot dice 1,2', async () => {
+            lab.prompt = MockPrompter([
+                {input: 'D'},
+                {dice: '1,2'},
+                {input: 'q'}
+            ])
+            await lab.interactive()
+        })
+
+        it('should roll robot dice 4,4 and record result', async () => {
+            lab.prompt = MockPrompter([
+                {input: 'D'},
+                {dice: '1,2'},
+                {input: 'w'},
+                {input: 'q'}
+            ])
+            await lab.interactive()
+            expect(lab.lastOutDir).to.contain('lab-')
+        })
+
+        it('should do rollout with 1 game', async () => {
+            lab.prompt = MockPrompter([
+                {input: 'r 1'},
+                {rollsFile: ''},
+                {input: 'q'}
+            ])
+            await lab.interactive()
+        })
+
+        it('should do rollout with 1 game with rolls file', async () => {
+            lab.prompt = MockPrompter([
+                {input: 'r 1'},
+                {rollsFile: resolve(__dirname, '../rolls.json')},
+                {input: 'q'}
+            ])
+            await lab.interactive()
+        })
+
+        it('should invert board and be at initial', async () => {
+            lab.prompt = MockPrompter([
+                {input: 'F'},
+                {input: 'q'}
+            ])
+            await lab.interactive()
+            expect(board.stateString()).to.equal(States.Initial)
+        })
+    })
+
+    describe('#chalkDiff', () => {
+
+        // coverage, probably will refactor away
+        it('should be green +2 for 2', () => {
+            const res = lab.chalkDiff(2)
+            const exp = chalk.green('+2')
+            expect(res).to.equal(exp)
+        })
+
+        it('should be red -2 for -2', () => {
+            const res = lab.chalkDiff(-2)
+            const exp = chalk.red('-2')
+            expect(res).to.equal(exp)
+        })
+
+        it('should be yellow 0 for 0', () => {
+            const res = lab.chalkDiff(0)
+            const exp = chalk.yellow('0')
+            expect(res).to.equal(exp)
+        })
+    })
+
+    describe('#diceCommand', () => {
+
+        it('should with many moves for WhiteManyMoves12', async () => {
+            lab.board.setStateString(States.WhiteManyMoves12)
+            await lab.diceCommand(true, '1,2')
+            const records = await lab.fetchLastRecords()
+            const res = JSON.parse(records['turn.json'])
+            expect(res.turn.allowedEndStates).to.have.length(33)
+        })
+
+        it('should not have lastResult for cant move', async () => {
+            lab.board.setStateString(States.WhiteCantMove)
+            await lab.diceCommand(false, '1,2')
+            expect(!!lab.fetchLastRecords).to.equal(false)
+        })
+    })
+
+    describe('#draw', () => {
+
+        describe('coverage', () => {
+            it('isPrint=true, canErase=true', async () => {
+                lab.canErase = true
+                await lab.draw(true)
+            })
+            it('isPrint=false', async () => {
+                await lab.draw(false)
+            })
+        })
+    })
+
+    describe('#formatRankDiff', () => {
+
+        describe('coverage', () => {
+            it('value=null', () => {
+                const res = lab.formatRankDiff(null)
+                expect(res).to.equal('')
+            })
+        })
+    })
+
+    describe('#getBuiltInStateString', () => {
+
+        it('should return intial for Initial', () => {
+            const res = lab.getBuiltInStateString('Initial')
+            expect(!!res).to.equal(true)
+            expect(res).to.equal(Constants.BoardStrings.Initial)
+        })
+    })
+
+    describe('#getRankDiff', () => {
+
+        describe('coverage', () => {
+
+            it('myRank=null', () => {
+                const res = lab.getRankDiff({myRank: null})
+                expect(res).to.equal(null)
+            })
+        })
+    })
+
+    describe('#moveDesc', () => {
+
+        it('should contain bar if origin is -1', () => {
+            const res = lab.moveDesc({origin: -1, face: 2})
+            expect(res).to.contain('bar')
+        })
+
+        it('should contain home if origin is 23 and face is 2', () => {
+            const res = lab.moveDesc({origin: 23, face: 2})
+            expect(res).to.contain('home')
+        })
+    })
+
+    describe('#newRobot', () => {
+
+        it('should return custom robot with opts.isCustomRobot and opts.robots', () => {
+            const configs = Menu.robotDefaults()
+            configs.FirstTurnRobot.moveWeight = 0
+            lab.opts.isCustomRobot = true
+            lab.opts.robots = configs
+            const robot = lab.newRobot(White)
+            const delegate = robot.delegates.find(it => it.robot.name == 'FirstTurnRobot')
+            expect(delegate.moveWeight).to.equal(0)
+        })
+    })
+
+    describe('#parseNumRollouts', () => {
+
+        describe('coverage', () => {
+
+            it('empty param', () => {
+                lab.parseNumRollouts()
+            })
+
+            it('param=1', () => {
+                lab.parseNumRollouts('1')
+            })
+        })
+    })
+
+    describe('#runCommand', () => {
+
+        describe('coverage', () => {
+
+            it('input=q,isPrintFirst=true', async () => {
+                await lab.runCommand('q', true)
+            })
+        })
+    })
+
+    describe('#setStateCommand', () => {
+
+        it('should not prompt but catch err for bad param', async () => {
+            var msg = ''
+            lab.logger.error = (...args) => msg += args.join(' ')
+            await lab.setStateCommand('asdf')
+            expect(msg.toLowerCase()).to.contain('bad input')
+        })
+    })
+
+    describe('#validateDice', () => {
+
+        it('should validate [1,2]', () => {
+            const res = lab.validateDice([1,2])
+            expect(res).to.equal(true)
+        })
+
+        it('should invalidate [1,7]', () => {
+            const res = lab.validateDice([1,7])
+            expect(typeof res).to.equal('string')
         })
     })
 
@@ -321,9 +635,29 @@ describe('Lab', () => {
     })
 
     describe('#validateStateString', () => {
+
         it('should return true for empty', () => {
             const result = lab.validateStateString()
             expect(result).to.equal(true)
+        })
+
+        it('should return string for asdf', () => {
+            const result = lab.validateStateString('asdf')
+            expect(typeof result).to.equal('string')
+        })
+    })
+
+    describe('#writeLastResult', () => {
+
+        it('should return false when no record dir', async () => {
+            lab.opts.recordDir = null
+            const res = await lab.writeLastResult()
+            expect(res).to.equal(false)
+        })
+
+        it('should return false when no last result', async () => {
+            const res = await lab.writeLastResult()
+            expect(res).to.equal(false)
         })
     })
 })

@@ -668,7 +668,12 @@ class Table {
             column.get = info => info[column.key]
         }
         if (!column.format) {
-            column.format = (value, info) => '' + value
+            column.format = (value, info) => {
+                if (value == null) {
+                    return ''
+                }
+                return value.toString()
+            }
         }
         if (!column.sorter) {
             column.sorter = (aval, bval) => {
