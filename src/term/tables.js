@@ -172,6 +172,7 @@ class Table {
           , filterFixed  : null
           , arrSeparator : ','
           , dirSeparator : ':'
+          , oddEven      : true
         }
     }
 
@@ -484,7 +485,7 @@ class Table {
 
     makePartsRows() {
         const {chlk} = this
-        const chlkn = i => [chlk.odd, chlk.even][i % 2]
+        const chlkn = i => [chlk.odd, chlk.even][(i % 2) * +!!this.opts.oddEven]
         return this.rows.map((row, i) =>
             this.showColumns.map((column, j) =>
                 pad(chlkn(i)(row[j]), column.align, column.width, chlkn(i)(' '))
@@ -674,6 +675,9 @@ class Table {
                 }
                 return value.toString()
             }
+        }
+        if (column.title == null || column.title == false) {
+            column.title = ''
         }
         if (!column.sorter) {
             column.sorter = (aval, bval) => {

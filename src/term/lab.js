@@ -51,6 +51,7 @@ const {
   , homeTilde
   , isEmptyObject
   , nchars
+  , padEnd
   , sp
   , stripAnsi
   , tildeHome
@@ -411,16 +412,19 @@ class LabHelper {
 
     showRobotTurnRankList(rankList, delegateWidth) {
 
+        const {theme} = this
+        const chlk = theme.table
         const cons = this.logger.console
 
-        var indent = 0
+        const indent = 2
+
         var count = 0
         var hasDotDotDotted = false
 
-        const b_log = new StringBuilder
+        const b = new StringBuilder
         const log = (...args) => {
-            b_log.sp(...args)
-            b_log.add('\n')
+            b.sp(...args)
+            b.add('\n')
             if (count < 21) {
                 cons.log(''.padEnd(indent - 1, ' '), ...args)
             }
@@ -432,100 +436,104 @@ class LabHelper {
             }
         }
 
-        const hr = nchars(49, Chars.table.dash)
-        const rankPad = rankList.length.toString().length
+        const columns = [
+            {
+                name  : 'name'
+              , title : null
+            }
+          , {
+                name   : 'weighted'
+              , align  : 'right'
+              , format : value => chlk.cyan(value.toFixed(4))
+            }
+          , {
+                name   : 'myScore'
+              , align  : 'right'
+              , format : value => chlk.yellow(value.toFixed(4))
+            }
+          , {
+                name   : 'myRank'
+              , align  : 'right'
+              , format : value => chlk.yellow(value)
+            }
+        ]
 
         var lastScore
 
-        rankList.forEach((info, i) => {
+        const moveDesc = move => this.moveParts(move).map(
+            it => chlk.reset(chlk(it))
+        ).join(chlk.dim(Chars.arrow.right))
 
-            count += 1
-            indent = 2
+        const tables = rankList.map((info, i) => {
 
-            log()
-            log(hr)
-            log()
-
-            const mstr = new StringBuilder(
-                chalk.grey('[')
-              , info.moves.map(move => this.moveDesc(move)).join(', ')
-              , chalk.grey(']')
+            const title = new StringBuilder(
+                chlk.dim('#')
+              , chlk.green((i + 1).toString())
+              , chlk.dim(' of ' + rankList.length.toString())
+              , chlk('  ')
+              , chlk.dim('[')
+              , info.moves.map(moveDesc).join(chlk.dim(', '))
+              , chlk.dim(']')
             ).toString()
 
-            const b = new StringBuilder
-
-            var decreasePct = 0
-            if (info.isChosen) {
-                b.add(
-                    chalk.bold.green('#1 Winner')
-                  , '  '
-                  , chalk.bold(mstr)
-                )
-            } else {
-                if (lastScore > 0) {
-                    decreasePct = Math.round(100 * (lastScore - info.finalScore) / lastScore)
+            const bscore = new StringBuilder(
+                chlk('Score : ')
+              , chlk.cyan.bold(info.finalScore.toFixed(4))
+            )
+            if (lastScore > 0) {
+                var decreasePct = Math.round(100 * (lastScore - info.finalScore) / lastScore)
+                if (decreasePct) {
+                    bscore.add(
+                        chlk(' ')
+                      , chlk.red.bold(Chars.arrow.down + decreasePct + '%')
+                    )
                 }
-                b.add(
-                    chalk.bold.cyan(info.rank)
-                  , chalk.grey('/')
-                  , chalk.yellow(rankList.length)
-                  , '  '
-                  , mstr
-                )
             }
+            const footerLines = [
+                new StringBuilder(
+                    chlk('Rank  : ')
+                  , chlk.title(info.rank.toString())
+                ).toString()
+              , bscore.toString()
+              , new StringBuilder(
+                    chlk('State : ')
+                  , chlk.dim(info.endState)
+                ).toString()
+            ]
+
+            const data = info.delegates.filter(it => it.myScore + it.weighted != 0)
+            const opts = {
+                title
+              , theme
+              , footerLines
+              , oddEven: false
+            }
+            const table = new Table(columns, data, opts).build()
+            table.rank = info.rank
+
             lastScore = info.finalScore
-            log(b.toString())
-            log()
 
-            indent += 2
+            return table
+        })
 
-            const sb = new StringBuilder
-            sb.sp(
-                chalk.bold('Score')
-              , chalk.bold.cyan(info.finalScore.toFixed(4))
-            )
-            if (decreasePct) {
-                sb.add(
-                    ''.padEnd(3, ' ')
-                  , chalk.red(Chars.arrow.down + decreasePct + '%')
-                )
+        const maxTableWidth = Math.max(...tables.map(table => table.outerWidth))
+        const hr = theme.hr(nchars(maxTableWidth, Chars.table.dash))
+
+        var lastRank
+        tables.forEach(table => {
+            count += 1
+            if (lastRank != table.rank) {
+                log()
+                log(hr)
+                log()
             }
-            log(sb.toString())
-
-            indent += 2
-
-            log(
-                ''.padEnd(delegateWidth + 3, ' ')
-              , chalk.grey('weighted')
-              , chalk.grey('myScore'.padStart(9, ' '))
-              , ' '
-              , chalk.grey('myRank')
-            )
-
-            info.delegates.filter(it =>
-                it.myScore + it.weightedScore != 0
-            ).forEach(it => {
-
-                log(new StringBuilder(
-                    it.name.padEnd(delegateWidth + 6, ' ')
-                  , chalk.cyan(it.weightedScore.toFixed(4).padEnd(7, ' '))
-                  , chalk.grey(Chars.table.pipe)
-                  , '  '
-                  , chalk.yellow(it.myScore.toFixed(4).padEnd(6, ' '))
-                  , ' ' + chalk.grey(Chars.table.pipe)
-                  , ' '
-                  , chalk.yellow(it.myRank.toString().padStart(rankPad, ' '))
-                ).toString())
-            })
-
-            log()
-
-            log(''.padEnd(16, ' '), chalk.grey(info.endState))
+            table.lines.forEach(line => log(line))
+            lastRank = table.rank
         })
 
         log()
 
-        return b_log
+        return b
     }
 
     showRobotTurnDelegates(delegateList) {
@@ -534,7 +542,7 @@ class LabHelper {
         const ch = theme.table
         const cons = this.logger.console
 
-        var indent = 0
+        const indent = 2
 
         const b = new StringBuilder
         const log = (...args) => {
@@ -543,17 +551,16 @@ class LabHelper {
             cons.log(''.padEnd(indent - 1, ' '), ...args)
         }
 
+        const moveDesc = move => this.moveParts(move).join(ch.dim(Chars.arrow.right))
         const columns = [
             {
                 name   : 'myRank'
               , align  : 'right'
-              //, format : value => value == null ? '' : value.toString()
             }
           , {
                 name   : 'rank'
               , align  : 'right'
               , key    : 'actualRank'
-              //, format : value => value == null ? '' : value.toString()
             }
           , {
                 name   : 'diff'
@@ -569,8 +576,8 @@ class LabHelper {
           , {
                 name: 'moves'
               , format: moves => ch.dim('[') + moves.map(move =>
-                    this.moveDesc(move).padEnd(5, ' ')
-                ).join(ch.dim(',') + ' ') + ch.dim(']')
+                    padEnd(moveDesc(move), 5, ch(' '))
+                ).join(ch.dim(',') + ch(' ')) + ch.dim(']')
             }
         ]
 
@@ -584,7 +591,6 @@ class LabHelper {
         const hr = theme.hr(nchars(maxTableWidth, Chars.table.dash))
 
         tables.forEach(table => {
-            indent = 2
             log(hr)
             log()
             table.lines.forEach(line => log(line))
@@ -745,15 +751,19 @@ class LabHelper {
     }
 
     moveDesc({origin, face}) {
+        return this.moveParts({origin, face}).join(Chars.arrow.right)
+    }
 
-        const b = new StringBuilder
+    moveParts({origin, face}) {
+
+        const parts = []
 
         if (origin == -1) {
             var startPoint = 25
-            b.add('bar')
+            parts.push('bar')
         } else {
             var startPoint = OriginPoints[this.persp][origin]
-            b.add(startPoint)
+            parts.push(startPoint)
         }
 
         var destPoint = startPoint - face
@@ -762,9 +772,9 @@ class LabHelper {
             destPoint = 'home'
         }
 
-        b.add(destPoint)
+        parts.push(destPoint)
 
-        return b.join(Chars.arrow.right)
+        return parts
     }
 
     getBuiltInStateString(name) {

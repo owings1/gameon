@@ -704,8 +704,8 @@ describe('RobotDelegator', () => {
             it('sorters.rankListDelegates', () => {
                 const sorter = Robot.RobotDelegator.Sorters.rankListDelegates
                 const data = [
-                    {name: 'a', rawScore: 1, weightedScore: 0.5},
-                    {name: 'b', rawScore: 0.5, weightedScore: 0.5}
+                    {name: 'a', rawScore: 1, weighted: 0.5},
+                    {name: 'b', rawScore: 0.5, weighted: 0.5}
                 ]
                 data.sort(sorter)
             })

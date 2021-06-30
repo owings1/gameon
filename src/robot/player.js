@@ -223,7 +223,7 @@ const Sorters = {
         return a.localeCompare(b)
     }
   , rankListDelegates: (a, b) => {
-        var cmp = b.weightedScore - a.weightedScore
+        var cmp = b.weighted - a.weighted
         if (cmp) {
             return cmp
         }
@@ -519,8 +519,8 @@ class RobotDelegator extends Robot {
                     const myScore = result.results[i][endState]
                     const myRank = delegateRankedStatesMaps[i][endState]
                     return {
-                        name          : delegate.robot.name
-                      , weightedScore : myScore * delegate.moveWeight
+                        name     : delegate.robot.name
+                      , weighted : myScore * delegate.moveWeight
                       , myScore
                       , myRank
                     }

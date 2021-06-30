@@ -92,6 +92,7 @@ const Keys = [
   , 'hr.color'
 
   , 'table.background'
+  , 'table.color'
 
   , 'table.border.background'
   , 'table.border.color'
@@ -121,6 +122,7 @@ const Aliases = {
   , 'text.piece.white.color'  : 'board.piece.white.color'
   , 'hr.color'                : 'text.dim.color'
   , 'table.background'        : 'text.background'
+  , 'table.color'             : 'text.color'
   , 'table.border.background' : 'board.border.background'
   , 'table.border.color'      : 'board.border.color'
   , 'table.even.background'   : 'table.background'
