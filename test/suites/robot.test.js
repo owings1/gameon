@@ -44,7 +44,7 @@ const Util  = requireSrc('lib/util')
 const {ConfidenceRobot} = Robot
 
 const {White, Red} = Constants
-const {Game, Match, Dice} = Core
+const {Game, Match, Turn, Board, Dice} = Core
 
 var game
 var robot
@@ -78,11 +78,29 @@ describe('Robot', () => {
         robot = new Robot.Robot(White)
     })
 
+    describe('#decideDouble', () => {
+
+        it('should accept double by default', async () => {
+            const turn = new Turn(Board.setup(), Red)
+            turn.setDoubleOffered()
+            await robot.decideDouble(turn)
+            expect(turn.isDoubleDeclined).to.equal(false)
+        })
+
+        it('should not accept double when shouldAcceptDouble=fa;se', async () => {
+            const turn = new Turn(Board.setup(), Red)
+            robot.shouldAcceptDouble = () => false
+            turn.setDoubleOffered()
+            await robot.decideDouble(turn)
+            expect(turn.isDoubleDeclined).to.equal(true)
+        })
+    })
+
     describe('#getMoves', () => {
 
         it('should throw NotImplemented', async () => {
             const err = await getErrorAsync(() => robot.getMoves())
-            expect(err.message).to.equal('NotImplemented')
+            expect(err.name).to.equal('NotImplementedError')
         })
     })
 
@@ -95,10 +113,27 @@ describe('Robot', () => {
     })
 
     describe('#playRoll', () => {
+
         it('should pass for isCantMove', async () => {
             // hack a turn
             const turn = {isCantMove: true}
             await robot.playRoll(turn)
+        })
+    })
+
+    describe('#turnOption', () => {
+
+        it('should not double by default', async () => {
+            const turn = new Turn(Board.setup(), White)
+            await robot.turnOption(turn)
+            expect(turn.isDoubleOffered).to.equal(false)
+        })
+
+        it('should not double when shouldDouble returns true', async () => {
+            const turn = new Turn(Board.setup(), White)
+            robot.shouldDouble = () => true
+            await robot.turnOption(turn)
+            expect(turn.isDoubleOffered).to.equal(true)
         })
     })
 })
@@ -144,7 +179,7 @@ describe('ConfidenceRobot', () => {
 
         it('should throw NotImplemented for base class', async () => {
             const err = await getErrorAsync(() => robot.getScores())
-            expect(err.message).to.equal('NotImplemented')
+            expect(err.name).to.equal('NotImplementedError')
         })
     })
 
@@ -153,6 +188,14 @@ describe('ConfidenceRobot', () => {
         it('should throw InvalidRobotVersionError for RandomRobot vUnknown', () => {
             const err = getError(() => ConfidenceRobot.getVersionInstance('RandomRobot', 'vUnknown', White))
             expect(err.name).to.equal('InvalidRobotVersionError')
+        })
+    })
+
+    describe('#shouldDouble', () => {
+
+        it('should return false', async () => {
+            const res = await robot.shouldDouble()
+            expect(res).to.equal(false)
         })
     })
 })
@@ -538,14 +581,43 @@ describe('SafetyRobot', () => {
 describe('RobotDelegator', () => {
 
     var rando
+    var always
+    var never
+
+    class AlwaysDoubleRobot extends ConfidenceRobot {
+        async getScores() {
+            return ConfidenceRobot.ZERO_SCORES
+        }
+        async getDoubleConfidence() {
+            return 1
+        }
+        async getAcceptDoubleConfidence() {
+            return 1
+        }
+    }
+    class NeverDoubleRobot extends ConfidenceRobot {
+        async getScores() {
+            return ConfidenceRobot.ZERO_SCORES
+        }
+        async getDoubleConfidence() {
+            return 0
+        }
+        async getAcceptDoubleConfidence() {
+            return 0
+        }
+    }
 
     beforeEach(() => {
         robot = new Robot.RobotDelegator(White)
         rando = getRobot('RandomRobot', White)
+        always = new AlwaysDoubleRobot(White)
+        never = new NeverDoubleRobot(White)
     })
 
     afterEach(async () => {
         await rando.destroy()
+        await always.destroy()
+        await never.destroy()
     })
 
     describe('#addDelegate', () => {
@@ -574,6 +646,26 @@ describe('RobotDelegator', () => {
             } finally {
                 await robot.destroy()
             }
+        })
+
+        describe('coverage', () => {
+            it('2x rando v3 zero scores', async () => {
+                robot.addDelegate(ConfidenceRobot.getVersionInstance('RandomRobot', 'v3', White), 1, 0)
+                robot.addDelegate(ConfidenceRobot.getVersionInstance('RandomRobot', 'v3', White), 1, 0)
+                robot.isStoreLastResult = true
+                const match = new Match(1, {roller: () => [6, 1]})
+                const game = match.nextGame()
+                await robot.getMoves(game.firstTurn(), game, match)
+                const res = robot.explainResult(robot.lastResult)
+            })
+            it('sorters.rankListDelegates', () => {
+                const sorter = Robot.RobotDelegator.Sorters.rankListDelegates
+                const data = [
+                    {name: 'a', rawScore: 1, weightedScore: 0.5},
+                    {name: 'b', rawScore: 0.5, weightedScore: 0.5}
+                ]
+                data.sort(sorter)
+            })
         })
     })
 
@@ -638,6 +730,72 @@ describe('RobotDelegator', () => {
             robot.addDelegate(rando, 1, 0)
             const result = robot.meta()
             expect(result.delegates).to.have.length(1)
+        })
+    })
+
+    describe('#getDoubleConfidence', () => {
+
+        it('should be 0.6 with always=0.6,never=0.4', async () => {
+            robot.addDelegate(always, 0, 0.6)
+            robot.addDelegate(never, 0, 0.4)
+            const res = await robot.getDoubleConfidence()
+            expect(res).to.equal(0.6)
+        })
+    })
+
+    describe('#shouldAcceptDouble', () => {
+
+        it('should accept with always=0.6,never=0.4', async () => {
+            robot.addDelegate(always, 0, 0.6)
+            robot.addDelegate(never, 0, 0.4)
+            const res = await robot.shouldAcceptDouble()
+            expect(res).to.equal(true)
+        })
+
+        it('should not accept with always=0.4,never=0.6', async () => {
+            robot.addDelegate(always, 0, 0.4)
+            robot.addDelegate(never, 0, 0.6)
+            const res = await robot.shouldAcceptDouble()
+            expect(res).to.equal(false)
+        })
+
+        it('should throw NoDelegatesError with no delegates', async () => {
+            const err = await getErrorAsync(() => robot.shouldAcceptDouble())
+            expect(err.name).to.equal('NoDelegatesError')
+        })
+
+        it('should return false for rando=0', async () => {
+            robot.addDelegate(rando, 1, 0)
+            const res = await robot.shouldAcceptDouble()
+            expect(res).to.equal(true)
+        })
+    })
+
+    describe('#shouldDouble', () => {
+
+        it('should double with always=0.6,never=0.4', async () => {
+            robot.addDelegate(always, 0, 0.6)
+            robot.addDelegate(never, 0, 0.4)
+            const res = await robot.shouldDouble()
+            expect(res).to.equal(true)
+        })
+
+        it('should not double with always=0.4,never=0.6', async () => {
+            robot.addDelegate(new AlwaysDoubleRobot, 0, 0.4)
+            robot.addDelegate(never, 0, 0.6)
+            const res = await robot.shouldDouble()
+            expect(res).to.equal(false)
+        })
+
+        it('should throw NoDelegatesError with no delegates', async () => {
+            const err = await getErrorAsync(() => robot.shouldDouble())
+            expect(err.name).to.equal('NoDelegatesError')
+        })
+
+        it('should return false for rando=0', async () => {
+            robot.addDelegate(rando, 1, 0)
+            const res = await robot.shouldDouble()
+            expect(res).to.equal(false)
         })
     })
 

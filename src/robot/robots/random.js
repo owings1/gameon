@@ -30,6 +30,7 @@ class RandomRobot extends Base {
         return {
             v1 : this
           , v2 : RandomRobot_v2
+          , v3 : RandomRobot_v3
         }
     }
 
@@ -46,6 +47,13 @@ class RandomRobot_v2 extends Base {
             scores[endState] = Math.random()
         })
         return this.spreadScore(scores)
+    }
+}
+
+class RandomRobot_v3 extends Base {
+
+    async getScores(turn, game, match) {
+        return Base.ZERO_SCORES
     }
 }
 

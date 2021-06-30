@@ -36,6 +36,7 @@ const {
   , InvalidRobotVersionError
   , InvalidWeightError
   , NoDelegatesError
+  , NotImplementedError
   , RobotError
   , UndecidedMoveError
 } = Errors
@@ -77,7 +78,7 @@ class Robot extends Base {
     }
 
     async getMoves(turn, game, match) {
-        throw new Error('NotImplemented')
+        throw new NotImplementedError('NotImplemented')
     }
 
     async shouldDouble(turn, game, match) {
@@ -173,7 +174,7 @@ class ConfidenceRobot extends Robot {
     // {stateString -> weight}
     // where 0 <= weight <= 1
     async getScores(turn, game, match) {
-        throw new Error('NotImplemented')
+        throw new NotImplementedError('NotImplemented')
     }
 
     async getDoubleConfidence(turn, game, match) {
@@ -201,6 +202,38 @@ class ConfidenceRobot extends Robot {
 }
 
 ConfidenceRobot.ZERO_SCORES = ZERO_SCORES
+
+const Sorters = {
+    delegateRankings : (a, b) => {
+        var cmp = a.myRank - b.myRank
+        if (cmp) {
+            return cmp
+        }
+        return a.actualRank - b.actualRank
+    }
+  , overallRankings : result => (a, b) => {
+        var cmp = result.totals[b] - result.totals[a]
+        if (cmp) {
+            return cmp
+        }
+        cmp = (b == result.selectedEndState) - (a == result.selectedEndState)
+        if (cmp) {
+            return cmp
+        }
+        return a.localeCompare(b)
+    }
+  , rankListDelegates: (a, b) => {
+        var cmp = b.weightedScore - a.weightedScore
+        if (cmp) {
+            return cmp
+        }
+        cmp = b.rawScore - a.rawScore
+        if (cmp) {
+            return cmp
+        }
+        return a.name.localeCompare(b.name)
+    }
+}
 
 class RobotDelegator extends Robot {
 
@@ -383,41 +416,9 @@ class RobotDelegator extends Robot {
 
     explainResult(result) {
 
-        const sorters = {
-            delegateRankings : (a, b) => {
-                var cmp = a.myRank - b.myRank
-                if (cmp) {
-                    return cmp
-                }
-                return a.actualRank - b.actualRank
-            }
-          , overallRankings : (a, b) => {
-                var cmp = result.totals[b] - result.totals[a]
-                if (cmp) {
-                    return cmp
-                }
-                cmp = (b == result.selectedEndState) - (a == result.selectedEndState)
-                if (cmp) {
-                    return cmp
-                }
-                return a.localeCompare(b)
-            }
-          , rankListDelegates: (a, b) => {
-                var cmp = b.weightedScore - a.weightedScore
-                if (cmp) {
-                    return cmp
-                }
-                cmp = b.rawScore - a.rawScore
-                if (cmp) {
-                    return cmp
-                }
-                return a.name.localeCompare(b.name)
-            }
-        }
-
         // overall rankings
         const overallRankings = Object.keys(result.totals)
-        overallRankings.sort(sorters.overallRankings)
+        overallRankings.sort(Sorters.overallRankings(result))
         const overallRankingsMap = {}
         var rankTrack = 1
         overallRankings.forEach((endState, i) => {
@@ -500,7 +501,7 @@ class RobotDelegator extends Robot {
                     }
                 })
             }
-            info.rankings.sort(sorters.delegateRankings)
+            info.rankings.sort(Sorters.delegateRankings)
 
             return info
         })
@@ -525,7 +526,7 @@ class RobotDelegator extends Robot {
                     }
                 })
             }
-            info.delegates.sort(sorters.rankListDelegates)
+            info.delegates.sort(Sorters.rankListDelegates)
             return info
         })
 
@@ -597,6 +598,8 @@ class RobotDelegator extends Robot {
        return {totals, maxWeight, selectedEndState}
    }
 }
+
+RobotDelegator.Sorters = Sorters
 
 module.exports = {
     Robot
