@@ -79,6 +79,7 @@ class TermPlayer extends Base {
         this.persp = color
 
         this.loadHandlers()
+        this._inquirer = inquirer
     }
 
     loadHandlers() {
@@ -523,7 +524,7 @@ class TermPlayer extends Base {
     }
 
     prompt(questions) {
-        this._prompt = inquirer.prompt(Util.castToArray(questions))
+        this._prompt = this._inquirer.prompt(Util.castToArray(questions))
         return new Promise((resolve, reject) => {
             this.promptReject = reject
             this._prompt.then(answers => {

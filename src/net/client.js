@@ -108,6 +108,7 @@ class Client extends EventEmitter {
 
     async close() {
         if (this.isWaiting) {
+            //console.log('close', 'a')
             // NB: this can throw an unhandled promise rejection if a caller of
             //     waitForMessage does not handle the error.
             this.cancelWaiting(new ConnectionClosedError)
@@ -143,6 +144,7 @@ class Client extends EventEmitter {
         const {id, match} = await this.sendAndWaitForResponse(req, 'matchCreated')
         this.matchId = id
         this.logger.info('Created new match', id)
+        this.emit('matchCreated', id)
 
         this.logger.info('Waiting for opponent to join')        
         await this.waitForResponse('opponentJoined')
@@ -152,6 +154,7 @@ class Client extends EventEmitter {
         //this.match = new Match(total, opts)
         this.color = White
 
+        this.emit('opponentJoined')
         return this.match
     }
 
@@ -169,6 +172,7 @@ class Client extends EventEmitter {
         this.match = new Match(total, opts)
         this.color = Red
 
+        this.emit('matchJoined')
         return this.match
     }
 
@@ -181,12 +185,14 @@ class Client extends EventEmitter {
         try {
             var promise = this.waitForResponse(action)
         } catch (err) {
+            //console.log('sendAndWaitForResponse', 'a')
             throw err
         }
         try {
             this.sendMessage(req)
         } catch (err) {
             this.logger.debug(['catch sendMessage', 'throwing'])
+            //console.log('sendAndWaitForResponse', 'b')
             throw err
         }
         return promise
@@ -195,9 +201,12 @@ class Client extends EventEmitter {
     async waitForResponse(action) {
         const res = await this.waitForMessage()
         if (res.error) {
+            //console.log('waitForResponse', 'a')
             throw Client.buildError(res)
         }
         if (action && res.action != action) {
+            //console.log('waitForResponse', 'b')
+            //console.error(res)
             if (res.action == 'matchCanceled') {
                 throw new MatchCanceledError(res.reason)
             }
@@ -209,6 +218,7 @@ class Client extends EventEmitter {
     async waitForMessage() {
 
         if (!this.conn) {
+            //console.log('waitForMessage', 'a')
             throw new ConnectionClosedError('Connection lost')
         }
 
@@ -235,6 +245,7 @@ class Client extends EventEmitter {
                 if (!this.emit('matchCanceled', err)) {
                     // NB: this can throw an unhandled promise rejection.
                     // TODO: try other handlers conn error, this error
+                    //console.log('handleMessage', 'a')
                     throw err
                 }
             } else {

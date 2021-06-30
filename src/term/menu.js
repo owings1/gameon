@@ -54,7 +54,15 @@ const path     = require('path')
 
 const {EventEmitter} = require('events')
 
-const {homeTilde, padStart, sp, tildeHome} = Util
+const {
+    append
+  , errMessage
+  , homeTilde
+  , isEmptyObject
+  , padStart
+  , sp
+  , tildeHome
+} = Util
 
 const {
     DefaultServerUrl
@@ -123,6 +131,8 @@ class Menu extends EventEmitter {
         this.chash = hash.digest('hex')
 
         this.bread = []
+
+        this._inquirer = inquirer
     }
 
     async mainMenu() {
@@ -452,7 +462,7 @@ class Menu extends EventEmitter {
             }
 
             if (question.name == 'isCustomRobot' && settings.isCustomRobot) {
-                if (Util.isEmptyObject(settings.robots)) {
+                if (isEmptyObject(settings.robots)) {
                     this.logger.info('Loading robot defaults')
                     settings.robots = Menu.robotDefaults()
                 }
@@ -482,7 +492,7 @@ class Menu extends EventEmitter {
 
             var {settings} = this
 
-            if (Util.isEmptyObject(settings.robots[name])) {
+            if (isEmptyObject(settings.robots[name])) {
                 settings.robots[name] = {
                     version      : defaults.version
                   , moveWeight   : 0
@@ -780,13 +790,14 @@ class Menu extends EventEmitter {
         const client = this.newClient(this.credentials, true)
 
         try {
-            await client.connect()
-            const promise = isStart ? client.createMatch(matchOpts) : client.joinMatch(matchId)
             this.captureInterrupt = () => {
                 this.logger.warn('Aborting')
                 client.cancelWaiting(new WaitingAbortedError)
                 return true
             }
+            await client.connect()
+            const promise = isStart ? client.createMatch(matchOpts) : client.joinMatch(matchId)
+            this.emit('clientWaitStart', client)
             const match = await promise
             this.captureInterrupt = null
             const termPlayer = new TermPlayer(isStart ? White : Red, this.settings)
@@ -815,7 +826,8 @@ class Menu extends EventEmitter {
                 coordinator.cancelMatch(match, players, new MatchCanceledError('Player quit'))
                 return true
             }
-            await coordinator.runMatch(match, players.White, players.Red)
+            this.emit('beforeMatchStart', match, players)
+            await coordinator.runMatch(match, players)
         } catch (err) {
             if (err.name == 'MatchCanceledError') {
                 this.logger.warn('The match was canceled', '-', err.message)
@@ -853,6 +865,7 @@ class Menu extends EventEmitter {
           , termEnabled
         }
         const helper = new LabHelper(labOpts)
+        this.emit('beforeRunLab', helper)
         if (cmds && cmds.length) {
             cmds = Util.castToArray(cmds)
             for (var i = 0; i < cmds.length; ++i) {
@@ -1060,7 +1073,7 @@ class Menu extends EventEmitter {
                     }
                     value = tildeHome(value)
                     const data = fse.readJsonSync(value)
-                    return Util.errMessage(() => Dice.validateRollsData(data))
+                    return errMessage(() => Dice.validateRollsData(data))
                 }
             }
         ]
@@ -1094,14 +1107,16 @@ class Menu extends EventEmitter {
             }
         ]
         if (!this.credentials.username || !this.credentials.password) {
-            choices.push({
-                value : 'createAccount'
-              , name  : 'Create Account'
-            })
-            choices.push({
-                value : 'forgotPassword'
-              , name  : 'Forgot Password'
-            })
+            append(choices, [
+                {
+                    value : 'createAccount'
+                  , name  : 'Create Account'
+                }
+              , {
+                    value : 'forgotPassword'
+                  , name  : 'Forgot Password'
+                }
+            ])
         } else {
             choices.push({
                 value : 'changePassword'
@@ -1233,7 +1248,7 @@ class Menu extends EventEmitter {
     }
 
     getRobotConfigsChoices() {
-        const choices = [
+        return Menu.formatChoices([
             {
                 value : 'done'
               , name  : 'Done'
@@ -1242,41 +1257,41 @@ class Menu extends EventEmitter {
                 value : 'reset'
               , name  : 'Reset defaults'
             }
-        ]
-        RobotDelegator.listClassNames().forEach(name => {
-            const {defaults} = ConfidenceRobot.getClassMeta(name)
-            const choice = {
-                value    : name
-              , name     : name
-              , question : {
-                    display : () => {
-                        const config = this.settings.robots[name] || {
-                            version      : defaults.version
-                          , moveWeight   : 0
-                          , doubleWeight : 0
+          , ...RobotDelegator.listClassNames().map(name => {
+                const {defaults} = ConfidenceRobot.getClassMeta(name)
+                return {
+                    value    : name
+                  , name     : name
+                  , question : {
+                        display : () => {
+                            const config = this.settings.robots[name] || {
+                                version      : defaults.version
+                              , moveWeight   : 0
+                              , doubleWeight : 0
+                            }
+                            const b = new StringBuilder
+                            b.sp(
+                                'version:'
+                              , chalkDiff(config.version, defaults.version) + ','
+                              , 'moveWeight:'
+                              , padStart(chalkDiff(config.moveWeight, defaults.moveWeight), 4, ' ') + ','
+                              , 'doubleWeight:'
+                              , chalkDiff(config.doubleWeight, defaults.doubleWeight)
+                            )
+                            return b.toString()
                         }
-                        const b = new StringBuilder
-                        b.sp(
-                            'version:'
-                          , chalkDiff(config.version, defaults.version) + ','
-                          , 'moveWeight:'
-                          , padStart(chalkDiff(config.moveWeight, defaults.moveWeight), 4, ' ') + ','
-                          , 'doubleWeight:'
-                          , chalkDiff(config.doubleWeight, defaults.doubleWeight)
-                        )
-                        return b.toString()
                     }
                 }
-            }
-            choices.push(choice)
-        })
-        return Menu.formatChoices(choices)
+            })
+        ])
     }
 
     getConfigureRobotChoices(name) {
         const {defaults, versions} = ConfidenceRobot.getClassMeta(name)
         const config = () => this.settings.robots[name]
-        const weightValidator = value => Util.errMessage(() => RobotDelegator.validateWeight(+value))
+        const weightValidator = value => errMessage(() =>
+            RobotDelegator.validateWeight(+value)
+        )
         return Menu.formatChoices([
             {
                 value : 'done'
@@ -1319,7 +1334,7 @@ class Menu extends EventEmitter {
                   , type     : 'input'
                   , default  : () => config().doubleWeight
                   , display  : () => chalkDiff(config().doubleWeight, defaults.doubleWeight)
-                  , validate : value => Util.errMessage(() => RobotDelegator.validateWeight(+value))
+                  , validate : value => errMessage(() => RobotDelegator.validateWeight(+value))
                 }
             }
         ])
@@ -1395,7 +1410,7 @@ class Menu extends EventEmitter {
     }
 
     prompt(questions) {
-        this._prompt = inquirer.prompt(Util.castToArray(questions))
+        this._prompt = this._inquirer.prompt(Util.castToArray(questions))
         return this._prompt
     }
 
@@ -1422,7 +1437,7 @@ class Menu extends EventEmitter {
         this.settings = Util.defaults(defaults, this.settings, settings)
         this.settings.matchOpts = Util.defaults(defaults.matchOpts, settings.matchOpts)
 
-        if (this.settings.isCustomRobot && Util.isEmptyObject(this.settings.robots)) {
+        if (this.settings.isCustomRobot && isEmptyObject(this.settings.robots)) {
             // populate for legacy format
             this.settings.robots = Menu.robotDefaults()
             this.logger.info('Migrating legacy robot config')

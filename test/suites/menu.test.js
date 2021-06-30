@@ -31,6 +31,7 @@ const {
     requireSrc,
     MockPrompter,
     noop,
+    States28,
     tmpDir
 } = TestUtil
 
@@ -56,6 +57,7 @@ describe('Menu', () => {
     var configDir
     var settingsFile
     var credentialsFile
+    var labConfigFile
     var authDir
     var server
 
@@ -71,6 +73,7 @@ describe('Menu', () => {
         server.auth.logger.loglevel = 0
         settingsFile = configDir + '/settings.json'
         credentialsFile = configDir + '/credentials.json'
+        labConfigFile = resolve(configDir, 'lab.json')
         menu = new Menu(configDir)
         menu.logger.loglevel = 1
     })
@@ -121,6 +124,15 @@ describe('Menu', () => {
                 {mainChoice: 'foo'},
                 {mainChoice: 'quit'}
             ])
+            await menu.mainMenu()
+        })
+
+        it('should run lab and quit', async () => {
+            menu.prompt = MockPrompter([
+                {mainChoice: 'lab'},
+                {mainChoice: 'quit'}
+            ])
+            menu.runLab = noop
             await menu.mainMenu()
         })
     })
@@ -203,6 +215,23 @@ describe('Menu', () => {
             menu.logger.loglevel = -1
             await menu.playMenu()
         })
+
+        it('should return true for choice back', async () => {
+            menu.prompt = MockPrompter([
+                {playChoice: 'back'}
+            ])
+            const res = await menu.playMenu()
+            expect(res).to.equal(true)
+        })
+
+        it('should continue when matchMenu returns true', async () => {
+            menu.prompt = MockPrompter([
+                {playChoice: 'playRobot'},
+                {playChoice: 'quit'}
+            ])
+            menu.matchMenu = () => true
+            await menu.playMenu()
+        })
     })
 
     describe('#matchMenu', () => {
@@ -254,6 +283,13 @@ describe('Menu', () => {
             await menu.matchMenu()
         })
 
+        it('should quit for back', async () => {
+            menu.prompt = MockPrompter([
+                {matchChoice: 'back'}
+            ])
+            await menu.matchMenu()
+        })
+
         it('should go to startOnlineMatch with isOnline and mock method, then quit', async () => {
             var isCalled = false
             menu.prompt = MockPrompter([
@@ -296,6 +332,15 @@ describe('Menu', () => {
             menu.playHumans = () => isCalled = true
             await menu.matchMenu()
             expect(isCalled).to.equal(true)
+        })
+
+        it('should go to advanced for isRobot', async () => {
+            menu.prompt = MockPrompter([
+                {matchChoice: 'advanced'},
+                {startState: '', rollsFile: ''},
+                {matchChoice: 'quit'}
+            ])
+            await menu.matchMenu(false, true)
         })
     })
 
@@ -497,6 +542,76 @@ describe('Menu', () => {
             ])
             await menu.settingsMenu()
         })
+
+        it('should go to robotConfigsMenu for isCustomRobot=true', async () => {
+            menu.prompt = MockPrompter([
+                {settingChoice: 'isCustomRobot'},
+                {isCustomRobot: true},
+                {robotChoice: 'done'},
+                {settingChoice: 'done'}
+            ])
+            await menu.settingsMenu()
+        })
+
+        it('should set theme to Default', async () => {
+            menu.prompt = MockPrompter([
+                {settingChoice: 'theme'},
+                {theme: 'Default'},
+                {settingChoice: 'done'}
+            ])
+            await menu.settingsMenu()
+        })
+
+        describe('coverage', () => {
+
+            it('isCustomRobot=true robots non-empty', async () => {
+                await menu.ensureSettingsLoaded()
+                menu.settings.robots = Menu.robotDefaults()
+                menu.prompt = MockPrompter([
+                    {settingChoice: 'isCustomRobot'},
+                    {isCustomRobot: true},
+                    {robotChoice: 'done'},
+                    {settingChoice: 'done'}
+                ])
+                await menu.settingsMenu()
+            })
+
+            it('isCustomRobot=true recordDir empty', async () => {
+                await menu.ensureSettingsLoaded()
+                menu.settings.recordDir = null
+                menu.settings.robots = Menu.robotDefaults()
+                menu.prompt = MockPrompter([
+                    {settingChoice: 'isCustomRobot'},
+                    {isCustomRobot: true},
+                    {robotChoice: 'done'},
+                    {settingChoice: 'done'}
+                ])
+                await menu.settingsMenu()
+            })
+
+            it('getSettingsChoices.theme.choices', () => {
+                const choices = menu.getSettingsChoices()
+                const question = choices.find(choice => choice.value == 'theme').question
+                const res = question.choices()
+                expect(res).to.contain('Default')
+            })
+        })
+        
+    })
+
+    describe('#configureRobotMenu', () => {
+
+        it('should reset RunningRobot moveWeight', async () => {
+            await menu.ensureSettingsLoaded()
+            menu.settings.robots = Menu.robotDefaults()
+            const exp = menu.settings.robots.RunningRobot.moveWeight
+            menu.settings.robots.RunningRobot.moveWeight *= 0.5
+            menu.prompt = MockPrompter([
+                {robotChoice: 'reset'}
+            ])
+            await menu.configureRobotMenu('RunningRobot')
+            expect(menu.settings.robots.RunningRobot.moveWeight).to.equal(exp)
+        })
     })
 
     describe('#robotConfigsMenu', () => {
@@ -576,6 +691,21 @@ describe('Menu', () => {
 
     ///////////////////
 
+    describe('#promptChangePassword', () => {
+
+        it('should throw when sendChangePassword throws and clear password', async () => {
+            const exp = new Error
+            menu.sendChangePassword = () => {throw exp}
+            const newPassword = 'asdf,k(8khDJJ)'
+            menu.prompt = MockPrompter([
+                {oldPassword: 'asdf(8dflLL)', newPassword, passwordConfirm: newPassword}
+            ])
+            const err = await getErrorAsync(() => menu.promptChangePassword())
+            expect(err).to.equal(exp)
+            expect(!!menu.credentials.password).to.equal(false)
+        })
+    })
+
     describe('#doLogin', () => {
 
         beforeEach(async () => {
@@ -602,6 +732,14 @@ describe('Menu', () => {
         })
     })
 
+    describe('#decryptPassword', () => {
+
+        it('should return empty string for undefined', () => {
+            const res = menu.decryptPassword(undefined)
+            expect(res).to.equal('')
+        })
+    })
+
     describe('#encryptPassword', () => {
 
         it('should return empty string for undefined', () => {
@@ -613,15 +751,102 @@ describe('Menu', () => {
     describe('#loadCredentials', () => {
 
         it('should replace obsolete server url', async () => {
-            fse.writeJsonSync(settingsFile, {serverUrl: 'ws://bg.dougowings.net:8080'})
+            fse.writeJsonSync(credentialsFile, {serverUrl: 'ws://bg.dougowings.net:8080'})
             const exp = Menu.getDefaultServerUrl()
             await menu.loadCredentials()
             expect(menu.credentials.serverUrl).to.equal(exp)
         })
+
+        describe('coverage', () => {
+
+            it('configDir=null', async () => {
+                menu.configDir = null
+                await menu.loadCredentials()
+            })
+        })
+    })
+
+    describe('#loadLabConfig', () => {
+
+        describe('coverage', () => {
+
+            it('configDir=null', async () => {
+                menu.configDir = null
+                const res = await menu.loadLabConfig()
+                expect(!!res).to.equal(false)
+            })
+
+            it('bad json', async () => {
+                fs.writeFileSync(labConfigFile, 'asdf')
+                menu.logger.loglevel = -1
+                const res = await menu.loadLabConfig()
+                expect(!!res).to.equal(false)
+            })
+        })
+    })
+
+    describe('#saveCredentials', () => {
+
+        describe('coverage', () => {
+
+            it('configDir=null', async () => {
+                menu.configDir = null
+                await menu.saveCredentials()
+            })
+        })
+    })
+
+    describe('#saveLabConfig', () => {
+
+        describe('coverage', () => {
+
+            it('configDir=null', async () => {
+                menu.configDir = null
+                await menu.saveLabConfig()
+            })
+        })
+    })
+
+    describe('#getPasswordConfirmQuestion', () => {
+
+        it('question should invalidate non-matching password', () => {
+            const question = menu.getPasswordConfirmQuestion()
+            const res = question.validate('asdf', {password:'fdsa'})
+            expect(res.toLowerCase()).to.contain('password').and.to.contain('match')
+        })
+    })
+
+    describe('#promptMatchAdvancedOpts', () => {
+
+        it('should populate valid rolls file', async () => {
+            const advancedOpts = {}
+            menu.prompt = MockPrompter([
+                {startState: '', rollsFile: resolve(__dirname, '../rolls.json')}
+            ])
+            const res = await menu.promptMatchAdvancedOpts(advancedOpts)
+            expect(res.rollsFile).to.contain('rolls.json')
+        })
+
+        it('should populate valid start state', async () => {
+            const advancedOpts = {}
+            menu.prompt = MockPrompter([
+                {startState: States28.Initial, rollsFile: ''}
+            ])
+            const res = await menu.promptMatchAdvancedOpts(advancedOpts)
+            expect(res.startState).to.equal(States28.Initial)
+        })
+
+        it('should invalidate bad start state', async () => {
+            const advancedOpts = {}
+            menu.prompt = MockPrompter([
+                {startState: 'asdf', rollsFile: ''}
+            ])
+            const err = await getErrorAsync(() => menu.promptMatchAdvancedOpts(advancedOpts))
+            expect(err instanceof Error).to.equal(true)
+        })
     })
 
     describe('#loadSettings', () => {
-
 
         it('should merge settingsFile if specified', async () => {
             fse.writeJsonSync(settingsFile, {matchOpts: {total: 5}})
@@ -636,14 +861,18 @@ describe('Menu', () => {
             const content = fs.readFileSync(settingsFile, 'utf-8')
             JSON.parse(content)
         })
-    })
 
-    describe('#getPasswordConfirmQuestion', () => {
-
-        it('question should invalidate non-matching password', () => {
-            const question = menu.getPasswordConfirmQuestion()
-            const res = question.validate('asdf', {password:'fdsa'})
-            expect(res.toLowerCase()).to.contain('password').and.to.contain('match')
+        describe('coverage', () => {
+            it('configDir=null', async () => {
+                menu.configDir = null
+                await menu.loadSettings()
+            })
+            
+            it('isCustomRobot=true, robots={}', async () => {
+                menu.settings.isCustomRobot = true
+                menu.settings.robots = {}
+                await menu.loadSettings()
+            })
         })
     })
 
@@ -736,6 +965,27 @@ describe('Menu', () => {
             expect(result[0]).to.equal('TestGood')
         })
 
+        describe('coverage', () => {
+
+            it('configDir=null', async () => {
+                menu.configDir = null
+                await menu.loadCustomThemes()
+            })
+
+            it('ensureThemesLoaded', async () => {
+                await menu.loadCustomThemes()
+                await menu.ensureThemesLoaded()
+            })
+        })
+    })
+
+    describe('#getDefaultConfigDir', () => {
+
+        describe('coverage', () => {
+            it('call', () => {
+                Menu.getDefaultConfigDir()
+            })
+        })
     })
 
     describe('#newClient', () => {
@@ -743,6 +993,11 @@ describe('Menu', () => {
         it('should return new client', () => {
             const client = menu.newClient('mockUrl', '', '')
             expect(client.constructor.name).to.equal('Client')
+        })
+
+        it('should not decrypt when isDecrypt = false', () => {
+            const client = menu.newClient({serverUrl: 'mockUrl', password: 'foo'}, false)
+            expect(client.password).to.equal('foo')
         })
     })
 
@@ -808,6 +1063,23 @@ describe('Menu', () => {
             await menu.playRobot(menu.settings.matchOpts)
             expect(isCalled).to.equal(true)
         })
+
+        it('should cancel match on interrupt', async () => {
+            menu.once('beforeMatchStart', (match, players) => {
+                menu.logger.loglevel = 0
+                match.opts.roller = () => [6, 1]
+                Object.values(players).forEach(player => {
+                    player.logger.loglevel = 0
+                    player.drawBoard = noop
+                })
+                // prevent logging to screen
+                players.White._inquirer = {
+                    prompt: () => new Promise(resolve => {})
+                }
+                setTimeout(() => menu.captureInterrupt())
+            })
+            await menu.playRobot({total: 1})
+        })
     })
 
     describe('#playRobots', () => {
@@ -824,38 +1096,136 @@ describe('Menu', () => {
 
         // coverage tricks
 
-        const inquirer = require('inquirer')
-
-        var oldPrompt
-
-        before(() => {
-            oldPrompt = inquirer.prompt
-        })
-
-        afterEach(() => {
-            inquirer.prompt = oldPrompt
-        })
-
         it('should call inquirer.prompt with array and set menu._prompt', () => {
             var q
-            inquirer.prompt = questions => q = questions
+            menu._inquirer = {prompt: questions => q = questions}
             menu.prompt()
             expect(Array.isArray(q)).to.equal(true)
         })
     })
 
-    describe('#runOnlineMatch', () => {
+    describe('#startOnlineMatch', () => {
 
-        beforeEach(async () => {
-            await server.listen()
-            menu.credentials.serverUrl = 'http://localhost:' + server.port
+        describe('server', () => {
+
+            var menu2
+
+            beforeEach(async () => {
+                await server.listen()
+                const username = 'nobody@nowhere.example'
+                const password = '9YWS8b8F'
+                const user = await server.auth.createUser(username, password, true)
+                menu.credentials = {
+                    username
+                  , password : menu.encryptPassword(user.passwordEncrypted)
+                  , serverUrl : 'http://localhost:' + server.port
+                }
+                menu2 = new Menu
+                menu2.credentials = {...menu.credentials}
+            })
+
+            afterEach(async () => {
+                server.close()
+            })
+
+            it('should cancel waiting on capture interrupt', async () => {
+                var isCalled = false
+                menu.once('clientWaitStart', () => {
+                    isCalled = true
+                    setTimeout(() => menu.captureInterrupt())
+                })
+                menu.logger.loglevel = 0
+                await menu.startOnlineMatch({total: 1})
+                expect(isCalled).to.equal(true)
+                expect(!!menu.captureInterrupt).to.equal(false)
+            })
+
+            it.skip('should let menu2 join then cancel on interrupt', async () => {
+                var p2
+                menu.once('clientWaitStart', client => {
+                    client.on('matchCreated', id => {
+                        menu2.once('clientWaitStart', client2 => {
+                            client2.on('matchJoined', () => {
+                                setTimeout(() => {
+                                    menu.captureInterrupt()
+                                    //client2.close()
+                                    //menu2.captureInterrupt()
+                                })
+                            })
+                        })
+                        p2 = menu2.joinOnlineMatch(id)
+                    })
+                })
+                const p1 = menu.startOnlineMatch({total: 1})
+                try {
+                    await p1
+                } catch (err) {
+                    console.error(err)
+                }
+                try {
+                    await p2
+                } catch (err) {
+                    console.error(err)
+                }
+                
+            })
         })
 
-        afterEach(async () => {
-            server.close()
+        it('should get call runMatch with mock method and mock client', async () => {
+            var isCalled = false
+            menu.newClient = () => { return {connect : noop, createMatch: noop, close: noop, on: noop}}
+            menu.newCoordinator = () => { return {runMatch: () => isCalled = true}}
+            await menu.startOnlineMatch(menu.settings.matchOpts)
+            expect(isCalled).to.equal(true)
+        })
+    })
+
+    describe('#runLab', () => {
+
+        describe('coverage', () => {
+
+            it('override interactive', async () => {
+                menu.once('beforeRunLab', lab => {
+                    lab.interactive = noop
+                })
+                await menu.runLab()
+            })
+
+            it('override interactive labConfig', async () => {
+                menu.once('beforeRunLab', lab => {
+                    lab.interactive = noop
+                })
+                await fse.writeJson(resolve(configDir, 'lab.json'), {
+                    lastState: States28.Initial,
+                    persp: 'White'
+                })
+                await menu.runLab()
+            })
+
+            it('override runCommand', async () => {
+                menu.once('beforeRunLab', lab => {
+                    lab.runCommand = noop
+                })
+                await menu.runLab('q')
+            })
+        })
+    })
+
+    describe('#getMatchOpts', () => {
+
+        it('should set start state for advancedOpts', async () => {
+            const defaults = Menu.settingsDefaults().matchOpts
+            const res = await menu.getMatchOpts(defaults, {startState: States28.WhiteCantMove})
+            expect(res.startState).to.equal(States28.WhiteCantMove)
         })
 
-        it('should ')
+        it('should set roller for advancedOpts rollsFile', async () => {
+            const defaults = Menu.settingsDefaults().matchOpts
+            const res = await menu.getMatchOpts(defaults, {
+                rollsFile: resolve(__dirname, '../rolls.json')
+            })
+            expect(typeof res.roller).to.equal('function')
+        })
     })
 
     describe('#saveSettings', () => {
@@ -866,16 +1236,10 @@ describe('Menu', () => {
             const result = JSON.parse(fs.readFileSync(settingsFile))
             expect(result).to.jsonEqual(settings)
         })
-    })
 
-    describe('#startOnlineMatch', () => {
-
-        it('should get call runMatch with mock method and mock client', async () => {
-            var isCalled = false
-            menu.newClient = () => { return {connect : noop, createMatch: noop, close: noop, on: noop}}
-            menu.newCoordinator = () => { return {runMatch: () => isCalled = true}}
-            await menu.startOnlineMatch(menu.settings.matchOpts)
-            expect(isCalled).to.equal(true)
+        it('should not throw when configDir=null', async () => {
+            menu.configDir = null
+            await menu.saveSettings()
         })
     })
 
