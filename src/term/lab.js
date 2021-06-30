@@ -436,6 +436,10 @@ class LabHelper {
             }
         }
 
+        const moveDesc = move => this.moveParts(move).map(
+            it => chlk.reset(chlk(it))
+        ).join(chlk.dim(Chars.arrow.right))
+
         const columns = [
             {
                 name  : 'name'
@@ -459,10 +463,6 @@ class LabHelper {
         ]
 
         var lastScore
-
-        const moveDesc = move => this.moveParts(move).map(
-            it => chlk.reset(chlk(it))
-        ).join(chlk.dim(Chars.arrow.right))
 
         const tables = rankList.map((info, i) => {
 
@@ -539,7 +539,7 @@ class LabHelper {
     showRobotTurnDelegates(delegateList) {
 
         const {theme} = this
-        const ch = theme.table
+        const chlk = theme.table
         const cons = this.logger.console
 
         const indent = 2
@@ -551,7 +551,12 @@ class LabHelper {
             cons.log(''.padEnd(indent - 1, ' '), ...args)
         }
 
-        const moveDesc = move => this.moveParts(move).join(ch.dim(Chars.arrow.right))
+        const moveDesc = move => this.moveParts(move).join(chlk.dim(Chars.arrow.right))
+        const movesFormat = moves => {
+            return chlk.dim('[') + moves.map(
+                move => padEnd(moveDesc(move), 5, chlk(' '))
+            ).join(chlk.dim(',') + chlk(' ')) + chlk.dim(']')
+        }
         const columns = [
             {
                 name   : 'myRank'
@@ -574,10 +579,8 @@ class LabHelper {
               , format : value => value.toFixed(4)
             }
           , {
-                name: 'moves'
-              , format: moves => ch.dim('[') + moves.map(move =>
-                    padEnd(moveDesc(move), 5, ch(' '))
-                ).join(ch.dim(',') + ch(' ')) + ch.dim(']')
+                name   : 'moves'
+              , format : movesFormat
             }
         ]
 
