@@ -34,8 +34,16 @@ describe('Core', () => {
     require('./suites/core.test')
 })
 
+describe('Lab', () => {
+    require('./suites/lab.test')
+})
+
 describe('Logger', () => {
     require('./suites/logger.test')
+})
+
+describe('Menu', () => {
+    require('./suites/menu.test')
 })
 
 describe('Moves', () => {
@@ -60,6 +68,10 @@ describe('Tables', () => {
 
 describe('Term', () => {
     require('./suites/term.test')
+})
+
+describe('Themes', () => {
+    require('./suites/themes.test')
 })
 
 describe('Trees', () => {
