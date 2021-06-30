@@ -441,6 +441,11 @@ class Counter {
         this.value = 0
         return this
     }
+
+    // for parallel api with timer
+    getCount() {
+        return this.value
+    }
 }
 
 const CounterCounter = new Counter('CounterCounter')
@@ -485,6 +490,11 @@ class Timer {
         this.startCount = 0
         this.average = null
         return this
+    }
+
+    // for parallel api with counter
+    getCount() {
+        return this.startCount
     }
 }
 

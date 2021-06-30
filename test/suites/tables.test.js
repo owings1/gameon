@@ -5,8 +5,7 @@ const {
     getErrorAsync,
     requireSrc,
     MockPrompter,
-    noop,
-    tmpDir
+    noop
 } = TestUtil
 
 const {Table, TableHelper} = requireSrc('term/tables')
@@ -489,7 +488,7 @@ describe('Table', () => {
             ]
             const table = new Table(['name', 'age'], data, opts).build()
             expect(table.rows).to.jsonEqual(exp)
-        })        
+        })
 
         it('should not filter regex with column isFilter:false', () => {
             const columns = [
@@ -522,7 +521,6 @@ describe('Table', () => {
             const exp = [
                 ['Bob', 'Dallas', 'Miller']
             ]
-            
             const table = new Table(columns, data, opts).build()
             expect(table.rows).to.jsonEqual(exp)
         })
@@ -661,5 +659,4 @@ describe('Table', () => {
             const table = new Table(columns, data, opts).build()
         })
     })
-    
 })

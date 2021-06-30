@@ -89,7 +89,7 @@ const Columns = [
       , isFilter   : false
       , sortable   : true
       , defaultDir : 'desc'
-      , get        : it => it.isCounter ? it.value : it.startCount
+      , get        : it => it.getCount()
     }
   , {
         name       : 'match'
@@ -99,7 +99,7 @@ const Columns = [
       , isFilter   : false
       , sortable   : true
       , defaultDir : 'desc'
-      , get        : (it, {summary}) => (it.isCounter ? it.value : it.startCount) / summary.matchCount
+      , get        : (it, {summary}) => it.getCount() / summary.matchCount
     }
   , {
         name       : 'game'
@@ -109,7 +109,7 @@ const Columns = [
       , isFilter   : false
       , sortable   : true
       , defaultDir : 'desc'
-      , get        : (it, {summary}) => (it.isCounter ? it.value : it.startCount) / summary.gameCount
+      , get        : (it, {summary}) => it.getCount() / summary.gameCount
     }
   , {
         name       : 'turn'
@@ -119,7 +119,7 @@ const Columns = [
       , isFilter   : false
       , sortable   : true
       , defaultDir : 'desc'
-      , get        : (it, {summary}) => (it.isCounter ? it.value : it.startCount) / summary.turnCount
+      , get        : (it, {summary}) => it.getCount() / summary.turnCount
     }
 ]
 
