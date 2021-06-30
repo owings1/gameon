@@ -206,14 +206,17 @@ class Util {
     }
 
     static makeErrorObject(err) {
-        return {
-            isError         : true
-          , error           : err.message || err.name
-          , name            : err.name || err.constructor.name
-          , isRequestError  : err.isRequestError
-          , isAuthError     : err.isAuthError
-          , isInternalError : err.isInternalError
+        const obj = {
+            isError : true
+          , error   : err.message || err.name
         }
+        for (var prop in err) {
+            if (err.hasOwnProperty(prop)) {
+                obj[prop] = err[prop]
+            }
+        }
+        obj.name = err.name || err.constructor.name
+        return obj
     }
 
     static merge(...args) {
@@ -424,6 +427,7 @@ class Util {
 class Counter {
 
     constructor(name) {
+        this.isCounter = true
         this.name = name || 'Counter' + CounterCounter.inc().value
         this.value = 0
     }
@@ -447,11 +451,13 @@ class Timer {
     // For more resolution, see https://stackoverflow.com/a/18197438/794513
 
     constructor(name) {
+        this.isTimer = true
         this.name = name || 'Timer' + TimerCounter.inc().value
         this.startTime = null
         this.isRunning = false
         this.elapsed = 0
         this.startCount = 0
+        this.average = null
     }
 
     start() {
@@ -469,6 +475,7 @@ class Timer {
             throw new IllegalStateError('Timer not started')
         }
         this.elapsed += +new Date - this.startTime
+        this.average = this.elapsed / this.startCount
         this.isRunning = false
         return this
     }
@@ -476,6 +483,7 @@ class Timer {
     reset() {
         this.elapsed = 0
         this.startCount = 0
+        this.average = null
         return this
     }
 }

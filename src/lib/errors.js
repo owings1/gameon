@@ -73,6 +73,7 @@ class RobotError      extends BaseError {}
 class ThemeError      extends BaseError {}
 
 // ArgumentError
+class DuplicateColumnError  extends ArgumentError {}
 class IncompatibleKeysError extends ArgumentError {}
 class InvalidColorError     extends ArgumentError {}
 class InvalidColumnError    extends ArgumentError {}
@@ -157,6 +158,7 @@ const Errors = {
   , ConnectionClosedError
   , DependencyError
   , DoubleNotAllowedError
+  , DuplicateColumnError
   , GameAlreadyStartedError
   , GameError
   , GameFinishedError

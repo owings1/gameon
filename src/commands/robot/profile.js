@@ -39,7 +39,7 @@ class RobotProfileCommand extends Base {
           , sortBy       : this.flags.sortby.toLowerCase()
           , breadthTrees : this.flags.breadth
           , rollsFile    : this.flags.rollsfile
-          , gaugeRegex   : this.flags.filter
+          , filterRegex  : this.flags.filter
           , innerBorders : this.flags.inner
           , theme        : this.Settings.theme
           , interactive  : this.flags.interactive
@@ -86,7 +86,8 @@ RobotProfileCommand.flags = {
       , default     : defaults.sortBy
     })
   , filter: flags.string({
-        description : 'apply a regex filter to gauge names, e.g. /tree/i'
+        char        : 'f'
+      , description : 'apply a regex filter to gauge names, e.g. /tree/i'
     })
   , inner: flags.boolean({
         char        : 'i'

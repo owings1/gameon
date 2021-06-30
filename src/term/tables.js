@@ -23,6 +23,7 @@
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 const Constants = require('../lib/constants')
+const Errors    = require('../lib/errors')
 const Logger    = require('../lib/logger')
 const Themes    = require('./themes')
 const Util      = require('../lib/util')
@@ -31,13 +32,14 @@ const inquirer = require('inquirer')
 
 const {
     Chars
-  , DefaultTermEnabled
   , DefaultThemeName
 } = Constants
 
 const {
     append
   , castToArray
+  , errMessage
+  , keyValuesTrue
   , mapValues
   , nchars
   , pad
@@ -45,12 +47,19 @@ const {
   , sumArray
 } = Util
 
+const {
+    DuplicateColumnError
+  , InvalidColumnError
+  , InvalidRegexError
+} = Errors
+
 const Questions = {
     interactive: {
-        name    : 'input'
-      , type    : 'expand'
-      , message : 'Option'
-      , choices : [
+        name     : 'input'
+      , type     : 'expand'
+      , message  : 'Option'
+      , pageSize : 8
+      , choices  : [
             {
                 key   : 'f'
               , name  : 'Filter string'
@@ -67,9 +76,14 @@ const Questions = {
               , value : 'sort'
             }
           , {
+                key   : 'c'
+              , name  : 'Columns'
+              , value : 'columns'
+            }
+          , {
                 key   : 'n'
-              , name  : 'Show only n rows'
-              , value : 'top'
+              , name  : 'Max rows'
+              , value : 'maxRows'
             }
           , {
                 key   : 'r'
@@ -82,6 +96,55 @@ const Questions = {
               , value : 'quit'
             }
         ]
+    }
+  , filterFixed: {
+        name     : 'fixed'
+      , type     : 'input'
+      , message  : 'String'
+    }
+  , filterRegex: {
+        name     : 'regex'
+      , type     : 'input'
+      , message  : 'Regex'
+      , validate : value => !value.length || errMessage(() => new RegExp(value))
+    }
+  , sort : ({columns}) => [
+        {
+            name    : 'column'
+          , message : 'Column'
+          , type    : 'list'
+          , when    : columns.find(it => it.sortable)
+          , choices : columns.filter(it => it.sortable).map(it => {
+                return {name: it.name, value: it}
+            })
+        }
+      , {
+            name    : 'dir'
+          , message : 'Direction'
+          , type    : 'list'
+          , default : answers => answers.column.defaultDir
+          , choices : ['asc', 'desc']
+        }
+    ]
+  , maxRows : ({opts}) => [
+        {
+            name     : 'maxRows'
+          , type     : 'input'
+          , message  : 'Number of rows'
+          , default  : opts.maxRows
+          , validate : value => !value.length || !isNaN(+value) || 'Invalid number'
+        }
+    ]
+  , columns : ({columns, showColums}) => {
+        const showMap = keyValuesTrue(showColumns.map(it => it.name))
+        return {
+              name    : 'columns'
+            , type    : 'checkbox'
+            , message : 'Columns'
+            , choices : columns.map(({name}) => {
+                  return {name, checked: showMap[name]}
+              })
+        }
     }
 }
 
@@ -100,7 +163,11 @@ class TableHelper {
 
     async interactive(table) {
 
-        const allData = table.data.slice(0)
+        if (!table.isBuilt) {
+            table.build()
+        }
+
+        const originalOpts = {...table.opts}
 
         while (true) {
 
@@ -115,139 +182,52 @@ class TableHelper {
             switch (input) {
 
                 case 'filterRegex':
-                    var regex = await this.promptFilterRegex()
+                    var {regex} = await this.prompt(Questions.filterRegex)
                     if (regex === false) {
                         break
                     }
-                    table.data = table.data.filter(info =>
-                        table.columns.filter(it => it.isFilter).find(column => {
-                            const value = column.get(info)
-                            if (value == null) {
-                                return false
-                            }
-                            return regex.test(value.toString())
-                        })
-                    )
-                    table.rebuildData()
+                    table.opts.filterRegex = table.opts.filterRegex.slice(0)
+                    table.opts.filterRegex.push(regex)
                     break
 
                 case 'filterFixed':
-                    var fixed = await this.promptFilterFixed()
+                    var {fixed} = await this.prompt(Questions.filterFixed)
                     if (fixed === false) {
                         break
                     }
-                    table.data = table.data.filter(info =>
-                        table.columns.filter(it => it.isFilter).find(column => {
-                            const value = column.get(info)
-                            if (value == null) {
-                                return false
-                            }
-                            return value.toString().toLowerCase().indexOf(fixed) > -1
-                        })
-                    )
-                    table.rebuildData()
+                    table.opts.filterFixed = table.opts.filterFixed.slice(0)
+                    table.opts.filterFixed.push(fixed)
                     break
 
                 case 'sort':
-                    var {column, mult} = await this.promptSort(table)
-                    table.data.sort((a, b) => {
-                        const aval = column.get(a)
-                        const bval = column.get(b)
-                        if (aval == null) {
-                            if (bval == null) {
-                                return 0
-                            }
-                            return mult
-                        }
-                        if (bval == null) {
-                            return -1 * mult
-                        }
-                        if (typeof aval == 'number') {
-                            return (aval - bval) * mult
-                        }
-                        return aval.toString().localeCompare(bval.toString()) * mult
-                    })
-                    table.rebuildData()
-                    break
-
-                case 'top':
-                    var top = await this.promptTopRows()
-                    if (top === false) {
+                    if (!table.columns.find(it => it.sortable)) {
+                        this.logger.warn('No sortable columns')
                         break
                     }
-                    table.data = table.data.filter((info, i) => i < top)
-                    table.rebuildData()
+                    var {column, dir} = await this.prompt(Questions.sort(table))
+                    table.opts.sortBy = [column.name, dir].join(':')
+                    break
+
+                case 'maxRows':
+                    var {maxRows} = await this.prompt(Questions.maxRows(table))
+                    if (!maxRows.length) {
+                        break
+                    }
+                    table.opts.maxRows = +maxRows
+                    break
+
+                case 'columns':
+                    var {columns} = await this.prompt(Questions.columns(table))
+                    table.opts.columns = columns
                     break
 
                 case 'restore':
-                    table.data = allData.slice(0)
-                    table.rebuildData()
+                    table.opts = {...originalOpts}
                     break
             }
-        }
-    }
 
-    async promptFilterRegex() {
-        const {regex} = await this.prompt({
-            name     : 'regex'
-          , type     : 'input'
-          , message  : 'Regex'
-          , validate : value => !value.length || Util.errMessage(() => new RegExp(value)) 
-        })
-        if (!regex.length) {
-            return false
+            table.build()
         }
-        return new RegExp(regex, 'i')
-    }
-
-    async promptFilterFixed() {
-        const {fixed} = await this.prompt({
-            name     : 'fixed'
-          , type     : 'input'
-          , message  : 'String'
-        })
-        if (!fixed.length) {
-            return false
-        }
-        return fixed
-    }
-
-    async promptSort(table) {
-        return await this.prompt([
-            {
-                name    : 'column'
-              , message : 'Column'
-              , type    : 'list'
-              , choices : table.columns.map(it => {
-                    return {name: it.name, value: it}
-                })
-            }
-          , {
-                name    : 'mult'
-              , message : 'Direction'
-              , type    : 'list'
-              , choices : [
-                  {name: 'asc', value: 1},
-                  {name: 'desc', value: -1}
-              ]
-            }
-        ])
-    }
-
-    async promptTopRows() {
-        const {top} = await this.prompt({
-            name     : 'top'
-          , type     : 'input'
-          , message  : 'Number of rows'
-          , validate : value => !value.length || !isNaN(+value) || 'Invalid number'
-        })
-        if (!top.length) {
-            return false
-        }
-        if (top < 0) {
-            return Infinity
-        }
-        return +top
     }
 
     printTable(table) {
@@ -273,37 +253,39 @@ class Table {
         return {
             theme        : DefaultThemeName
           , name         : 'Table'
+          , columns      : null
           , title        : null
           , titleAlign   : 'left'
           , footerLines  : null
           , footerAlign  : 'left'
           , innerBorders : false
+          , sortBy       : null
+          , maxRows      : -1
+          , filterRegex  : null
+          , filterFixed  : null
+          , arrSeparator : ','
         }
     }
 
     constructor(columns, data, opts) {
 
-        this.opts = Util.defaults(Table.defaults(), opts)
         this.columns = columns
         this.data = data
+        this.opts = Util.defaults(Table.defaults(), opts)
 
-        this.name = this.opts.name
-        this.footerLines = castToArray(this.opts.footerLines)
-        this.title = this.opts.title || ''
+        this.isBuilt = false
 
-        this.theme = Themes.getInstance(this.opts.theme)
-        this.chlk  = this.theme.table
-        this.chars = Chars.table
-
-        this.rows    = null
-        this.parts   = null
-        this.strings = null
-        this.lines   = []
+        this.preBuild()
     }
 
     build() {
 
+        this.preBuild()
+
         this.buildColumns()
+        this.buildOpts()
+
+        this.sortData()
         this.buildRows()
 
         this.calculatePre()
@@ -314,32 +296,96 @@ class Table {
 
         this.calculatePost()
 
+        this.isBuilt = true
+
         return this
     }
 
-    rebuildData() {
-        this.buildRows()
-        this.parts.rows = this.makePartsRows()
-        this.buildStrings()
-        this.buildLines()
+    preBuild() {
+
+        this.name = this.opts.name
+        this.title = this.opts.title || ''
+
+        this.rows    = null
+        this.parts   = null
+        this.strings = null
+
+        this.theme   = Themes.getInstance(this.opts.theme)
+        this.chars   = Chars.table
+        this.chlk    = this.theme.table
+
+        this.opts.footerLines = castToArray(this.opts.footerLines)
+        this.opts.filterRegex = castToArray(this.opts.filterRegex)
+        this.opts.filterFixed = castToArray(this.opts.filterFixed)
+
+        this.lines = []
+
+        this.footerLines = this.opts.footerLines.slice(0)
+
+        return this
+    }
+
+    buildOpts() {
+        this.sortBys = this.makeSortBys()
+        this.filter = this.makeFilter()
+        this.showColumns = this.makeShowColumns()
         return this
     }
 
     buildColumns() {
-        this.columns = this.columns.map(Table.makeColumn)
+        const nameMap = {}
+        const columns = []
+        this.columns.map(Table.makeColumn).forEach(column => {
+            if (nameMap[column.name]) {
+                throw new DuplicateColumnError('Duplicate column name: ' + column.name)
+            }
+            columns.push(column)
+            nameMap[column.name] = true
+        })
+        this.columns = columns
+        return this
+    }
+
+    sortData() {
+        const {sortBys} = this
+        if (!sortBys.length) {
+            return this
+        }
+        const sortHash = JSON.stringify(
+            sortBys.map(({column, mult}) => [column.name, mult])
+        )
+        if (this.lastSortHash == sortHash) {
+            return this
+        }
+        this.data.sort((a, b) => {
+            for (var {column, mult} of sortBys) {
+                var aval = column.get(a, this)
+                var bval = column.get(b, this)
+                var cmp = column.sorter(aval, bval)
+                if (cmp) {
+                    return cmp * mult
+                }
+            }
+            return 0
+        })
+        this.lastSortHash = sortHash
+        return this
     }
 
     buildRows() {
-        this.rows = this.data.map(info =>
+        const {filter} = this
+        this.rows = this.data.filter(filter).map(info =>
             this.columns.map(column =>
-                column.format(column.get(info), info)
+                column.format(column.get(info, this), info, this)
             )
         )
+        return this
     }
 
     calculatePre() {
         this.calculateColumnWidths()
         this.calculateInnerWidth()
+        return this
     }
 
     buildParts() {
@@ -350,14 +396,16 @@ class Table {
           , foot   : this.makePartsFoot()
           , border : this.makePartsBorder()
         }
+        return this
     }
 
     buildStrings() {
         this.strings = this.makeStrings()
+        return this
     }
 
     buildLines() {
-        if (this.columns.length) {
+        if (this.showColumns.length) {
             this.lines = this.makeLinesNormal()
         } else if (this.strings.foot.length || this.strings.title.length) {
             // corner case of no columns
@@ -366,10 +414,136 @@ class Table {
             // corner case of no columns, no footer, no title
             this.lines = []
         }
+        return this
     }
 
     calculatePost() {
         this.outerWidth = strlen(this.lines[0])
+        return this
+    }
+
+    makeSortBys() {
+        var sortByOpts = []
+        if (typeof this.opts.sortBy == 'string') {
+            sortByOpts = this.opts.sortBy.split(this.opts.arrSeparator)
+        } else if (Array.isArray(this.opts.sortBy)) {
+            sortByOpts = this.opts.sortBy.slice(0)
+        }
+        const sortBys = []
+        sortByOpts.forEach(opt => {
+            var [name, dir] = opt.split(':')
+            var column = this.columns.find(it => it.name == name && it.sortable)
+            if (!column) {
+                column = this.columns.find(it => it.name.trim() == name.trim() && it.sortable)
+            }
+            if (!column) {
+                throw new InvalidColumnError('Invalid sort column: ' + name)
+            }
+            if (!dir) {
+                dir = column.defaultDir
+            }
+            const mult = dir == 'desc' ? -1 : 1
+            sortBys.push({column, mult})
+        })
+        return sortBys
+    }
+
+    makeFilter() {
+        const filterRegexes = this.makeFilterRegexes()
+        const filterColumns = this.columns.filter(it => it.isFilter)
+        return (info, i) => {
+            if (this.opts.maxRows > -1 && i >= this.opts.maxRows) {
+                return false
+            }
+            if (!filterRegexes.length) {
+                return true
+            }
+            if (!filterColumns.length) {
+                return true
+            }
+            const values = filterColumns.map(it => it.get(info, this)).filter(it => it != null)
+            // for each regex, some column should match it
+            for (var regex of filterRegexes) {
+                var isFound = false
+                for (var value of values) {
+                    if (regex.test(value)) {
+                        isFound = true
+                        break
+                    }
+                }
+                if (!isFound) {
+                    return false
+                }
+            }
+            return true
+        }
+    }
+
+    makeFilterRegexes() {
+        const filterRegexes = []
+        if (this.opts.filterRegex) {
+            var regexOpts = []
+            if (Array.isArray(this.opts.filterRegex)) {
+                regexOpts = this.opts.filterRegex.slice(0)
+            } else {
+                regexOpts = [this.opts.filterRegex]
+            }
+            regexOpts.forEach(value => {
+                if (typeof value == 'string') {
+                    if (value[0] == '/') {
+                        var [str, flags] = value.substring(1).split('/')
+                        if (!flags.length) {
+                            flags = undefined
+                        }
+                    } else {
+                        var str = value
+                        var flags = undefined
+                    }
+                    try {
+                        value = new RegExp(str, flags)
+                    } catch (err) {
+                        throw new InvalidRegexError(err.message, err)
+                    }
+                }
+                if (!(value instanceof RegExp)) {
+                    throw new InvalidRegexError('Filter regex must be a RegExp or valid regex string')
+                }
+                filterRegexes.push(value)
+            })
+        }
+        if (this.opts.filterFixed) {
+            var fixedOpts = []
+            if (Array.isArray(this.opts.filterFixed)) {
+                fixedOpts = this.opts.filterFixed.slice(0)
+            } else {
+                fixedOpts = [this.opts.filterFixed]
+            }
+            fixedOpts.forEach(value => {
+                filterRegexes.push(new RegExp(value.toString(), 'i'))
+            })
+        }
+        return filterRegexes
+    }
+
+    makeShowColumns() {
+        if (this.opts.columns == null) {
+            return this.columns
+        }
+        const nameMap = keyValuesTrue(this.columns.map(it => it.name))
+        const showNames = []
+        var columnOpts = []
+        if (Array.isArray(this.opts.columns)) {
+            columnOpts = this.opts.columns.slice(0)
+        } else if (typeof this.opts.columns == 'string') {
+            columnOpts = this.opts.columns.split(this.opts.arrSeparator)
+        }
+        columnOpts.forEach(name => {
+            if (!nameMap[name]) {
+                throw new InvalidColumnError('Unknown column: ' + name)
+            }
+            showNames[name] = true
+        })
+        return this.columns.filter(it => showNames[it.name])
     }
 
     makePartsTitle() {
@@ -383,7 +557,7 @@ class Table {
 
     makePartsHead() {
         const {chlk} = this
-        return this.columns.map((column, i) =>
+        return this.showColumns.map((column, i) =>
             pad(chlk.head(column.title), column.align, column.width, chlk.head(' '))
         )
     }
@@ -392,7 +566,7 @@ class Table {
         const {chlk} = this
         const chlkn = i => [chlk.odd, chlk.even][i % 2]
         return this.rows.map((row, i) =>
-            this.columns.map((column, j) =>
+            this.showColumns.map((column, j) =>
                 pad(chlkn(i)(row[j]), column.align, column.width, chlkn(i)(' '))
             )
         )
@@ -411,7 +585,7 @@ class Table {
 
         const ndashes = n => nchars(n, dash)
 
-        const dashParts = this.columns.map(column => ndashes(column.width))
+        const dashParts = this.showColumns.map(column => ndashes(column.width))
         const dashLine = ndashes(this.innerWidth)
 
         const jp = chr => dashParts.join(dash + chr + dash)
@@ -431,7 +605,7 @@ class Table {
     }
 
     calculateColumnWidths() {
-        this.columns.forEach((column, i) => {
+        this.showColumns.forEach((column, i) => {
             column.width = Math.max(
                 strlen(column.title)
               , ...this.rows.map(row => strlen(row[i]))
@@ -440,11 +614,11 @@ class Table {
     }
 
     calculateInnerWidth() {
-        const {columns, footerLines, title} = this
+        const {showColumns, footerLines, title} = this
         // start with column inner widths
-        this.innerWidth = sumArray(columns.map(column => column.width))
+        this.innerWidth = sumArray(showColumns.map(column => column.width))
         // add inner borders/padding
-        this.innerWidth += Math.max(columns.length - 1, 0) * 3
+        this.innerWidth += Math.max(showColumns.length - 1, 0) * 3
         if (!footerLines.length && !title.length) {
             return
         }
@@ -456,9 +630,9 @@ class Table {
         }
         // adjust innerWidth
         this.innerWidth += deficit
-        if (columns.length) {
+        if (showColumns.length) {
             // adjust width of last column
-            columns[columns.length - 1].width += deficit
+            showColumns[showColumns.length - 1].width += deficit
         }
     }
 
@@ -556,10 +730,13 @@ class Table {
             column.name = col
         }
         column = {
-            align    : 'left'
-          , title    : column.name
-          , key      : column.name
-          , isFilter : true
+            align       : 'left'
+          , title       : column.name
+          , key         : column.name
+          , type        : 'auto'
+          , isFilter    : true
+          , sortable    : true
+          , defaultDir : 'asc'
           , ...column
         }
         if (!column.get) {
@@ -567,6 +744,24 @@ class Table {
         }
         if (!column.format) {
             column.format = (value, info) => '' + value
+        }
+        if (!column.sorter) {
+            column.sorter = (aval, bval) => {
+                if (aval == null) {
+                    if (bval == null) {
+                        return 0
+                    }
+                    return -1
+                }
+                if (bval == null) {
+                    return 1
+                }
+                const isNumber = column.type == 'number' || (column.type == 'auto' && typeof aval == 'number')
+                if (isNumber) {
+                    return aval - bval
+                }
+                return aval.toString().localeCompare(bval.toString())
+            }
         }
         return column
     }
