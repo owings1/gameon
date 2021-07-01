@@ -52,6 +52,8 @@ const BuiltIn = {
           , 'board.piece.red.color'       : 'orange bold'
           , 'board.piece.white.color'     : '#0080ff bold'
           , 'board.pointLabel.background' : 'red bright'
+          , 'board.pointLabel.color'      : 'white bold'
+          , 'board.cube.active.color'     : 'white'
 
           , 'table.head.color' : 'orange'
 
