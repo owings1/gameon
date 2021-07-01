@@ -43,6 +43,7 @@ const {resolve} = path
 
 describe('Menu', () => {
 
+    const Coordinator = requireSrc('lib/coordinator')
     const Errors      = requireSrc('lib/errors')
     const Menu        = requireSrc('term/menu')
     const Robot       = requireSrc('robot/player')
@@ -987,6 +988,7 @@ describe('Menu', () => {
                         runMatch: () => {
                             const err = new Error('testMessage')
                             err.name = 'MatchCanceledError'
+                            err.isMatchCanceledError = true
                             throw err
                         }
                     }
@@ -1194,6 +1196,7 @@ describe('Menu', () => {
                 })
 
                 afterEach(async () => {
+                    await new Promise(resolve => setTimeout(resolve, 200))
                     server.close()
                 })
 
@@ -1209,34 +1212,57 @@ describe('Menu', () => {
                     expect(!!menu.captureInterrupt).to.equal(false)
                 })
 
-                it.skip('should let menu2 join then cancel on interrupt', async () => {
-                    var p2
-                    menu.once('clientWaitStart', client => {
+                it('should let menu2 join then cancel on interrupt', done => {
+
+                    const menu1 = menu
+
+                    const finish = () => {
+                        menu2.captureInterrupt()
+                        menu1.captureInterrupt()
+                        done()
+                    }
+
+                    menu1.logger.loglevel = -1
+                    menu2.logger.loglevel = -1
+
+                    // debug logging names, etc
+                    /*
+                    menu1.newCoordinator = opts => new Coordinator({...opts, name: 'Coordinator1'})
+                    menu2.newCoordinator = opts => new Coordinator({...opts, name: 'Coordinator2'})
+                    menu1.logger.name = 'Menu1'
+                    menu2.logger.name = 'Menu2'
+                    menu1.on('clientWaitStart', client => client.logger.name = 'Client1')
+                    menu2.on('clientWaitStart', client => client.logger.name = 'Client2')
+                    */
+
+                    const fakeInquirer = {prompt: () => new Promise(resolve => {})}
+
+                    // We need to wait for firstRoll to be emitted on both players,
+                    // otherwise we get client message rejections. TODO: think of a
+                    // strategy for handling message rejections on client.
+                    var count = 0
+
+                    const prep = player => {
+                        player.logger.loglevel = 0
+                        player._inquirer = fakeInquirer
+                        player.drawBoard = noop
+                        player.on('firstRoll', () => {
+                            if (++count == 2) {
+                                finish()
+                            }
+                        })
+                    }
+
+                    menu1.on('beforeMatchStart', (match, players) => prep(players.White))
+                    menu2.on('beforeMatchStart', (match, players) => prep(players.Red))
+
+                    menu1.on('clientWaitStart', client => {
                         client.on('matchCreated', id => {
-                            menu2.once('clientWaitStart', client2 => {
-                                client2.on('matchJoined', () => {
-                                    setTimeout(() => {
-                                        menu.captureInterrupt()
-                                        //client2.close()
-                                        //menu2.captureInterrupt()
-                                    })
-                                })
-                            })
-                            p2 = menu2.joinOnlineMatch(id)
+                            menu2.joinOnlineMatch(id)
                         })
                     })
-                    const p1 = menu.startOnlineMatch({total: 1})
-                    try {
-                        await p1
-                    } catch (err) {
-                        console.error(err)
-                    }
-                    try {
-                        await p2
-                    } catch (err) {
-                        console.error(err)
-                    }
-                
+
+                    menu1.startOnlineMatch({total: 1})
                 })
             })
 
