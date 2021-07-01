@@ -69,6 +69,9 @@ describe('Menu', () => {
             authType: 'directory',
             authDir
         })
+        // hack so no logging
+        server.getLoggingMiddleware = () => (req, res, next) => next()
+        server.app = server.createApp()
         //console.log({authDir})
         server.logger.loglevel = 0
         server.auth.logger.loglevel = 0

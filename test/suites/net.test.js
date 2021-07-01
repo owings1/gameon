@@ -93,6 +93,9 @@ describe('Client', () => {
     beforeEach(async () => {
         server = new Server
         server.logger.loglevel = 1
+        // hack so no req logging
+        server.getLoggingMiddleware = () => (req, res, next) => next()
+        server.app = server.createApp()
         await server.listen()
         serverUrl = 'ws://localhost:' + server.port
         client = new Client(serverUrl)
@@ -289,6 +292,9 @@ describe('Server', () => {
         server = new Server()
         server.api.logger.loglevel = 1
         server.logger.loglevel = 1
+        // hack so no req logging
+        server.getLoggingMiddleware = () => (req, res, next) => next()
+        server.app = server.createApp()
         await server.listen()
         serverUrl = 'http://localhost:' + server.port
         metricsUrl = 'http://localhost:' + server.metricsPort
@@ -307,6 +313,9 @@ describe('Server', () => {
         })
         authServer.logger.loglevel = 1
         authServer.auth.logger.loglevel = 1
+        // hack so no req logging
+        authServer.getLoggingMiddleware = () => (req, res, next) => next()
+        authServer.app = authServer.createApp()
         await authServer.listen()
         authServerUrl = 'http://localhost:' + authServer.port
         authClient = new Client(authServerUrl)
@@ -1177,6 +1186,9 @@ describe('NetPlayer -- TODO: fix', () => {
     beforeEach(async () => {
         server = new Server
         server.logger.loglevel = 1
+        // hack so no req logging
+        server.getLoggingMiddleware = () => (req, res, next) => next()
+        server.app = server.createApp()
         await server.listen()
         serverUrl = 'ws://localhost:' + server.port
         client = new Client(serverUrl)

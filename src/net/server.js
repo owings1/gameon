@@ -32,10 +32,11 @@ const Util            = require('../lib/util')
 const Web             = require('./web')
 const WebSocketServer = require('websocket').server
 
-const audit      = require('express-requests-logger')
 const bodyParser = require('body-parser')
+const chalk      = require('chalk')
 const crypto     = require('crypto')
 const express    = require('express')
+const morgan     = require('morgan')
 const prom       = require('prom-client')
 
 const {White, Red, Opponent} = Constants
@@ -170,19 +171,14 @@ class Server {
     }
 
     getLoggingMiddleware() {
-        return audit({
-            logger : this.logger
-          , request : {
-                excludeBody    : ['*']
-              , excludeHeaders : ['*']
-              , maxBodyLength  : 1
-            }
-          , response : {
-                excludeBody    : ['*']
-              , excludeHeaders : ['*']
-              , maxBodyLength  : 1
-            }
-        })
+        const parts = [
+          , ':date[iso] '
+          , chalk.grey('[REQ]')
+          , '  [Server] '
+          , ':status ":method :url HTTP/:http-version"'
+          , ' :res[content-length] :remote-addr - :remote-user'
+        ]
+        return morgan(parts.join(''))
     }
 
     createSocketServer(httpServer) {
