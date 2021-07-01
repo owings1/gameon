@@ -209,46 +209,45 @@ class Client extends EventEmitter {
         return res
     }
 
-    async waitForMessage() {
+    waitForMessage() {
 
         if (!this.conn) {
             throw new ConnectionClosedError('Connection lost')
         }
 
         this.isWaiting = true
-        try {
-            return await new Promise((resolve, reject) => {                
-                this.messageReject = err => {
-                    this.messageResolve = null
-                    this.messageReject = null
-                    this.logger.warn(err.name, err.message)
-                    reject(err)
-                }
-                this.messageResolve = res => {
-                    this.messageResolve = null
-                    this.messageReject = null
-                    resolve(res)
-                }
-            })
-        } finally {
-            this.isWaiting = false
-            this.messageReject = null
-            this.messageResolve = null
-        }
+
+        return new Promise((resolve, reject) => {
+            this.messageReject = err => {
+                this.messageResolve = null
+                this.messageReject = null
+                this.isWaiting = false
+                this.logger.warn(err.name, err.message)
+                reject(err)
+            }
+            this.messageResolve = res => {
+                this.messageResolve = null
+                this.messageReject = null
+                this.isWaiting = false
+                resolve(res)
+            }
+        })
     }
 
+    // Event hanlder, so should not throw
     handleMessage(res) {
         if (this.messageResolve) {
             this.messageResolve(res)
             return
         }
         if (res.action == 'matchCanceled') {
-            this.logger.warn('Received matchCanceled message from server:', res.reason)
             const err = new MatchCanceledError(res.reason)
             if (!this.emit('matchCanceled', err)) {
-                // NB: this can throw an unhandled promise rejection.
-                // TODO: try other handlers conn error, this error
-                throw err
+                this.logger.warn('Received matchCanceled message from server:', res.reason)
+                if (!this.emit('error', err)) {
+                    this.logger.error('Unhandled error', err)
+                    this.logger.console.error(err)
+                }
             }
         } else {
             this.logger.warn('Unhandled message', {action: res.action})
