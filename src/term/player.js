@@ -86,7 +86,7 @@ class TermPlayer extends Base {
 
         this.on('matchStart', match => {
             if (this.opponent.isNet) {
-                this.opponent.on('matchCanceled', (err, match) => {
+                this.opponent.on('matchCanceled', err => {
                     this.cancelPrompt(err)
                 })
             }
@@ -96,12 +96,6 @@ class TermPlayer extends Base {
 
             if (this.opts.termEnabled) {
                 this.logger.writeStdout(nchars(21, '\n'))
-            }
-
-            if (this.opponent.isNet) {
-                this.opponent.on('gameCanceled', (err, game) => {
-                    this.cancelPrompt(err)
-                })
             }
 
             this.isDualTerm = this.opponent.isTerm
