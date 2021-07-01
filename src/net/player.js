@@ -41,15 +41,17 @@ class NetPlayer extends Base {
         this.dice = null
 
         this.on('gameStart', (game, match, players) => {
-            this.holds.push(new Promise(async (resolve) => {
-                await this.client.matchRequest('nextGame')
-                game.opts.roller = () => this.dice
-                const {dice} = await this.client.matchRequest('firstTurn')
-                this.dice = dice
-                this.opponent.rollTurn = async (turn, game, match) => {
-                    await this.rollTurn(turn, game, match)
-                }
-                resolve()
+            this.holds.push(new Promise((resolve, reject) => {
+                this.client.matchRequest('nextGame').then(() => {
+                    game.opts.roller = () => this.dice
+                    this.client.matchRequest('firstTurn').then(({dice}) => {
+                        this.dice = dice
+                        this.opponent.rollTurn = async (turn, game, match) => {
+                            await this.rollTurn(turn, game, match)
+                        }
+                        resolve()
+                    }).catch(reject)
+                }).catch(reject)
             }))
         })
 
