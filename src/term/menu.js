@@ -116,7 +116,7 @@ class Menu extends EventEmitter {
 
         super()
 
-        this.logger = new Logger
+        this.logger = new Logger('Menu', {named: true})
         this.configDir = configDir
 
         this.settings = Menu.settingsDefaults()
@@ -791,8 +791,9 @@ class Menu extends EventEmitter {
 
         try {
             this.captureInterrupt = () => {
+                this.captureInterrupt = null
                 this.logger.warn('Aborting')
-                client.cancelWaiting(new WaitingAbortedError)
+                client.cancelWaiting(new WaitingAbortedError('Keyboard interrupt'))
                 return true
             }
             await client.connect()
@@ -808,7 +809,7 @@ class Menu extends EventEmitter {
             }
             await this.runMatch(match, players)
         } catch (err) {
-            if (err.name == 'WaitingAbortedError') {
+            if (err.isWaitingAbortedError) {
                 return
             }
             throw err
@@ -822,14 +823,15 @@ class Menu extends EventEmitter {
         try {
             const coordinator = this.newCoordinator()
             this.captureInterrupt = () => {
-                this.logger.warn('Canceling')
-                coordinator.cancelMatch(match, players, new MatchCanceledError('Player quit'))
+                this.captureInterrupt = null
+                this.logger.warn('Canceling match')
+                coordinator.cancelMatch(match, players, new MatchCanceledError('Keyboard interrupt'))
                 return true
             }
             this.emit('beforeMatchStart', match, players)
             await coordinator.runMatch(match, players)
         } catch (err) {
-            if (err.name == 'MatchCanceledError') {
+            if (err.isMatchCanceledError) {
                 this.logger.warn('The match was canceled', '-', err.message)
             } else {
                 throw err
