@@ -121,6 +121,7 @@ class HasNotDoubledError       extends IllegalStateError {}
 class HasNotRolledError        extends IllegalStateError {}
 class MatchFinishedError       extends IllegalStateError {}
 class TurnAlreadyFinishedError extends IllegalStateError {}
+class TurnCanceledError        extends IllegalStateError {}
 class TurnNotFinishedError     extends IllegalStateError {}
 
 // MenuError
@@ -209,6 +210,7 @@ const Errors = {
   , ThemeError
   , ThemeExistsError
   , ThemeNotFoundError
+  , TurnCanceledError
   , TurnAlreadyFinishedError
   , TurnNotFinishedError
   , UndecidedMoveError

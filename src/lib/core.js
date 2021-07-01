@@ -723,6 +723,9 @@ class Turn {
 
     assertNotFinished() {
         if (this.isFinished) {
+            if (this.isCanceled) {
+                throw new TurnCanceledError(['turn has been canceled for', this.color])
+            }
             throw new TurnAlreadyFinishedError(['turn is already finished for', this.color])
         }
     }
@@ -1300,6 +1303,7 @@ const {
   , NoMovesMadeError
   , NoMovesRemainingError
   , TurnAlreadyFinishedError
+  , TurnCanceledError
   , TurnNotFinishedError
 } = Errors
 
