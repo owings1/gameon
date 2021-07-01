@@ -91,14 +91,11 @@ class NetPlayer extends Base {
             }
         })
 
-        this.client.on('matchCanceled', (err, match) => {
-            this.emit('matchCanceled', err, match)
-            if (match.thisGame) {
-                this.emit('gameCanceled', err, match.thisGame)
-            }
+        this.client.on('matchCanceled', err => {
+            this.emit('matchCanceled', err)
         })
 
-        this.on('gameCanceled', (err, match) => {
+        this.on('gameCanceled', err => {
             this.client.cancelWaiting(err)
         })
 
