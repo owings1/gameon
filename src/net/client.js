@@ -180,6 +180,10 @@ class Client extends EventEmitter {
     }
 
     sendAndWaitForResponse(req, action) {
+        const promise = this.waitForResponse(action)
+        this.sendMessage(req)
+        return promise
+        /*
         try {
             var promise = this.waitForResponse(action)
         } catch (err) {
@@ -192,6 +196,7 @@ class Client extends EventEmitter {
             throw err
         }
         return promise
+        */
     }
 
     async waitForResponse(action) {

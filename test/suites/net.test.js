@@ -1184,8 +1184,9 @@ describe('Server', () => {
 describe('NetPlayer', () => {
 
     var serverUrl
-    var client
+    var client1
     var client2
+    var client // alias for client1
 
     var server
 
@@ -1197,25 +1198,26 @@ describe('NetPlayer', () => {
         server.app = server.createApp()
         await server.listen()
         serverUrl = 'ws://localhost:' + server.port
-        client = new Client(serverUrl)
+        client1 = new Client(serverUrl)
+        client = client1
         client2 = new Client(serverUrl)
-        client.logger.loglevel = 1
+        client1.logger.loglevel = 1
         client2.logger.loglevel = 1
     })
 
     afterEach(async () => {
-        await client.close()
+        await client1.close()
         await client2.close()
         server.close()
     })
 
     async function eastAndWest(opts) {
         opts = {total: 1, ...opts}
-        await client.connect()
+        await client1.connect()
         await client2.connect()
         const playersWest = {
             White : newRando(White)
-          , Red   : new NetPlayer(client, Red)
+          , Red   : new NetPlayer(client1, Red)
         }
         const playersEast = {
             White : new NetPlayer(client2, White)
@@ -1223,9 +1225,9 @@ describe('NetPlayer', () => {
         }
         const coordWest = new Coordinator
         const coordEast = new Coordinator
-        const p = client.createMatch(opts)
+        const p = client1.createMatch(opts)
         await new Promise(resolve => setTimeout(resolve, 10))
-        const matchEast = await client2.joinMatch(client.matchId)
+        const matchEast = await client2.joinMatch(client1.matchId)
         const matchWest = await p
         return {
             east : {players: playersEast, coord: coordEast, match: matchEast},
@@ -1300,7 +1302,10 @@ describe('NetPlayer', () => {
             await Util.destroyAll(east.players)
             await Util.destroyAll(west.players)
         }
-        
+    })
+
+    describe('timing experiments', () => {
+        it('')
     })
 })
 

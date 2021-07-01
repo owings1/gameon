@@ -173,7 +173,8 @@ class Api {
     }
 
     handleInternalError(err, res) {
-        const body = {status: 500, message: 'Internal Error', error: {name: 'InternalError', message: 'Internal Error'}}
+        const error = {name: 'InternalError', message: 'Internal Error'}
+        const body = {status: 500, message: 'Internal Error', error}
         res.status(500).send(body)
         this.logger.error(err, err.cause)
     }
@@ -183,7 +184,8 @@ class Api {
             this.handleInternalError(err, res)
             return
         }
-        const body = {status: 400, message: 'Bad Request', error: {name: err.name, message: err.message}}
+        const error = {name: err.name, message: err.message}
+        const body = {status: 400, message: 'Bad Request', error}
         res.status(400).send(body)
     }
 }
