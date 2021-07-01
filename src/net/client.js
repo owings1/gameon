@@ -61,7 +61,7 @@ class Client extends EventEmitter {
         this.username = username
         this.password = password
 
-        this.logger = new Logger
+        this.logger = new Logger('Client', {named: true})
         this.socketClient = new WsClient
         this.secret = Client.generateSecret()
 
@@ -111,7 +111,7 @@ class Client extends EventEmitter {
             //console.log('close', 'a')
             // NB: this can throw an unhandled promise rejection if a caller of
             //     waitForMessage does not handle the error.
-            this.cancelWaiting(new ConnectionClosedError)
+            this.cancelWaiting(new ConnectionClosedError('Client closing'))
         }
         if (this.conn) {
             this.conn.close()
@@ -151,10 +151,9 @@ class Client extends EventEmitter {
         this.logger.info('Opponent joined', id)
 
         this.match = Match.unserialize(match)
-        //this.match = new Match(total, opts)
         this.color = White
 
-        this.emit('opponentJoined')
+        this.emit('opponentJoined', this.match)
         return this.match
     }
 
@@ -172,7 +171,7 @@ class Client extends EventEmitter {
         this.match = new Match(total, opts)
         this.color = Red
 
-        this.emit('matchJoined')
+        this.emit('matchJoined', this.match)
         return this.match
     }
 
@@ -208,6 +207,7 @@ class Client extends EventEmitter {
             //console.log('waitForResponse', 'b')
             //console.error(res)
             if (res.action == 'matchCanceled') {
+                this.logger.warn('Received matchCanceled message from server:', res.reason)
                 throw new MatchCanceledError(res.reason)
             }
             throw new ClientError('Expecting response ' + action + ', but got ' + res.action + ' instead')
@@ -225,7 +225,10 @@ class Client extends EventEmitter {
         this.isWaiting = true
         try {
             return await new Promise((resolve, reject) => {                
-                this.messageReject = reject
+                this.messageReject = err => {
+                    this.logger.error('Client message reject', err)
+                    reject(err)
+                }
                 this.messageResolve = resolve
             })
         } finally {
@@ -241,6 +244,7 @@ class Client extends EventEmitter {
             this.messageResolve = null
         } else {
             if (res.action == 'matchCanceled') {
+                this.logger.warn('Received matchCanceled message from server:', res.reason)
                 const err = new MatchCanceledError(res.reason)
                 if (!this.emit('matchCanceled', err)) {
                     // NB: this can throw an unhandled promise rejection.
@@ -301,7 +305,4 @@ const {
   , MatchCanceledError
 } = Errors
 
-Client.Errors = {
-    MatchCanceledError
-}
 module.exports = Client
