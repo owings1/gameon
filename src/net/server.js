@@ -43,6 +43,8 @@ const {White, Red, Opponent} = Constants
 
 const {Match, Dice} = Core
 
+const {castToArray, makeErrorObject} = Util
+
 prom.collectDefaultMetrics()
 
 const metrics = {
@@ -162,7 +164,9 @@ class Server {
                 res.set('content-type', prom.register.contentType)
                 this.fetchMetrics().then(metrics => res.status(200).end(metrics))
             } catch (err) {
-                res.status(500).send({status: 500, message: 'Internal Error', error: {name: err.name, message: err.message}})
+                const error = {name: err.name, message: err.message}
+                const body = {status: 500, message: 'Internal Error', error}
+                res.status(500).send(body)
             }
         })
 
@@ -176,7 +180,7 @@ class Server {
     getLoggingMiddleware() {
         const parts = [
           , ':date[iso] '
-          , chalk.grey('[REQ]')
+          , chalk.grey('[INFO]')
           , '  [Server] '
           , ':status ":method :url HTTP/:http-version"'
           , ' :res[content-length] :remote-addr - :remote-user'
@@ -216,7 +220,7 @@ class Server {
             setTimeout(() => {
                 if (!conn.secret) {
                     this.logger.warn('Peer', connId, 'handshake timeout', conn.remoteAddress)
-                    this.sendMessage(conn, Util.makeErrorObject(new HandshakeError('Client handshake timeout')))
+                    this.sendMessage(conn, makeErrorObject(new HandshakeError('Client handshake timeout')))
                     conn.close()
                 }
             }, this.opts.socketHsTimeout)
@@ -323,7 +327,7 @@ class Server {
                 req.password = '***'
             }
             this.logger.warn('Peer', conn.connId, err.message, err, {req})
-            this.sendMessage(conn, Util.makeErrorObject(err))
+            this.sendMessage(conn, makeErrorObject(err))
             if (err.name == 'HandshakeError') {
                 conn.close()
             }
@@ -349,7 +353,7 @@ class Server {
         }
 
         const refuse = msg => {
-            this.sendMessage(Object.values(match.conns), Util.makeErrorObject(new RequestError(msg)))
+            this.sendMessage(Object.values(match.conns), makeErrorObject(new RequestError(msg)))
         }
 
         const reply = res => {
@@ -535,7 +539,7 @@ class Server {
     }
 
     sendMessage(conns, msg) {
-        conns = Util.castToArray(conns)
+        conns = castToArray(conns)
         const str = JSON.stringify(msg)
         for (var conn of conns) {
             if (conn && conn.connected) {

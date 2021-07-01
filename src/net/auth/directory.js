@@ -26,9 +26,10 @@ const Errors = require('../../lib/errors')
 const Logger = require('../../lib/logger')
 const Util   = require('../../lib/util')
 
-const fs        = require('fs')
-const fse       = require('fs-extra')
-const path      = require('path')
+const fs   = require('fs')
+const fse  = require('fs-extra')
+const path = require('path')
+
 const {resolve} = path
 
 const {

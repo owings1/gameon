@@ -40,8 +40,8 @@ class Email {
 
     static defaults(env) {
         return {
-            fromName    : env.EMAIL_FROM_NAME    || 'Gameon'
-          , fromAddress : env.EMAIL_FROM_ADDRESS || 'noreply@nowhere.example'
+            fromName    : env.EMAIL_FROM_NAME    || DefaultEmailFromName
+          , fromAddress : env.EMAIL_FROM_ADDRESS || DefaultEmailFromAddress
         }
     }
 

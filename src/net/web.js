@@ -33,6 +33,8 @@ const express      = require('express')
 const path         = require('path')
 const session      = require('express-session')
 
+const {resolve} = path
+
 const {
     DefaultSessionCookie
     // This should be set in production environments with SESSION_SECRET
@@ -41,8 +43,10 @@ const {
 
 const {SecurityError} = Errors
 
-const StaticPath = path.resolve(__dirname, '../www/static')
-const ViewPath   = path.resolve(__dirname, '../www/templates')
+const ResourcePath = resolve(__dirname, '../www')
+
+const StaticPath = resolve(ResourcePath, 'static')
+const ViewPath   = resolve(ResourcePath, 'templates')
 
 class Web {
 
