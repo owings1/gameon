@@ -41,7 +41,7 @@ const path  = require('path')
 
 const {resolve} = path
 
-describe('Lab', () => {
+describe('-', () => {
 
     const Constants = requireSrc('lib/constants')
     const Core      = requireSrc('lib/core')

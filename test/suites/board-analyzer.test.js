@@ -44,7 +44,7 @@ const Util = requireSrc('lib/util')
 const {White, Red} = Constants
 const {Match, Game, Board, Turn, Piece, Dice} = Core
 
-describe('BoardAnalyzer', () => {
+describe('-', () => {
 
     var board
 
@@ -70,108 +70,134 @@ describe('BoardAnalyzer', () => {
         })
 
         describe('Initial > White 0:1', () => {
+
             var board
             var blots
+
             beforeEach(() => {
                 board = Board.setup()
                 board.move(White, 0, 1)
                 blots = board.analyzer.blots(White)
                 blots.sort((a, b) => a.point - b.point)
             })
+
             it('should have two blots, p23, p24', () => {
                 expect(blots).to.have.length(2)
                 expect(blots[0].point).to.equal(23)
                 expect(blots[1].point).to.equal(24)
             })
+
             it('first blot should have 2 direct shots', () => {
                 expect(blots[0].directCount).to.equal(2)
             })
+
             it('second blot should have 1 direct shot', () => {
                 expect(blots[1].directCount).to.equal(1)
             })
+
             it('first blot should have 1 indirect shot', () => {
                 expect(blots[0].indirectCount).to.equal(1)
             })
+
             it('second blot should have 1 indirect shot', () => {
                 expect(blots[1].indirectCount).to.equal(1)
             })
+
             it('first blot should have minDistance 4', () => {
                 expect(blots[0].minDistance).to.equal(4)
             })
+
             it('second blot should have minDistance 5', () => {
                 expect(blots[1].minDistance).to.equal(5)
             })
         })
 
         describe('EngagedWithBar', () => {
+
             var board
             var blots
             var blot
+
             beforeEach(() => {
                 board = Board.fromStateString(States.EngagedWithBar)
                 blots = board.analyzer.blots(White)
                 blot = blots[0]
             })
+
             it('should have 1 blot, p1', () => {
                 expect(blots).to.have.length(1)
                 expect(blot.point).to.equal(1)
             })
+
             it('blot should have 1 direct shot, 0 indirect', () => {
                 expect(blot.directCount).to.equal(1)
                 expect(blot.indirectCount).to.equal(0)
             })
+
             it('blot should have minDistance 1', () => {
                 expect(blot.minDistance).to.equal(1)
             })
         })
 
         describe('BlotsIndBar1', () => {
+
             var board
             var blots
             var blot
+
             beforeEach(() => {
                 board = Board.fromStateString(States.BlotsIndBar1)
                 blots = board.analyzer.blots(White)
                 blot = blots[0]
             })
+
             it('should have 1 blot, p7', () => {
                 expect(blots).to.have.length(1)
                 expect(blot.point).to.equal(7)
             })
+
             it('blot should have 0 direct shots, 1 indirect', () => {
                 expect(blot.directCount).to.equal(0)
                 expect(blot.indirectCount).to.equal(1)
             })
+
             it('blot should have minDistance 7', () => {
                 expect(blot.minDistance).to.equal(7)
             })
         })
 
         describe('BlotsDisengaged', () => {
+
             var board
             var blots
+
             beforeEach(() => {
                 board = Board.fromStateString(States.BlotsDisengaged)
                 blots = board.analyzer.blots(White, false)
             })
+
             it('should be empty', () => {
                 expect(blots).to.have.length(0)
             })
         })
 
         describe('BlotsOutOfRange', () => {
+
             var board
             var blots
+
             beforeEach(() => {
                 board = Board.fromStateString(States.BlotsOutOfRange)
                 blots = board.analyzer.blots(White, false)
             })
+
             it('should be empty', () => {
                 expect(blots).to.have.length(0)
             })
         })
 
         describe('BlotsMany1', () => {
+
             var board
             
             beforeEach(() => {
@@ -211,29 +237,35 @@ describe('BoardAnalyzer', () => {
             })
 
             describe('Red', () => {
+
                 var blots
+
                 beforeEach(() => {
                     blots = board.analyzer.blots(Red)
                     blots.sort((a, b) => a.point - b.point)
                 })
+
                 it('should have 3 blots, p9, p18, p24', () => {
                     expect(blots).to.have.length(3)
                     expect(blots[0].point).to.equal(9)
                     expect(blots[1].point).to.equal(18)
                     expect(blots[2].point).to.equal(24)
                 })
+
                 it('blot 1 should have 1 direct, 1 indirect, minDistance 6', () => {
                     const blot = blots[0]
                     expect(blot.directCount).to.equal(1)
                     expect(blot.indirectCount).to.equal(1)
                     expect(blot.minDistance).to.equal(6)
                 })
+
                 it('blot 2 should have 3 direct, 0 indirect, minDistance 1', () => {
                     const blot = blots[1]
                     expect(blot.directCount).to.equal(3)
                     expect(blot.indirectCount).to.equal(0)
                     expect(blot.minDistance).to.equal(1)
                 })
+
                 it('blot 3 should have 1 direct, 2 indirect, minDistance 5', () => {
                     const blot = blots[2]
                     expect(blot.directCount).to.equal(1)
@@ -244,7 +276,9 @@ describe('BoardAnalyzer', () => {
         })
 
         describe('BlotsMinSkip1', () => {
+
             var board
+
             beforeEach(() => {
                 board = Board.fromStateString(States.BlotsMinSkip1)
             })
@@ -279,7 +313,9 @@ describe('BoardAnalyzer', () => {
         })
 
         describe('BlotsMinSkip2', () => {
+
             var board
+
             beforeEach(() => {
                 board = Board.fromStateString(States.BlotsMinSkip2)
             })
@@ -305,6 +341,7 @@ describe('BoardAnalyzer', () => {
         })
 
         describe('BlotsMinSkip3', () => {
+
             var board
 
             beforeEach(() => {
@@ -334,6 +371,7 @@ describe('BoardAnalyzer', () => {
         })
 
         describe('BlotsMaxSkip1', () => {
+
             var board
 
             beforeEach(() => {
@@ -358,6 +396,7 @@ describe('BoardAnalyzer', () => {
         })
 
         describe('BlotsMaxSkip2', () => {
+
             var board
 
             beforeEach(() => {
@@ -385,6 +424,7 @@ describe('BoardAnalyzer', () => {
         })
 
         describe('CornerCase', () => {
+
             it('should not barf on a sparse board with isIncludeAll=false', () => {
                 const {analyzer} = Board.fromStateString(States.OneWhitePiece)
                 const result = analyzer.blots(White, false)
@@ -448,6 +488,7 @@ describe('BoardAnalyzer', () => {
     })
 
     describe('#maxOriginOccupied', () => {
+
         it('should return -Infinity on empty board', () => {
             const board = new Board
             const result = board.analyzer.maxOriginOccupied(White)
@@ -598,23 +639,6 @@ describe('BoardAnalyzer', () => {
         })
     })
 
-    // obsolete
-    describe.skip('#originPoint', () => {
-
-        const expCases = [
-            {input: [Red, 5], exp: 6},
-            {input: [White, 5], exp: 19},
-            {input: [White, 18], exp: 6}
-        ]
-
-        expCases.forEach(({input, exp}) => {
-            it('should return ' + exp + ' for ' + input.join(), () => {
-                const result = board.analyzer.originPoint(...input)
-                expect(result).to.equal(exp)
-            })
-        })
-    })
-
 	describe('#originsOccupied', () => {
 
 		it('should return [5,7,12,23] for red on setup', () => {
@@ -656,25 +680,6 @@ describe('BoardAnalyzer', () => {
             const result = analyzer.pipCounts()
             expect(result.Red).to.equal(167)
             expect(result.White).to.equal(167)
-        })
-    })
-
-    // obsolete
-    describe.skip('#pointOrigin', () => {
-
-        it('should return 18 for White 6 point', () => {
-            const result = board.analyzer.pointOrigin(White, 6)
-            expect(result).to.equal(18)
-        })
-
-        it('should return 5 for Red 6 point', () => {
-            const result = board.analyzer.pointOrigin(Red, 6)
-            expect(result).to.equal(5)
-        })
-
-        it('should return -1 for Red -1', () => {
-            const result = board.analyzer.pointOrigin(Red, -1)
-            expect(result).to.equal(-1)
         })
     })
 
@@ -744,6 +749,7 @@ describe('BoardAnalyzer', () => {
     })
 
     describe('#validateLegalBoard', () => {
+
         const legalsKeys = [
             'Initial',
             'Bearoff1Start',
@@ -755,11 +761,13 @@ describe('BoardAnalyzer', () => {
             'BothHaveWon',
             'BothAllOnBar'
         ]
+
         legalsKeys.forEach(name => {
             it('should validate ' + name, () => {
                 Board.fromStateString(States[name]).analyzer.validateLegalBoard()
             })
         })
+
         illegalsKeys.forEach(name => {
             it('should invalidate ' + name + ' with illegal state error', () => {
                 const err = getError(() =>

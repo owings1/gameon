@@ -41,7 +41,7 @@ const path = require('path')
 
 const {resolve} = path
 
-describe('Menu', () => {
+describe('-', () => {
 
     const Coordinator = requireSrc('lib/coordinator')
     const Errors      = requireSrc('lib/errors')
@@ -1026,6 +1026,7 @@ describe('Menu', () => {
             })
 
             it('should cancel match on interrupt', async () => {
+                menu.logger.console.log = noop
                 menu.once('beforeMatchStart', (match, players) => {
                     menu.logger.loglevel = 0
                     match.opts.roller = () => [6, 1]
@@ -1204,6 +1205,7 @@ describe('Menu', () => {
                 })
 
                 it('should cancel waiting on capture interrupt', async () => {
+                    menu.logger.console.log = noop
                     var isCalled = false
                     menu.once('clientWaitStart', () => {
                         isCalled = true
@@ -1240,6 +1242,9 @@ describe('Menu', () => {
                         menu2.logger.loglevel = 3
                         menu1.on('clientWaitStart', client => client.logger.name = 'Client1')
                         menu2.on('clientWaitStart', client => client.logger.name = 'Client2')
+                    } else {
+                        menu1.logger.console.log = noop
+                        menu2.logger.console.log = noop
                     }
 
                     const fakeInquirer = {prompt: () => new Promise(resolve => {})}

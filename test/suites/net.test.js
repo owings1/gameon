@@ -249,6 +249,7 @@ describe('Client', () => {
 
         it('should throw MatchCanceledError for response action=matchCanceled with reason as message', async () => {
             await client.connect()
+            client.logger.loglevel = -1
             const p = getErrorAsync(() => client.waitForResponse('test'))
             const conns = Object.values(server.socketServer.conns)
             server.sendMessage(conns, {action: 'matchCanceled', reason: 'testReason'})
@@ -601,6 +602,7 @@ describe('Server', () => {
                     await client2.sendAndWait({action: 'nextGame', color: Red, id})
                     const pr2 = client.sendAndWait({action: 'nextGame', color: White, id})
                     server.logger.loglevel = -1
+                    client.logger.loglevel = -1
                     const res = await client2.sendAndWait({action: 'nextGame', color: Red, id})
                     await pr1
                     const errOk = new Error
@@ -1175,7 +1177,7 @@ describe('Server', () => {
     })
 })
 
-describe('NetPlayer -- TODO: fix', () => {
+describe('NetPlayer', () => {
 
     var serverUrl
     var client
@@ -1242,7 +1244,6 @@ describe('NetPlayer -- TODO: fix', () => {
             await Util.destroyAll(east.players)
             await Util.destroyAll(west.players)
         }
-        
     })
 
     it('should play robot v robot over net with double accept, decline', async function() {
@@ -1259,18 +1260,13 @@ describe('NetPlayer -- TODO: fix', () => {
         const p2 = west.coord.runMatch(west.match, west.players.White, west.players.Red)
 
         try {
-            //console.log('a')
             await p1
-            //console.log('b')
             await p2
-            //console.log('c')
         } finally {
             await Util.destroyAll(east.players)
             await Util.destroyAll(west.players)
         }
-        
     })
-
 
     it('should play robot v robot over net with double after 3 moves accept, decline', async function() {
         this.timeout(2000)
@@ -1279,13 +1275,11 @@ describe('NetPlayer -- TODO: fix', () => {
         const {east, west} = await eastAndWest({total: 2, isCrawford: false})
 
         west.players.White.turnOption = (turn, game) => {
-            //console.log(game.getTurnCount())
             if (game.getTurnCount() > 3) {
                 turn.setDoubleOffered()
             }
         }
         east.players.Red.turnOption = (turn, game) => {
-            //console.log(game.getTurnCount())
             if (game.getTurnCount() > 3) {
                 turn.setDoubleOffered()
             }
@@ -1296,12 +1290,8 @@ describe('NetPlayer -- TODO: fix', () => {
         const p2 = west.coord.runMatch(west.match, west.players.White, west.players.Red)
 
         try {
-            //console.log('a')
-            //await new Promise(resolve => setTimeout(resolve, 1000))
             await p1
-            //console.log('b')
             await p2
-            //console.log('c')
         } finally {
             await Util.destroyAll(east.players)
             await Util.destroyAll(west.players)

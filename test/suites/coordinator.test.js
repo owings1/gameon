@@ -40,7 +40,7 @@ const fse = require('fs-extra')
 const fs = require('fs')
 const {resolve} = require('path')
 
-describe('Coordinator', () => {
+describe('-', () => {
 
     const Constants   = requireSrc('lib/constants')
     const Core        = requireSrc('lib/core')
