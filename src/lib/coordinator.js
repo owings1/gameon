@@ -40,17 +40,20 @@ class Coordinator {
         return {
             isRecord  : false
           , recordDir : null
+          , name      : 'Coordinator'
         }
     }
 
     constructor(opts) {
-        this.logger = new Logger
+
         this.opts = Util.defaults(Coordinator.defaults(), opts)
+        this.logger = new Logger(this.opts.name, {named: true})
+
         if (this.opts.isRecord) {
             try {
                 path.resolve(this.opts.recordDir)
             } catch (err) {
-                throw new InvalidDirError('invalid recordDir', err)
+                throw new InvalidDirError('Invalid recordDir', err)
             }
         }
     }
@@ -85,7 +88,9 @@ class Coordinator {
 
         } while (!match.checkFinished())
 
-        if (!match.isCanceled) {
+        if (match.isCanceled) {
+            this.logger.warn('The match was canceled')
+        } else {
             await this.emitAll(players, 'matchEnd', match)
         }
 
@@ -116,27 +121,44 @@ class Coordinator {
 
             await this.emitAll(players, 'turnStart', turn, game, match)
 
-            if (game.canDouble(turn.color)) {
-                await this.emitAll(players, 'beforeOption', turn, game, match)
-                await players[turn.color].turnOption(turn, game, match)
-                await this.emitAll(players, 'afterOption', turn, game, match)
-            }
-
-            if (turn.isDoubleOffered) {
-                await this.emitAll(players, 'doubleOffered', turn, game, match)
-                await players[turn.opponent].decideDouble(turn, game, match)
-            }
-
-            if (turn.isDoubleDeclined) {
-                await this.emitAll(players, 'doubleDeclined', turn, game, match)
-            } else {
-                if (turn.isDoubleOffered) {
-                    game.double()
-                    await this.emitAll(players, 'doubleAccepted', turn, game, match)
+            try {
+                if (game.canDouble(turn.color)) {
+                    await this.emitAll(players, 'beforeOption', turn, game, match)
+                    await players[turn.color].turnOption(turn, game, match)
+                    await this.emitAll(players, 'afterOption', turn, game, match)
                 }
-                await players[turn.color].rollTurn(turn, game, match)
-                await this.emitAll(players, 'afterRoll', turn, game, match)
-                await players[turn.color].playRoll(turn, game, match)
+
+                if (turn.isDoubleOffered) {
+                    await this.emitAll(players, 'doubleOffered', turn, game, match)
+                    await players[turn.opponent].decideDouble(turn, game, match)
+                }
+
+                if (turn.isDoubleDeclined) {
+                    await this.emitAll(players, 'doubleDeclined', turn, game, match)
+                } else {
+                    if (turn.isDoubleOffered) {
+                        game.double()
+                        await this.emitAll(players, 'doubleAccepted', turn, game, match)
+                    }
+                    await players[turn.color].rollTurn(turn, game, match)
+                    await this.emitAll(players, 'afterRoll', turn, game, match)
+                    await players[turn.color].playRoll(turn, game, match)
+                }
+            } catch (err) {
+                if (err.isTurnCanceledError) {
+                    if (match && match._cancelingCoordinator === this) {
+                        this.logger.warn('The match has been canceled, throwing prior error')
+                        err = match._coordinatorCancelError
+                        delete match._coordinatorCancelError
+                        delete match._cancelingCoordinator
+                    } else if (game._cancelingCoordinator === this) {
+                        this.logger.warn('The game has been canceled, throwing prior error')
+                        err = game._coordinatorCancelError
+                        delete game._coordinatorCancelError
+                        delete game._cancelingCoordinator
+                    }
+                }
+                throw err
             }
 
             turn.finish()
@@ -144,19 +166,25 @@ class Coordinator {
             await this.emitAll(players, 'turnEnd', turn, game, match)
         }
 
-        if (!game.isCanceled) {
+        if (game.isCanceled) {
+            this.logger.warn('The game was canceled')
+        } else {
             await this.emitAll(players, 'gameEnd', game, match)
         }
     }
 
     async cancelGame(game, players, err) {
-        await this.emitAll(players, 'gameCanceled', err, game)
+        game._cancelingCoordinator = this
+        game._coordinatorCancelError = err
         game.cancel()
+        await this.emitAll(players, 'gameCanceled', err, game)
     }
 
     async cancelMatch(match, players, err) {
-        await this.emitAll(players, 'matchCanceled', err, match)
+        match._cancelingCoordinator = this
+        match._coordinatorCancelError = err
         match.cancel()
+        await this.emitAll(players, 'matchCanceled', err, match)
     }
 
     async recordMatch(match, file, players) {
@@ -186,12 +214,17 @@ class Coordinator {
 
     async emitAll(emitters, ...args) {
         var holds = []
-        for (var it of Object.values(emitters)) {
-            await it.emit(...args)
-            holds = holds.concat(Util.castToArray(it.holds).splice(0))
-        }
-        for (var promise of holds.splice(0)) {
-            await promise
+        try {
+            for (var it of Object.values(emitters)) {
+                it.emit(...args)
+                holds = holds.concat(Util.castToArray(it.holds).splice(0))
+            }
+            for (var promise of holds.splice(0)) {
+                await promise
+            }
+        } catch (err) {
+            this.logger.error('Error on event', args[0], err)
+            throw err
         }
         //Object.values(emitters).forEach(it => {
         //    it.emit(...args)
