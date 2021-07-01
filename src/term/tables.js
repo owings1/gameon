@@ -485,7 +485,7 @@ class Table {
 
     makePartsRows() {
         const {chlk} = this
-        const chlkn = i => [chlk.odd, chlk.even][(i % 2) * +!!this.opts.oddEven]
+        const chlkn = i => [chlk.row.odd, chlk.row.even][(i % 2) * +!!this.opts.oddEven]
         return this.rows.map((row, i) =>
             this.showColumns.map((column, j) =>
                 pad(chlkn(i)(row[j]), column.align, column.width, chlkn(i)(' '))
@@ -565,7 +565,7 @@ class Table {
             f : chlk.foot(' ')
           , h : chlk.head(' ')
           , t : chlk.title(' ')
-          , n : i => [chlk.odd, chlk.even][i % 2](' ')
+          , n : i => [chlk.row.odd, chlk.row.even][(i % 2) * +!!this.opts.oddEven](' ')
         }
         // join parts (p) with pipe wrapped with space (s)
         const jps = (p, s) => p.join(s + pipe + s)

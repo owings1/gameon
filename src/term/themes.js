@@ -48,6 +48,7 @@ const {
     Aliases
   , Categories
   , CategoriesMap
+  , DefaultStyles
   , Keys
   , KeysMap
 } = ThemeConfig
@@ -252,37 +253,12 @@ class ThemeBuilder {
     static _buildStyles(_styles) {
 
         // Minimal defaults.
-        const styles = {
-            'text.color'      : 'white'
-          , 'text.background' : 'black'
-          , ..._styles
-        }
+        const styles = {...DefaultStyles, ..._styles}
 
         // Default aliases.
         Object.entries(Aliases).forEach(([key, alias]) => {
-            if (!styles[key]) {
+            if (!styles[key] && styles[alias]) {
                 styles[key] = styles[alias]
-            }
-        })
-
-        // Additional defaults for text/board sections.
-        Keys.forEach(key => {
-            const section = getStyleSection(key)
-            const type  = getStyleType(key)
-            if (!styles[key]) {
-                if (type == 'background') {
-                    if (section == 'board') {
-                        styles[key] = styles['board.background']
-                    } else {
-                        styles[key] = styles['text.background']
-                    }
-                } else if (type == 'color') {
-                    if (section == 'board') {
-                        styles[key] = styles['board.color']
-                    } else {
-                        styles[key] = styles['text.color']
-                    }
-                }
             }
         })
 
@@ -313,26 +289,9 @@ class ThemeBuilder {
 
             const bgKey = category + '.background'
             const fgKey = category + '.color'
-            const section = getStyleSection(category)
-            var bgDef = defs[bgKey]
-            var fgDef = defs[fgKey]
 
-            if (!fgDef) {
-                // default to board or text color
-                if (section == 'board') {
-                    fgDef = defs['board.color']
-                } else {
-                    fgDef = defs['text.color']
-                }
-            }
-            if (!bgDef) {
-                // default to board or text background
-                if (section == 'board') {
-                    bgDef = defs['board.background']
-                } else {
-                    bgDef = defs['text.background']
-                }
-            }
+            const bgDef = defs[bgKey]
+            const fgDef = defs[fgKey]
 
             const result = StyleHelper.buildChalkListFromDefs(fgDef, bgDef)
 
@@ -347,6 +306,7 @@ class ThemeBuilder {
     static _create(chalks, name) {
         const theme = new Theme
         theme.name = name
+        theme.get = key => chalks[key]
         Categories.forEach(category => {
             const parts = category.split('.')
             var current = theme

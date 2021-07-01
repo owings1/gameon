@@ -727,6 +727,10 @@ class StyleHelper {
     //
     static buildDefFromStyle(value, isBackground) {
 
+        if (value == 'default') {
+            return []
+        }
+
         const [color, mod] = value.split(' ')
         const isHex        = StyleHelper.isValidHexColor(color)
 
@@ -761,21 +765,25 @@ class StyleHelper {
         var bgChalk
 
         if (bgDef) {
-            if (bgDef.length == 1) {
-                // native chalk method, e.g. bgRed or bgRedBright
-                theChalk = theChalk[bgDef[0]]
-            } else {
-                // hex or keyword construct
-                theChalk = theChalk[bgDef[0]](bgDef[1])
+            if (bgDef.length) {
+                if (bgDef.length == 1) {
+                    // native chalk method, e.g. bgRed or bgRedBright
+                    theChalk = theChalk[bgDef[0]]
+                } else {
+                    // hex or keyword construct
+                    theChalk = theChalk[bgDef[0]](bgDef[1])
+                }
             }
             bgChalk = theChalk
         }
         if (fgDef) {
-            // always a hex or keyword construct
-            theChalk = theChalk[fgDef[0]](fgDef[1])
-            if (fgDef[2]) {
-                // modifier property, e.g. bold or dim
-                theChalk = theChalk[fgDef[2]]
+            if (fgDef.length) {
+                // always a hex or keyword construct
+                theChalk = theChalk[fgDef[0]](fgDef[1])
+                if (fgDef[2]) {
+                    // modifier property, e.g. bold or dim
+                    theChalk = theChalk[fgDef[2]]
+                }
             }
             fgChalk = theChalk
         }
@@ -824,6 +832,7 @@ const {
   , IllegalStateError
   , IncompatibleKeysError
   , MissingDependencyError
+  , StyleError
   , UnresolvedDependencyError
 } = Errors
 

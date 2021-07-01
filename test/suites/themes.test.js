@@ -192,6 +192,7 @@ describe('ThemeHelper', () => {
     })
 
     describe('#getInstance', () => {
+
         it('should return default instance', () => {
             const theme = ThemeHelper.getInstance('Default')
             expect(theme.constructor.name).to.equal('Theme')
@@ -244,6 +245,10 @@ describe('ThemeHelper', () => {
             await writeTheme('custom1', {extends: ['Default']})
             await writeTheme('custom2', {extends: ['Default']})
             const res = await ThemeHelper.loadDirectory(dir)
+            res.errors.forEach(info => {
+                console.log(info)
+                console.error(info.error)
+            })
             expect(res.loaded).to.jsonEqual(['custom1', 'custom2'])
             expect(res.errors).to.have.length(0)
         })
@@ -366,6 +371,32 @@ describe('ThemeHelper', () => {
         it('should throw StyleError for unknown key', () => {
             const err = getError(() => ThemeHelper.validateStyle('foo'))
             expect(err.name).to.equal('StyleError')
+        })
+    })
+
+    describe('Theme', () => {
+
+        const ThemeConfig = requireSrc('term/res/themes.config')
+
+        describe('minimal', () => {
+
+            var theme
+
+            beforeEach(() => {
+                ThemeHelper.update('test_minimal', {styles: {}})
+                theme = ThemeHelper.getInstance('test_minimal')
+            })
+
+            describe('#get', () => {
+
+                ThemeConfig.Keys.forEach(key => {
+
+                    it('should get ' + key + ' and call', () => {
+                        const res = theme.get(key)('a')
+                        expect(res).to.contain('a')
+                    })
+                })
+            })
         })
     })
 })

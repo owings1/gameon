@@ -25,19 +25,24 @@
 const BuiltIn = {
     Default : {
         styles : {
-            'board.border.color'      : 'grey'
-          , 'board.piece.red.color'   : 'red bold'
-          , 'board.piece.white.color' : 'white bold'
-          , 'cube.inactive.color'     : 'grey'
-          , 'hr.color'                : 'grey'
-          , 'table.even.color'        : '#66fffc'
-          , 'table.title.color'       : '#ff6bb3 bold'
-          , 'text.background'         : 'black'
-          , 'text.color'              : 'white'
-          , 'text.dice.color'         : 'magenta'
-          , 'text.gameStatus.color'   : 'cyan'
-          , 'text.notice.color'       : 'yellow bold'
-          , 'text.pipCount.color'     : 'grey bold'
+            'board.border.color'           : 'grey'
+          , 'board.cube.inactive.color'    : 'grey'
+          , 'board.inside.background'      : 'black'
+          , 'board.outside.pipCount.color' : 'grey'
+          , 'board.piece.red.color'        : 'red bold'
+          , 'board.piece.white.color'      : 'white bold'
+
+          , 'hr.color' : 'grey'
+
+          , 'table.row.even.color' : '#66fffc'
+          , 'table.title.color'    : '#ff6bb3 bold'
+
+          , 'text.background' : 'black'
+          , 'text.color'      : 'white'
+
+          , 'board.log.dice.color'       : 'magenta'
+          , 'board.log.gameStatus.color' : 'cyan'
+          , 'board.log.notice.color'     : 'yellow bold'
         }
     }
   , Offbeat : {
@@ -47,54 +52,116 @@ const BuiltIn = {
           , 'board.piece.red.color'       : 'orange bold'
           , 'board.piece.white.color'     : '#0080ff bold'
           , 'board.pointLabel.background' : 'red bright'
-          , 'table.head.color'            : 'orange'
-          //, 'table.background'            : '#a19299'
-          //, 'table.border.background'     : 'blue'
-          //, 'board.background' : 'blue'
+
+          , 'table.head.color' : 'orange'
+
+          //, 'board.inside.background'      : '#1f1f1f'
+          //, 'board.outside.background'     : '#1f3631'
+          //, 'board.outside.pipCount.color' : 'yellow'
         }
     }
 }
 
 const Categories = [
-    'board'
-  , 'board.border'
+
+    'board.border'
   , 'board.piece.red'
   , 'board.piece.white'
   , 'board.pointLabel'
-  , 'cube.active'
-  , 'cube.inactive'
+  , 'board.inside'
+  , 'board.outside'
+  , 'board.cube.active'
+  , 'board.cube.inactive'
+  , 'board.outside.pipCount'
+  , 'board.bar.piece.red'
+  , 'board.bar.piece.white'
+  , 'board.outside.piece.red'
+  , 'board.outside.piece.white'
+
   , 'hr'
-  , 'table'
+
   , 'table.border'
-  , 'table.even'
+  , 'table.row'
+  , 'table.row.even'
+  , 'table.row.odd'
   , 'table.foot'
   , 'table.head'
-  , 'table.odd'
   , 'table.title'
+
+  , 'board.log'
+  , 'board.log.dice'
+  , 'board.log.gameStatus'
+  , 'board.log.notice'
+  , 'board.log.piece.red'
+  , 'board.log.piece.white'
+
   , 'text'
-  , 'text.dice'
-  , 'text.gameStatus'
-  , 'text.notice'
-  , 'text.piece.red'
-  , 'text.piece.white'
-  , 'text.pipCount'
 ]
+
+const DefaultStyles = {
+    'text.color'      : 'default'
+  , 'text.background' : 'default'
+}
+
+// Order matters
+
 const CategoryAliases = {
-    'board'        : 'text'
-  , 'table'        : 'text'
-  , 'table.border' : 'board.border'
+
+    'board.border'  : 'text'
+  , 'board.inside'  : 'text'
+
+  , 'board.outside' : 'board.inside'
+  , 'board.log'     : 'board.outside'
+
+  , 'board.pointLabel'     : 'board.border'
+  , 'board.log.dice'       : 'board.log'
+  , 'board.log.gameStatus' : 'board.log'
+  , 'board.log.notice'     : 'board.log'
+
+  , 'board.outside.pipCount' : 'board.outside'
+
+  , 'hr' : 'text'
+
+  , 'table.border'   : 'board.border'
+  , 'table.row'      : 'text'
+  , 'table.row.even' : 'table.row'
+  , 'table.row.odd'  : 'table.row'
+  , 'table.head'     : 'table.row'
+  , 'table.foot'     : 'table.row'
+  , 'table.title'    : 'table.head'
 }
 
-const Aliases = {
-    'text.piece.red.color'   : 'board.piece.red.color'
-  , 'text.piece.white.color' : 'board.piece.white.color'
-  , 'table.even.background'  : 'table.background'
-  , 'table.foot.background'  : 'table.background'
-  , 'table.head.background'  : 'table.background'
-  , 'table.odd.background'   : 'table.background'
-  , 'table.title.background' : 'table.background'
+const KeyAliases = {
+
+    'board.piece.red.background'           : 'board.inside.background'
+  , 'board.piece.white.background'         : 'board.inside.background'
+
+  , 'board.bar.piece.red.background'       : 'board.border.background'
+  , 'board.bar.piece.white.background'     : 'board.border.background'
+
+  , 'board.outside.piece.red.background'   : 'board.outside.background'
+  , 'board.outside.piece.white.background' : 'board.outside.background'
+  , 'board.cube.active.background'         : 'board.outside.background'
+  , 'board.cube.inactive.background'       : 'board.outside.background'
+
+  , 'board.log.piece.red.background'       : 'board.log.background'
+  , 'board.log.piece.white.background'     : 'board.log.background'
+
+  , 'board.piece.red.color'   : 'text.color'
+  , 'board.piece.white.color' : 'text.color'
+
+  , 'board.outside.piece.red.color'   : 'board.piece.red.color'
+  , 'board.log.piece.red.color'       : 'board.piece.red.color'
+  , 'board.bar.piece.red.color'       : 'board.piece.red.color'
+  , 'board.outside.piece.white.color' : 'board.piece.white.color'
+  , 'board.log.piece.white.color'     : 'board.piece.white.color'
+  , 'board.bar.piece.white.color'     : 'board.piece.white.color'
+
+  , 'board.cube.active.color'   : 'board.border.color'
+  , 'board.cube.inactive.color' : 'board.cube.active.color'
 }
 
+const Aliases = {}
 const CategoriesMap = {}
 const Keys = []
 const KeysMap = {}
@@ -113,18 +180,21 @@ function _populate() {
         types.forEach(type => {
             const sourceKey = [sourceCategory, type].join('.')
             const targetKey = [targetCategory, type].join('.')
-            if (!Aliases[targetKey]) {
-                Aliases[targetKey] = sourceKey
-            }
+            Aliases[targetKey] = sourceKey
         })
     })
+    Object.entries(KeyAliases).forEach(([targetKey, sourceKey]) => {
+        Aliases[targetKey] = sourceKey
+    })
 }
+
 _populate()
 
 module.exports = {
     Aliases
   , Categories
   , CategoriesMap
+  , DefaultStyles
   , BuiltIn
   , Keys
   , KeysMap

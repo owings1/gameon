@@ -325,6 +325,7 @@ class TermPlayer extends Base {
     }
 
     async promptDecideDouble() {
+        // TODO: make new theme category, e.g. console.* etc.
         const chlk = this.theme.text
         const choices = ['y', 'n']
         const message = sp('Does', this.ccolor(this.color), 'accept the double?', chlk.dim('(y/n)'))
@@ -555,7 +556,8 @@ class TermPlayer extends Base {
         if (!this.drawer) {
             return sp(...args)
         }
-        return this.drawer.theme.text.piece[color.toLowerCase()](...args)
+        // TODO: this should be a new base category : log.*, console.*, etc.
+        return this.drawer.theme.board.log.piece[color.toLowerCase()](...args)
     }
 
     ccolor(color) {

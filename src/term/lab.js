@@ -437,8 +437,8 @@ class LabHelper {
         }
 
         const moveDesc = move => this.moveParts(move).map(
-            it => chlk.reset(chlk(it))
-        ).join(chlk.dim(Chars.arrow.right))
+            it => chlk.row.reset(chlk.row(it))
+        ).join(chlk.row.dim(Chars.arrow.right))
 
         const columns = [
             {
@@ -448,17 +448,17 @@ class LabHelper {
           , {
                 name   : 'weighted'
               , align  : 'right'
-              , format : value => chlk.cyan(value.toFixed(4))
+              , format : value => chlk.row.cyan(value.toFixed(4))
             }
           , {
                 name   : 'myScore'
               , align  : 'right'
-              , format : value => chlk.yellow(value.toFixed(4))
+              , format : value => chlk.row.yellow(value.toFixed(4))
             }
           , {
                 name   : 'myRank'
               , align  : 'right'
-              , format : value => chlk.yellow(value)
+              , format : value => chlk.row.yellow(value)
             }
         ]
 
@@ -467,37 +467,37 @@ class LabHelper {
         const tables = rankList.map((info, i) => {
 
             const title = new StringBuilder(
-                chlk.dim('#')
-              , chlk.green((i + 1).toString())
-              , chlk.dim(' of ' + rankList.length.toString())
-              , chlk('  ')
-              , chlk.dim('[')
-              , info.moves.map(moveDesc).join(chlk.dim(', '))
-              , chlk.dim(']')
+                chlk.row.dim('#')
+              , chlk.row.green((i + 1).toString())
+              , chlk.row.dim(' of ' + rankList.length.toString())
+              , chlk.row('  ')
+              , chlk.row.dim('[')
+              , info.moves.map(moveDesc).join(chlk.row.dim(', '))
+              , chlk.row.dim(']')
             ).toString()
 
             const bscore = new StringBuilder(
-                chlk('Score : ')
-              , chlk.cyan.bold(info.finalScore.toFixed(4))
+                chlk.foot('Score : ')
+              , chlk.foot.cyan.bold(info.finalScore.toFixed(4))
             )
             if (lastScore > 0) {
                 var decreasePct = Math.round(100 * (lastScore - info.finalScore) / lastScore)
                 if (decreasePct) {
                     bscore.add(
-                        chlk(' ')
-                      , chlk.red.bold(Chars.arrow.down + decreasePct + '%')
+                        chlk.foot(' ')
+                      , chlk.foot.red.bold(Chars.arrow.down + decreasePct + '%')
                     )
                 }
             }
             const footerLines = [
                 new StringBuilder(
-                    chlk('Rank  : ')
+                    chlk.foot('Rank  : ')
                   , chlk.title(info.rank.toString())
                 ).toString()
               , bscore.toString()
               , new StringBuilder(
-                    chlk('State : ')
-                  , chlk.dim(info.endState)
+                    chlk.foot('State : ')
+                  , chlk.foot.dim(info.endState)
                 ).toString()
             ]
 
@@ -551,11 +551,11 @@ class LabHelper {
             cons.log(''.padEnd(indent - 1, ' '), ...args)
         }
 
-        const moveDesc = move => this.moveParts(move).join(chlk.dim(Chars.arrow.right))
+        const moveDesc = move => this.moveParts(move).join(chlk.row.dim(Chars.arrow.right))
         const movesFormat = moves => {
-            return chlk.dim('[') + moves.map(
-                move => padEnd(moveDesc(move), 5, chlk(' '))
-            ).join(chlk.dim(',') + chlk(' ')) + chlk.dim(']')
+            return chlk.row.dim('[') + moves.map(
+                move => padEnd(moveDesc(move), 5, chlk.row(' '))
+            ).join(chlk.row.dim(',') + chlk.row(' ')) + chlk.row.dim(']')
         }
         const columns = [
             {
@@ -943,8 +943,8 @@ class LabHelper {
     }
 
     ccolor(color) {
-        const ch = this.theme.board
-        return ch.piece[color.toLowerCase()](color)
+        const chlk = this.theme.board
+        return chlk.piece[color.toLowerCase()](color)
     }
 
     async draw(isPrint) {
@@ -1060,15 +1060,16 @@ class LabHelper {
         if (value == null) {
             return ''
         }
+        const chlk = this.theme.table
         var str = value.toString()
         if (value == 0) {
-            return chalk.bold.green(str)
+            return chlk.row.bold.green(str)
         }
         if (value > 0) {
             str = '+' + str
         }
         if (Math.abs(value) == 1) {
-            return chalk.green(str)
+            return chlk.row.green(str)
         }
         return str
     }
