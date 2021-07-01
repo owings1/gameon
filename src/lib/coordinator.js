@@ -32,7 +32,13 @@ const path  = require('path')
 
 const {InvalidDirError} = Errors
 
-const {fileDateString, homeTilde} = Util
+const {
+    append
+  , defaults
+  , castToArray
+  , fileDateString
+  , homeTilde
+} = Util
 
 class Coordinator {
 
@@ -46,7 +52,7 @@ class Coordinator {
 
     constructor(opts) {
 
-        this.opts = Util.defaults(Coordinator.defaults(), opts)
+        this.opts = defaults(Coordinator.defaults(), opts)
         this.logger = new Logger(this.opts.name, {named: true})
 
         if (this.opts.isRecord) {
@@ -213,24 +219,19 @@ class Coordinator {
     }
 
     async emitAll(emitters, ...args) {
-        var holds = []
         try {
+            const holds = []
             for (var it of Object.values(emitters)) {
                 it.emit(...args)
-                holds = holds.concat(Util.castToArray(it.holds).splice(0))
+                append(holds, castToArray(it.holds).splice(0))
             }
-            for (var promise of holds.splice(0)) {
-                await promise
+            for (var i = 0; i < holds.length; ++i) {
+                await holds[i]
             }
         } catch (err) {
             this.logger.error('Error on event', args[0], err)
             throw err
         }
-        //Object.values(emitters).forEach(it => {
-        //    it.emit(...args)
-        //    holds = holds.concat(Util.castToArray(it.holds).splice(0))
-        //})
-        //await Promise.all(holds.splice(0))
     }
 
     getMatchDir(match) {

@@ -1217,29 +1217,31 @@ describe('Menu', () => {
                     const menu1 = menu
 
                     const finish = () => {
-                        menu2.captureInterrupt()
                         menu1.captureInterrupt()
+                        menu2.captureInterrupt()
                         done()
                     }
 
                     menu1.logger.loglevel = -1
                     menu2.logger.loglevel = -1
 
-                    // debug logging names, etc
-                    /*
-                    menu1.newCoordinator = opts => new Coordinator({...opts, name: 'Coordinator1'})
-                    menu2.newCoordinator = opts => new Coordinator({...opts, name: 'Coordinator2'})
-                    menu1.logger.name = 'Menu1'
-                    menu2.logger.name = 'Menu2'
-                    menu1.on('clientWaitStart', client => client.logger.name = 'Client1')
-                    menu2.on('clientWaitStart', client => client.logger.name = 'Client2')
-                    */
+                    const isDebug = false
+
+                    if (isDebug) {
+                        // debug logger names, etc
+                        menu1.newCoordinator = opts => new Coordinator({...opts, name: 'Coordinator1'})
+                        menu2.newCoordinator = opts => new Coordinator({...opts, name: 'Coordinator2'})
+                        menu1.logger.name = 'Menu1'
+                        menu2.logger.name = 'Menu2'
+                        menu1.logger.loglevel = 3
+                        menu2.logger.loglevel = 3
+                        menu1.on('clientWaitStart', client => client.logger.name = 'Client1')
+                        menu2.on('clientWaitStart', client => client.logger.name = 'Client2')
+                    }
 
                     const fakeInquirer = {prompt: () => new Promise(resolve => {})}
 
-                    // We need to wait for firstRoll to be emitted on both players,
-                    // otherwise we get client message rejections. TODO: think of a
-                    // strategy for handling message rejections on client.
+                    // We could call at any time, but we don't want to double call.
                     var count = 0
 
                     const prep = player => {

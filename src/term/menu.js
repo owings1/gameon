@@ -792,6 +792,7 @@ class Menu extends EventEmitter {
         try {
             this.captureInterrupt = () => {
                 this.captureInterrupt = null
+                this.logger.console.log()
                 this.logger.warn('Aborting')
                 client.cancelWaiting(new WaitingAbortedError('Keyboard interrupt'))
                 return true
@@ -824,6 +825,7 @@ class Menu extends EventEmitter {
             const coordinator = this.newCoordinator()
             this.captureInterrupt = () => {
                 this.captureInterrupt = null
+                this.logger.console.log()
                 this.logger.warn('Canceling match')
                 coordinator.cancelMatch(match, players, new MatchCanceledError('Keyboard interrupt'))
                 return true

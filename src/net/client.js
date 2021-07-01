@@ -58,6 +58,7 @@ class Client extends EventEmitter {
 
         this.serverSocketUrl = httpToWs(serverUrl)
         this.serverHttpUrl = stripTrailingSlash(wsToHttp(serverUrl))
+
         this.username = username
         this.password = password
 
@@ -108,7 +109,6 @@ class Client extends EventEmitter {
 
     async close() {
         if (this.isWaiting) {
-            //console.log('close', 'a')
             // NB: this can throw an unhandled promise rejection if a caller of
             //     waitForMessage does not handle the error.
             this.cancelWaiting(new ConnectionClosedError('Client closing'))
@@ -131,7 +131,6 @@ class Client extends EventEmitter {
     cancelWaiting(err) {
         if (this.messageReject) {
             this.messageReject(err)
-            this.messageReject = null
         }
     }
 
@@ -184,14 +183,12 @@ class Client extends EventEmitter {
         try {
             var promise = this.waitForResponse(action)
         } catch (err) {
-            //console.log('sendAndWaitForResponse', 'a')
             throw err
         }
         try {
             this.sendMessage(req)
         } catch (err) {
             this.logger.debug(['catch sendMessage', 'throwing'])
-            //console.log('sendAndWaitForResponse', 'b')
             throw err
         }
         return promise
@@ -200,12 +197,9 @@ class Client extends EventEmitter {
     async waitForResponse(action) {
         const res = await this.waitForMessage()
         if (res.error) {
-            //console.log('waitForResponse', 'a')
             throw Client.buildError(res)
         }
         if (action && res.action != action) {
-            //console.log('waitForResponse', 'b')
-            //console.error(res)
             if (res.action == 'matchCanceled') {
                 this.logger.warn('Received matchCanceled message from server:', res.reason)
                 throw new MatchCanceledError(res.reason)
@@ -218,7 +212,6 @@ class Client extends EventEmitter {
     async waitForMessage() {
 
         if (!this.conn) {
-            //console.log('waitForMessage', 'a')
             throw new ConnectionClosedError('Connection lost')
         }
 
@@ -226,10 +219,16 @@ class Client extends EventEmitter {
         try {
             return await new Promise((resolve, reject) => {                
                 this.messageReject = err => {
-                    this.logger.error('Client message reject', err)
+                    this.messageResolve = null
+                    this.messageReject = null
+                    this.logger.warn(err.name, err.message)
                     reject(err)
                 }
-                this.messageResolve = resolve
+                this.messageResolve = res => {
+                    this.messageResolve = null
+                    this.messageReject = null
+                    resolve(res)
+                }
             })
         } finally {
             this.isWaiting = false
@@ -241,20 +240,18 @@ class Client extends EventEmitter {
     handleMessage(res) {
         if (this.messageResolve) {
             this.messageResolve(res)
-            this.messageResolve = null
-        } else {
-            if (res.action == 'matchCanceled') {
-                this.logger.warn('Received matchCanceled message from server:', res.reason)
-                const err = new MatchCanceledError(res.reason)
-                if (!this.emit('matchCanceled', err)) {
-                    // NB: this can throw an unhandled promise rejection.
-                    // TODO: try other handlers conn error, this error
-                    //console.log('handleMessage', 'a')
-                    throw err
-                }
-            } else {
-                this.logger.warn('Unhandled message', res)
+            return
+        }
+        if (res.action == 'matchCanceled') {
+            this.logger.warn('Received matchCanceled message from server:', res.reason)
+            const err = new MatchCanceledError(res.reason)
+            if (!this.emit('matchCanceled', err)) {
+                // NB: this can throw an unhandled promise rejection.
+                // TODO: try other handlers conn error, this error
+                throw err
             }
+        } else {
+            this.logger.warn('Unhandled message', {action: res.action})
         }
     }
 
@@ -286,7 +283,7 @@ class Client extends EventEmitter {
     }
 
     static generateSecret() {
-        return Util.secret1()
+        return secret1()
     }
 
     static buildError(data, fallbackMessage) {
