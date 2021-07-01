@@ -64,8 +64,20 @@ class Logger {
         }
     }
 
+    static getFormatNamed(obj) {
+        return ctx => {
+            const name = obj.name || ''
+            const type = Util.stripAnsi(ctx.type)
+            return [
+                chalk[TypeColor[type]](type.toUpperCase())
+              , '[' + name + ']'
+              , ctx.msg
+            ].join(' ')
+        }
+    }
+
     static defaults() {
-        return {server: false}
+        return {server: false, named: false}
     }
 
     constructor(name, opts) {
@@ -89,9 +101,15 @@ class Logger {
 
     static logify(obj, opts) {
         opts = merge({}, Logger.defaults(), opts)
-        Logging(obj, {
-            format: opts.server ? Logger.getFormatServer(opts.name) : Logger.format
-        })
+        if (opts.server) {
+            var format = Logger.getFormatServer(opts.name)
+        } else if (opts.named) {
+            var format = Logger.getFormatNamed(obj)
+        } else {
+            var format = Logger.format
+        }
+        Logging(obj, {format})
+
         obj.loglevel = Levels[process.env.LOG_LEVEL || 'info']
         obj.logLevel = obj.loglevel
         obj.console = console
