@@ -35,14 +35,15 @@ const {
     States
 } = Test
 
+const Auth        = requireSrc('net/auth')
+const Client      = requireSrc('net/client')
 const Constants   = requireSrc('lib/constants')
 const Coordinator = requireSrc('lib/coordinator')
 const Core        = requireSrc('lib/core')
-const Server      = requireSrc('net/server')
-const Client      = requireSrc('net/client')
+const Errors      = requireSrc('lib/errors')
 const NetPlayer   = requireSrc('net/player')
 const Robot       = requireSrc('robot/player')
-const Auth        = requireSrc('net/auth')
+const Server      = requireSrc('net/server')
 const Util        = requireSrc('lib/util')
 
 const {White, Red}  = Constants
@@ -784,13 +785,13 @@ describe('Server', () => {
                 expect(res.status).to.equal(400)
             })
 
-            it('should have error.name=ValidationError for bad email', async () => {
+            it('should have error.name=ValidateError for bad email', async () => {
                 authServer.api.logger.loglevel = -1
                 const username = 'nobody-bad-email'
                 const password = 'EbaD99wa'
                 const res = await authClient.postJson('/api/v1/signup', {username, password})
                 const body = await res.json()
-                expect(body.error.name).to.equal('ValidationError')
+                expect(body.error.name).to.equal('ValidateError')
             })
 
             it('should return 400 for bad password', async () => {
@@ -800,13 +801,13 @@ describe('Server', () => {
                 expect(res.status).to.equal(400)
             })
 
-            it('should have error.name=ValidationError for bad password', async () => {
+            it('should have error.name=ValidateError for bad password', async () => {
                 authServer.api.logger.loglevel = -1
                 const username = 'nobody@nowhere.example'
                 const password = 'password'
                 const res = await authClient.postJson('/api/v1/signup', {username, password})
                 const body = await res.json()
-                expect(body.error.name).to.equal('ValidationError')
+                expect(body.error.name).to.equal('ValidateError')
             })
 
             it('should return 500 when sendConfirmEmail throws', async () => {
@@ -1317,25 +1318,25 @@ describe('Auth', () => {
 
     describe('#validateUsername', () => {
 
-        it('should throw ValidationError for empty', () => {
+        it('should throw ValidateError for empty', () => {
             const auth = new Auth('anonymous')
             const input = ''
             const err = getError(() => auth.validateUsername(input))
-            expect(err.name).to.equal('ValidationError')
+            expect(err.name).to.equal('ValidateError')
         })
 
-        it('should throw ValidationError for bar char ?', () => {
+        it('should throw ValidateError for bar char ?', () => {
             const auth = new Auth('anonymous')
             const input = 'foo?@example.example'
             const err = getError(() => auth.validateUsername(input))
-            expect(err.name).to.equal('ValidationError')
+            expect(err.name).to.equal('ValidateError')
         })
 
-        it('should throw ValidationError for bad email chunky', () => {
+        it('should throw ValidateError for bad email chunky', () => {
             const auth = new Auth('anonymous')
             const input = 'chunky'
             const err = getError(() => auth.validateUsername(input))
-            expect(err.name).to.equal('ValidationError')
+            expect(err.name).to.equal('ValidateError')
         })
 
         it('should pass for nobody@nowhere.example', () => {
@@ -1347,32 +1348,32 @@ describe('Auth', () => {
 
     describe('#validatePassword', () => {
 
-        it('should throw ValidationError for empty', () => {
+        it('should throw ValidateError for empty', () => {
             const auth = new Auth('anonymous')
             const input = ''
             const err = getError(() => auth.validatePassword(input))
-            expect(err.name).to.equal('ValidationError')
+            expect(err.name).to.equal('ValidateError')
         })
 
-        it('should throw ValidationError for length 7', () => {
+        it('should throw ValidateError for length 7', () => {
             const auth = new Auth('anonymous')
             const input = '5ZycJj3'
             const err = getError(() => auth.validatePassword(input))
-            expect(err.name).to.equal('ValidationError')
+            expect(err.name).to.equal('ValidateError')
         })
 
-        it('should throw ValidationError for missing number', () => {
+        it('should throw ValidateError for missing number', () => {
             const auth = new Auth('anonymous')
             const input = 'aDlvkdoslK'
             const err = getError(() => auth.validatePassword(input))
-            expect(err.name).to.equal('ValidationError')
+            expect(err.name).to.equal('ValidateError')
         })
 
-        it('should throw ValidationError for start with encrypted_', () => {
+        it('should throw ValidateError for start with encrypted_', () => {
             const auth = new Auth('anonymous')
             const input = 'encrypted_aDlvkdoslK'
             const err = getError(() => auth.validatePassword(input))
-            expect(err.name).to.equal('ValidationError')
+            expect(err.name).to.equal('ValidateError')
         })
 
         const passCases = [

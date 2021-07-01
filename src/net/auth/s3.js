@@ -22,28 +22,30 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-const Auth   = require('../auth')
+const Errors = require('../../lib/errors')
 const Logger = require('../../lib/logger')
 const Util   = require('../../lib/util')
 
-const AWS = require('aws-sdk')
+const AWS  = require('aws-sdk')
 const path = require('path')
 
-const {InternalError}       = Auth.Errors
-const {NotImplementedError} = Auth.Errors
-const {UserNotFoundError}   = Auth.Errors
+const {
+    InternalError
+  , NotImplementedError
+  , UserNotFoundError
+} = Errors
 
 class S3Auth {
 
-    static defaults() {
+    static defaults(env) {
         return {
-            s3_bucket : process.env.AUTH_S3_BUCKET  || ''
-          , s3_prefix : process.env.AUTH_S3_PREFIX || 'users/'
+            s3_bucket : env.AUTH_S3_BUCKET  || ''
+          , s3_prefix : env.AUTH_S3_PREFIX || 'users/'
         }
     }
 
     constructor(opts){
-        this.opts = Util.defaults(S3Auth.defaults(), opts)
+        this.opts = Util.defaults(S3Auth.defaults(process.env), opts)
         this.s3 = new AWS.S3()
     }
 

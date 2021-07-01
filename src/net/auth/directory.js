@@ -22,7 +22,7 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-const Auth   = require('../auth')
+const Errors = require('../../lib/errors')
 const Logger = require('../../lib/logger')
 const Util   = require('../../lib/util')
 
@@ -31,19 +31,21 @@ const fse       = require('fs-extra')
 const path      = require('path')
 const {resolve} = path
 
-const {InternalError}      = Auth.Errors
-const {UserNotFoundError}  = Auth.Errors
+const {
+    InternalError
+  , UserNotFoundError
+} = Errors
 
 class DirectoryAuth {
 
-    static defaults() {
+    static defaults(env) {
         return {
-            authDir : process.env.AUTH_DIR  || ''
+            authDir : env.AUTH_DIR  || ''
         }
     }
 
     constructor(opts){
-        this.opts = Util.defaults(DirectoryAuth.defaults(), opts)
+        this.opts = Util.defaults(DirectoryAuth.defaults(process.env), opts)
         if (!this.opts.authDir) {
             throw new InternalError('Auth directory not set.')
         }
@@ -63,9 +65,8 @@ class DirectoryAuth {
         } catch (err) {
             if ('ENOENT' == err.code) {
                 throw new UserNotFoundError
-            } else {
-                throw err
             }
+            throw err
         }
         return user
     }

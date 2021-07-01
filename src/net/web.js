@@ -22,8 +22,10 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-const Logger = require('../lib/logger')
-const Util   = require('../lib/util')
+const Constants = require('../lib/constants')
+const Errors    = require('../lib/errors')
+const Logger    = require('../lib/logger')
+const Util      = require('../lib/util')
 
 const bodyParser   = require('body-parser')
 const cookieParser = require('cookie-parser')
@@ -31,9 +33,16 @@ const express      = require('express')
 const path         = require('path')
 const session      = require('express-session')
 
-// This should be set in production environments with SESSION_SECRET
-const DefaultSessionSecret = 'D2hjWtg95VkuzhFBVxnhDhSU4J9BYnz8'
-const DefaultSessionCookie = 'gasid'
+const {
+    DefaultSessionCookie
+    // This should be set in production environments with SESSION_SECRET
+  , DefaultSessionSecret
+} = Constants
+
+const {SecurityError} = Errors
+
+const StaticPath = path.resolve(__dirname, '../www/static')
+const ViewPath   = path.resolve(__dirname, '../www/templates')
 
 class Web {
 
@@ -55,13 +64,28 @@ class Web {
 
     createExpressApp() {
 
+        if (this.opts.sessionSecret == DefaultSessionSecret) {
+            if (!process.env.GAMEON_TEST) {
+                this.logger.warn(
+                    'SESSION_SECRET not set, using default.'
+                  , 'For security, SESSION_SECRET must be set'
+                  , 'in production environemnts.'
+                )
+            }
+            if (process.env.NODE_ENV == 'production') {
+                throw new SecurityError(
+                    'Must set custom SESSION_SECRET when NODE_ENV=production'
+                )
+            }
+        }
+
         const app = express()
         const formParser = bodyParser.urlencoded({extended: true})
 
         app.set('trust proxy', 1)
 
         app.set('view engine', 'ejs')
-        app.set('views', path.resolve(__dirname, '../www/templates'))
+        app.set('views', ViewPath)
 
         app.use(session({
             secret            : this.opts.sessionSecret
@@ -122,7 +146,7 @@ class Web {
                 })
                 res.status(302).redirect('/dashboard')
             }).catch(err => {
-                if (err.name == 'BadCredentialsError' || err.name == 'ValidationError') {
+                if (err.name == 'BadCredentialsError' || err.name == 'ValidateError') {
                     res.status(400)
                 } else {
                     res.status(500)
@@ -149,7 +173,7 @@ class Web {
             })
         })
 
-        app.use('/static', express.static(path.resolve(__dirname, '../www/static')))
+        app.use('/static', express.static(StaticPath))
 
         app.use((req, res) => {
             res.status(404).send('Not found')

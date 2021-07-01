@@ -22,24 +22,37 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-const Email  = require('./email')
-const Logger = require('../lib/logger')
-const Util   = require('../lib/util')
+const Constants = require('../lib/constants')
+const Email     = require('./email')
+const Errors    = require('../lib/errors')
+const Logger    = require('../lib/logger')
+const Util      = require('../lib/util')
 
 const crypto = require('crypto')
 const path   = require('path')
 
-// This should be set by AUTH_SALT in production environments
-const DefaultSalt  = 'RYm!BtLhPTx4%QrGku_6?Q*NZsfM54Q=Y9?p^q5$9#TM42YcY4WfEGb#48-x88-n'
+const {
+    DefaultEmailImpl
+  , DefaultPasswordHelp
+  , DefaultPasswordRegex
+  , DefaultSalt
+  , EncryptedFlagPrefix
+  , InvalidUsernameChars
+} = Constants
 
-// Minimum eight characters, at least one letter and one number:
-// from: https://stackoverflow.com/questions/19605150/regex-for-password-must-contain-at-least-eight-characters-at-least-one-number-a
-const DefaultPasswordRegex = '^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)[a-zA-Z\\d\\w\\W]{8,}$'
-const DefaultPasswordHelp = 'Minimum eight characters, at least one lowercase letter, one uppercase letter, and one number'
-
-const InvalidUsernameChars = '/\\?%*:|"\'&#'.split('')
-
-const EncryptedFlagPrefix = 'encrypted_'
+const {
+    AuthError
+  , BadCredentialsError
+  , InternalError
+  , NotImplementedError
+  , SecurityError
+  , UserConfirmedError
+  , UserExistsError
+  , UserLockedError
+  , UserNotConfirmedError
+  , UserNotFoundError
+  , ValidateError
+} = Errors
 
 class Auth {
 
@@ -51,7 +64,7 @@ class Auth {
           , passwordMin   : +env.AUTH_PASSWORD_MIN || 8
           , passwordRegex : env.AUTH_PASSWORD_REGEX || DefaultPasswordRegex
           , passwordHelp  : env.AUTH_PASSWORD_HELP || DefaultPasswordHelp
-          , emailType     : env.AUTH_EMAIL_TYPE || env.EMAIL_TYPE || Email.DefaultType
+          , emailType     : env.AUTH_EMAIL_TYPE || env.EMAIL_TYPE || DefaultEmailImpl
           , confirmExpiry : +env.AUTH_CONFIRM_EXPIRY || 86400
           , resetExpiry   : +env.AUTH_RESET_EXPIRY || 3600
         }
@@ -66,6 +79,8 @@ class Auth {
 
         this.opts = Util.defaults(Auth.defaults(process.env), opts)
         this.logger = new Logger(this.constructor.name, {server: true})
+
+        this.checkSecurity()
 
         const AuthType = require('./auth/' + path.basename(authType))
         this.impl = new AuthType(opts)
@@ -373,29 +388,29 @@ class Auth {
 
     validateUsername(str) {
         if (!str || !str.length) {
-            throw new ValidationError('Username cannot be empty.')
+            throw new ValidateError('Username cannot be empty.')
         }
         const badChar = InvalidUsernameChars.find(c => str.indexOf(c) > -1)
         if (badChar) {
-            throw new ValidationError('Bad character in username:' + badChar)
+            throw new ValidateError('Bad character in username:' + badChar)
         }
         if (!Util.isValidEmail(str)) {
-            throw new ValidationError('Username is not a valid email address.')
+            throw new ValidateError('Username is not a valid email address.')
         }
     }
 
     validatePassword(str) {
         if (!str || !str.length) {
-            throw new ValidationError('Password cannot be empty.')
+            throw new ValidateError('Password cannot be empty.')
         }
         if (str.length < this.opts.passwordMin) {
-            throw new ValidationError('Password must be at least ' + this.opts.passwordMin + ' characters.')
+            throw new ValidateError('Password must be at least ' + this.opts.passwordMin + ' characters.')
         }
         if (str.indexOf(EncryptedFlagPrefix) == 0) {
-            throw new ValidationError('Password cannot begin with ' + EncryptedFlagPrefix)
+            throw new ValidateError('Password cannot begin with ' + EncryptedFlagPrefix)
         }
         if (!this.passwordRegex.test(str)) {
-            throw new ValidationError('Invalid password: ' + this.opts.passwordHelp)
+            throw new ValidateError('Invalid password: ' + this.opts.passwordHelp)
         }
     }
 
@@ -439,43 +454,22 @@ class Auth {
             throw err
         }
     }
-}
 
-
-class AuthError extends Error {
-    constructor(...args) {
-        super(...args)
-        this.name = this.constructor.name
-        this.isAuthError = true
+    checkSecurity() {
+        if (this.opts.salt == DefaultSalt) {
+            if (!process.env.GAMEON_TEST) {
+                this.logger.warn(
+                    'AUTH_SALT not set, using default.'
+                  , 'For security, AUTH_SALT must be set'
+                  , 'in production environemnts.'
+                )
+            }
+            if (process.env.NODE_ENV == 'production') {
+                throw new SecurityError(
+                    'Must set custom AUTH_SALT when NODE_ENV=production'
+                )
+            }
+        }
     }
 }
-class BadCredentialsError extends AuthError {}
-class InternalError extends AuthError {
-    constructor(...args) {
-        super(...args)
-        this.isInternalError = true
-        this.cause = args.find(arg => arg instanceof Error)
-    }
-}
-class NotImplementedError extends AuthError {}
-class UserConfirmedError extends AuthError {}
-class UserExistsError extends AuthError {}
-class UserLockedError extends AuthError {}
-class UserNotConfirmedError extends AuthError {}
-class UserNotFoundError extends AuthError {}
-class ValidationError extends AuthError {}
-
-Auth.Errors = {
-    AuthError
-  , BadCredentialsError
-  , InternalError
-  , NotImplementedError
-  , UserConfirmedError
-  , UserExistsError
-  , UserLockedError
-  , UserNotConfirmedError
-  , UserNotFoundError
-  , ValidationError
-}
-
 module.exports = Auth

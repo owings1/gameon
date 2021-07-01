@@ -22,15 +22,15 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-const Api             = require('./api')
-const Auth            = require('./auth')
-const Constants       = require('../lib/constants')
-const Core            = require('../lib/core')
-const Errors          = require('../lib/errors')
-const Logger          = require('../lib/logger')
-const Util            = require('../lib/util')
-const Web             = require('./web')
-const WebSocketServer = require('websocket').server
+const Api       = require('./api')
+const Auth      = require('./auth')
+const Constants = require('../lib/constants')
+const Core      = require('../lib/core')
+const Errors    = require('../lib/errors')
+const Logger    = require('../lib/logger')
+const Util      = require('../lib/util')
+const Web       = require('./web')
+const WsServer  = require('websocket').server
 
 const bodyParser = require('body-parser')
 const chalk      = require('chalk')
@@ -186,7 +186,7 @@ class Server {
 
     createSocketServer(httpServer) {
 
-        const server = new WebSocketServer({httpServer})
+        const server = new WsServer({httpServer})
         server.conns = {}
 
         server.on('request', req => {

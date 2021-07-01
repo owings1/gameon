@@ -119,7 +119,7 @@ class Api {
     }
 
     handleError(err, res) {
-        if (err.isInternalError || !err.isAuthError) {
+        if (err.isInternalError || (!err.isAuthError && !err.isValidateError)) {
             this.handleInternalError(err, res)
         } else {
             res.status(400).send({status: 400, message: 'Bad Request', error: {name: err.name, message: err.message}})

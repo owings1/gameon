@@ -46,6 +46,10 @@ class BaseError extends Error {
         }
         super(message, ...args)
         this.name = this.constructor.name
+        this.cause = this.cause || args.find(it => it instanceof Error)
+        if (!this.cause && (message instanceof Error)) {
+            this.cause = message
+        }
         addProps(this)
     }
 }
@@ -65,11 +69,14 @@ class RequestError extends BaseError {
 }
 
 class ArgumentError   extends BaseError {}
+class AuthError       extends BaseError {}
 class ClientError     extends BaseError {}
 class DependencyError extends BaseError {}
 class GameError       extends BaseError {}
+class InternalError   extends BaseError {}
 class MenuError       extends BaseError {}
 class RobotError      extends BaseError {}
+class SecurityError   extends BaseError {}
 class ThemeError      extends BaseError {}
 
 // ArgumentError
@@ -82,6 +89,14 @@ class InvalidRegexError     extends ArgumentError {}
 class InvalidRollDataError  extends ArgumentError {}
 class InvalidSortDirError   extends ArgumentError {}
 class MaxDepthExceededError extends ArgumentError {}
+
+// AuthError
+class BadCredentialsError   extends AuthError {}
+class UserConfirmedError    extends AuthError {}
+class UserExistsError       extends AuthError {}
+class UserLockedError       extends AuthError {}
+class UserNotConfirmedError extends AuthError {}
+class UserNotFoundError     extends AuthError {}
 
 // ClientError
 class ConnectionClosedError extends ClientError {}
@@ -154,6 +169,8 @@ class ThemeNotFoundError extends ThemeError {}
 const Errors = {
     AlreadyRolledError
   , ArgumentError
+  , AuthError
+  , BadCredentialsError
   , CircularDependencyError
   , ClientError
   , ConnectionClosedError
@@ -172,6 +189,7 @@ const Errors = {
   , IllegalMoveError
   , IllegalStateError
   , IncompatibleKeysError
+  , InternalError
   , InvalidColorError
   , InvalidColumnError
   , InvalidDirError
@@ -205,16 +223,22 @@ const Errors = {
   , RequestError
   , ResetKeyNotEnteredError
   , RobotError
+  , SecurityError
   , StyleError
   , ThemeConfigError
   , ThemeError
   , ThemeExistsError
   , ThemeNotFoundError
-  , TurnCanceledError
   , TurnAlreadyFinishedError
+  , TurnCanceledError
   , TurnNotFinishedError
   , UndecidedMoveError
   , UnresolvedDependencyError
+  , UserConfirmedError
+  , UserExistsError
+  , UserLockedError
+  , UserNotConfirmedError
+  , UserNotFoundError
   , ValidateError
   , WaitingAbortedError
 }

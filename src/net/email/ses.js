@@ -22,14 +22,13 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-const Email   = require('../email')
+const Errors  = require('../../lib/errors')
 const Logger  = require('../../lib/logger')
 const Util    = require('../../lib/util')
 
-const AWS     = require('aws-sdk')
-const path    = require('path')
+const AWS = require('aws-sdk')
 
-const {InternalError} = Email.Errors
+const {InternalError} = Errors
 
 class SesEmail {
 

@@ -188,6 +188,25 @@ const ObsoleteServerUrls = [
 const DefaultTermEnabled = !process.env.GAMEON_TEST
 const DefaultThemeName = 'Default'
 
+// This should be set in production environments with SESSION_SECRET
+const DefaultSessionSecret = 'D2hjWtg95VkuzhFBVxnhDhSU4J9BYnz8'
+const DefaultSessionCookie = 'gasid'
+
+const DefaultEmailFromName    = 'Gameon'
+const DefaultEmailFromAddress = 'noreply@nowhere.example'
+const DefaultEmailImpl        = 'mock'
+
+// This should be set by AUTH_SALT in production environments
+const DefaultSalt  = 'RYm!BtLhPTx4%QrGku_6?Q*NZsfM54Q=Y9?p^q5$9#TM42YcY4WfEGb#48-x88-n'
+// Minimum eight characters, at least one letter and one number:
+// from: https://stackoverflow.com/questions/19605150/regex-for-password-must-contain-at-least-eight-characters-at-least-one-number-a
+const DefaultPasswordRegex = '^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)[a-zA-Z\\d\\w\\W]{8,}$'
+const DefaultPasswordHelp = 'Minimum eight characters, at least one lowercase letter, one uppercase letter, and one number'
+
+const InvalidUsernameChars = '/\\?%*:|"\'&#'.split('')
+const EncryptedFlagPrefix = 'encrypted_'
+
+
 const Constants = {
     BoardStrings
   , BottomPoints
@@ -195,10 +214,20 @@ const Constants = {
   , ColorAbbr
   , ColorNorm
   , Colors
+  , DefaultEmailFromAddress
+  , DefaultEmailFromName
+  , DefaultEmailImpl
+  , DefaultPasswordHelp
+  , DefaultPasswordRegex
+  , DefaultSalt
   , DefaultServerUrl
+  , DefaultSessionCookie
+  , DefaultSessionSecret
   , DefaultThemeName
   , Direction
+  , EncryptedFlagPrefix
   , InsideOrigins
+  , InvalidUsernameChars
   , MoveCoords
   , MoveHashes
   , ObsoleteServerUrls
