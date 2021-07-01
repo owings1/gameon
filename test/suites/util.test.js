@@ -169,6 +169,16 @@ describe('Util', () => {
             const result = Util.defaults(defaults, opts)
             expect(result).to.jsonEqual(opts)
         })
+
+        it('should handle 4 args', () => {
+            const defaults = {a: 1, b: 2}
+            const opts1 = {a: 1, b: 3}
+            const opts2 = {a: 4, b: 4}
+            const opts3 = {a: 2, d: 3}
+            const exp = {a:2, b:4}
+            const result = Util.defaults(defaults, opts1, opts2, opts3)
+            expect(result).to.jsonEqual(exp)
+        })
     })
 
     describe('#errMessage', () => {

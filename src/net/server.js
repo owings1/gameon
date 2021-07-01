@@ -43,9 +43,8 @@ const {White, Red, Opponent} = Constants
 
 const {Match, Dice} = Core
 
-const {merge} = Util
-
 prom.collectDefaultMetrics()
+
 const metrics = {
     connections: new prom.Gauge({
         name: 'open_connections',
@@ -71,7 +70,7 @@ const metrics = {
 
 class Server {
 
-    defaults(env) {
+    static defaults(env) {
         return {
             authType        : env.AUTH_TYPE || 'anonymous'
           , socketHsTimeout : +env.SOCKET_HSTIMEOUT || 5000
@@ -80,13 +79,17 @@ class Server {
     }
 
     constructor(opts) {
+
+        this.opts = Util.defaults(Server.defaults(process.env), opts)
         this.logger = new Logger(this.constructor.name, {server: true})
-        this.opts = merge({}, this.defaults(process.env), opts)
-        this.auth = new Auth(this.opts.authType, this.opts)
-        this.api = new Api(this.auth, this.opts)
-        this.web = new Web(this.auth, this.opts)
+
+        this.auth = new Auth(this.opts.authType, opts)
+        this.api  = new Api(this.auth, opts)
+        this.web  = new Web(this.auth, opts)
+
         this.app = this.createApp()
         this.metricsApp = this.createMetricsApp()
+
         this.matches = {}
         this.connTicker = 0
         this.httpServer = null
@@ -350,7 +353,7 @@ class Server {
         }
 
         const reply = res => {
-            this.sendMessage(Object.values(match.conns), merge({action}, res))
+            this.sendMessage(Object.values(match.conns), {action, ...res})
         }
 
         switch (action) {

@@ -102,7 +102,10 @@ class Util {
     }
 
     static defaults(defaults, ...opts) {
-        return Util.propsFrom(Util.merge({}, defaults, ...opts), defaults)
+        var obj = {...defaults}
+        opts.forEach(opts => obj = {...obj, ...opts})
+        return Util.propsFrom(obj, defaults)
+        //return Util.propsFrom(Util.merge({}, defaults, ...opts), defaults)
     }
 
     static destroyAll(obj) {

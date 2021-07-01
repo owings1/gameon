@@ -28,7 +28,6 @@ const Util   = require('../../lib/util')
 
 const fs        = require('fs')
 const fse       = require('fs-extra')
-const {merge}   = Util
 const path      = require('path')
 const {resolve} = path
 
@@ -37,14 +36,14 @@ const {UserNotFoundError}  = Auth.Errors
 
 class DirectoryAuth {
 
-    defaults() {
+    static defaults() {
         return {
             authDir : process.env.AUTH_DIR  || ''
         }
     }
 
     constructor(opts){
-        this.opts = merge({}, this.defaults(), opts)
+        this.opts = Util.defaults(DirectoryAuth.defaults(), opts)
         if (!this.opts.authDir) {
             throw new InternalError('Auth directory not set.')
         }

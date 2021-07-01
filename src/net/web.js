@@ -28,7 +28,6 @@ const Util   = require('../lib/util')
 const bodyParser   = require('body-parser')
 const cookieParser = require('cookie-parser')
 const express      = require('express')
-const {merge}      = Util
 const path         = require('path')
 const session      = require('express-session')
 
@@ -38,7 +37,7 @@ const DefaultSessionCookie = 'gasid'
 
 class Web {
 
-    defaults(env) {
+    static defaults(env) {
         return {
             sessionSecret   : env.SESSION_SECRET || DefaultSessionSecret
           , sessionInsecure : !!env.SESSION_INSECURE
@@ -48,9 +47,9 @@ class Web {
     }
 
     constructor(auth, opts) {
+        this.opts = Util.defaults(Web.defaults(process.env), opts)
         this.logger = new Logger(this.constructor.name, {server: true})
         this.auth = auth
-        this.opts = merge({}, this.defaults(process.env), opts)
         this.app = this.createExpressApp()
     }
 

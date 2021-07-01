@@ -25,14 +25,13 @@
 const Logger = require('../lib/logger')
 const Util   = require('../lib/util')
 
-const {merge} = Util
 const path    = require('path')
 
 const DefaultType = 'mock'
 
 class Email {
 
-    defaults(env) {
+    static defaults(env) {
         return {
             fromName    : env.EMAIL_FROM_NAME    || 'Gameon'
           , fromAddress : env.EMAIL_FROM_ADDRESS || 'noreply@nowhere.example'
@@ -40,16 +39,16 @@ class Email {
     }
 
     constructor(impl, opts) {
-        this.opts = merge({}, this.defaults(process.env), opts)
+        this.opts = Util.defaults(Email.defaults(process.env), opts)
         const Impl = require('./email/' + path.basename(impl))
-        this.impl = new Impl(this.opts)
+        this.impl = new Impl(opts)
     }
 
     // standard is SES sendEmail structure
     // see https://docs.aws.amazon.com/AWSJavaScriptSDK/latest/AWS/SES.html#sendEmail-property
     async send(params) {
         const source = this.opts.fromName + ' <' + this.opts.fromAddress + '>'
-        params = merge({}, params, {Source: source})
+        params = {...params, ...{Source: source}}
         try {
             await this.impl.send(params)
         } catch (err) {

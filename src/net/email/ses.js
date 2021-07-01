@@ -27,21 +27,20 @@ const Logger  = require('../../lib/logger')
 const Util    = require('../../lib/util')
 
 const AWS     = require('aws-sdk')
-const {merge} = Util
 const path    = require('path')
 
 const {InternalError} = Email.Errors
 
 class SesEmail {
 
-    defaults(env) {
+    static defaults(env) {
         return {
             
         }
     }
 
     constructor(opts) {
-        this.opts = merge({}, this.defaults(process.env), opts)
+        this.opts = Util.defaults(SesEmail.defaults(process.env), opts)
         this.ses = new AWS.SES()
     }
 

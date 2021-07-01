@@ -26,9 +26,8 @@ const Email  = require('./email')
 const Logger = require('../lib/logger')
 const Util   = require('../lib/util')
 
-const crypto  = require('crypto')
-const {merge} = Util
-const path    = require('path')
+const crypto = require('crypto')
+const path   = require('path')
 
 // This should be set by AUTH_SALT in production environments
 const DefaultSalt  = 'RYm!BtLhPTx4%QrGku_6?Q*NZsfM54Q=Y9?p^q5$9#TM42YcY4WfEGb#48-x88-n'
@@ -44,7 +43,7 @@ const EncryptedFlagPrefix = 'encrypted_'
 
 class Auth {
 
-    defaults(env) {
+    static defaults(env) {
         const opts = {
             salt          : env.AUTH_SALT || DefaultSalt
           , hash          : env.AUTH_HASH || 'sha512'
@@ -64,19 +63,26 @@ class Auth {
     }
 
     constructor(authType, opts) {
-        this.opts = merge({}, this.defaults(process.env), opts)
+
+        this.opts = Util.defaults(Auth.defaults(process.env), opts)
         this.logger = new Logger(this.constructor.name, {server: true})
-        this.passwordRegex = new RegExp(this.opts.passwordRegex)
+
         const AuthType = require('./auth/' + path.basename(authType))
-        this.impl = new AuthType(this.opts)
-        this.email = new Email(this.opts.emailType, this.opts)
+        this.impl = new AuthType(opts)
         this.isAnonymous = 'anonymous' == authType
+
+        this.email = new Email(this.opts.emailType, opts)
+
         const saltHash = crypto.createHash(this.opts.saltHash)
         saltHash.update(this.opts.salt)
         this.saltHash = saltHash.digest('base64')
+
         const saltMd5 = crypto.createHash('md5')
         saltMd5.update(this.opts.salt)
         this.saltMd5 = saltMd5.digest('hex')
+
+        this.passwordRegex = new RegExp(this.opts.passwordRegex)
+
         // fail fast
         crypto.createHash(this.opts.hash)
     }
@@ -190,18 +196,19 @@ class Auth {
     async sendConfirmEmail(username) {
         this.validateUsername(username)
         username = username.toLowerCase()
-        const user = await this.readUser(username)
+        var user = await this.readUser(username)
         if (user.confirmed) {
             throw new UserConfirmedError
         }
         const timestamp = Util.timestamp()
         const confirmKey = this.generateConfirmKey()
-        merge(user, {
-            confirmed         : false
+        user = {
+            ...user
+          , confirmed         : false
           , confirmKey        : this.hashPassword(confirmKey)
           , confirmKeyCreated : timestamp
           , updated           : timestamp
-        })
+        }
         await this._updateUser(username, user)
         const params = {
             Destination: {
@@ -232,17 +239,18 @@ class Auth {
         // TODO: should this block locked accounts?
         this.validateUsername(username)
         username = username.toLowerCase()
-        const user = await this.readUser(username)
+        var user = await this.readUser(username)
         if (!user.confirmed) {
             throw new UserNotConfirmedError
         }
         const timestamp = Util.timestamp()
         const resetKey = this.generateConfirmKey()
-        merge(user, {
-            resetKey        : this.hashPassword(resetKey)
+        user = {
+            ...user
+          , resetKey        : this.hashPassword(resetKey)
           , resetKeyCreated : timestamp
           , updated         : timestamp
-        })
+        }
         await this._updateUser(username, user)
         const params = {
             Destination: {
@@ -272,7 +280,7 @@ class Auth {
     async confirmUser(username, confirmKey) {
         this.validateUsername(username)
         username = username.toLowerCase()
-        const user = await this.readUser(username)
+        var user = await this.readUser(username)
         if (!confirmKey || this.hashPassword(confirmKey) != user.confirmKey) {
             throw new BadCredentialsError
         }
@@ -280,12 +288,13 @@ class Auth {
         if (Util.timestamp() > user.confirmKeyCreated + this.opts.confirmExpiry) {
             throw new BadCredentialsError('Confirm key expired')
         }
-        merge(user, {
-            confirmed         : true
+        user = {
+            ...user
+          , confirmed         : true
           , confirmKey        : null
           , confirmKeyCreated : null
           , updated           : timestamp
-        })
+        }
         await this._updateUser(username, user)
         this.logger.info('ConfirmUser', {username})
     }
@@ -293,7 +302,7 @@ class Auth {
     async resetPassword(username, password, resetKey) {
         this.validateUsername(username)
         username = username.toLowerCase()
-        const user = await this.readUser(username)
+        var user = await this.readUser(username)
         if (!resetKey || this.hashPassword(resetKey) != user.resetKey) {
             throw new BadCredentialsError
         }
@@ -302,12 +311,13 @@ class Auth {
             throw new BadCredentialsError('Reset key expired')
         }
         this.validatePassword(password)
-        merge(user, {
-            password        : this.hashPassword(password)
+        user = {
+            ...user
+          , password        : this.hashPassword(password)
           , resetKey        : null
           , resetKeyCreated : null
           , updated         : timestamp
-        })
+        }
         await this._updateUser(username, user)
         user.passwordEncrypted = this.encryptPassword(password)
         this.logger.info('ResetPassword', {username})
@@ -317,15 +327,16 @@ class Auth {
     async changePassword(username, oldPassword, newPassword) {
         this.validateUsername(username)
         username = username.toLowerCase()
-        const user = await this.readUser(username)
+        var user = await this.readUser(username)
         if (!oldPassword || this.hashPassword(oldPassword) != user.password) {
             throw new BadCredentialsError
         }
         this.validatePassword(newPassword)
-        merge(user, {
-            password : this.hashPassword(newPassword)
+        user = {
+            ...user
+          , password : this.hashPassword(newPassword)
           , updated  : Util.timestamp()
-        })
+        }
         await this._updateUser(username, user)
         user.passwordEncrypted = this.encryptPassword(newPassword)
         this.logger.info('ChangePassword', {username})
@@ -335,11 +346,12 @@ class Auth {
     async lockUser(username) {
         this.validateUsername(username)
         username = username.toLowerCase()
-        const user = await this.impl.readUser(username)
-        merge(user, {
-            locked  : true
+        var user = await this.impl.readUser(username)
+        user = {
+            ...user
+          , locked  : true
           , updated : Util.timestamp()
-        })
+        }
         await this._updateUser(username, user)
         this.logger.info('LockUser', {username})
     }
@@ -347,11 +359,12 @@ class Auth {
     async unlockUser(username) {
         this.validateUsername(username)
         username = username.toLowerCase()
-        const user = await this.impl.readUser(username)
-        merge(user, {
-            locked  : false
+        var user = await this.impl.readUser(username)
+        user = {
+            ...user
+          , locked  : false
           , updated : Util.timestamp()
-        })
+        }
         await this._updateUser(username, user)
         this.logger.info('UnlockUser', {username})
     }

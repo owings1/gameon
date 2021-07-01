@@ -26,7 +26,8 @@ const Logging = require('better-logging')
 const Util    = require('./util')
 const chalk   = require('chalk')
 
-const {merge} = Util
+const {stripAnsi} = Util
+
 const Levels = {
    debug : 4
  , log   : 3
@@ -47,42 +48,13 @@ const TypeColor = {
 
 class Logger {
 
-    static format(ctx) {
-        return chalk.grey(Util.stripAnsi(ctx.type).toUpperCase()) + ' ' + ctx.msg
-    }
-
-    static getFormatServer(name) {
-        return ctx => {
-            name = name || ''
-            const type = Util.stripAnsi(ctx.type)
-            return [
-                (new Date()).toISOString()
-              , chalk[TypeColor[type]](type.toUpperCase())
-              , '[' + name + ']'
-              , ctx.msg
-            ].join(' ')
-        }
-    }
-
-    static getFormatNamed(obj) {
-        return ctx => {
-            const name = obj.name || ''
-            const type = Util.stripAnsi(ctx.type)
-            return [
-                chalk[TypeColor[type]](type.toUpperCase())
-              , '[' + name + ']'
-              , ctx.msg
-            ].join(' ')
-        }
-    }
-
     static defaults() {
         return {server: false, named: false}
     }
 
     constructor(name, opts) {
+        this.opts = Util.defaults(Logger.defaults(), opts)
         this.name = name || ''
-        this.opts = merge({}, Logger.defaults(), opts)
         this.opts.name = this.name
         Logger.logify(this, this.opts)
     }
@@ -93,6 +65,7 @@ class Logger {
 
     writeStdout(str) {
         this.getStdout().write(str)
+        return this
     }
 
     _error(...args) {
@@ -100,7 +73,7 @@ class Logger {
     }
 
     static logify(obj, opts) {
-        opts = merge({}, Logger.defaults(), opts)
+        opts = {...opts}
         if (opts.server) {
             var format = Logger.getFormatServer(opts.name)
         } else if (opts.named) {
@@ -111,7 +84,7 @@ class Logger {
         Logging(obj, {format})
 
         obj.loglevel = Levels[process.env.LOG_LEVEL || 'info']
-        obj.logLevel = obj.loglevel
+
         obj.console = console
         obj._parentError = obj.error
         obj.error = (...args) => {
@@ -127,6 +100,35 @@ class Logger {
             return obj._error(...args)
         }
         return obj
+    }
+
+    static format(ctx) {
+        return chalk.grey(stripAnsi(ctx.type).toUpperCase()) + ' ' + ctx.msg
+    }
+
+    static getFormatServer(name) {
+        return ctx => {
+            name = name || ''
+            const type = stripAnsi(ctx.type)
+            return [
+                (new Date()).toISOString()
+              , chalk[TypeColor[type]](type.toUpperCase())
+              , '[' + name + ']'
+              , ctx.msg
+            ].join(' ')
+        }
+    }
+
+    static getFormatNamed(obj) {
+        return ctx => {
+            const name = obj.name || ''
+            const type = stripAnsi(ctx.type)
+            return [
+                chalk[TypeColor[type]](type.toUpperCase())
+              , '[' + name + ']'
+              , ctx.msg
+            ].join(' ')
+        }
     }
 }
 

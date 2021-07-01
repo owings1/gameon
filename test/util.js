@@ -34,8 +34,12 @@ function assertJsonEqual(b) {
 
 chai.Assertion.addMethod('jsonEqual', assertJsonEqual)
 
-const Util = require('../src/lib/util')
-const Core = require('../src/lib/core')
+function requireSrc(p) {
+    return require('../src/' + p)
+}
+
+const Util = requireSrc('lib/util')
+const Core = requireSrc('lib/core')
 
 const tmp = require('tmp')
 
@@ -52,10 +56,6 @@ const Structures = {
 
 function normState(str) {
     return Core.Board.fromStateString(str).stateString()
-}
-
-function requireSrc(p) {
-    return require('../src/' + p)
 }
 
 function noop() {

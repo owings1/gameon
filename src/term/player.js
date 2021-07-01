@@ -48,7 +48,7 @@ const {
 
 const {MatchCanceledError} = Errors
 
-const {merge, nchars, sp, uniqueInts} = Util
+const {nchars, sp, uniqueInts} = Util
 
 class TermPlayer extends Base {
 
@@ -573,9 +573,15 @@ class TermPlayer extends Base {
 
 class TermRobot extends TermPlayer {
 
+    static defaults() {
+        return {delay: 0.5}
+    }
+
     constructor(robot, opts) {
+
         super(robot.color, opts)
-        merge(this.opts, {delay: 0.5}, opts)
+
+        this.opts = {...this.opts, ...Util.defaults(TermRobot.defaults(), opts)}
         this.isRobot = true
         this.robot = robot
     }
@@ -621,7 +627,7 @@ class TermRobot extends TermPlayer {
     }
 
     meta() {
-        return merge(super.meta(), this.robot.meta())
+        return {...super.meta(), ...this.robot.meta()}
     }
 }
 

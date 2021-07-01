@@ -35,26 +35,25 @@ const {
     States
 } = Test
 
-const Constants = requireSrc('lib/constants')
-const Core   = requireSrc('lib/core')
-const Server = requireSrc('net/server')
-const Client = requireSrc('net/client')
-const NetPlayer = requireSrc('net/player')
-const Robot = requireSrc('robot/player')
-const Auth  = requireSrc('net/auth')
-const Util = requireSrc('lib/util')
-
+const Constants   = requireSrc('lib/constants')
 const Coordinator = requireSrc('lib/coordinator')
+const Core        = requireSrc('lib/core')
+const Server      = requireSrc('net/server')
+const Client      = requireSrc('net/client')
+const NetPlayer   = requireSrc('net/player')
+const Robot       = requireSrc('robot/player')
+const Auth        = requireSrc('net/auth')
+const Util        = requireSrc('lib/util')
 
-const {White, Red} = Constants
+const {White, Red}  = Constants
 const {Match, Dice} = Core
 
-const AWS = require('aws-sdk')
+const AWS   = require('aws-sdk')
 const fetch = require('node-fetch')
-const fs = require('fs')
-const fse = require('fs-extra')
-const merge = require('merge')
-const tmp = require('tmp')
+const fs    = require('fs')
+const fse   = require('fs-extra')
+const tmp   = require('tmp')
+
 const {URLSearchParams} = require('url')
 
 function newRando(...args) {
@@ -312,6 +311,7 @@ describe('Server', () => {
             authDir,
             sessionInsecure : true
         })
+        //console.log({authDir})
         authServer.logger.loglevel = 1
         authServer.auth.logger.loglevel = 1
         // hack so no req logging
@@ -1120,6 +1120,7 @@ describe('Server', () => {
                 const password = 'DtgZ77mU'
                 const params = getParams({username, password})
                 authServer.auth.createUser(username, password, true)
+                //console.log(authServer.auth)
                 const loginRes = await fetch(authServerUrl + '/login', {
                     method: 'POST',
                     body: params,
@@ -1132,6 +1133,8 @@ describe('Server', () => {
                         cookie: parsedCookies
                     }
                 })
+                //console.log(await loginRes.text())
+                //console.log(await res.text())
                 expect(res.status).to.equal(200)
             })
 
@@ -1206,7 +1209,7 @@ describe('NetPlayer', () => {
     })
 
     async function eastAndWest(opts) {
-        opts = merge({total: 1}, opts)
+        opts = {total: 1, ...opts}
         await client.connect()
         await client2.connect()
         const playersWest = {
@@ -1302,30 +1305,12 @@ describe('NetPlayer', () => {
 
 describe('Auth', () => {
 
-    /*
-    // method removed
-    describe('#isValidUsername', () => {
-        it('should return true for nobody@nowhere.example', () => {
-            const auth = new Auth('anonymous')
-            const input = 'nobody@nowhere.example'
-            const result = auth.isValidUsername(input)
-            expect(result).to.equal(true)
-        })
-        it('should return false for x', () => {
-            const auth = new Auth('anonymous')
-            const input = ''
-            const result = auth.isValidUsername(input)
-            expect(result).to.equal(false)
-        })
-    })
-    */
 
     describe('#defaults', () => {
 
         it('should set passwordHelp to non default when regex defined', () => {
-            const auth = new Auth('anonymous')
-            const d1 = auth.defaults({})
-            const d2 = auth.defaults({AUTH_PASSWORD_REGEX: '.*'})
+            const d1 = Auth.defaults({})
+            const d2 = Auth.defaults({AUTH_PASSWORD_REGEX: '.*'})
             expect(d2.passwordHelp).to.not.equal(d1.passwordHelp)
         })
     })
@@ -1564,7 +1549,7 @@ describe('Auth', () => {
 
             it('should throw InternalError caused by ENOENT when directory gets nuked', async () => {
                 const auth = newAuth()
-                await fse.remove(auth.opts.authDir)
+                await fse.remove(auth.impl.opts.authDir)
                 const err = await getErrorAsync(() => auth.listAllUsers())
                 expect(err.name).to.equal('InternalError')
                 expect(err.cause.code).to.equal('ENOENT')

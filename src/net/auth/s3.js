@@ -27,7 +27,6 @@ const Logger = require('../../lib/logger')
 const Util   = require('../../lib/util')
 
 const AWS = require('aws-sdk')
-const {merge} = Util
 const path = require('path')
 
 const {InternalError}       = Auth.Errors
@@ -36,7 +35,7 @@ const {UserNotFoundError}   = Auth.Errors
 
 class S3Auth {
 
-    defaults() {
+    static defaults() {
         return {
             s3_bucket : process.env.AUTH_S3_BUCKET  || ''
           , s3_prefix : process.env.AUTH_S3_PREFIX || 'users/'
@@ -44,7 +43,7 @@ class S3Auth {
     }
 
     constructor(opts){
-        this.opts = merge({}, this.defaults(), opts)
+        this.opts = Util.defaults(S3Auth.defaults(), opts)
         this.s3 = new AWS.S3()
     }
 

@@ -27,18 +27,17 @@ const Util   = require('../lib/util')
 
 const bodyParser = require('body-parser')
 const express    = require('express')
-const {merge}    = Util
 
 class Api {
 
-    defaults() {
+    static defaults() {
         return {}
     }
 
     constructor(auth, opts) {
+        this.opts = Util.defaults(Api.defaults(), opts)
         this.logger = new Logger(this.constructor.name, {server: true})
         this.auth = auth
-        this.opts = merge({}, this.defaults(), opts)
         this.v1 = this.create_v1()
     }
 
