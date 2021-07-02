@@ -46,16 +46,22 @@ const tmp = require('tmp')
 const States = require('./states')
 const Rolls = require('./rolls')
 
+const {Board} = Core
+
 const States28 = {}
 for (var k in States) {
-    States28[k] = Core.Board.fromStateString(States[k]).state28()
+    States28[k] = Board.fromStateString(States[k]).state28()
 }
 const Structures = {
     Initial : [0, 0, 2, 0, 0, 0, 0, -5, 0, -3, 0, 0, 0, 5, -5, 0, 0, 0, 3, 0, 5, 0, 0, 0, 0, -2, 0, 0]
 }
 
 function normState(str) {
-    return Core.Board.fromStateString(str).stateString()
+    return Board.fromStateString(str).stateString()
+}
+
+function fetchBoard(name) {
+    return Board.fromStateString(States[name])
 }
 
 function noop() {
@@ -221,21 +227,22 @@ function parseCookies(response) {
 }
 
 module.exports = {
-    expect,
-    getError,
-    getErrorAsync,
-    makeRandomMoves,
-    parseKey,
-    randomElement,
-    requireSrc,
-    tmpDir,
-    tmpFile,
-    noop,
-    normState,
-    parseCookies,
-    MockPrompter,
-    Rolls,
-    States,
-    States28,
-    Structures
+    expect
+  , fetchBoard
+  , getError
+  , getErrorAsync
+  , makeRandomMoves
+  , MockPrompter
+  , noop
+  , normState
+  , parseCookies
+  , parseKey
+  , randomElement
+  , requireSrc
+  , Rolls
+  , States
+  , States28
+  , Structures
+  , tmpDir
+  , tmpFile
 }
