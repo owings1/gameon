@@ -25,16 +25,14 @@
 const TestUtil = require('../util')
 
 const {
-    expect,
-    getError,
-    getErrorAsync,
-    makeRandomMoves,
-    randomElement,
-    requireSrc,
-    Rolls,
-    States,
-    States28,
-    Structures
+    expect
+  , fetchBoard
+  , getError
+  , getErrorAsync
+  , makeRandomMoves
+  , randomElement
+  , requireSrc
+  , Rolls
 } = TestUtil
 
 const Constants = requireSrc('lib/constants')
@@ -44,15 +42,24 @@ const Util = requireSrc('lib/util')
 const {White, Red} = Constants
 const {Match, Game, Board, Turn, Piece, Dice} = Core
 
-describe('-', () => {
+describe.only('-', () => {
 
     var board
+    var analyzer
 
-    beforeEach(() => board = new Board)
+    beforeEach(() => {
+        board = new Board
+        analyzer = board.analyzer
+    })
+
+    function load(name) {
+        board.setStateString(fetchBoard(name).state28())
+    }
 
     describe('#blotOrigins', () => {
+
         it('should return empty on initial with identical list on cache', () => {
-            const {analyzer} = Board.setup()
+            board.setup()
             const r1 = analyzer.blotOrigins(White)
             const r2 = analyzer.blotOrigins(White)
             expect(Array.isArray(r1)).to.equal(true)
@@ -63,21 +70,20 @@ describe('-', () => {
 
     describe('#blots', () => {
 
+        var blots
+
         it('should return empty for initial setup', () => {
-            const {analyzer} = Board.setup()
+            board.setup()
             const result = analyzer.blots(White)
             expect(result).to.have.length(0)
         })
 
         describe('Initial > White 0:1', () => {
 
-            var board
-            var blots
-
             beforeEach(() => {
-                board = Board.setup()
+                board.setup()
                 board.move(White, 0, 1)
-                blots = board.analyzer.blots(White)
+                blots = analyzer.blots(White)
                 blots.sort((a, b) => a.point - b.point)
             })
 
@@ -114,13 +120,11 @@ describe('-', () => {
 
         describe('EngagedWithBar', () => {
 
-            var board
-            var blots
             var blot
 
             beforeEach(() => {
-                board = Board.fromStateString(States.EngagedWithBar)
-                blots = board.analyzer.blots(White)
+                load('EngagedWithBar')
+                blots = analyzer.blots(White)
                 blot = blots[0]
             })
 
@@ -141,13 +145,11 @@ describe('-', () => {
 
         describe('BlotsIndBar1', () => {
 
-            var board
-            var blots
             var blot
 
             beforeEach(() => {
-                board = Board.fromStateString(States.BlotsIndBar1)
-                blots = board.analyzer.blots(White)
+                load('BlotsIndBar1')
+                blots = analyzer.blots(White)
                 blot = blots[0]
             })
 
@@ -168,12 +170,9 @@ describe('-', () => {
 
         describe('BlotsDisengaged', () => {
 
-            var board
-            var blots
-
             beforeEach(() => {
-                board = Board.fromStateString(States.BlotsDisengaged)
-                blots = board.analyzer.blots(White, false)
+                load('BlotsDisengaged')
+                blots = analyzer.blots(White, false)
             })
 
             it('should be empty', () => {
@@ -183,12 +182,9 @@ describe('-', () => {
 
         describe('BlotsOutOfRange', () => {
 
-            var board
-            var blots
-
             beforeEach(() => {
-                board = Board.fromStateString(States.BlotsOutOfRange)
-                blots = board.analyzer.blots(White, false)
+                load('BlotsOutOfRange')
+                blots = analyzer.blots(White, false)
             })
 
             it('should be empty', () => {
@@ -198,36 +194,38 @@ describe('-', () => {
 
         describe('BlotsMany1', () => {
 
-            var board
-            
             beforeEach(() => {
-                board = Board.fromStateString(States.BlotsMany1)
+                load('BlotsMany1')
             })
 
             describe('White', () => {
-                var blots
+
                 beforeEach(() => {
-                    blots = board.analyzer.blots(White)
+                    blots = analyzer.blots(White)
                     blots.sort((a, b) => a.point - b.point)
                 })
+
                 it('should have 3 blots, p10, p22, p24', () => {
                     expect(blots).to.have.length(3)
                     expect(blots[0].point).to.equal(10)
                     expect(blots[1].point).to.equal(22)
                     expect(blots[2].point).to.equal(24)
                 })
+
                 it('blot 1 should have 1 direct, 1 indirect, minDistance 3', () => {
                     const blot = blots[0]
                     expect(blot.directCount).to.equal(1)
                     expect(blot.indirectCount).to.equal(1)
                     expect(blot.minDistance).to.equal(3)
                 })
+
                 it('blot 2 should have 3 direct, 1 indirect, minDistance 3', () => {
                     const blot = blots[1]
                     expect(blot.directCount).to.equal(3)
                     expect(blot.indirectCount).to.equal(1)
                     expect(blot.minDistance).to.equal(3)
                 })
+
                 it('blot 3 should have 1 direct, 2 indirect, minDistance 5', () => {
                     const blot = blots[2]
                     expect(blot.directCount).to.equal(1)
@@ -238,10 +236,8 @@ describe('-', () => {
 
             describe('Red', () => {
 
-                var blots
-
                 beforeEach(() => {
-                    blots = board.analyzer.blots(Red)
+                    blots = analyzer.blots(Red)
                     blots.sort((a, b) => a.point - b.point)
                 })
 
@@ -277,27 +273,25 @@ describe('-', () => {
 
         describe('BlotsMinSkip1', () => {
 
-            var board
-
             beforeEach(() => {
-                board = Board.fromStateString(States.BlotsMinSkip1)
+                load('BlotsMinSkip1')
             })
 
             it('Red should have 0 blots for isIncludeAll=false', () => {
-                const blots = board.analyzer.blots(Red, false)
+                const blots = analyzer.blots(Red, false)
                 blots.sort((a, b) => a.point - b.point)
                 expect(blots).to.have.length(0)
             })
 
             it('Red should have 1 blot on point 3 for isIncludeAll=true', () => {
-                const blots = board.analyzer.blots(Red, true)
+                const blots = analyzer.blots(Red, true)
                 blots.sort((a, b) => a.point - b.point)
                 expect(blots).to.have.length(1)
                 expect(blots[0].point).to.equal(3)
             })
 
             it('White should have 4 blots on points 9, 11, 12, 16 with isIncludeAll=true', () => {
-                const blots = board.analyzer.blots(White, true)
+                const blots = analyzer.blots(White, true)
                 blots.sort((a, b) => a.point - b.point)
                 expect(blots).to.have.length(4)
                 expect(blots[0].point).to.equal(9)
@@ -307,21 +301,19 @@ describe('-', () => {
             })
 
             it('White should have no blots when isIncludeAll=false', () => {
-                const blots = board.analyzer.blots(White, false)
+                const blots = analyzer.blots(White, false)
                 expect(blots).to.have.length(0)
             })
         })
 
         describe('BlotsMinSkip2', () => {
 
-            var board
-
             beforeEach(() => {
-                board = Board.fromStateString(States.BlotsMinSkip2)
+                load('BlotsMinSkip2')
             })
 
             it('White should have 7 blots on points 7, 9, 11, 12, 16, 17, 21 with isIncludeAll=true', () => {
-                const blots = board.analyzer.blots(White, true)
+                const blots = analyzer.blots(White, true)
                 blots.sort((a, b) => a.point - b.point)
                 expect(blots).to.have.length(7)
                 expect(blots[0].point).to.equal(7)
@@ -334,7 +326,7 @@ describe('-', () => {
             })
 
             it('White should have 1 blot on point 21 with isIncludeAll=false', () => {
-                const blots = board.analyzer.blots(White, false)
+                const blots = analyzer.blots(White, false)
                 expect(blots).to.have.length(1)
                 expect(blots[0].point).to.equal(21)
             })
@@ -342,14 +334,12 @@ describe('-', () => {
 
         describe('BlotsMinSkip3', () => {
 
-            var board
-
             beforeEach(() => {
-                board = Board.fromStateString(States.BlotsMinSkip3)
+                load('BlotsMinSkip3')
             })
 
             it('Red should have 5 blots on points 2, 3, 7, 12, 13 with isIncludeAll=true', () => {
-                const blots = board.analyzer.blots(Red, true)
+                const blots = analyzer.blots(Red, true)
                 blots.sort((a, b) => a.point - b.point)
                 expect(blots).to.have.length(5)
                 expect(blots[0].point).to.equal(2)
@@ -360,7 +350,7 @@ describe('-', () => {
             })
 
             it('Red should have 4 blots on points 2, 3, 7, 12 with isIncludeAll=false', () => {
-                const blots = board.analyzer.blots(Red, false)
+                const blots = analyzer.blots(Red, false)
                 blots.sort((a, b) => a.point - b.point)
                 expect(blots).to.have.length(4)
                 expect(blots[0].point).to.equal(2)
@@ -372,14 +362,12 @@ describe('-', () => {
 
         describe('BlotsMaxSkip1', () => {
 
-            var board
-
             beforeEach(() => {
-                board = Board.fromStateString(States.BlotsMaxSkip1)
+                load('BlotsMaxSkip1')
             })
 
             it('White whould have 3 blots on points 12, 13, 22 with isIncludeAll=true', () => {
-                const blots = board.analyzer.blots(White, true)
+                const blots = analyzer.blots(White, true)
                 blots.sort((a, b) => a.point - b.point)
                 expect(blots).to.have.length(3)
                 expect(blots[0].point).to.equal(12)
@@ -387,8 +375,8 @@ describe('-', () => {
                 expect(blots[2].point).to.equal(22)
             })
 
-            it('White should have 1 blot on point 22 with minDistance 1 with isIncludAll=false', () => {
-                const blots = board.analyzer.blots(White, false)
+            it('White should have 1 blot on point 22 with minDistance 1 with isIncludeAll=false', () => {
+                const blots = analyzer.blots(White, false)
                 expect(blots).to.have.length(1)
                 expect(blots[0].point).to.equal(22)
                 expect(blots[0].minDistance).to.equal(1)
@@ -397,14 +385,12 @@ describe('-', () => {
 
         describe('BlotsMaxSkip2', () => {
 
-            var board
-
             beforeEach(() => {
-                board = Board.fromStateString(States.BlotsMaxSkip2)
+                load('BlotsMaxSkip2')
             })
 
             it('White whould have 4 blots on points 7, 13, 15, 16 with isIncludeAll=true', () => {
-                const blots = board.analyzer.blots(White, true)
+                const blots = analyzer.blots(White, true)
                 blots.sort((a, b) => a.point - b.point)
                 expect(blots).to.have.length(4)
                 expect(blots[0].point).to.equal(7)
@@ -413,8 +399,8 @@ describe('-', () => {
                 expect(blots[3].point).to.equal(16)
             })
 
-            it('White should have 1 blot on point 7 with minDistance 6, directCount 1 and indirectCount 1 with isIncludAll=false', () => {
-                const blots = board.analyzer.blots(White, false)
+            it('White should have 1 blot on point 7 with minDistance 6, directCount 1 and indirectCount 1 with isIncludeAll=false', () => {
+                const blots = analyzer.blots(White, false)
                 expect(blots).to.have.length(1)
                 expect(blots[0].point).to.equal(7)
                 expect(blots[0].minDistance).to.equal(6)
@@ -426,7 +412,7 @@ describe('-', () => {
         describe('CornerCase', () => {
 
             it('should not barf on a sparse board with isIncludeAll=false', () => {
-                const {analyzer} = Board.fromStateString(States.OneWhitePiece)
+                load('OneWhitePiece')
                 const result = analyzer.blots(White, false)
                 expect(Array.isArray(result)).to.equal(true)
                 expect(result).to.have.length(0)
@@ -438,7 +424,7 @@ describe('-', () => {
 
         it('should return true for white with one on bar', () => {
             board.pushBar(White)
-            const result = board.analyzer.hasBar(White)
+            const result = analyzer.hasBar(White)
             expect(result).to.equal(true)
         })
     })
@@ -449,7 +435,7 @@ describe('-', () => {
             for (var i = 0; i < 15; i++) {
                 board.pushHome(Red)
             }
-            const result = board.analyzer.isAllHome(Red)
+            const result = analyzer.isAllHome(Red)
             expect(result).to.equal(true)
         })
     })
@@ -457,31 +443,30 @@ describe('-', () => {
     describe('#isDisengaged', () => {
 
         it('should return false for Initial', () => {
-            const {analyzer} = Board.setup()
+            board.setup()
             const result = analyzer.isDisengaged()
             expect(result).to.equal(false)
         })
 
         it('should return true for Either65Win', () => {
-            const {analyzer} = Board.fromStateString(States.Either65Win)
+            load('Either65Win')
             const result = analyzer.isDisengaged()
             expect(result).to.equal(true)
         })
 
         it('should return true for WhiteGammon1', () => {
-            const {analyzer} = Board.fromStateString(States.WhiteGammon1)
+            load('WhiteGammon1')
             const result = analyzer.isDisengaged()
             expect(result).to.equal(true)
         })
 
         it('should return false for EngagedWithBar', () => {
-            const {analyzer} = Board.fromStateString(States.EngagedWithBar)
+            load('EngagedWithBar')
             const result = analyzer.isDisengaged()
             expect(result).to.equal(false)
         })
 
         it('should return true for empty board', () => {
-            const {analyzer} = new Board
             const result = analyzer.isDisengaged()
             expect(result).to.equal(true)
         })
@@ -490,19 +475,18 @@ describe('-', () => {
     describe('#maxOriginOccupied', () => {
 
         it('should return -Infinity on empty board', () => {
-            const board = new Board
-            const result = board.analyzer.maxOriginOccupied(White)
+            const result = analyzer.maxOriginOccupied(White)
             expect(result).to.equal(-Infinity)
         })
 
         it('should return 18 for White on initial', () => {
-            const {analyzer} = Board.setup()
+            board.setup()
             const result = analyzer.maxOriginOccupied(White)
             expect(result).to.equal(18)
         })
 
         it('should return 23 for Red on initial', () => {
-            const {analyzer} = Board.setup()
+            board.setup()
             const result = analyzer.maxOriginOccupied(Red)
             expect(result).to.equal(23)
         })
@@ -511,7 +495,6 @@ describe('-', () => {
     describe('#maxPointOccupied', () => {
 
         it('should return -Infinity on empty board for each color', () => {
-            const {analyzer} = new Board
             const r1 = analyzer.maxPointOccupied(White)
             const r2 = analyzer.maxPointOccupied(Red)
             expect(r1).to.equal(-Infinity)
@@ -523,7 +506,7 @@ describe('-', () => {
 
         it('should return false for white with one on bar', () => {
             board.pushBar(White)
-            const result = board.analyzer.mayBearoff(White)
+            const result = analyzer.mayBearoff(White)
             expect(result).to.equal(false)
         })
 
@@ -531,7 +514,7 @@ describe('-', () => {
             for (var i = 0; i < 15; ++i) {
                 board.pushOrigin(0, Red)
             }
-            const result = board.analyzer.mayBearoff(Red)
+            const result = analyzer.mayBearoff(Red)
             expect(result).to.equal(true)
         })
 
@@ -540,12 +523,12 @@ describe('-', () => {
                 board.pushOrigin(23, Red)
             }
             board.pushOrigin(0, Red)
-            const result = board.analyzer.mayBearoff(Red)
+            const result = analyzer.mayBearoff(Red)
             expect(result).to.equal(false)
         })
 
         it('should hit maxPoint cache (coverage)', () => {
-            const {analyzer} = Board.setup()
+            board.setup()
             analyzer.cache['maxPointOccupied.White'] = 6
             const result = analyzer.mayBearoff(White)
             expect(result).to.equal(true)
@@ -555,17 +538,18 @@ describe('-', () => {
     describe('#minOriginOccupied', () => {
 
         it('should return Infinity on empty board', () => {
-            const board = new Board
-            const result = board.analyzer.minOriginOccupied(White)
+            const result = analyzer.minOriginOccupied(White)
             expect(result).to.equal(Infinity)
         })
+
         it('should return 0 for White on initial', () => {
-            const {analyzer} = Board.setup()
+            board.setup()
             const result = analyzer.minOriginOccupied(White)
             expect(result).to.equal(0)
         })
+
         it('should return 5 for Red on initial', () => {
-            const {analyzer} = Board.setup()
+            board.setup()
             const result = analyzer.minOriginOccupied(Red)
             expect(result).to.equal(5)
         })
@@ -574,7 +558,6 @@ describe('-', () => {
     describe('#minPointOccupied', () => {
 
         it('should return Infinity on empty board for each color', () => {
-            const {analyzer} = new Board
             const r1 = analyzer.minPointOccupied(White)
             const r2 = analyzer.minPointOccupied(Red)
             expect(r1).to.equal(Infinity)
@@ -582,7 +565,7 @@ describe('-', () => {
         })
 
         it('should return 6 on initial for each color', () => {
-            const {analyzer} = Board.setup()
+            board.setup()
             const r1 = analyzer.minPointOccupied(White)
             const r2 = analyzer.minPointOccupied(Red)
             expect(r1).to.equal(6)
@@ -590,7 +573,6 @@ describe('-', () => {
         })
 
         it('should return from cache when populated', () => {
-            const {analyzer} = new Board
             analyzer.cache['minPointOccupied.White'] = 1
             const result = analyzer.minPointOccupied(White)
             expect(result).to.equal(1)
@@ -600,19 +582,19 @@ describe('-', () => {
     describe('#nthPieceOnOrigin', () => {
 
         it('should return empty for 2 on initial', () => {
-            const {analyzer} = Board.setup()
+            board.setup()
             const result = analyzer.nthPieceOnOrigin(2, 0)
             expect(!!result).to.equal(false)
         })
 
         it('should return White for 0,1 on initial', () => {
-            const {analyzer} = Board.setup()
+            board.setup()
             const result = analyzer.nthPieceOnOrigin(0, 1)
             expect(result).to.equal(White)
         })
 
         it('should return empty for 0,2 on initial', () => {
-            const {analyzer} = Board.setup()
+            board.setup()
             const result = analyzer.nthPieceOnOrigin(0, 2)
             expect(!!result).to.equal(false)
         })
@@ -621,19 +603,19 @@ describe('-', () => {
     describe('#originOccupier', () => {
 
         it('should return White for 0 on Initial', () => {
-            const {analyzer} = Board.setup()
+            board.setup()
             const result = analyzer.originOccupier(0)
             expect(result).to.equal(White)
         })
 
         it('should return Red for 23 on Initial', () => {
-            const {analyzer} = Board.setup()
+            board.setup()
             const result = analyzer.originOccupier(23)
             expect(result).to.equal(Red)
         })
 
         it('should return empty for 2 on Initial', () => {
-            const {analyzer} = Board.setup()
+            board.setup()
             const result = analyzer.originOccupier(1)
             expect(!!result).to.equal(false)
         })
@@ -652,13 +634,13 @@ describe('-', () => {
     describe('#piecesOnPoint', () => {
 
         it('should return 5 for white 6 for initial state', () => {
-            const {analyzer} = Board.setup()
+            board.setup()
             const result = analyzer.piecesOnPoint(White, 6)
             expect(result).to.equal(5)
         })
 
         it('should return 5 for red 6 for initial state', () => {
-            const {analyzer} = Board.setup()
+            board.setup()
             const result = analyzer.piecesOnPoint(Red, 6)
             expect(result).to.equal(5)
         })
@@ -667,7 +649,6 @@ describe('-', () => {
     describe('#pipCount', () => {
 
         it('should return 0 for White on blank board', () => {
-            const {analyzer} = new Board
             const result = analyzer.pipCount(White)
             expect(result).to.equal(0)
         })
@@ -676,7 +657,7 @@ describe('-', () => {
     describe('#pipCounts', () => {
 
         it('should return 167 for each at initial state', () => {
-            const {analyzer} = Board.setup()
+            board.setup()
             const result = analyzer.pipCounts()
             expect(result.Red).to.equal(167)
             expect(result.White).to.equal(167)
@@ -686,8 +667,8 @@ describe('-', () => {
     describe('#pointsHeld', () => {
 
         it('should return expected at initial state for each color, sorted in point order', () => {
+            board.setup()
             const exp = [6, 8, 13, 24]
-            const {analyzer} = Board.setup()
             const r1 = analyzer.pointsHeld(White)
             const r2 = analyzer.pointsHeld(Red)
             expect(r1).to.jsonEqual(exp)
@@ -695,7 +676,6 @@ describe('-', () => {
         })
 
         it('should return empty list on empty board', () => {
-            const {analyzer} = new Board
             const result = analyzer.pointsHeld(White)
             expect(Array.isArray(result)).to.equal(true)
             expect(result).to.have.length(0)
@@ -703,7 +683,7 @@ describe('-', () => {
 
         it('should return expected from new cache after White 0:1', () => {
             const exp = [6, 8, 13]
-            const {analyzer} = Board.setup()
+            board.setup()
             analyzer.pointsHeld(White)
             analyzer.board.move(White, 0, 1)
             const r1 = analyzer.pointsHeld(White)
@@ -716,15 +696,15 @@ describe('-', () => {
     describe('#pointsOccupied', () => {
 
         it('should be sorted and return expected for White at initial state', () => {
+            board.setup()
             const exp = [6, 8, 13, 24]
-            const {analyzer} = Board.setup()
             const result = analyzer.pointsOccupied(White)
             expect(result).to.jsonEqual(exp)
         })
 
         it('should be sorted and return expected for Red at initial state', () => {
+            board.setup()
             const exp = [6, 8, 13, 24]
-            const {analyzer} = Board.setup()
             const result = analyzer.pointsOccupied(Red)
             expect(result).to.jsonEqual(exp)
         })
@@ -733,14 +713,14 @@ describe('-', () => {
     describe('#primes', () => {
 
         it('should return 1 prime of size 5 for white for White5PointPrime1', () => {
-            const {analyzer} = Board.fromStateString(States.White5PointPrime1)
+            load('White5PointPrime1')
             const result = analyzer.primes(White)
             expect(result).to.have.length(1)
             expect(result[0].size).to.equal(5)
         })
 
         it('should retun 2 primes of size 3 for red for RedTwo3Primes1', () => {
-            const {analyzer} = Board.fromStateString(States.RedTwo3Primes1)
+            load('RedTwo3Primes1')
             const result = analyzer.primes(Red)
             expect(result).to.have.length(2)
             expect(result[0].size).to.equal(3)
@@ -763,54 +743,50 @@ describe('-', () => {
         ]
 
         legalsKeys.forEach(name => {
-            it('should validate ' + name, () => {
-                Board.fromStateString(States[name]).analyzer.validateLegalBoard()
+            it(`should validate ${name}`, () => {
+                fetchBoard(name).analyzer.validateLegalBoard()
             })
         })
 
         illegalsKeys.forEach(name => {
-            it('should invalidate ' + name + ' with illegal state error', () => {
+            it(`should invalidate ${name} with illegal state error`, () => {
                 const err = getError(() =>
-                    Board.fromStateString(States[name]).analyzer.validateLegalBoard()
+                    fetchBoard(name).analyzer.validateLegalBoard()
                 )
                 expect(err.isIllegalStateError).to.equal(true)
             })
         })
 
-        it('should throw when board has extra slot', () => {
-            const {analyzer} = new Board
-            analyzer.board.slots.push([])
+        function getValErrorAssertState() {
             const err = getError(() => analyzer.validateLegalBoard())
             expect(err.isIllegalStateError).to.equal(true)
+            return err
+        }
+
+        it('should throw when board has extra slot', () => {
+            board.slots.push([])
+            getValErrorAssertState()
         })
 
         it('should throw with different colors on origin', () => {
-            const {analyzer} = new Board
-            analyzer.board.pushOrigin(0, White)
-            analyzer.board.pushOrigin(0, Red)
-            const err = getError(() => analyzer.validateLegalBoard())
-            expect(err.isIllegalStateError).to.equal(true)
+            board.pushOrigin(0, White)
+            board.pushOrigin(0, Red)
+            getValErrorAssertState()
         })
 
         it('should throw with invalid object on origin', () => {
-            const {analyzer} = new Board
-            analyzer.board.slots[0].push({color: 'foo'})
-            const err = getError(() => analyzer.validateLegalBoard())
-            expect(err.isIllegalStateError).to.equal(true)
+            board.slots[0].push({color: 'foo'})
+            getValErrorAssertState()
         })
 
         it('should throw when a white piece is on the red home', () => {
-            const {analyzer} = new Board
-            analyzer.board.pushHome(Red, new Piece(White))
-            const err = getError(() => analyzer.validateLegalBoard())
-            expect(err.isIllegalStateError).to.equal(true)
+            board.pushHome(Red, new Piece(White))
+            getValErrorAssertState()
         })
 
         it('should throw when a white piece is on the red bar', () => {
-            const {analyzer} = new Board
-            analyzer.board.pushBar(Red, new Piece(White))
-            const err = getError(() => analyzer.validateLegalBoard())
-            expect(err.isIllegalStateError).to.equal(true)
+            board.pushBar(Red, new Piece(White))
+            getValErrorAssertState()
         })
     })
 })
