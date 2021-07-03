@@ -56,7 +56,12 @@ describe('-', () => {
 
     var coordinator
 
+    var rolls
+    var roller
+
     beforeEach(() => {
+        rolls = []
+        roller = () => rolls.shift() || Dice.rollTwo()
         players.White = new MockPlayer(White)
         players.Red = new MockPlayer(Red)
         coordinator = new Coordinator
@@ -196,9 +201,8 @@ describe('-', () => {
         var file
         var game
 
-        function readGame(f) {
-            f = f || file
-            return JSON.parse(fs.readFileSync(f))
+        async function readGame(f) {
+            return await fse.readJson(f || file)
         }
 
         before(() => {
@@ -215,7 +219,7 @@ describe('-', () => {
 
         it('should write valid game meta for new game', async () => {
             await coordinator.recordGame(game, file, players)
-            const result = readGame()
+            const result = await readGame()
             expect(result.uuid).to.equal(game.uuid)
         })
     })
@@ -225,9 +229,8 @@ describe('-', () => {
         var file
         var match
 
-        function readMatch(f) {
-            f = f || file
-            return JSON.parse(fs.readFileSync(f))
+        async function readMatch(f) {
+            return await fse.readJson(f || file)
         }
 
         beforeEach(() => {
@@ -241,26 +244,25 @@ describe('-', () => {
 
         it('should write valid match meta for new match', async () => {
             await coordinator.recordMatch(match, file, players)
-            const result = readMatch()
+            const result = await readMatch()
             expect(result.uuid).to.equal(match.uuid)
         })
     })
 
     describe('#runGame', () => {
 
-        var rolls
-
-        var roller
+        var game
+        var board
 
         beforeEach(() => {
             rolls = [[2, 1], [6, 5]]
-            roller = () => rolls.shift() || Dice.rollTwo()
+            game = new Game({roller})
+            board = game.board
         })
 
         it('should run EitherOneMoveWin with 2,1 first roll white to win', async () => {
             rolls = [[2, 1]]
-            const game = new Game({roller})
-            game.board.setStateString(States.EitherOneMoveWin)
+            board.setStateString(States.EitherOneMoveWin)
             players.White.moves.push([23, 2])
             await coordinator.runGame(players, game)
             expect(game.getWinner()).to.equal(White)
@@ -268,8 +270,6 @@ describe('-', () => {
 
         it('should run Either65Win with 2,1 first roll, next roll 6,5 red to win', async () => {
             //coordinator.logger.loglevel = 4
-            const game = new Game({roller})
-            const board = game.board
             board.setStateString(States.Either65Win)
             players.White.moves = [
                 [PointOrigins[White][6], 2],
@@ -284,8 +284,6 @@ describe('-', () => {
         })
 
         it('should run Either65Win with 2,1 first roll, red double, white decline, red win with 1 point', async () => {
-            const game = new Game({roller})
-            const board = game.board
             board.setStateString(States.Either65Win)
             players.White.moves = [
                 [PointOrigins[White][6], 2],
@@ -299,8 +297,7 @@ describe('-', () => {
         })
 
         it('should run Either65Win with 2,1 first roll, next roll 6,5 red to win and not call red turnOption with isCrawford=true', async () => {
-            const game = new Game({isCrawford: true, roller})
-            const board = game.board
+            game.opts.isCrawford = true
             board.setStateString(States.Either65Win)
             players.White.moves = [
                 [PointOrigins[White][6], 2],
@@ -316,8 +313,6 @@ describe('-', () => {
         })
 
         it('should run Either65Win with 2,1 first roll, red double, white accept, red rolls 6,5 to win finalValue 2', async () => {
-            const game = new Game({roller})
-            const board = game.board
             board.setStateString(States.Either65Win)
             players.White.moves = [
                 [PointOrigins[White][6], 2],
@@ -341,11 +336,6 @@ describe('-', () => {
             var r1
             var r2
 
-            var game
-
-            var rolls
-            var roller
-
             beforeEach(() => {
                 r1 = newRando(White)
                 r2 = newRando(Red)
@@ -355,9 +345,6 @@ describe('-', () => {
                 t2.logger.loglevel = 1
                 t1.logger.stdout = {write: noop}
                 t2.logger.stdout = t1.logger.stdout
-                rolls = []
-                roller = () => rolls.shift() || Dice.rollTwo()
-                game = new Game({roller})
             })
 
             afterEach(async () => {
@@ -365,7 +352,7 @@ describe('-', () => {
             })
 
             it('should play RedWinWith66 for white first move 6,1 then red 6,6', async () => {
-                game.board.setStateString(States.RedWinWith66)
+                board.setStateString(States.RedWinWith66)
                 rolls = [[6, 1]]
                 t1.rollTurn = turn => turn.setRoll([6, 6])
                 t2.rollTurn = turn => turn.setRoll([6, 6])
@@ -407,7 +394,7 @@ describe('-', () => {
             })
 
             it('should play RedWinWith66 for white first move 6,1 then red double, white accept, red rolls 6,6 backgammon', async () => {
-                game.board.setStateString(States.RedWinWith66)
+                board.setStateString(States.RedWinWith66)
                 rolls = [[6, 1]]
                 t1.rollTurn = turn => turn.setRoll([6, 6])
                 t2.rollTurn = turn => turn.setRoll([6, 6])
@@ -435,7 +422,7 @@ describe('-', () => {
             })
 
             it('should play RedWinWith66, white 6,1, red double, white accept, red 6,5, white 1,2, red cant double 6,6, backgammon', async () => {
-                game.board.setStateString(States.RedWinWith66)
+                board.setStateString(States.RedWinWith66)
                 rolls = [
                     [6, 1],
                     [6, 5],
@@ -445,17 +432,17 @@ describe('-', () => {
                 t1.prompt = MockPrompter([
                     // white's first turn
                     {origin: '13'},
-                    {face: '6'},
-                    {origin: '8'},
-                    {finish: 'f'},
+                    {face:    '6'},
+                    {origin:  '8'},
+                    {finish:  'f'},
                     // accept
-                    {accept: 'y'},
+                    {accept:  'y'},
                     // white's turn
-                    {action: 'r'},
+                    {action:  'r'},
                     {origin: '24'},
-                    {face: '2'},
+                    {face:    '2'},
                     {origin: '24'},
-                    {finish: 'f'}
+                    {finish:  'f'}
                 ])
                 t2.prompt = MockPrompter([
                     // red's turn
@@ -480,9 +467,6 @@ describe('-', () => {
 
         var match
         var recordDir
-        var rolls
-
-        var roller
 
         before(() => {
             recordDir = tmpDir()
@@ -490,7 +474,6 @@ describe('-', () => {
 
         beforeEach(() => {
             rolls = [[2, 1]]
-            roller = () => rolls.shift() || Dice.rollTwo()
             match = new Match(1, {roller})
         })
 

@@ -42,7 +42,7 @@ const Util = requireSrc('lib/util')
 const {White, Red} = Constants
 const {Match, Game, Board, Turn, Piece, Dice} = Core
 
-describe.only('-', () => {
+describe('-', () => {
 
     var board
     var analyzer
