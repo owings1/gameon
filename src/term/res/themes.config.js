@@ -32,7 +32,7 @@ const BuiltIn = {
           , 'board.piece.red.color'        : 'red bold'
           , 'board.piece.white.color'      : 'white bold'
 
-          , 'hr.color' : 'grey'
+          , 'hr.color' : 'grey dim'
 
           , 'table.row.even.color' : '#66fffc'
           , 'table.title.color'    : '#ff6bb3 bold'
@@ -43,6 +43,10 @@ const BuiltIn = {
           , 'board.log.dice.color'       : 'magenta'
           , 'board.log.gameStatus.color' : 'cyan'
           , 'board.log.notice.color'     : 'yellow bold'
+
+          , 'prompt.caret.error.color'     : 'red'
+          , 'prompt.choice.selected.color' : 'cyan'
+          , 'prompt.choice.paren.color'    : 'grey'
         }
     }
   , Offbeat : {
@@ -54,6 +58,10 @@ const BuiltIn = {
           , 'board.pointLabel.background' : 'red bright'
           , 'board.pointLabel.color'      : 'white bold'
           , 'board.cube.active.color'     : 'white'
+
+          , 'prompt.choice.selected.background' : 'grey dim'
+          , 'prompt.choice.selected.color'      : 'orange'
+          , 'prompt.message.error.color'        : 'pink'
 
           , 'table.head.color' : 'orange'
 
@@ -97,6 +105,18 @@ const Categories = [
   , 'board.log.piece.red'
   , 'board.log.piece.white'
 
+  , 'prompt.answer'
+  , 'prompt.caret.error'
+  , 'prompt.choice'
+  , 'prompt.choice.selected'
+  , 'prompt.choice.number'
+  , 'prompt.choice.number.selected'
+  , 'prompt.choice.paren'
+  , 'prompt.choice.paren.selected'
+  , 'prompt.message.prompt'
+  , 'prompt.message.error'
+  , 'prompt.separator'
+
   , 'text'
 ]
 
@@ -123,6 +143,17 @@ const CategoryAliases = {
   , 'board.outside.pipCount' : 'board.outside'
 
   , 'hr' : 'text'
+
+  , 'prompt.answer'                 : 'text'
+  , 'prompt.caret.error'            : 'text'
+  , 'prompt.message.prompt'         : 'text'
+  , 'prompt.message.error'          : 'text'
+  , 'prompt.choice'                 : 'text'
+  , 'prompt.choice.selected'        : 'prompt.answer'
+  , 'prompt.choice.number'          : 'prompt.choice'
+  , 'prompt.choice.paren'           : 'prompt.choice.number'
+  , 'prompt.choice.number.selected' : 'prompt.choice.selected'
+  , 'prompt.separator'              : 'hr'
 
   , 'table.border'   : 'board.border'
   , 'table.row'      : 'text'
@@ -161,6 +192,9 @@ const KeyAliases = {
 
   , 'board.cube.active.color'   : 'board.border.color'
   , 'board.cube.inactive.color' : 'board.cube.active.color'
+
+  , 'prompt.choice.paren.selected.color'       : 'prompt.choice.paren.color'
+  , 'prompt.choice.paren.selected.background'  : 'prompt.choice.number.selected.background'
 }
 
 const Aliases = {}
