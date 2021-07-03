@@ -134,6 +134,7 @@ const Chars = {
   , sp    : ' '
   , dblSp : '  '
   , br    : '\n'
+  , hr    : '\u2501'
     //https://unicode-table.com/en/sets/arrow-symbols/#down-arrows
   , arrow : {
         left  : '\u2190'
