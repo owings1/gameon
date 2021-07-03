@@ -32,7 +32,7 @@ const Robot     = require('../robot/player')
 const Themes    = require('./themes')
 const Util      = require('../lib/util')
 
-const inquirer = require('inquirer')
+const {inquirer} = require('./inquirer')
 
 const {Board} = Core
 const {DrawHelper, TermHelper} = Draw
@@ -519,7 +519,7 @@ class TermPlayer extends Base {
     }
 
     prompt(questions) {
-        this._prompt = this._inquirer.prompt(Util.castToArray(questions))
+        this._prompt = this._inquirer.prompt(Util.castToArray(questions), null, {theme: this.theme})
         return new Promise((resolve, reject) => {
             this.promptReject = reject
             this._prompt.then(answers => {

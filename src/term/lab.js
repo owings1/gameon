@@ -35,12 +35,14 @@ const Themes       = require('./themes')
 const chalk        = require('chalk')
 const fs           = require('fs')
 const fse          = require('fs-extra')
-const inquirer     = require('inquirer')
 const path         = require('path')
 
 const {DrawHelper, TermHelper} = Draw
 const {RobotDelegator} = Robot
 const {StringBuilder}  = Util
+
+
+const {inquirer} = require('./inquirer')
 
 const {
     castToArray
@@ -98,6 +100,7 @@ class LabHelper {
           , robots        : {}
         }
     }
+
     constructor(opts = {}) {
 
         this.board = opts.board
@@ -938,7 +941,7 @@ class LabHelper {
     }
 
     prompt(questions) {
-        this._prompt = inquirer.prompt(castToArray(questions))
+        this._prompt = inquirer.prompt(castToArray(questions), null, {theme: this.theme})
         return this._prompt
     }
 

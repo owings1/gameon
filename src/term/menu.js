@@ -28,13 +28,14 @@ const Errors    = require('../lib/errors')
 const Logger    = require('../lib/logger')
 const Util      = require('../lib/util')
 
-const Coordinator = require('../lib/coordinator')
-const Client      = require('../net/client')
-const LabHelper   = require('./lab')
-const NetPlayer   = require('../net/player')
-const TermPlayer  = require('./player')
-const ThemeHelper = require('./themes')
-const Robot       = require('../robot/player')
+const Coordinator  = require('../lib/coordinator')
+const Client       = require('../net/client')
+const LabHelper    = require('./lab')
+const NetPlayer    = require('../net/player')
+const {TermHelper} = require('./draw')
+const TermPlayer   = require('./player')
+const ThemeHelper  = require('./themes')
+const Robot        = require('../robot/player')
 
 const {ConfidenceRobot} = Robot
 const {RobotDelegator}  = Robot
@@ -48,14 +49,16 @@ const crypto   = require('crypto')
 const fs       = require('fs')
 const fse      = require('fs-extra')
 const globby   = require('globby')
-const inquirer = require('inquirer')
 const os       = require('os')
 const path     = require('path')
 
 const {EventEmitter} = require('events')
 
+const {inquirer} = require('./inquirer')
+
 const {
     append
+  , castToArray
   , errMessage
   , homeTilde
   , isEmptyObject
@@ -132,6 +135,9 @@ class Menu extends EventEmitter {
 
         this.bread = []
 
+        this.theme = ThemeHelper.getDefaultInstance()
+        this.term  = new TermHelper(this.settings.termEnabled)
+
         this._inquirer = inquirer
     }
 
@@ -148,7 +154,8 @@ class Menu extends EventEmitter {
               , message  : 'Main Menu'
               , type     : 'rawlist'
               , choices
-              , pageSize : choices.length + 1
+              , pageSize : Infinity
+              //, theme    : this.theme
             })
 
             var {mainChoice} = answers
@@ -165,7 +172,9 @@ class Menu extends EventEmitter {
             } else if (mainChoice == 'settings') {
                 isContinue = await this.settingsMenu()
             } else if (mainChoice == 'lab') {
+                await this.term.clear()
                 isContinue = await this.runLab()
+                await this.term.clear()
             }
 
             if (!isContinue) {
@@ -430,6 +439,7 @@ class Menu extends EventEmitter {
 
             var choices = this.getSettingsChoices()
 
+            //console.log(choices)
             var answers = await this.prompt({
                 name     : 'settingChoice'
               , message  : 'Settings Menu'
@@ -453,15 +463,20 @@ class Menu extends EventEmitter {
 
             answers = await this.prompt(question)
 
-            var {settings} = this
+            var answer = answers[settingChoice]
 
-            settings[question.name] = answers[question.name]
-            settings.delay = +settings.delay
-            if (settings.recordDir) {
-                settings.recordDir = path.resolve(tildeHome(settings.recordDir))
+            if (settingChoice == 'delay') {
+                answer = +answer
+            } else if (settingChoice == 'recordDir') {
+                answer = path.resolve(tildeHome(answer))
             }
 
-            if (question.name == 'isCustomRobot' && settings.isCustomRobot) {
+            var {settings} = this
+
+            settings[settingChoice] = answer
+
+            if (settingChoice == 'isCustomRobot' && settings.isCustomRobot) {
+                // Go to robots menu
                 if (isEmptyObject(settings.robots)) {
                     this.logger.info('Loading robot defaults')
                     settings.robots = Menu.robotDefaults()
@@ -469,6 +484,13 @@ class Menu extends EventEmitter {
                 await this.saveSettings()
                 await this.robotConfigsMenu()
                 continue
+            }
+
+            if (settingChoice == 'theme') {
+                // Load current theme
+                this.theme = ThemeHelper.getInstance(settings.theme)
+            } else if (settingChoice == 'termEnabled') {
+                this.term.enabled = settings.termEnabled
             }
 
             await this.saveSettings()
@@ -831,6 +853,7 @@ class Menu extends EventEmitter {
                 return true
             }
             this.emit('beforeMatchStart', match, players)
+            await this.term.clear()
             await coordinator.runMatch(match, players)
         } catch (err) {
             if (err.isMatchCanceledError) {
@@ -871,7 +894,7 @@ class Menu extends EventEmitter {
         const helper = new LabHelper(labOpts)
         this.emit('beforeRunLab', helper)
         if (cmds && cmds.length) {
-            cmds = Util.castToArray(cmds)
+            cmds = castToArray(cmds)
             for (var i = 0; i < cmds.length; ++i) {
                 await helper.runCommand(cmds[i], i == 0)
             }
@@ -910,7 +933,8 @@ class Menu extends EventEmitter {
 
     getMainChoices() {
         return Menu.formatChoices([
-            {
+            new this._inquirer.BrSeparator()
+          , {
                 value : 'play'
               , name  : 'Play'
             }
@@ -926,16 +950,20 @@ class Menu extends EventEmitter {
                 value : 'lab'
               , name  : 'Lab'
             }
+          , new this._inquirer.Separator()
           , {
                 value : 'quit'
               , name  : 'Quit'
+              , char  : 'q'
             }
+          , new this._inquirer.BrSeparator()
         ])
     }
 
     getPlayChoices() {
         const choices = [
-            {
+            new this._inquirer.BrSeparator()
+          , {
                 value : 'newOnline'
               , name  : 'Create Online Match'
             }
@@ -943,6 +971,7 @@ class Menu extends EventEmitter {
                 value : 'joinOnline'
               , name  : 'Join Online Match'
             }
+          , new this._inquirer.Separator()
           , {
                 value : 'newLocal'
               , name  : 'Human vs Human'
@@ -955,17 +984,21 @@ class Menu extends EventEmitter {
                 value : 'watchRobots'
               , name  : 'Robot vs Robot'
             }
+          , new this._inquirer.Separator()
         ]
         if (this.bread.length > 1) {
             choices.push({
-                value : 'back'
-              , name  : 'Back'
+                value     : 'back'
+              , name      : 'Back'
+              , enterChar : 'escape'
             })
         }
         choices.push({
               value : 'quit'
             , name  : 'Quit'
+            , char  : 'q'
         })
+        choices.push(new this._inquirer.BrSeparator())
         return Menu.formatChoices(choices)
     }
 
@@ -994,10 +1027,12 @@ class Menu extends EventEmitter {
 
     getBasicMatchInitialChoices() {
         return [
-            {
+            new this._inquirer.BrSeparator()
+          , {
                 value : 'start'
               , name  : 'Start Match'
             }
+          , new this._inquirer.Separator()
           , {
                 value : 'total'
               , name  : 'Match Total'
@@ -1043,6 +1078,7 @@ class Menu extends EventEmitter {
                   , default : () => this.settings.matchOpts.isJacoby
                 }
             }
+          , new this._inquirer.BrSeparator()
         ]
     }
 
@@ -1085,10 +1121,13 @@ class Menu extends EventEmitter {
 
     getAccountChoices() {
         const choices = [
-            {
-                value : 'done'
-              , name  : 'Done'
+            new this._inquirer.BrSeparator()
+          , {
+                value     : 'done'
+              , name      : 'Done'
+              , enterChar : 'escape'
             }
+          , new this._inquirer.Separator()
           , {
                 value : 'serverUrl'
               , name  : 'Server URL'
@@ -1110,6 +1149,7 @@ class Menu extends EventEmitter {
               , question : this.getPasswordQuestion()
             }
         ]
+        choices.push(new this._inquirer.Separator())
         if (!this.credentials.username || !this.credentials.password) {
             append(choices, [
                 {
@@ -1133,6 +1173,7 @@ class Menu extends EventEmitter {
               , name  : 'Clear Credentials'
             })
         }
+        choices.push(new this._inquirer.BrSeparator())
         return Menu.formatChoices(choices)
     }
 
@@ -1166,10 +1207,13 @@ class Menu extends EventEmitter {
 
     getSettingsChoices() {
         return Menu.formatChoices([
-            {
-                value : 'done'
-              , name  : 'Done'
+            new this._inquirer.BrSeparator()
+          , {
+                value     : 'done'
+              , name      : 'Done'
+              , enterChar : 'escape'
             }
+          , new this._inquirer.Separator()
           , {
                 value : 'theme'
               , name  : 'Theme'
@@ -1191,6 +1235,7 @@ class Menu extends EventEmitter {
                   , default : () => this.settings.termEnabled
                 }
             }
+          , new this._inquirer.Separator()
           , {
                 value : 'fastForced'
               , name  : 'Fast Forced Moves'
@@ -1222,6 +1267,7 @@ class Menu extends EventEmitter {
                   , default : () => homeTilde(this.settings.recordDir)
                 }
             }
+          , new this._inquirer.Separator()
           , {
                 value : 'delay'
               , name  : 'Robot Delay'
@@ -1248,14 +1294,16 @@ class Menu extends EventEmitter {
               , name  : 'Robot Configuration'
               , when  : () => this.settings.isCustomRobot
             }
+          , new this._inquirer.BrSeparator()
         ])
     }
 
     getRobotConfigsChoices() {
         return Menu.formatChoices([
             {
-                value : 'done'
-              , name  : 'Done'
+                value     : 'done'
+              , name      : 'Done'
+              , enterChar : 'escape'
             }
           , {
                 value : 'reset'
@@ -1298,8 +1346,9 @@ class Menu extends EventEmitter {
         )
         return Menu.formatChoices([
             {
-                value : 'done'
-              , name  : 'Done'
+                value     : 'done'
+              , name      : 'Done'
+              , enterChar : 'escape'
             }
           , {
                 value : 'reset'
@@ -1414,7 +1463,7 @@ class Menu extends EventEmitter {
     }
 
     prompt(questions) {
-        this._prompt = this._inquirer.prompt(Util.castToArray(questions))
+        this._prompt = this._inquirer.prompt(castToArray(questions), null, {theme: this.theme})
         return this._prompt
     }
 
@@ -1447,6 +1496,12 @@ class Menu extends EventEmitter {
             this.logger.info('Migrating legacy robot config')
             await this.saveSettings()
         }
+
+        if (this.isThemesLoaded) {
+            this.theme = ThemeHelper.getInstance(this.settings.theme)
+        }
+
+        this.term.enabled = this.settings.termEnabled
 
         this.isSettingsLoaded = true
     }
@@ -1546,6 +1601,8 @@ class Menu extends EventEmitter {
             this.logger.info('Loaded', loaded.length, 'custom themes')
         }
 
+        this.theme = ThemeHelper.getInstance(this.settings.theme)
+
         this.isThemesLoaded = true
 
         return loaded
@@ -1620,17 +1677,25 @@ class Menu extends EventEmitter {
     }
 
     static formatChoices(choices) {
-        const maxLength = Math.max(...choices.map(choice => choice.name.length))
+        const maxLength = Math.max(...choices.map(choice => choice.name ? choice.name.length : 0))
         var p = 1
-        choices.forEach((choice, i) => {
+        var i = 0
+        choices.forEach(choice => {
+            if (choice.type == 'separator') {
+                return
+            }
             if (i == 9) {
                 p = 0
             }
             const {question} = choice
             if (question) {
+                if (!('short' in choice)) {
+                    choice.short = choice.name
+                }
                 const display = question.display ? question.display() : question.default()
                 choice.name = sp(choice.name.padEnd(maxLength + p, ' '), ':', display)
             }
+            i += 1
         })
         return choices.filter(choice => !('when' in choice) || choice.when())
     }

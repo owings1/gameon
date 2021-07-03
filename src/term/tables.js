@@ -28,7 +28,7 @@ const Logger    = require('../lib/logger')
 const Themes    = require('./themes')
 const Util      = require('../lib/util')
 
-const inquirer = require('inquirer')
+const {inquirer} = require('./inquirer')
 
 const {
     Chars
@@ -59,12 +59,14 @@ class TableHelper {
     static defaults() {
         return {
             indent : 0
+          , theme  : DefaultThemeName
         }
     }
 
     constructor(opts) {
         this.opts = Util.defaults(TableHelper.defaults(), opts)
         this.logger = new Logger
+        this.theme = Themes.getInstance(this.opts.theme)
         this._inquirer = inquirer
     }
 
@@ -149,7 +151,7 @@ class TableHelper {
     }
 
     prompt(questions) {
-        this._prompt = this._inquirer.prompt(castToArray(questions))
+        this._prompt = this._inquirer.prompt(castToArray(questions), null, {theme: this.theme})
         return this._prompt
     }
 }
