@@ -54,6 +54,10 @@ class UserCommand extends AppCommand {
         return super.finally(...args)
     }
 
+    clearScreen() {
+        this.menu.term.clear()
+    }
+
     async _loadConfigs() {
         this.menu = this.menu || new Menu(this._getConfigDir())
         await this.menu.loadSettings()

@@ -28,6 +28,7 @@ const Base    = require('../lib/command').UserCommand
 class MenuCommand extends Base {
 
     async run() {
+        await this.clearScreen()
         await this.menu.mainMenu()
     }
 }
