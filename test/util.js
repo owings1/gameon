@@ -126,7 +126,7 @@ function MockPrompter(responses, isSkipAssertAsked, isSkipAssertAnswered, isSkip
 
     responses = Util.castToArray(responses)
     var seqi = 0
-    var prompter = (async questions => {
+    const prompter = (async questions => {
         questions = Util.castToArray(questions)
         const answers = {}
         const response = responses.shift()
@@ -140,28 +140,31 @@ function MockPrompter(responses, isSkipAssertAsked, isSkipAssertAnswered, isSkip
                 var shouldThrow = false
                 const alerts = []
 
-                questions.forEach(question => {
+                for (var question of questions) {
                     if ('when' in question) {
                         if (typeof question.when == 'function') {
                             if (!question.when(answers)) {
-                                return
+                                continue
                             }
                         }
                         if (!question.when) {
-                            return
+                            continue
                         }
                     }
-                    const opt = question.name
+                    var opt = question.name
                     delete unasked[opt]
                     if (opt in response) {
                         var value
                         if (typeof response[opt] == 'function') {
-                            value = response[opt](question)
+                            value = await response[opt](question)
                         } else {
                             value = response[opt]
                         }
+                        if (typeof question.filter == 'function') {
+                            value = await question.filter(value, answers)
+                        }
                         if ('validate' in question) {
-                            const valid = question.validate(value, answers)
+                            var valid = question.validate(value, answers)
                             if (valid !== true) {
                                 alerts.push(
                                     "Validation failed for " + opt + ": " + valid
@@ -178,7 +181,7 @@ function MockPrompter(responses, isSkipAssertAsked, isSkipAssertAnswered, isSkip
                         
                         unanswered.push(opt)
                     }
-                })
+                }
 
                 if (Object.keys(unasked).length) {
                     alerts.push(
@@ -213,6 +216,7 @@ function MockPrompter(responses, isSkipAssertAsked, isSkipAssertAnswered, isSkip
         seqi += 1
         return answers
     })
+
     return prompter
 }
 
