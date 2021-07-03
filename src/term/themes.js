@@ -22,14 +22,17 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-const Errors = require('../lib/errors')
-const Util   = require('../lib/util')
+const Constants = require('../lib/constants')
+const Errors    = require('../lib/errors')
+const Util      = require('../lib/util')
 
 const fse    = require('fs-extra')
 const globby = require('globby')
 const path   = require('path')
 
 const ThemeConfig = require('./res/themes.config')
+
+const {DefaultThemeName} = Constants
 
 const {
     DependencyHelper
@@ -111,7 +114,7 @@ class ThemeHelper {
     }
 
     static getDefaultInstance() {
-        return this.getInstance('Default')
+        return this.getInstance(DefaultThemeName)
     }
 
     static getConfig(name) {
