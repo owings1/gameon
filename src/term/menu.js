@@ -1007,21 +1007,28 @@ class Menu extends EventEmitter {
         const choices = this.getBasicMatchInitialChoices()
         // only show advanced for local matches
         if (!isOnline) {
-            choices.push({
-                value : 'advanced'
-              , name  : 'Advanced'
-            })
+            append(choices, [
+                {
+                    value : 'advanced'
+                  , name  : 'Advanced'
+                }
+              , new this._inquirer.Separator()
+            ])
+            choices.push()
         }
         if (this.bread.length > 1) {
             choices.push({
-                value : 'back'
-              , name  : 'Back'
+                value     : 'back'
+              , name      : 'Back'
+              , enterChar : 'escape'
             })
         }
         choices.push({
             value : 'quit'
           , name  : 'Quit'
+          , char  : 'q'
         })
+        choices.push(new this._inquirer.BrSeparator())
         return Menu.formatChoices(choices)
     }
 
@@ -1078,7 +1085,7 @@ class Menu extends EventEmitter {
                   , default : () => this.settings.matchOpts.isJacoby
                 }
             }
-          , new this._inquirer.BrSeparator()
+          , new this._inquirer.Separator()
         ]
     }
 
@@ -1677,6 +1684,7 @@ class Menu extends EventEmitter {
     }
 
     static formatChoices(choices) {
+        choices = choices.filter(choice => !('when' in choice) || choice.when())
         const maxLength = Math.max(...choices.map(choice => choice.name ? choice.name.length : 0))
         var p = 1
         var i = 0
@@ -1697,7 +1705,7 @@ class Menu extends EventEmitter {
             }
             i += 1
         })
-        return choices.filter(choice => !('when' in choice) || choice.when())
+        return choices
     }
 
     static getDefaultConfigDir() {

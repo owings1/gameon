@@ -118,7 +118,7 @@ class RawListPlusPrompt extends RawListPrompt {
               '\n' + this.paginator.paginate(choicesStr, this.selected, this.opt.pageSize)
             message += '\n' + chlk.message.prompt('  Answer: ')
         }
-            message += this.rl.line
+        message += this.rl.line
 
         if (error) {
             bottomContent = '\n' + chlk.caret.error('>> ') + chlk.message.error(error)
@@ -143,7 +143,7 @@ class RawListPlusPrompt extends RawListPrompt {
             if (choice.type === 'separator') {
                 separatorOffset++
                 if (!choice.br) {
-                    output += chlk.separator(' ' + ''.padEnd(maxLen, Chars.hr))
+                    output += chlk.separator(''.padEnd(maxLen + 3, Chars.hr))
                 }
                 return
             }
