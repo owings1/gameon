@@ -291,8 +291,9 @@ describe('Server', () => {
 
     beforeEach(async () => {
         server = new Server()
-        server.api.logger.loglevel = 1
         server.logger.loglevel = 1
+        server.api.logger.loglevel = 1
+        server.web.logger.loglevel = 1
         // hack so no req logging
         server.getLoggingMiddleware = () => (req, res, next) => next()
         server.app = server.createApp()
@@ -315,6 +316,8 @@ describe('Server', () => {
         //console.log({authDir})
         authServer.logger.loglevel = 1
         authServer.auth.logger.loglevel = 1
+        authServer.api.auth.logger.loglevel = 1
+        authServer.web.auth.logger.loglevel = 1
         // hack so no req logging
         authServer.getLoggingMiddleware = () => (req, res, next) => next()
         authServer.app = authServer.createApp()
@@ -775,7 +778,7 @@ describe('Server', () => {
                 const username = 'nobody@nowhere.example'
                 const password = 'C98FCQxU'
                 await authClient.postJson('/api/v1/signup', {username, password})
-                expect(authServer.auth.email.impl.lastEmail.Destination.ToAddresses).to.have.length(1).and.to.contain(username)
+                expect(authServer.api.auth.email.impl.lastEmail.Destination.ToAddresses).to.have.length(1).and.to.contain(username)
             })
 
             it('should return 400 for bad email', async () => {
@@ -813,7 +816,7 @@ describe('Server', () => {
             it('should return 500 when sendConfirmEmail throws', async () => {
                 const username = 'nobody@nowhere.example'
                 const password = 'H6WJmuyZ'
-                authServer.auth.sendConfirmEmail = () => {throw new Error}
+                authServer.api.auth.sendConfirmEmail = () => {throw new Error}
                 authServer.logger.loglevel = -1
                 authServer.api.logger.loglevel = -1
                 const res = await authClient.postJson('/api/v1/signup', {username, password})
@@ -823,7 +826,7 @@ describe('Server', () => {
             it('should have error.name=InternalError when sendConfirmEmail rejects', async () => {
                 const username = 'nobody@nowhere.example'
                 const password = 'zQ2EzTRx'
-                authServer.auth.sendConfirmEmail = () => new Promise((resolve, reject) => reject(new Error))
+                authServer.api.auth.sendConfirmEmail = () => new Promise((resolve, reject) => reject(new Error))
                 authServer.logger.loglevel = -1
                 authServer.api.logger.loglevel = -1
                 const res = await authClient.postJson('/api/v1/signup', {username, password})
@@ -855,7 +858,7 @@ describe('Server', () => {
                 const password = 'cbSx6gnx'
                 await authServer.auth.createUser(username, password)
                 const res = await authClient.postJson('/api/v1/send-confirm-email', {username})
-                expect(authServer.auth.email.impl.lastEmail.Destination.ToAddresses).to.have.length(1).and.to.contain(username)
+                expect(authServer.api.auth.email.impl.lastEmail.Destination.ToAddresses).to.have.length(1).and.to.contain(username)
             })
 
             it('should return 500 when email sending fails', async () => {
@@ -864,7 +867,7 @@ describe('Server', () => {
                 await authServer.auth.createUser(username, password)
                 authServer.logger.loglevel = -1
                 authServer.api.logger.loglevel = -1
-                authServer.auth.email.impl.send = () => {throw new Error}
+                authServer.api.auth.email.impl.send = () => {throw new Error}
                 const res = await authClient.postJson('/api/v1/send-confirm-email', {username})
                 expect(res.status).to.equal(500)
             })
@@ -893,7 +896,7 @@ describe('Server', () => {
                 const password = 'n2sLvf4b'
                 await authServer.auth.createUser(username, password, true)
                 const res = await authClient.postJson('/api/v1/forgot-password', {username})
-                expect(authServer.auth.email.impl.lastEmail.Destination.ToAddresses).to.have.length(1).and.to.contain(username)
+                expect(authServer.api.auth.email.impl.lastEmail.Destination.ToAddresses).to.have.length(1).and.to.contain(username)
             })
         })
 
@@ -1037,7 +1040,7 @@ describe('Server', () => {
                 const username = 'nobody@nowhere.example'
                 const password = 's8Kfjsdk9'
                 const params = getParams({username, password})
-                authServer.auth.logger.loglevel = -1
+                authServer.web.auth.logger.loglevel = -1
                 const res = await fetch(authServerUrl + '/login', {
                     method: 'POST',
                     body: params
@@ -1058,7 +1061,7 @@ describe('Server', () => {
                 const username = 'nobody@nowhere.example'
                 const password = 'tz7TcUUm'
                 const params = getParams({username, password})
-                authServer.auth.authenticate = async () => { throw new Error }
+                authServer.web.auth.authenticate = async () => { throw new Error }
                 const res = await fetch(authServerUrl + '/login', {
                     method: 'POST',
                     body: params
@@ -1324,28 +1327,28 @@ describe('Auth', () => {
     describe('#validateUsername', () => {
 
         it('should throw ValidateError for empty', () => {
-            const auth = new Auth('anonymous')
+            const auth = Auth.create({authType: 'anonymous'})
             const input = ''
             const err = getError(() => auth.validateUsername(input))
             expect(err.name).to.equal('ValidateError')
         })
 
         it('should throw ValidateError for bar char ?', () => {
-            const auth = new Auth('anonymous')
+            const auth = Auth.create({authType: 'anonymous'})
             const input = 'foo?@example.example'
             const err = getError(() => auth.validateUsername(input))
             expect(err.name).to.equal('ValidateError')
         })
 
         it('should throw ValidateError for bad email chunky', () => {
-            const auth = new Auth('anonymous')
+            const auth = Auth.create({authType: 'anonymous'})
             const input = 'chunky'
             const err = getError(() => auth.validateUsername(input))
             expect(err.name).to.equal('ValidateError')
         })
 
         it('should pass for nobody@nowhere.example', () => {
-            const auth = new Auth('anonymous')
+            const auth = Auth.create({authType: 'anonymous'})
             const input = 'nobody@nowhere.example'
             auth.validateUsername(input)
         })
@@ -1354,28 +1357,28 @@ describe('Auth', () => {
     describe('#validatePassword', () => {
 
         it('should throw ValidateError for empty', () => {
-            const auth = new Auth('anonymous')
+            const auth = Auth.create({authType: 'anonymous'})
             const input = ''
             const err = getError(() => auth.validatePassword(input))
             expect(err.name).to.equal('ValidateError')
         })
 
         it('should throw ValidateError for length 7', () => {
-            const auth = new Auth('anonymous')
+            const auth = Auth.create({authType: 'anonymous'})
             const input = '5ZycJj3'
             const err = getError(() => auth.validatePassword(input))
             expect(err.name).to.equal('ValidateError')
         })
 
         it('should throw ValidateError for missing number', () => {
-            const auth = new Auth('anonymous')
+            const auth = Auth.create({authType: 'anonymous'})
             const input = 'aDlvkdoslK'
             const err = getError(() => auth.validatePassword(input))
             expect(err.name).to.equal('ValidateError')
         })
 
         it('should throw ValidateError for start with encrypted_', () => {
-            const auth = new Auth('anonymous')
+            const auth = Auth.create({authType: 'anonymous'})
             const input = 'encrypted_aDlvkdoslK'
             const err = getError(() => auth.validatePassword(input))
             expect(err.name).to.equal('ValidateError')
@@ -1390,7 +1393,7 @@ describe('Auth', () => {
 
         passCases.forEach(input => {
             it('should pass for ' + input, () => {
-                const auth = new Auth('anonymous')
+                const auth = Auth.create({authType: 'anonymous'})
                 auth.validatePassword(input)
             })
         })
@@ -1399,7 +1402,7 @@ describe('Auth', () => {
     describe('Anonymous', () => {
 
         it('should accept blank username/password', async () => {
-            const auth = new Auth('anonymous')
+            const auth = Auth.create({authType: 'anonymous'})
             await auth.authenticate()
         })
 
@@ -1414,7 +1417,7 @@ describe('Auth', () => {
 
         nimps.forEach(method => {
             it('should throw NotImplementedError for ' + method, async () => {
-                const auth = new Auth('anonymous')
+                const auth = Auth.create({authType: 'anonymous'})
                 const err = await getErrorAsync(() => auth.impl[method]())
                 expect(err.name).to.equal('NotImplementedError')
             })
@@ -1422,7 +1425,7 @@ describe('Auth', () => {
 
         describe('#authenticate', () => {
             it('should return passwordEncrypted when password non-empty', async () => {
-                const auth = new Auth('anonymous')
+                const auth = Auth.create({authType: 'anonymous'})
                 const user = await auth.authenticate(null, 'a')
                 expect(user.passwordEncrypted).to.have.length.greaterThan(0)
             })
@@ -1442,24 +1445,24 @@ describe('Auth', () => {
         })
 
         it('should fail with no directory specified', () => {
-            const err = getError(() => { new Auth('directory')})
+            const err = getError(() => { Auth.create({authType: 'directory'}) })
             expect(err instanceof Error).to.equal(true)
         })
 
-        it('should file with non-existent directory', () => {
+        it('should fail with non-existent directory', () => {
             const opts = {authDir: '/non-existent'}
-            const err = getError(() => { new Auth('directory', opts)})
+            const err = getError(() => { Auth.create({authType: 'directory', ...opts}) })
             expect(err instanceof Error).to.equal(true)
         })
 
         it('should pass with diretory specified', () => {
             const opts = {authDir}
-            const auth = new Auth('directory', opts)
+            const auth = Auth.create({authType: 'directory', ...opts})
         })
 
         function newAuth() {
             const opts = {authDir}
-            const auth = new Auth('directory', opts)
+            const auth = Auth.create({authType: 'directory', ...opts})
             auth.logger.loglevel = 0
             return auth
         }
@@ -1816,8 +1819,8 @@ describe('Auth', () => {
             const s3_prefix = 'test/' + +new Date + '/'
 
             function newAuth() {
-                const opts = {s3_bucket, s3_prefix}
-                const auth = new Auth('s3', opts)
+                const opts = {authType: 's3', s3_bucket, s3_prefix}
+                const auth = Auth.create(opts)
                 auth.logger.loglevel = 1
                 return auth
             }
