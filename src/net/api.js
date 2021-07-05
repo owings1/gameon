@@ -22,8 +22,10 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-const Logger = require('../lib/logger')
-const Util   = require('../lib/util')
+const Auth      = require('./auth')
+const Constants = require('../lib/constants')
+const Logger    = require('../lib/logger')
+const Util      = require('../lib/util')
 
 const bodyParser = require('body-parser')
 const express    = require('express')
@@ -39,14 +41,18 @@ const Messages = {
 
 class Api {
 
-    static defaults() {
-        return {}
+    static defaults(env) {
+        return {
+
+        }
     }
 
-    constructor(auth, opts) {
-        this.opts = Util.defaults(Api.defaults(), opts)
+    constructor(opts) {
+
         this.logger = new Logger(this.constructor.name, {server: true})
-        this.auth = auth
+
+        this.opts = Util.defaults(Api.defaults(process.env), opts)
+        this.auth = Auth.create({...opts, ...this.opts, loggerPrefix: this.constructor.name})
         this.v1 = this.create_v1()
     }
 

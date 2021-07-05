@@ -30,17 +30,19 @@ const AWS = require('aws-sdk')
 
 const {InternalError} = Errors
 
-class SesEmail {
-
-    static defaults(env) {
-        return {
-            
+function getSesOpts(opts) {
+    return {
+        httpOptions: {
+            connectTimeout: opts.connectTimeout
         }
     }
+}
+
+class SesEmail {
 
     constructor(opts) {
-        this.opts = Util.defaults(SesEmail.defaults(process.env), opts)
-        this.ses = new AWS.SES()
+        //console.log(opts, getSesOpts(opts))
+        this.ses = new AWS.SES(getSesOpts(opts))
     }
 
     async send(params) {

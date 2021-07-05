@@ -32,23 +32,36 @@ const path = require('path')
 const {
     DefaultEmailFromAddress
   , DefaultEmailFromName
+  , DefaultEmailType
 } = Constants
 
 const {InternalError} = Errors
+
+const ImplClasses = {
+    mock : require('./email/mock')
+  , ses  : require('./email/ses')
+}
 
 class Email {
 
     static defaults(env) {
         return {
-            fromName    : env.EMAIL_FROM_NAME    || DefaultEmailFromName
-          , fromAddress : env.EMAIL_FROM_ADDRESS || DefaultEmailFromAddress
+            fromName       : env.EMAIL_FROM_NAME    || DefaultEmailFromName
+          , fromAddress    : env.EMAIL_FROM_ADDRESS || DefaultEmailFromAddress
+          , connectTimeout : +env.EMAIL_CONNECTTIMEOUT || 60 * 1000
         }
     }
 
+    static create(opts, env) {
+        env = env || process.env
+        const type = (opts && opts.emailType) || env.EMAIL_TYPE || DefaultEmailType
+        const impl = new ImplClasses[type](opts)
+        return new Email(impl, opts)
+    }
+
     constructor(impl, opts) {
+        this.impl = impl
         this.opts = Util.defaults(Email.defaults(process.env), opts)
-        const Impl = require('./email/' + path.basename(impl))
-        this.impl = new Impl(opts)
     }
 
     // standard is SES sendEmail structure

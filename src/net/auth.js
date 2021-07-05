@@ -32,7 +32,8 @@ const crypto = require('crypto')
 const path   = require('path')
 
 const {
-    DefaultEmailImpl
+    DefaultAuthType
+  , DefaultEmailImpl
   , DefaultPasswordHelp
   , DefaultPasswordRegex
   , DefaultSalt
@@ -54,6 +55,12 @@ const {
   , ValidateError
 } = Errors
 
+const ImplClasses = {
+    anonymous : require('./auth/anonymous')
+  , directory : require('./auth/directory')
+  , s3        : require('./auth/s3')
+}
+
 class Auth {
 
     static defaults(env) {
@@ -64,9 +71,10 @@ class Auth {
           , passwordMin   : +env.AUTH_PASSWORD_MIN || 8
           , passwordRegex : env.AUTH_PASSWORD_REGEX || DefaultPasswordRegex
           , passwordHelp  : env.AUTH_PASSWORD_HELP || DefaultPasswordHelp
-          , emailType     : env.AUTH_EMAIL_TYPE || env.EMAIL_TYPE || DefaultEmailImpl
+          , emailTimeout  : +env.AUTH_EMAILTIMEOUT   || 30 * 1000
           , confirmExpiry : +env.AUTH_CONFIRM_EXPIRY || 86400
-          , resetExpiry   : +env.AUTH_RESET_EXPIRY || 3600
+          , resetExpiry   : +env.AUTH_RESET_EXPIRY   || 3600
+          , loggerPrefix  : null
         }
         if (opts.passwordRegex != DefaultPasswordRegex && !env.AUTH_PASSWORD_HELP) {
             // If a custom regex is defined, but not a help message, make a generic message.
@@ -75,18 +83,25 @@ class Auth {
         return opts
     }
 
-    constructor(authType, opts) {
+    static create(opts, env) {
+        env = env || process.env
+        const type = (opts && opts.authType) || env.AUTH_TYPE || DefaultAuthType
+        const impl = new ImplClasses[type](opts)
+        return new Auth(impl, opts)
+    }
+
+    constructor(impl, opts) {
+
+        this.impl = impl 
 
         this.opts = Util.defaults(Auth.defaults(process.env), opts)
-        this.logger = new Logger(this.constructor.name, {server: true})
+
+        const loggerName = [this.opts.loggerPrefix, this.constructor.name].filter(it => it).join('.')
+        this.logger = new Logger(loggerName, {server: true})
+
+        this.email = Email.create({...opts, ...this.opts, connectTimeout: this.opts.emailTimeout})
 
         this.checkSecurity()
-
-        const AuthType = require('./auth/' + path.basename(authType))
-        this.impl = new AuthType(opts)
-        this.isAnonymous = 'anonymous' == authType
-
-        this.email = new Email(this.opts.emailType, opts)
 
         const saltHash = crypto.createHash(this.opts.saltHash)
         saltHash.update(this.opts.salt)
@@ -103,7 +118,7 @@ class Auth {
     }
 
     async authenticate(username, password) {
-        if (this.isAnonymous) {
+        if (this.impl.isAnonymous) {
             return {
                 passwordEncrypted : password ? this.encryptPassword(password) : ''
             }
@@ -472,4 +487,5 @@ class Auth {
         }
     }
 }
+
 module.exports = Auth

@@ -22,6 +22,7 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
+const Auth      = require('./auth')
 const Constants = require('../lib/constants')
 const Errors    = require('../lib/errors')
 const Logger    = require('../lib/logger')
@@ -59,10 +60,13 @@ class Web {
         }
     }
 
-    constructor(auth, opts) {
-        this.opts = Util.defaults(Web.defaults(process.env), opts)
+    constructor(opts) {
+
         this.logger = new Logger(this.constructor.name, {server: true})
-        this.auth = auth
+
+        this.opts = Util.defaults(Web.defaults(process.env), opts)
+        this.auth = Auth.create({...opts, ...this.opts, loggerPrefix: 'Web'})
+
         this.app = this.createExpressApp()
     }
 

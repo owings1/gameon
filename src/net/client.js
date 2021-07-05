@@ -44,6 +44,13 @@ const {
   , wsToHttp
 } = Util
 
+const {
+    ClientError
+  , ConnectionClosedError
+  , ConnectionFailedError
+  , MatchCanceledError
+} = Errors
+
 class Client extends EventEmitter {
 
     constructor(...args) {
@@ -80,8 +87,11 @@ class Client extends EventEmitter {
         }
 
         await new Promise((resolve, reject) => {
+            // TODO make sure these do not leak (recreate socketClient?)
             this.socketClient.on('connectFailed', err => {
-                reject(err)
+                // WebSocketClient throws generic Error
+                //this.logger.debug('connectFailed', err)
+                reject(ClientError.forConnectFailedError(err))
             })
             this.socketClient.on('connect', conn => {
                 this.conn = conn
@@ -299,11 +309,5 @@ class Client extends EventEmitter {
         return err
     }
 }
-
-const {
-    ClientError
-  , ConnectionClosedError
-  , MatchCanceledError
-} = Errors
 
 module.exports = Client

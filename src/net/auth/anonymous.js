@@ -28,6 +28,10 @@ const {NotImplementedError} = Errors
 
 class AnonymousAuth {
 
+    constructor(opts) {
+        this.isAnonymous = true
+    }
+
     async createUser(username, user) {
         throw new NotImplementedError
     }

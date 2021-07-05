@@ -39,7 +39,11 @@ const express    = require('express')
 const morgan     = require('morgan')
 const prom       = require('prom-client')
 
-const {White, Red, Opponent} = Constants
+const {
+    Opponent
+  , Red
+  , White
+} = Constants
 
 const {Match, Dice} = Core
 
@@ -74,20 +78,20 @@ class Server {
 
     static defaults(env) {
         return {
-            authType        : env.AUTH_TYPE || 'anonymous'
-          , socketHsTimeout : +env.SOCKET_HSTIMEOUT || 5000
+            socketHsTimeout : +env.SOCKET_HSTIMEOUT || 5000
           , webEnabled      : !env.GAMEON_WEB_DISABLED
+          , apiEmailTimeout : +env.API_EMAILTIMEOUT || 9 * 1000//undefined
         }
     }
 
     constructor(opts) {
 
-        this.opts = Util.defaults(Server.defaults(process.env), opts)
         this.logger = new Logger(this.constructor.name, {server: true})
 
-        this.auth = new Auth(this.opts.authType, opts)
-        this.api  = new Api(this.auth, opts)
-        this.web  = new Web(this.auth, opts)
+        this.opts = Util.defaults(Server.defaults(process.env), opts)
+        this.auth = Auth.create({...opts, ...this.opts, loggerPrefix: this.constructor.name})
+        this.api  = new Api({...opts, emailTimeout: this.opts.apiEmailTimeout})
+        this.web  = new Web(opts)
 
         this.app = this.createApp()
         this.metricsApp = this.createMetricsApp()
@@ -181,7 +185,7 @@ class Server {
         const parts = [
           , ':date[iso] '
           , chalk.grey('[INFO]')
-          , '  [Server] '
+          , ' [Server] '
           , ':status ":method :url HTTP/:http-version"'
           , ' :res[content-length] :remote-addr - :remote-user'
         ]
