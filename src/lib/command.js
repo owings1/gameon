@@ -67,8 +67,8 @@ class UserCommand extends AppCommand {
 
     _loadInterruptHandlers() {
         // For some reason we need an interval otherwise somebody else is
-        // exiting first. So we set it to 1 hour
-        this._hackInterval = setInterval(() => {}, 3600 * 1000)
+        // exiting first. So we set it to 30mins
+        this._hackInterval = setInterval(() => { /*console.log(new Date)*/ }, 1800 * 1000)
         this.proc.on('SIGINT', () => {
             this.logger.debug('SIGINT handler')
             var code = 1

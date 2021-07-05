@@ -62,15 +62,30 @@ class RequestError extends BaseError {
         err.status = res.status
         err.body = body
         if (body && body.error) {
-            err.cause = body.error
+            if (body.error.name in Errors) {
+                err.cause = new Errors[body.error.name](body.error.message)
+            } else {
+                err.cause = body.error
+            }
+            err.message += ' (' + [err.cause.name, err.cause.message].filter(it => it).join(':') + ')'
         }
         return err
     }
 }
 
+class ClientError extends BaseError {
+
+    static forConnectFailedError(err) {
+        // WebSocketClient throws generic Error
+        const error = new ConnectionFailedError(err)
+        const [message, ...lines] = err.message.trim().split('\n')
+        error.message = message
+        error.responseHeaders = lines.slice(1)
+        return error
+    }
+}
 class ArgumentError   extends BaseError {}
 class AuthError       extends BaseError {}
-class ClientError     extends BaseError {}
 class DependencyError extends BaseError {}
 class GameError       extends BaseError {}
 class InternalError   extends BaseError {}
@@ -100,6 +115,7 @@ class UserNotFoundError     extends AuthError {}
 
 // ClientError
 class ConnectionClosedError extends ClientError {}
+class ConnectionFailedError extends ClientError {}
 
 // DependencyError
 class CircularDependencyError   extends DependencyError {}
@@ -174,6 +190,7 @@ const Errors = {
   , CircularDependencyError
   , ClientError
   , ConnectionClosedError
+  , ConnectionFailedError
   , DependencyError
   , DoubleNotAllowedError
   , DuplicateColumnError

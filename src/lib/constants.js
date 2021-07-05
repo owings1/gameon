@@ -195,8 +195,9 @@ const DefaultSessionCookie = 'gasid'
 
 const DefaultEmailFromName    = 'Gameon'
 const DefaultEmailFromAddress = 'noreply@nowhere.example'
-const DefaultEmailImpl        = 'mock'
+const DefaultEmailType        = 'mock'
 
+const DefaultAuthType = 'anonymous'
 // This should be set by AUTH_SALT in production environments
 const DefaultSalt  = 'RYm!BtLhPTx4%QrGku_6?Q*NZsfM54Q=Y9?p^q5$9#TM42YcY4WfEGb#48-x88-n'
 // Minimum eight characters, at least one letter and one number:
@@ -215,9 +216,10 @@ const Constants = {
   , ColorAbbr
   , ColorNorm
   , Colors
+  , DefaultAuthType
   , DefaultEmailFromAddress
   , DefaultEmailFromName
-  , DefaultEmailImpl
+  , DefaultEmailType
   , DefaultPasswordHelp
   , DefaultPasswordRegex
   , DefaultSalt
