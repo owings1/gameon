@@ -113,6 +113,10 @@ const Questions = {
     ]
 }
 
+function isLoginChoice(choice) {
+    return ['createAccount', 'forgotPassword', 'changePassword'].indexOf(choice) > -1
+}
+
 class Menu extends EventEmitter {
 
     constructor(configDir) {
@@ -147,6 +151,8 @@ class Menu extends EventEmitter {
 
         while (true) {
 
+            await this.term.moveTo(0, 0).eraseDisplayBelow()
+
             var choices = this.getMainChoices()
 
             var answers = await this.prompt({
@@ -155,7 +161,7 @@ class Menu extends EventEmitter {
               , type     : 'rawlist'
               , choices
               , pageSize : Infinity
-              //, theme    : this.theme
+              , prefix   : this.getMenuPrefix()
             })
 
             var {mainChoice} = answers
@@ -172,9 +178,7 @@ class Menu extends EventEmitter {
             } else if (mainChoice == 'settings') {
                 isContinue = await this.settingsMenu()
             } else if (mainChoice == 'lab') {
-                await this.term.clear()
                 isContinue = await this.runLab()
-                await this.term.clear()
             }
 
             if (!isContinue) {
@@ -193,6 +197,8 @@ class Menu extends EventEmitter {
 
         while (true) {
 
+            await this.term.moveTo(0, 0).eraseDisplayBelow()
+
             var choices = this.getPlayChoices()
 
             var isContinue = true
@@ -202,7 +208,9 @@ class Menu extends EventEmitter {
               , message  : 'Play'
               , type     : 'rawlist'
               , choices
-              , pageSize : choices.length + 1
+              , default  : () => this.settings.lastPlayChoice
+              , pageSize : Infinity
+              , prefix   : this.getMenuPrefix()
             })
 
             var {playChoice} = answers
@@ -215,6 +223,11 @@ class Menu extends EventEmitter {
             if (playChoice == 'quit') {
                 isContinue = false
                 break
+            }
+
+            if (this.settings.lastPlayChoice != playChoice) {
+                this.settings.lastPlayChoice = playChoice
+                await this.saveSettings()
             }
 
             try {
@@ -231,9 +244,6 @@ class Menu extends EventEmitter {
                 }
             } catch (err) {
                 this.logger.debug(err)
-                /*if (err.name == 'MatchCanceledError') {
-                    this.logger.warn('The match was canceled', '-', err.message)
-                } else */
                 if (err.isAuthError) {
                     this.logger.warn(err)
                     this.logger.error('Authentication error, go to Account to sign up or log in.')   
@@ -270,16 +280,19 @@ class Menu extends EventEmitter {
 
         while (true) {
 
-            var isContinue = true
+            await this.term.moveTo(0, 0).eraseDisplayBelow()
 
             var choices = this.getMatchChoices(isOnline)
+
+            var isContinue = true
 
             var answers = await this.prompt({
                 name     : 'matchChoice'
               , message
               , type     : 'rawlist'
               , choices
-              , pageSize : choices.length + 1
+              , pageSize : Infinity
+              , prefix   : this.getMenuPrefix()
             })
 
             var {matchChoice} = answers
@@ -337,16 +350,25 @@ class Menu extends EventEmitter {
 
         this.bread.push('Account')
 
+        var isError = false
+
         while (true) {
+
+            if (isError) {
+                isError = false
+            } else  {
+                await this.term.moveTo(0, 0).eraseDisplayBelow()
+            }
 
             var accountChoices = this.getAccountChoices()
 
             var answers = await this.prompt([{
                 name     : 'accountChoice'
-              , message  : 'Account Menu'
+              , message  : 'Account'
               , type     : 'rawlist'
               , choices  : accountChoices
-              , pageSize : accountChoices.length + 1
+              , pageSize : Infinity
+              , prefix   : this.getMenuPrefix()
             }])
 
             var {accountChoice} = answers
@@ -355,38 +377,9 @@ class Menu extends EventEmitter {
                 break
             }
 
-            var shouldLogin = false
-
-            var isLoginChoice = ['createAccount', 'forgotPassword', 'changePassword'].indexOf(accountChoice) > -1
-
             var {credentials} = this
 
-            if (isLoginChoice) {
-                shouldLogin = true
-                try {
-                    if (accountChoice == 'createAccount') {
-                        await this.promptCreateAccount()
-                        this.logger.info('Account created')
-                    } else if (accountChoice == 'forgotPassword') {
-                        try {
-                            await this.promptForgotPassword()
-                        } catch (err) {
-                            if (err.name == 'ResetKeyNotEnteredError') {
-                                continue
-                            } else {
-                                throw err
-                            }
-                        }
-                        this.logger.info('Password reset')
-                    } else {
-                        await this.promptChangePassword()
-                        this.logger.info('Password changed')
-                    }
-                } catch (err) {
-                    this.logger.error(err)
-                    continue
-                }
-            } else if (accountChoice == 'clearCredentials') {
+            if (accountChoice == 'clearCredentials') {
 
                 credentials.username = ''
                 credentials.password = ''
@@ -396,32 +389,72 @@ class Menu extends EventEmitter {
                 this.logger.info('Credentials cleared')
 
                 continue
+            }
 
+            if (isLoginChoice(accountChoice)) {
+                var isAction = false
+                var message = null
+                try {
+                    if (accountChoice == 'createAccount') {
+                        isAction = await this.promptCreateAccount()
+                        message = 'Account created'
+                    } else if (accountChoice == 'forgotPassword') {
+                        isAction = await this.promptForgotPassword()
+                        message = 'Password reset'
+                    } else {
+                        isAction = await this.promptChangePassword()
+                        message = 'Password changed'
+                    }
+                } catch (err) {
+                    //if (err.isRequestError)
+                    this.logger.error(err)
+                    isError = true
+                }
+                if (isAction) {
+                    this.logger.info(message)
+                } else {
+                    continue
+                }
             } else {
 
                 var question = choiceQuestion(accountChoices, accountChoice)
 
                 answers = await this.prompt(question)
-                shouldLogin = answers[question.name] != credentials[question.name]
-                if (question.name == 'password') {
-                    credentials.password = this.encryptPassword(answers.password)
-                } else {
-                    credentials[question.name] = answers[question.name]
+
+                if (answers._cancelEvent) {
+                    continue
                 }
+
+                var answer = answers[accountChoice]
+                var oldValue = credentials[accountChoice]
+
+                if (answer == oldValue) {
+                    continue
+                }
+
+                if (accountChoice == 'password') {
+                    answer = this.encryptPassword(answer)
+                }
+
+                credentials[accountChoice] = answer
             }
 
-            shouldLogin = credentials.username && credentials.password && credentials.serverUrl && shouldLogin
-
-            if (shouldLogin) {
-                try {
-                    await this.doLogin()
-                } catch (err) {
-                    this.logger.error(err)
-                    this.logger.warn('Login failed', err)
+            try {
+                if (['username', 'password', 'serverUrl'].find(key => !credentials[key])) {
+                    continue
                 }
+                await this.doLogin()
+            } catch (err) {
+                this.logger.error(err)
+                if (!err.isValidateError && !err.isBadCredentialsError) {
+                    //console.log(err.name)
+                    this.logger.console.error('Login failed', err)
+                }
+                isError = true
+            } finally {
+                await this.saveCredentials()
             }
 
-            await this.saveCredentials()
         }
 
         this.bread.pop()
@@ -437,15 +470,17 @@ class Menu extends EventEmitter {
 
         while (true) {
 
+            await this.term.moveTo(0, 0).eraseDisplayBelow()
+
             var choices = this.getSettingsChoices()
 
-            //console.log(choices)
             var answers = await this.prompt({
                 name     : 'settingChoice'
-              , message  : 'Settings Menu'
+              , message  : 'Settings'
               , type     : 'rawlist'
               , choices
-              , pageSize : choices.length + 1
+              , pageSize : Infinity
+              , prefix   : this.getMenuPrefix()
             })
 
             var {settingChoice} = answers
@@ -463,7 +498,14 @@ class Menu extends EventEmitter {
 
             answers = await this.prompt(question)
 
+            if (answers._cancelEvent) {
+                continue
+            }
+
+            var {settings} = this
+
             var answer = answers[settingChoice]
+            var oldValue = settings[settingChoice]
 
             if (settingChoice == 'delay') {
                 answer = +answer
@@ -471,11 +513,9 @@ class Menu extends EventEmitter {
                 answer = path.resolve(tildeHome(answer))
             }
 
-            var {settings} = this
-
             settings[settingChoice] = answer
 
-            if (settingChoice == 'isCustomRobot' && settings.isCustomRobot) {
+            if (settingChoice == 'isCustomRobot' && settings.isCustomRobot && !oldValue) {
                 // Go to robots menu
                 if (isEmptyObject(settings.robots)) {
                     this.logger.info('Loading robot defaults')
@@ -501,68 +541,6 @@ class Menu extends EventEmitter {
         return true
     }
 
-    async configureRobotMenu(name) {
-
-        await this.ensureSettingsLoaded()
-
-        this.bread.push('Robot:' + name)
-
-        const {defaults} = ConfidenceRobot.getClassMeta(name)
-
-        // always break, but put in loop for consistency
-        while (true) {
-
-            var {settings} = this
-
-            if (isEmptyObject(settings.robots[name])) {
-                settings.robots[name] = {
-                    version      : defaults.version
-                  , moveWeight   : 0
-                  , doubleWeight : 0
-                }
-            }
-
-            var config = settings.robots[name]
-            var choices = this.getConfigureRobotChoices(name)
-
-            var answers = await this.prompt({
-                name     : 'robotChoice'
-              , message  : 'Configure ' + name
-              , type     : 'rawlist'
-              , choices
-              , pageSize : choices.length + 1
-            })
-
-            var {robotChoice} = answers
-
-            if (robotChoice == 'done') {
-                break
-            }
-
-            if (robotChoice == 'reset') {
-                settings.robots[name] = {...defaults}
-                await this.saveSettings()
-                break
-            }
-
-            var question = choiceQuestion(choices, robotChoice)
-
-            answers = await this.prompt(question)
-
-            config[question.name] = answers[question.name]
-            config.moveWeight     = +config.moveWeight
-            config.doubleWeight   = +config.doubleWeight
-
-            await this.saveSettings()
-
-            break
-        }
-
-        this.bread.pop()
-
-        return true
-    }
-
     async robotConfigsMenu() {
 
         await this.ensureSettingsLoaded()
@@ -571,6 +549,8 @@ class Menu extends EventEmitter {
 
         while (true) {
 
+            await this.term.moveTo(0, 0).eraseDisplayBelow()
+
             var choices = this.getRobotConfigsChoices()
 
             var answers = await this.prompt({
@@ -578,7 +558,8 @@ class Menu extends EventEmitter {
               , message  : 'Configure Robots'
               , type     : 'rawlist'
               , choices
-              , pageSize : choices.length + 1
+              , pageSize : Infinity
+              , prefix   : this.getMenuPrefix()
             })
 
             var {robotChoice} = answers
@@ -601,6 +582,77 @@ class Menu extends EventEmitter {
         return true
     }
 
+    async configureRobotMenu(name) {
+
+        await this.ensureSettingsLoaded()
+
+        this.bread.push('Robot:' + name)
+
+        const {defaults} = ConfidenceRobot.getClassMeta(name)
+
+        // always break, but put in loop for consistency
+        while (true) {
+
+            await this.term.moveTo(0, 0).eraseDisplayBelow()
+
+            var {settings} = this
+
+            if (isEmptyObject(settings.robots[name])) {
+                settings.robots[name] = {
+                    version      : defaults.version
+                  , moveWeight   : 0
+                  , doubleWeight : 0
+                }
+            }
+
+            var config = settings.robots[name]
+            var choices = this.getConfigureRobotChoices(name)
+
+            var answers = await this.prompt({
+                name     : 'robotChoice'
+              , message  : 'Configure ' + name
+              , type     : 'rawlist'
+              , choices
+              , pageSize : Infinity
+              , prefix   : this.getMenuPrefix()
+            })
+
+            var {robotChoice} = answers
+
+            if (robotChoice == 'done') {
+                break
+            }
+
+            if (robotChoice == 'reset') {
+                settings.robots[name] = {...defaults}
+                await this.saveSettings()
+                break
+            }
+
+            var question = choiceQuestion(choices, robotChoice)
+
+            answers = await this.prompt(question)
+
+            if (answers._cancelEvent) {
+                break
+            }
+
+            var answer = answers[robotChoice]
+
+            config[robotChoice] = answer
+            config.moveWeight   = +config.moveWeight
+            config.doubleWeight = +config.doubleWeight
+
+            await this.saveSettings()
+
+            break
+        }
+
+        this.bread.pop()
+
+        return true
+    }
+
     async joinMenu() {
 
         this.bread.push('Join')
@@ -608,13 +660,14 @@ class Menu extends EventEmitter {
         // always break
         while (true) {
             var answers = await this.prompt(Questions.join)
+            if (answers._cancelEvent) {
+                break
+            }
             if (answers.matchId) {
                 await this.joinOnlineMatch(answers.matchId)
             }
             break
         }
-
-        this.bread.pop()
 
         return true
     }
@@ -630,13 +683,21 @@ class Menu extends EventEmitter {
           , this.getPasswordQuestion()
           , this.getPasswordConfirmQuestion()
         ])
+
+        if (answers._cancelEvent) {
+            return false
+        }
+
         const body = await this.sendSignup(
             credentials.serverUrl
           , answers.username
           , answers.password
         )
+
         credentials.username = answers.username
         credentials.password = this.encryptPassword(body.passwordEncrypted)
+
+        return true
     }
 
     async promptForgotPassword() {
@@ -645,36 +706,43 @@ class Menu extends EventEmitter {
 
         const {credentials} = this
 
-        const forgotAnswers = await this.prompt(this.getUsernameQuestion())
+        var answers = await this.prompt(this.getUsernameQuestion())
 
-        await this.sendForgotPassword(credentials.serverUrl, forgotAnswers.username)
-        credentials.username = forgotAnswers.username
+        if (answers._cancelEvent) {
+            return false
+        }
+
+        await this.sendForgotPassword(credentials.serverUrl, answers.username)
+        credentials.username = answers.username
 
         this.logger.info('Reset key sent, check email')
 
-        const resetAnswers = await this.prompt([
+        answers = await this.prompt([
             {
                 name    : 'resetKey'
               , message : 'Reset Key'
               , type    : 'input'
+              , cancel  : {char: 'escape'}
             }
           , {
                 ...this.getPasswordQuestion()
-              , when: answers => answers.resetKey
+              , when: answers => !answers._cancelEvent && answers.resetKey
             }
           , {
                 ...this.getPasswordConfirmQuestion()
-              , when: answers => answers.resetKey
+              , when: answers => !answers._cancelEvent && answers.resetKey
             }
         ])
 
-        if (!resetAnswers.resetKey) {
-            throw new ResetKeyNotEnteredError
+        if (answers._cancelEvent || !answers.resetKey) {
+            return false
         }
 
-        const body = await this.sendResetPassword(credentials, resetAnswers)
+        const body = await this.sendResetPassword(credentials, answers)
 
         credentials.password = this.encryptPassword(body.passwordEncrypted)
+
+        return true
     }
 
     async promptChangePassword() {
@@ -683,30 +751,31 @@ class Menu extends EventEmitter {
 
         const {credentials} = this
 
-        credentials.password = ''
-
         const answers = await this.prompt([
             {
                 ...this.getPasswordQuestion()
               , name    : 'oldPassword'
               , message : 'Current password'
+              , default : ''
             }
           , {
                 ...this.getPasswordQuestion()
               , name    : 'newPassword'
               , message : 'New password'
+              , default : ''
             }
           , this.getPasswordConfirmQuestion('newPassword')
         ])
 
-        try {
-            const body = await this.sendChangePassword(credentials, answers)
-            credentials.password = this.encryptPassword(body.passwordEncrypted)
-        } catch (err) {
-            credentials.password = ''
-            await this.saveCredentials()
-            throw err
+        if (answers._cancelEvent) {
+            return false
         }
+
+        const body = await this.sendChangePassword(credentials, answers)
+
+        credentials.password = this.encryptPassword(body.passwordEncrypted)
+
+        return true
     }
 
     async promptMatchAdvancedOpts(advancedOpts) {
@@ -735,7 +804,7 @@ class Menu extends EventEmitter {
 
         } catch (err) {
 
-            if (err.name == 'UserNotConfirmedError') {
+            if (err.isUserNotConfirmedError) {
 
                 this.logger.info('You must confirm your account. Check your email.')
 
@@ -753,12 +822,13 @@ class Menu extends EventEmitter {
                     throw err
                 }
 
-            } else {
-                credentials.password = ''
-                throw err
+                return
+
             }
-        } finally {
-            await this.saveCredentials()
+
+            credentials.password = ''
+            throw err
+
         }
     }
 
@@ -853,7 +923,7 @@ class Menu extends EventEmitter {
                 return true
             }
             this.emit('beforeMatchStart', match, players)
-            await this.term.clear()
+            await this.term.moveTo(0, 0).eraseDisplayBelow()
             await coordinator.runMatch(match, players)
         } catch (err) {
             if (err.isMatchCanceledError) {
@@ -864,6 +934,7 @@ class Menu extends EventEmitter {
         } finally {
             this.captureInterrupt = null
             await Util.destroyAll(players)
+            await this.term.clear()
         }
     }
 
@@ -990,7 +1061,7 @@ class Menu extends EventEmitter {
             choices.push({
                 value     : 'back'
               , name      : 'Back'
-              , enterChar : 'escape'
+              , enterChar : ['escape', '<']
             })
         }
         choices.push({
@@ -1020,7 +1091,7 @@ class Menu extends EventEmitter {
             choices.push({
                 value     : 'back'
               , name      : 'Back'
-              , enterChar : 'escape'
+              , enterChar : ['escape', '<']
             })
         }
         choices.push({
@@ -1132,7 +1203,7 @@ class Menu extends EventEmitter {
           , {
                 value     : 'done'
               , name      : 'Done'
-              , enterChar : 'escape'
+              , enterChar : ['escape', '<']
             }
           , new this._inquirer.Separator()
           , {
@@ -1143,16 +1214,17 @@ class Menu extends EventEmitter {
                   , message : 'Server URL'
                   , type    : 'input'
                   , default : () => this.credentials.serverUrl
+                  , cancel  : {char: 'escape'}
                 }
             }
           , {
-                value : 'username'
-              , name  : 'Username'
+                value    : 'username'
+              , name     : 'Username'
               , question : this.getUsernameQuestion()
             }
           , {
-                value : 'password'
-              , name  : 'Password'
+                value    : 'password'
+              , name     : 'Password'
               , question : this.getPasswordQuestion()
             }
         ]
@@ -1186,29 +1258,35 @@ class Menu extends EventEmitter {
 
     getUsernameQuestion() {
         return {
-            name    : 'username'
-          , message : 'Username'
-          , type    : 'input'
-          , default : () => this.credentials.username
+            name     : 'username'
+          , message  : 'Username'
+          , type     : 'input'
+          , default  : () => this.credentials.username
+          , cancel   : {char: 'escape'}
+          , when     : answers => !answers._cancelEvent
         }
     }
 
     getPasswordQuestion() {
         return {
-            name    : 'password'
-          , message : 'Password'
-          , type    : 'password'
-          , default : () => this.credentials.password
-          , display : () => this.credentials.password ? '******' : ''
+            name     : 'password'
+          , message  : 'Password'
+          , type     : 'password'
+          , default  : () => this.credentials.password
+          , display  : () => this.credentials.password ? '******' : ''
+          , cancel   : {char: 'escape'}
+          , when     : answers => !answers._cancelEvent
         }
     }
 
     getPasswordConfirmQuestion(checkKey = 'password') {
         return {
-            name    : 'passwordConfirm'
-          , message : 'Confirm password'
-          , type    : 'password'
+            name     : 'passwordConfirm'
+          , message  : 'Confirm password'
+          , type     : 'password'
           , validate : (value, answers) => value == answers[checkKey] || 'Passwords do not match'
+          , cancel   : {char: 'escape'}
+          , when     : answers => !answers._cancelEvent
         }
     }
 
@@ -1218,7 +1296,7 @@ class Menu extends EventEmitter {
           , {
                 value     : 'done'
               , name      : 'Done'
-              , enterChar : 'escape'
+              , enterChar : ['escape', '<']
             }
           , new this._inquirer.Separator()
           , {
@@ -1284,6 +1362,7 @@ class Menu extends EventEmitter {
                   , type     : 'input'
                   , default  : () => this.settings.delay
                   , validate : value => !isNaN(+value) && +value >= 0 || 'Please enter a number >= 0'
+                  , cancel   : {char: 'escape'}
                 }
             }
           , {
@@ -1310,7 +1389,7 @@ class Menu extends EventEmitter {
             {
                 value     : 'done'
               , name      : 'Done'
-              , enterChar : 'escape'
+              , enterChar : ['escape', '<']
             }
           , {
                 value : 'reset'
@@ -1355,7 +1434,7 @@ class Menu extends EventEmitter {
             {
                 value     : 'done'
               , name      : 'Done'
-              , enterChar : 'escape'
+              , enterChar : ['escape', '<']
             }
           , {
                 value : 'reset'
@@ -1398,6 +1477,13 @@ class Menu extends EventEmitter {
                 }
             }
         ])
+    }
+
+    getMenuPrefix() {
+        if (this.bread.length > 1) {
+            return ' ' + this.bread.slice(0, this.bread.length - 1).join(' > ') + ' >'
+        }
+        return ''
     }
 
     async testCredentials(credentials, isDecrypt) {
@@ -1443,7 +1529,7 @@ class Menu extends EventEmitter {
         const res = await client.postJson(uri, data)
         const body = await res.json()
         if (!res.ok) {
-            this.logger.warn(body)
+            this.logger.debug(body)
             throw RequestError.forResponse(res, body, uri.split('/').pop() + ' failed')
         }
         return body
@@ -1662,7 +1748,8 @@ class Menu extends EventEmitter {
               , isCrawford  : matchDefaults.isCrawford
               , cubeEnabled : matchDefaults.cubeEnabled
             }
-          , robots        : {}
+          , robots         : {}
+          , lastPlayChoice : undefined
         }
     }
 

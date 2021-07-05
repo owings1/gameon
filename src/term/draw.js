@@ -843,24 +843,24 @@ class TermHelper {
     }
 
     clear(...args) {
-        if (!this.enabled) {
-            return
+        if (this.enabled) {
+            this.term.clear(...args)
         }
-        this.term.clear(...args)
+        return this
     }
 
     eraseDisplayBelow(...args) {
-        if (!this.enabled) {
-            return
+        if (this.enabled) {
+            this.term.eraseDisplayBelow(...args)
         }
-        this.term.eraseDisplayBelow(...args)
+        return this
     }
 
     moveTo(...args) {
-        if (!this.enabled) {
-            return
+        if (this.enabled) {
+            this.term.moveTo(...args)
         }
-        this.term.moveTo(...args)
+        return this
     }
 
     /*

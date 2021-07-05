@@ -29,8 +29,10 @@ const Util        = require('../lib/util')
 const chalk    = require('chalk')
 const inquirer = require('inquirer')
 
-const {Separator}   = inquirer
-const RawListPrompt = require('inquirer/lib/prompts/rawlist')
+const {Separator}    = inquirer
+const InputPrompt    = require('inquirer/lib/prompts/input')
+const PasswordPrompt = require('inquirer/lib/prompts/password')
+const RawListPrompt  = require('inquirer/lib/prompts/rawlist')
 
 const {
     Chars
@@ -52,6 +54,8 @@ class RawListPlusPrompt extends RawListPrompt {
 
     constructor(question, rl, answers) {
         super(question, rl, answers)
+        this.promptMessage = this.opt.promptMessage || 'Answer'
+        this.errorMessage = this.opt.errorMessage || 'Please enter a valid index'
         this.theme = this.opt.theme || ThemeHelper.getDefaultInstance()
         this.chlk = this.theme.prompt
         this.charIndex = {}
@@ -101,6 +105,11 @@ class RawListPlusPrompt extends RawListPrompt {
         return super.getCurrentValue(index)
     }
 
+    // override
+    onError() {
+         this.render(this.errorMessage)
+    }
+
     // override for theme
     render(error) {
 
@@ -116,7 +125,7 @@ class RawListPlusPrompt extends RawListPrompt {
             const choicesStr = this._renderChoices(this.opt.choices, this.selected)
             message +=
               '\n' + this.paginator.paginate(choicesStr, this.selected, this.opt.pageSize)
-            message += '\n' + chlk.message.prompt('  Answer: ')
+            message += '\n' + chlk.message.prompt('  ' + this.promptMessage + ': ')
         }
         message += this.rl.line
 
@@ -196,7 +205,97 @@ class RawListPlusPrompt extends RawListPrompt {
     }
 }
 
+function initOptCancel() {
+    this.cancelChars = {}
+    if (this.opt.cancel) {
+        if (!('value' in this.opt.cancel)) {
+            this.opt.cancel.value = null
+        }
+        if (!('eventKey' in this.opt.cancel)) {
+            this.opt.cancel.eventKey = '_cancelEvent'
+        }
+        const validate = this.opt.validate
+        this.opt.validate = (...args) => {
+            if (this.isCancel) {
+                return true
+            }
+            return validate(...args)
+        }
+        castToArray(this.opt.cancel.char).forEach(chr => {
+            this.cancelChars[chr] = true
+        })
+    }
+}
+
+function handleKeypressCancel(e) {
+    // check for cancel char
+    if (e.key.meta) {
+        var chr = e.key.name
+    } else {
+        var chr = this.rl.line.trim()
+    }
+    //console.log(BRS, {chr, e},this.opt, BRS)
+    if (chr.length && this.cancelChars[chr]) {
+        //console.log('CANCEL')
+        this.isCancel = true
+        if (this.opt.cancel.eventKey) {
+            this.answers[this.opt.cancel.eventKey] = e
+        }
+        this.rl.line = ''
+        this.rl.emit('line', '')
+        if (this.opt.onCancel) {
+            this.opt.onCancel()
+        }
+        return true
+    }
+}
+
+class InputPlusPrompt extends InputPrompt {
+
+    constructor(question, rl, answers) {
+        super(question, rl, answers)
+        initOptCancel.call(this)
+    }
+
+    onKeypress(e) {
+        if (handleKeypressCancel.call(this, e)) {
+            return
+        }
+        super.onKeypress(e)
+    }
+
+    filterInput(input) {
+        if (this.isCancel) {
+            return this.opt.cancel.value
+        }
+        return super.filterInput(input)
+    }
+}
+
+class PasswordPlusPrompt extends PasswordPrompt {
+
+    constructor(question, rl, answers) {
+        super(question, rl, answers)
+        initOptCancel.call(this)
+    }
+
+    onKeypress(e) {
+        if (handleKeypressCancel.call(this, e)) {
+            return
+        }
+        super.onKeypress(e)
+    }
+
+    filterInput(input) {
+        if (this.isCancel) {
+            return this.opt.cancel.value
+        }
+        return super.filterInput(input)
+    }
+}
+
 class BrSeparator extends Separator {
+
     constructor(...args) {
         super(...args)
         this.br = true
@@ -205,7 +304,11 @@ class BrSeparator extends Separator {
 }
 
 const prompter = inquirer.createPromptModule()
+
+prompter.registerPrompt('input', InputPlusPrompt)
 prompter.registerPrompt('rawlist', RawListPlusPrompt)
+prompter.registerPrompt('password', PasswordPlusPrompt)
+
 prompter.prompt = (questions, answers, opts = {}) => {
     const theme = opts.theme || ThemeHelper.getDefaultInstance()
     questions.forEach(question => {
