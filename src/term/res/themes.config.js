@@ -71,7 +71,7 @@ const BuiltIn = {
 
           , 'alert.error.message.color' : 'pink'
 
-          //, 'prompt.answer.color'               : 'blue'
+          , 'prompt.answer.color'               : 'blue'
           , 'prompt.choice.selected.background' : 'grey dim'
           , 'prompt.choice.selected.color'      : 'orange'
 

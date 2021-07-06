@@ -152,9 +152,6 @@ const Inits = {
 
         this.isCancel = false
         this.keypressCancel = Methods.keypressCancel
-        if (!this.onCancel) {
-            this.onCancel = () => {}
-        }
 
         const {opt} = this
 
@@ -168,7 +165,6 @@ const Inits = {
         opt.cancel = {
             value    : null
           , eventKey : '_cancelEvent'
-          , onCancel : () => {}
           , ...opt.cancel
         }
         opt.cancel.char = castToArray(opt.cancel.char)
@@ -180,7 +176,6 @@ const Inits = {
 
   , charSelect: function initCharSelect(...args) {
 
-        this.lastWasChar = false
         this.keypressCharSelect = Methods.keypressCharSelect
 
         this._charIndex = {}
@@ -204,6 +199,11 @@ const Inits = {
         if (!this.opt.writeInvalid) {
             this.opt.writeInvalid = value => value
         }
+    }
+
+  , restoreDefault : function initRestoreDefault(...args) {
+        this.keypressRestore = Methods.keypressRestore
+        this._restoreChars = keyValuesTrue(castToArray(this.opt.restoreDefault))
     }
 }
 
@@ -240,7 +240,7 @@ const Methods = {
         let message = heads.join(chlk.message.question(' '))
 
         // Append the default if available, and if question isn't touched/answered
-        if (opt.default && this.status !== 'touched' && this.status !== 'answered') {
+        if (opt.default && this.status != 'touched' && this.status != 'answered' && this.status != 'canceled') {
             message += chlk.message.prompt(' ')
             // If default password is supplied, hide it
             if (opt.type === 'password') {
@@ -270,10 +270,8 @@ const Methods = {
         if (this.opt.cancel.eventKey) {
             this.answers[this.opt.cancel.eventKey] = e
         }
-        this.rl.line = ''
-        this.rl.emit('line', '')
-        this.opt.cancel.onCancel(this.answers, e)
-        this.onCancel(this.answers, e)
+        this.cancel(this.opt.cancel, e)
+
         return true
     }
 
@@ -284,29 +282,42 @@ const Methods = {
             return
         }
 
-        this.lastWasChar = false
-
         const chr = keypressName(e)
 
         if (!chr.length || !this._charIndex[chr]) {
             return
         }
 
-        this.lastWasChar = true
-        this.selected = this._charIndex[chr].index
-        if (this._charIndex[chr].enters) {
-            this.rl.line = ''
-            this.rl.emit('line', '')
-        } else {
-            this.rl.line = (this.selected + 1).toString()
-            this.rl.cursor = this.rl.line.length
-            this.render()
+        const {index, enters} = this._charIndex[chr]
+
+        this.selectIndex(index, enters)
+
+        return true
+    }
+
+  , keypressRestore: function keypressRestore(e) {
+
+        if (!this._restoreChars) {
+            return
         }
+
+        if (this.opt.default == null) {
+            return
+        }
+
+        const chr = keypressName(e)
+
+        if (!chr.length || !this._restoreChars[chr]) {
+            return
+        }
+
+        this.restoreDefault(e)
+
         return true
     }
 }
 
-class RawListPlusPrompt extends Prompter.prompts.rawlist {
+class RawListPrompt extends Prompter.prompts.rawlist {
 
     constructor(...args) {
         super(...args)
@@ -321,16 +332,20 @@ class RawListPlusPrompt extends Prompter.prompts.rawlist {
         }
     }
 
+    // Override
     onKeypress(e) {
         if (this.keypressCancel(e)) {
             return
         }
         if (this.keypressCharSelect(e)) {
             return
+        } else {
+            this.lastWasChar = false
         }
         super.onKeypress(e)
     }
 
+    // Override
     getCurrentValue(index) {
         if (this.isCancel) {
             return this.opt.cancel.value
@@ -341,7 +356,32 @@ class RawListPlusPrompt extends Prompter.prompts.rawlist {
         return super.getCurrentValue(index)
     }
 
-    // override
+    // Called by keypressCharSelect
+    selectIndex(index, isSubmit) {
+
+        this.lastWasChar = true
+        this.selected = index
+
+        const line = (index + 1).toString()
+
+        this.rl.line = line
+        this.rl.cursor = line.length
+        
+        this.render()
+
+        if (isSubmit) {
+            this.rl.emit('line', '')
+        }
+    }
+
+    // Called by keypressCancel
+    cancel() {
+        this.rl.line = ''
+        this.rl.cursor = 0
+        this.rl.emit('line', '')
+    }
+
+    // Override
     onError() {
          this.render(this.opt.errorMessage)
     }
@@ -449,18 +489,22 @@ class RawListPlusPrompt extends Prompter.prompts.rawlist {
     }
 }
 
-class InputPlusPrompt extends Prompter.prompts.input {
+class InputPrompt extends Prompter.prompts.input {
 
     constructor(...args) {
         super(...args)
         Inits.theme.call(this, ...args)
         Inits.cancel.call(this, ...args)
         Inits.invalid.call(this, ...args)
+        Inits.restoreDefault.call(this, ...args)
     }
 
     // Bound by parent to keypress until validation.success
     onKeypress(e) {
         if (this.keypressCancel(e)) {
+            return
+        }
+        if (this.keypressRestore(e)) {
             return
         }
         // fix bug introduced in
@@ -471,14 +515,26 @@ class InputPlusPrompt extends Prompter.prompts.input {
     }
 
     // Called by keypressCancel
-    onCancel() {
+    cancel() {
         this.answer = this.opt.cancel.value
         this.status = 'canceled'
+        this.rl.line = ''
+        this.rl.cursor = 0
+        this.rl.emit('line', '')
+    }
+
+    // Called by keypressRestore
+    restoreDefault() {
+        this.answer = this.opt.default
+        this.status = 'pending'
+        this.rl.line = ''
+        this.rl.cursor = 0
+        this.render()
     }
 
     // Bound by parent class to rl.line
     filterInput(input) {
-        if (this.status == 'canceled') {
+        if (this.isCancel) {
             return this.opt.cancel.value
         }
         // fix bug introduced in
@@ -509,17 +565,17 @@ class InputPlusPrompt extends Prompter.prompts.input {
 
         const {chlk} = this
 
+        const {transformer} = this.opt
+        const {isCancel} = this
+
         let message = this.getQuestion()
         let bottomContent = ''
         let appendContent = ''
         
-        const { transformer } = this.opt
-        const isCancel = this.status == 'canceled'
-        const isFinal = this.status == 'answered'
-
         if (isCancel) {
             appendContent = chlk.message.help(' [cancel]')
         } else {
+            const isFinal = this.status == 'answered'
             var value = isFinal ? this.answer : this.rl.line
             if (transformer) {
                 value = transformer(value, this.answers, {isFinal})
@@ -540,12 +596,13 @@ class InputPlusPrompt extends Prompter.prompts.input {
     }
 }
 
-class PasswordPlusPrompt extends Prompter.prompts.password {
+class PasswordPrompt extends Prompter.prompts.password {
 
     constructor(...args) {
         super(...args)
         Inits.theme.call(this, ...args)
         Inits.cancel.call(this, ...args)
+        Inits.restoreDefault.call(this, ...args)
     }
 
     // Bound by parent to keypress until validation.success
@@ -564,6 +621,24 @@ class PasswordPlusPrompt extends Prompter.prompts.password {
         return super.filterInput(input)
     }
 
+    // Called by keypressCancel
+    cancel() {
+        this.answer = this.opt.cancel.value
+        this.status = 'canceled'
+        this.rl.line = ''
+        this.rl.cursor = 0
+        this.rl.emit('line', '')
+    }
+
+    // Called by keypressRestore
+    restoreDefault() {
+        this.answer = this.opt.default
+        this.status = 'pending'
+        this.rl.line = ''
+        this.rl.cursor = 0
+        this.render()
+    }
+
     // Override for theme
     // Adapted from inquirer/lib/prompts/password:
     // https://github.com/SBoudrias/Inquirer.js/blob/master/packages/inquirer/lib/prompts/password.js
@@ -573,8 +648,6 @@ class PasswordPlusPrompt extends Prompter.prompts.password {
 
         let message = this.getQuestion()
         let bottomContent = ''
-
-        //debug({status: this.status})
 
         if (this.isCancel) {
             message += chlk.message.help(' [cancel]')
@@ -597,7 +670,7 @@ class PasswordPlusPrompt extends Prompter.prompts.password {
     }
 }
 
-class ListPlusPrompt extends Prompter.prompts.list {
+class ListPrompt extends Prompter.prompts.list {
 
     constructor(...args) {
         super(...args)
@@ -612,6 +685,7 @@ class ListPlusPrompt extends Prompter.prompts.list {
         }
     }
 
+    // Override
     getCurrentValue() {
         if (this.isCancel) {
             return this.opt.cancel.value
@@ -619,7 +693,13 @@ class ListPlusPrompt extends Prompter.prompts.list {
         return super.getCurrentValue()
     }
 
-    // Add keypress listener
+    // Called by keypressCancel
+    cancel() {
+        this.status = 'canceled'
+        this.rl.emit('line', '')
+    }
+
+    // Override - Add keypress listener
     _run(cb) {
         const events = observe(this.rl)
         events.keypress.pipe(
@@ -646,7 +726,9 @@ class ListPlusPrompt extends Prompter.prompts.list {
         }
 
         // Render choices or answer depending on the state
-        if (this.status === 'answered') {
+        if (this.isCancel) {
+            message += chlk.message.help(' [cancel]')
+        } else if (this.status == 'answered') {
             message += chlk.answer(choices.getChoice(this.selected).short)
         } else {
             const choicesStr = this._listRender(choices, this.selected)
@@ -724,7 +806,7 @@ class ListPlusPrompt extends Prompter.prompts.list {
     }
 }
 
-class ConfirmPlusPrompt extends Prompter.prompts.confirm {
+class ConfirmPrompt extends Prompter.prompts.confirm {
 
     constructor(...args) {
         super(...args)
@@ -732,6 +814,7 @@ class ConfirmPlusPrompt extends Prompter.prompts.confirm {
         Inits.cancel.call(this, ...args)
     }
 
+    // Override
     onKeypress(e) {
         if (this.keypressCancel(e)) {
             return
@@ -739,11 +822,39 @@ class ConfirmPlusPrompt extends Prompter.prompts.confirm {
         super.onKeypress(e)
     }
 
+    // Override
     filterInput(input) {
         if (this.isCancel) {
             return this.opt.cancel.value
         }
         return super.filterInput(input)
+    }
+
+    // Called by keypressCancel
+    cancel() {
+        this.status = 'canceled'
+        this.rl.line = ''
+        this.rl.cursor = 0
+        this.rl.emit('line', '')
+    }
+
+    // Override for theme
+    // Adapted from inquirer/lib/prompts/confirm
+    // https://github.com/SBoudrias/Inquirer.js/blob/master/packages/inquirer/lib/prompts/confirm.js
+    render(answer) {
+
+        const {chlk} = this
+        let message = this.getQuestion()
+
+        if (typeof answer === 'boolean') {
+            message += chlk.answer(answer ? 'Yes' : 'No')
+        } else {
+            message += this.rl.line
+        }
+
+        this.screen.render(message)
+
+        return this
     }
 }
 
@@ -757,11 +868,11 @@ class BrSeparator extends Separator {
 }
 
 const Prompts = {
-    confirm  : ConfirmPlusPrompt
-  , input    : InputPlusPrompt
-  , list     : ListPlusPrompt
-  , password : PasswordPlusPrompt
-  , rawlist  : RawListPlusPrompt
+    confirm  : ConfirmPrompt
+  , input    : InputPrompt
+  , list     : ListPrompt
+  , password : PasswordPrompt
+  , rawlist  : RawListPrompt
 }
 const AddClasses = {
     BrSeparator

@@ -1125,6 +1125,7 @@ class Menu extends EventEmitter {
                   , validate : value => Number.isInteger(value) && value > 0 || 'Please enter a number > 0'
                   , filter   : value => +value
                   , cancel   : CancelChars.input
+                  , restoreDefault : 'up'
                 }
             }
           , {
@@ -1225,6 +1226,7 @@ class Menu extends EventEmitter {
                   , type    : 'input'
                   , default : () => this.credentials.serverUrl
                   , cancel  : CancelChars.input
+                  , restoreDefault : 'up'
                 }
             }
           , {
@@ -1294,6 +1296,7 @@ class Menu extends EventEmitter {
           , display  : () => this.credentials.username + (this.credentials.isTested ? (' ' + this.theme.prompt.check.pass(Chars.check)) : '')
           , cancel   : CancelChars.input
           , when     : answers => !answers._cancelEvent
+          , restoreDefault : 'up'
         }
     }
 
@@ -1307,6 +1310,7 @@ class Menu extends EventEmitter {
           , mask     : '*'
           , cancel   : CancelChars.password
           , when     : answers => !answers._cancelEvent
+          , restoreDefault : 'up'
         }
     }
 
@@ -1390,6 +1394,7 @@ class Menu extends EventEmitter {
                   , default : () => homeTilde(this.settings.recordDir)
                   , filter  : value => value == null ? null : path.resolve(tildeHome(value))
                   , cancel  : CancelChars.input
+                  , restoreDefault : 'up'
                 }
             }
           , new this.inquirer.Separator()
@@ -1404,7 +1409,8 @@ class Menu extends EventEmitter {
                   , filter   : value => +value
                   , validate : value => !isNaN(value) && value >= 0 || 'Please enter a number >= 0'
                   , cancel   : CancelChars.input
-                  , writeInvalid : () => ''
+                  , writeInvalid   : () => ''
+                  , restoreDefault : 'up'
                 }
             }
           , {
@@ -1514,7 +1520,8 @@ class Menu extends EventEmitter {
                   , filter   : value => +value
                   , validate : weightValidator
                   , cancel   : CancelChars.input
-                  , writeInvalid : () => ''
+                  , writeInvalid   : () => ''
+                  , restoreDefault : 'up'
                 }
             }
           , {
@@ -1530,7 +1537,8 @@ class Menu extends EventEmitter {
                   , filter   : value => +value
                   , validate : weightValidator
                   , cancel   : CancelChars.input
-                  , writeInvalid : () => ''
+                  , writeInvalid   : () => ''
+                  , restoreDefault : 'up'
                 }
             }
         ])
