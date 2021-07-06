@@ -104,6 +104,15 @@ function keypressName(e) {
     if (e.key.meta) {
         return e.key.name
     }
+    if (e.value == null) {
+        return e.key.name
+    }
+    if (e.key.name && e.key.name.length > 1) {
+        return e.key.name
+    }
+    if (e.key.ctrl) {
+        return 'ctrl-' + e.key.name
+    }
     return e.value || ''
 }
 
@@ -113,6 +122,18 @@ function getTheme(opt) {
         return Themes.getInstance(name)
     }
     return Themes.getDefaultInstance()
+}
+
+// Copied from inquirer/lib/prompts/password
+// https://github.com/SBoudrias/Inquirer.js/blob/master/packages/inquirer/lib/prompts/password.js
+function mask(input, maskChar, limit = Infinity) {
+    input = String(input)
+    maskChar = typeof maskChar === 'string' ? maskChar : '*'
+    if (input.length === 0) {
+        return ''
+    }
+
+    return new Array(Math.min(input.length + 1, limit)).join(maskChar)
 }
 
 const Inits = {
@@ -131,6 +152,9 @@ const Inits = {
 
         this.isCancel = false
         this.keypressCancel = Methods.keypressCancel
+        if (!this.onCancel) {
+            this.onCancel = () => {}
+        }
 
         const {opt} = this
 
@@ -174,6 +198,13 @@ const Inits = {
             index += 1
         })
     }
+
+  , invalid : function initInvalid(...args) {
+
+        if (!this.opt.writeInvalid) {
+            this.opt.writeInvalid = value => value
+        }
+    }
 }
 
 const Methods = {
@@ -209,13 +240,13 @@ const Methods = {
         let message = heads.join(chlk.message.question(' '))
 
         // Append the default if available, and if question isn't touched/answered
-        if (opt.default != null && this.status !== 'touched' && this.status !== 'answered') {
+        if (opt.default && this.status !== 'touched' && this.status !== 'answered') {
             message += chlk.message.prompt(' ')
             // If default password is supplied, hide it
             if (opt.type === 'password') {
-                message += chlk.message.help('[hidden] ')
+                message += chlk.message.help('[hidden]')
             } else {
-                message += chlk.message.help('(' + opt.default + ') ')
+                message += chlk.message.help('(' + opt.default + ')')
             }
         }
 
@@ -241,7 +272,8 @@ const Methods = {
         }
         this.rl.line = ''
         this.rl.emit('line', '')
-        this.opt.onCancel(this.answers, e)
+        this.opt.cancel.onCancel(this.answers, e)
+        this.onCancel(this.answers, e)
         return true
     }
 
@@ -423,23 +455,54 @@ class InputPlusPrompt extends Prompter.prompts.input {
         super(...args)
         Inits.theme.call(this, ...args)
         Inits.cancel.call(this, ...args)
+        Inits.invalid.call(this, ...args)
     }
 
+    // Bound by parent to keypress until validation.success
     onKeypress(e) {
         if (this.keypressCancel(e)) {
             return
         }
+        // fix bug introduced in
+        // https://github.com/SBoudrias/Inquirer.js/commit/73b6e658
+        // see https://github.com/owings1/Inquirer.js/commit/21ea73a3
+        this.status = 'touched'
         super.onKeypress(e)
     }
 
+    // Called by keypressCancel
+    onCancel() {
+        this.answer = this.opt.cancel.value
+        this.status = 'canceled'
+    }
+
+    // Bound by parent class to rl.line
     filterInput(input) {
-        if (this.isCancel) {
+        if (this.status == 'canceled') {
             return this.opt.cancel.value
+        }
+        // fix bug introduced in
+        // https://github.com/SBoudrias/Inquirer.js/commit/73b6e658
+        // see https://github.com/owings1/Inquirer.js/commit/21ea73a3
+        if (this.status == 'touched') {
+            return input
         }
         return super.filterInput(input)
     }
 
-    // Override for theme
+    // Bound by parent class to validation.error
+    onError({value, isValid}) {
+        if (isValid !== true) {
+            value = this.opt.writeInvalid(value, this.answers)
+            this.rl.line = value
+            this.rl.cursor = value.length
+            this.render(isValid)
+            return
+        }
+        super.onError({value, isValid})
+    }
+
+    // Override for theme, cancel
     // Adapted from inquirer/lib/prompts/input:
     // https://github.com/SBoudrias/Inquirer.js/blob/master/packages/inquirer/lib/prompts/input.js
     render(error) {
@@ -451,19 +514,23 @@ class InputPlusPrompt extends Prompter.prompts.input {
         let appendContent = ''
         
         const { transformer } = this.opt
-        const isFinal = this.status === 'answered'
+        const isCancel = this.status == 'canceled'
+        const isFinal = this.status == 'answered'
 
-        if (isFinal) {
-            appendContent = ' ' + this.answer
+        if (isCancel) {
+            appendContent = chlk.message.help(' [cancel]')
         } else {
-            appendContent = ' ' + this.rl.line
+            var value = isFinal ? this.answer : this.rl.line
+            if (transformer) {
+                value = transformer(value, this.answers, {isFinal})
+            }
+            if (isFinal) {
+                appendContent = chlk.answer(' ' + value)
+            } else {
+                appendContent = ' ' + value
+            }
         }
-
-        if (transformer) {
-            message += transformer(appendContent, this.answers, { isFinal })
-        } else {
-            message += isFinal ? chlk.answer(appendContent) : appendContent
-        }
+        message += appendContent
 
         if (error) {
             bottomContent += this.getErrorString(error)
@@ -481,6 +548,7 @@ class PasswordPlusPrompt extends Prompter.prompts.password {
         Inits.cancel.call(this, ...args)
     }
 
+    // Bound by parent to keypress until validation.success
     onKeypress(e) {
         if (this.keypressCancel(e)) {
             return
@@ -488,6 +556,7 @@ class PasswordPlusPrompt extends Prompter.prompts.password {
         super.onKeypress(e)
     }
 
+    // Bound by parent class to rl.line
     filterInput(input) {
         if (this.isCancel) {
             return this.opt.cancel.value
@@ -505,14 +574,18 @@ class PasswordPlusPrompt extends Prompter.prompts.password {
         let message = this.getQuestion()
         let bottomContent = ''
 
-        if (this.status === 'answered') {
+        //debug({status: this.status})
+
+        if (this.isCancel) {
+            message += chlk.message.help(' [cancel]')
+        } else if (this.status === 'answered') {
             message += this.opt.mask
-                ? chlk.answer(mask(this.answer, this.opt.mask))
-                : chlk.message.help('[hidden]')
+                ? chlk.answer(' ' + mask(this.answer, this.opt.mask, 8))
+                : chlk.message.help(' [hidden]')
         } else if (this.opt.mask) {
-            message += mask(this.rl.line || '', this.opt.mask)
+            message += ' ' + mask(this.rl.line || '', this.opt.mask)
         } else {
-            message += chlk.message.help('[input is hidden] ')
+            message += chlk.message.help(' [input is hidden] ')
         }
 
         if (error) {

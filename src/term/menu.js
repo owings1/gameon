@@ -432,6 +432,7 @@ class Menu extends EventEmitter {
                     var {answer, isCancel} = await this.questionAnswer(question)
                     var oldValue = this.credentials[choice]
 
+                    //console.log({answer, oldValue})
                     if (isCancel) {
                         continue
                     }
@@ -515,7 +516,7 @@ class Menu extends EventEmitter {
                     this.alerter.theme = this.theme
                 } else if (choice == 'termEnabled') {
                     // Set term enabled
-                    this.term.enabled = settings.termEnabled
+                    this.term.enabled = this.settings.termEnabled
                 }
             }
 
@@ -1303,6 +1304,7 @@ class Menu extends EventEmitter {
           , type     : 'password'
           , default  : () => this.credentials.password
           , display  : () => this.credentials.password ? '******' : ''
+          , mask     : '*'
           , cancel   : CancelChars.password
           , when     : answers => !answers._cancelEvent
         }
@@ -1314,6 +1316,7 @@ class Menu extends EventEmitter {
           , message  : 'Confirm password'
           , type     : 'password'
           , validate : (value, answers) => value == answers[checkKey] || 'Passwords do not match'
+          , mask     : '*'
           , cancel   : CancelChars.password
           , when     : answers => !answers._cancelEvent
         }
@@ -1385,7 +1388,7 @@ class Menu extends EventEmitter {
                   , message : 'Record Dir'
                   , type    : 'input'
                   , default : () => homeTilde(this.settings.recordDir)
-                  , filter  : value => path.resolve(tildeHome(value))
+                  , filter  : value => value == null ? null : path.resolve(tildeHome(value))
                   , cancel  : CancelChars.input
                 }
             }
@@ -1401,6 +1404,7 @@ class Menu extends EventEmitter {
                   , filter   : value => +value
                   , validate : value => !isNaN(value) && value >= 0 || 'Please enter a number >= 0'
                   , cancel   : CancelChars.input
+                  , writeInvalid : () => ''
                 }
             }
           , {
@@ -1510,6 +1514,7 @@ class Menu extends EventEmitter {
                   , filter   : value => +value
                   , validate : weightValidator
                   , cancel   : CancelChars.input
+                  , writeInvalid : () => ''
                 }
             }
           , {
@@ -1525,6 +1530,7 @@ class Menu extends EventEmitter {
                   , filter   : value => +value
                   , validate : weightValidator
                   , cancel   : CancelChars.input
+                  , writeInvalid : () => ''
                 }
             }
         ])
