@@ -50,7 +50,7 @@ describe('-', () => {
     const Server      = requireSrc('net/server')
     const ThemeHelper = requireSrc('term/themes')
 
-    const {RequestError} = Errors
+    const {RequestError, MatchCanceledError} = Errors
 
     var player
     var menu
@@ -81,6 +81,7 @@ describe('-', () => {
         labConfigFile = resolve(configDir, 'lab.json')
         menu = new Menu(configDir)
         menu.logger.loglevel = 1
+        menu.alerter.loglevel = menu.logger.loglevel
     })
 
     afterEach(async () => {
@@ -179,7 +180,7 @@ describe('-', () => {
             })
 
             it('should invalidate match id abcd with joinOnline, then quit', async () => {
-                menu.logger.loglevel = -1
+                menu.alerter.loglevel = -1
                 menu.prompt = MockPrompter([
                     {playChoice: 'joinOnline'},
                     {matchId: 'abcd'},
@@ -188,7 +189,7 @@ describe('-', () => {
                 await menu.playMenu()
             })
 
-            it('should warn then done when joinOnline throws BadCredentialsError', async () => {
+            it('should alert warning/error then done when joinOnline throws BadCredentialsError', async () => {
                 menu.credentials.username = 'nobody@nowhere.example'
                 menu.credentials.password = menu.encryptPassword('s9GLdoe9')
                 menu.prompt = MockPrompter([
@@ -196,20 +197,28 @@ describe('-', () => {
                     {matchId: '12345678'},
                     {playChoice: 'quit'}
                 ])
-                menu.logger.loglevel = -1
+                var msg
+                menu.alerter.warn = m => msg = m
+                var err
+                menu.alerter.error = e => err = e
                 await menu.playMenu()
+                expect(!!msg).to.equal(true)
+                expect(err.isBadCredentialsError).to.equal(true)
             })
 
-            it('should warn then done when joinMenu throws MatchCanceledError', async () => {
+            it('should alert error then done when joinMenu throws MatchCanceledError', async () => {
+                const exp = new MatchCanceledError
                 menu.joinMenu = () => {
-                    throw new Client.Errors.MatchCanceledError
+                    throw exp
                 }
                 menu.prompt = MockPrompter([
                     {playChoice: 'joinOnline'},
                     {playChoice: 'quit'}
                 ])
-                menu.logger.loglevel = -1
+                var err
+                menu.alerter.error = e => err = e
                 await menu.playMenu()
+                expect(err).to.equal(exp)
             })
 
             it('should return true for choice back', async () => {
@@ -351,11 +360,15 @@ describe('-', () => {
                 server.close()
             })
 
+            async function makeUser(username, password, isConfirm = true) {
+                username = username || 'nobody@nowhere.example'
+                password = password || '8QwuU68W'
+                return await server.auth.createUser(username, password, true) 
+            }
+
             it('should sign up, log in and confirm user', async () => {
                 const username = 'nobody@nowhere.example'
                 const password = '9Axf5kAR'
-                //console.log(menu.credentials)
-                //server.logger.loglevel = 4
                 menu.prompt = MockPrompter([
                     {accountChoice: 'createAccount'},
                     {username, password, passwordConfirm: password},
@@ -368,10 +381,8 @@ describe('-', () => {
             })
 
             it('should send forget password and reset for confirmed user', async () => {
-                const username = 'nobody@nowhere.example'
+                const {username, password} = await makeUser(null, '8QwuU68W')
                 const oldPassword = '2q2y9K7V'
-                const password = '8QwuU68W'
-                await server.auth.createUser(username, oldPassword, true)
                 menu.prompt = MockPrompter([
                     {accountChoice: 'forgotPassword'},
                     {username},
@@ -455,11 +466,11 @@ describe('-', () => {
                 await menu.accountMenu()
             })
 
-            it('should log error and done when promptForgotPassword throws', async () => {
+            it('should alert error and done when promptForgotPassword throws', async () => {
+                const exp = new Error
                 var err
-                menu.logger.loglevel = 0
-                menu.logger.error = e => err = e
-                menu.promptForgotPassword = () => { throw new Error }
+                menu.alerter.error = e => err = e
+                menu.promptForgotPassword = () => { throw exp }
                 const username = 'nobody@nowhere.example'
                 const password = 'd4PUxRs2'
                 await server.auth.createUser(username, password, true)
@@ -468,13 +479,13 @@ describe('-', () => {
                     {accountChoice: 'done'}
                 ])
                 await menu.accountMenu()
-                expect(!!err).to.equal(true)
+                expect(err).to.equal(exp)
             })
 
-            it('should log error and done when password entered and login fails', async () => {
+            it('should alert BadCredentialsError and done when password entered and login fails', async () => {
                 var err
-                menu.logger.loglevel = 0
-                menu.logger.error = e => err = e
+                menu.alerter.loglevel = 0
+                menu.alerter.error = e => err = e
                 menu.credentials.username = 'nobody2@nowhere.example'
                 const password = 'JUzrDc5k'
                 menu.prompt = MockPrompter([
@@ -483,14 +494,12 @@ describe('-', () => {
                     {accountChoice: 'done'}
                 ])
                 await menu.accountMenu()
-                expect(!!err).to.equal(true)
+                expect(err.isBadCredentialsError).to.equal(true)
             })
 
-            // no longer the case
-            it.skip('should unset password and log error then done on incorrect password for change-password', async () => {
+            it('should alert BadCredentialsError then done on incorrect password for change-password', async () => {
                 var err
-                menu.logger.loglevel = 0
-                menu.logger.error = e => err = e
+                menu.alerter.error = e => err = e
                 const username = 'nobody@nowhere.example'
                 const oldPassword = 'C7pUaA3c'
                 const badPassword = 'etzF4Y8L'
@@ -500,12 +509,11 @@ describe('-', () => {
                 menu.credentials.password = menu.encryptPassword(oldPassword)
                 menu.prompt = MockPrompter([
                     {accountChoice: 'changePassword'},
-                    {oldPassword: badPassword, password, passwordConfirm: password},
+                    {oldPassword: badPassword, newPassword: password, passwordConfirm: password},
                     {accountChoice: 'done'}
                 ])
                 await menu.accountMenu()
-                expect(!!menu.credentials.password).to.equal(false)
-                expect(!!err).to.equal(true)
+                expect(err.isBadCredentialsError).to.equal(true)
             })
         })
 
@@ -710,7 +718,7 @@ describe('-', () => {
                 await server.close()
             })
 
-            it('should unset password and throw cause BadCredentialsError for bad confirmKey', async () => {
+            it('should throw cause BadCredentialsError for bad confirmKey', async () => {
                 menu.logger.loglevel = 0
                 const username = 'nobody@nowhere.example'
                 const password = 'r2tW5aUn'
@@ -720,7 +728,6 @@ describe('-', () => {
                 await server.auth.createUser(username, password)
                 menu.prompt = MockPrompter([{key: confirmKey}])
                 const err = await getErrorAsync(() => menu.doLogin())
-                expect(!!menu.credentials.password).to.equal(false)
                 expect(err.cause.name).to.equal('BadCredentialsError')
             })
         })
@@ -1060,9 +1067,9 @@ describe('-', () => {
 
             // coverage tricks
 
-            it('should call inquirer.prompt with array and set menu._prompt', () => {
+            it.skip('should call inquirer.prompt', () => {
                 var q
-                menu._inquirer = {prompt: questions => q = questions}
+                menu.inquirer = {prompt: questions => q = questions}
                 menu.prompt()
                 expect(Array.isArray(q)).to.equal(true)
             })

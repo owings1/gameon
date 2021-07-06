@@ -44,9 +44,19 @@ const BuiltIn = {
           , 'board.log.gameStatus.color' : 'cyan'
           , 'board.log.notice.color'     : 'yellow bold'
 
-          , 'prompt.caret.error.color'     : 'red'
-          , 'prompt.choice.selected.color' : 'cyan'
-          , 'prompt.choice.paren.color'    : 'grey'
+          , 'alert.success.message.color'  : 'green'
+          , 'alert.error.level.color'      : 'red'
+          , 'alert.warn.level.color'       : 'yellow'
+
+          , 'prompt.answer.color'                 : 'cyan'
+          , 'prompt.check.pass.color'             : 'green'
+          , 'prompt.choice.selected.color'        : 'cyan'
+          , 'prompt.choice.disabled.color'        : 'grey'
+          , 'prompt.choice.paren.color'           : 'grey'
+          , 'prompt.message.help.color'           : 'white dim'
+          , 'prompt.message.prefix.color'         : 'white'
+          , 'prompt.message.prefix.default.color' : 'green'
+          , 'prompt.message.question.color'       : 'white bold'
         }
     }
   , Offbeat : {
@@ -59,9 +69,11 @@ const BuiltIn = {
           , 'board.pointLabel.color'      : 'white bold'
           , 'board.cube.active.color'     : 'white'
 
+          , 'alert.error.message.color' : 'pink'
+
+          //, 'prompt.answer.color'               : 'blue'
           , 'prompt.choice.selected.background' : 'grey dim'
           , 'prompt.choice.selected.color'      : 'orange'
-          , 'prompt.message.error.color'        : 'pink'
 
           , 'table.head.color' : 'orange'
 
@@ -105,16 +117,30 @@ const Categories = [
   , 'board.log.piece.red'
   , 'board.log.piece.white'
 
+  , 'alert.info.message'
+  , 'alert.success.message'
+  , 'alert.warn.level'
+  , 'alert.warn.message'
+  , 'alert.error.level'
+  , 'alert.error.message'
+
   , 'prompt.answer'
   , 'prompt.caret.error'
+  , 'prompt.check.pass'
   , 'prompt.choice'
+  , 'prompt.choice.disabled'
   , 'prompt.choice.selected'
   , 'prompt.choice.number'
   , 'prompt.choice.number.selected'
   , 'prompt.choice.paren'
   , 'prompt.choice.paren.selected'
   , 'prompt.message.prompt'
+  , 'prompt.message.question'
+  , 'prompt.message.prefix'
+  , 'prompt.message.prefix.default'
+  , 'prompt.message.suffix'
   , 'prompt.message.error'
+  , 'prompt.message.help'
   , 'prompt.separator'
 
   , 'text'
@@ -123,6 +149,8 @@ const Categories = [
 const DefaultStyles = {
     'text.color'      : 'default'
   , 'text.background' : 'default'
+
+  , 'prompt.check.pass.background' : 'default'
 }
 
 // Order matters
@@ -144,12 +172,28 @@ const CategoryAliases = {
 
   , 'hr' : 'text'
 
+  , 'alert.info.message'    : 'text'
+  , 'alert.success.message' : 'text'
+  , 'alert.warn.message'    : 'text'
+  , 'alert.warn.level'      : 'text'
+  , 'alert.error.message'   : 'text'
+  , 'alert.error.level'     : 'text'
+
   , 'prompt.answer'                 : 'text'
-  , 'prompt.caret.error'            : 'text'
+  , 'prompt.check.pass'             : 'alert.success.message'
+  , 'prompt.caret.error'            : 'alert.error.level'
   , 'prompt.message.prompt'         : 'text'
-  , 'prompt.message.error'          : 'text'
+  , 'prompt.message.error'          : 'alert.error.message'
+  , 'prompt.message.question'       : 'text'
+  , 'prompt.message.help'           : 'text'
+
+  , 'prompt.message.prefix'         : 'prompt.message.question'
+  , 'prompt.message.suffix'         : 'prompt.message.question'
+  , 'prompt.message.prefix.default' : 'prompt.message.prefix'
+
   , 'prompt.choice'                 : 'text'
   , 'prompt.choice.selected'        : 'prompt.answer'
+  , 'prompt.choice.disabled'        : 'prompt.choice'
   , 'prompt.choice.number'          : 'prompt.choice'
   , 'prompt.choice.paren'           : 'prompt.choice.number'
   , 'prompt.choice.number.selected' : 'prompt.choice.selected'

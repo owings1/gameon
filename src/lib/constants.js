@@ -135,6 +135,8 @@ const Chars = {
   , dblSp : '  '
   , br    : '\n'
   , hr    : '\u2501'
+  , check : '\u2713'
+  , pointer : '\u276f'
     //https://unicode-table.com/en/sets/arrow-symbols/#down-arrows
   , arrow : {
         left  : '\u2190'

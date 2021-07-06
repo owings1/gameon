@@ -1464,6 +1464,7 @@ describe('Auth', () => {
             const opts = {authDir}
             const auth = Auth.create({authType: 'directory', ...opts})
             auth.logger.loglevel = 0
+            auth.email.logger.loglevel = 0
             return auth
         }
 

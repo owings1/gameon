@@ -49,9 +49,9 @@ class Api {
 
     constructor(opts) {
 
+        this.opts = Util.defaults(Api.defaults(process.env), opts)
         this.logger = new Logger(this.constructor.name, {server: true})
 
-        this.opts = Util.defaults(Api.defaults(process.env), opts)
         this.auth = Auth.create({...opts, ...this.opts, loggerPrefix: this.constructor.name})
         this.v1 = this.create_v1()
     }
@@ -182,7 +182,7 @@ class Api {
         const error = {name: 'InternalError', message: 'Internal Error'}
         const body = {status: 500, message: 'Internal Error', error}
         res.status(500).send(body)
-        this.logger.error(err, err.cause)
+        this.logger.error(err)
     }
 
     handleError(err, res) {

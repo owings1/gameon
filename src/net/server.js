@@ -80,7 +80,7 @@ class Server {
         return {
             socketHsTimeout : +env.SOCKET_HSTIMEOUT || 5000
           , webEnabled      : !env.GAMEON_WEB_DISABLED
-          , apiEmailTimeout : +env.API_EMAILTIMEOUT || 9 * 1000//undefined
+          , apiEmailTimeout : +env.API_EMAILTIMEOUT || 5 * 1000
         }
     }
 
@@ -109,7 +109,7 @@ class Server {
             try {
                 this.httpServer = this.app.listen(port, () => {
                     this.port = this.httpServer.address().port
-                    this.logger.info('Listening on port', this.port, 'with', this.opts.authType, 'auth')
+                    this.logger.info('Listening on port', this.port, 'with', this.auth.type, 'auth')
                     try {
                         this.socketServer = this.createSocketServer(this.httpServer)
                         this.metricsHttpServer = this.metricsApp.listen(metricsPort, () => {
@@ -199,33 +199,34 @@ class Server {
 
         server.on('request', req => {
 
-            const conn = req.accept(null, req.origin)
+            const {conns} = server
             const connId = this.newConnectionId()
 
-            this.logger.info('Peer', connId, 'connected', conn.remoteAddress)
+            conns[connId] = req.accept(null, req.origin)
+            conns[connId].connId = connId
 
-            conn.connId = connId
-            server.conns[connId] = conn
-            metrics.connections.labels().set(Object.keys(server.conns).length)
+            this.logger.info('Peer', connId, 'connected', conns[connId].remoteAddress)
 
-            conn.on('close', () => {
+            metrics.connections.labels().set(Object.keys(conns).length)
+
+            conns[connId].on('close', () => {
                 this.logger.info('Peer', connId, 'disconnected')
-                this.cancelMatchId(conn.matchId, 'Peer disconnected')
-                delete server.conns[connId]
-                metrics.connections.labels().set(Object.keys(server.conns).length)
+                this.cancelMatchId(conns[connId].matchId, 'Peer disconnected')
+                delete conns[connId]
+                metrics.connections.labels().set(Object.keys(conns).length)
                 this.logActive()
             })
 
-            conn.on('message', msg => {
+            conns[connId].on('message', msg => {
                 metrics.messagesReceived.labels().inc()
-                this.response(conn, JSON.parse(msg.utf8Data))
+                this.response(conns[connId], JSON.parse(msg.utf8Data))
             })
 
             setTimeout(() => {
-                if (!conn.secret) {
-                    this.logger.warn('Peer', connId, 'handshake timeout', conn.remoteAddress)
-                    this.sendMessage(conn, makeErrorObject(new HandshakeError('Client handshake timeout')))
-                    conn.close()
+                if (conns[connId] && conns[connId].connected && !conns[connId].secret) {
+                    this.logger.warn('Peer', connId, 'handshake timeout', conns[connId].remoteAddress)
+                    this.sendMessage(conns[connId], makeErrorObject(new HandshakeError('Client handshake timeout')))
+                    conns[connId].close()
                 }
             }, this.opts.socketHsTimeout)
         })

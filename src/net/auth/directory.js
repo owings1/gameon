@@ -23,14 +23,11 @@
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 const Errors = require('../../lib/errors')
-const Logger = require('../../lib/logger')
 const Util   = require('../../lib/util')
 
 const fs   = require('fs')
 const fse  = require('fs-extra')
 const path = require('path')
-
-const {resolve} = path
 
 const {
     InternalError
@@ -97,7 +94,7 @@ class DirectoryAuth {
     }
 
     _userFile(username) {
-        return resolve(this.opts.authDir, this._userFilename(username))
+        return path.resolve(this.opts.authDir, this._userFilename(username))
     }
 
     _userFilename(username) {

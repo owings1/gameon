@@ -133,7 +133,7 @@ class Client extends EventEmitter {
         const {username, password, token} = this
         const req = {action: 'establishSecret', username, password, token}
         const res = await this.sendAndWaitForResponse(req, 'acknowledgeSecret')
-        this.logger.info('Server handshake success')
+        this.logger.log('Server handshake success')
         this.isHandshake = true
         return res
     }

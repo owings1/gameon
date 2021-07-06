@@ -23,7 +23,6 @@
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 const Errors = require('../../lib/errors')
-const Logger = require('../../lib/logger')
 const Util   = require('../../lib/util')
 
 const AWS  = require('aws-sdk')

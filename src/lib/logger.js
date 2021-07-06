@@ -23,6 +23,7 @@
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 const Logging = require('better-logging')
+const Themes  = require('../term/themes')
 const Util    = require('./util')
 const chalk   = require('chalk')
 
@@ -46,16 +47,33 @@ const TypeColor = {
  , '[line]'  : 'grey'
 }
 
+const AlertThemeLevels= {
+   '[warn]'  : 'warn'
+ , '[error]' : 'error'
+}
+const AlertThemeMessage = {
+   '[warn]'  : 'warn'
+ , '[error]' : 'error'
+ , '[debug]' : 'info'
+ , '[log]'   : 'info'
+ , '[info]'  : 'info'
+ , '[line]'  : 'info'
+}
 class Logger {
 
     static defaults() {
-        return {server: false, named: false}
+        return {server: false, named: false, alerter: false, theme: null}
     }
 
     constructor(name, opts) {
         this.opts = Util.defaults(Logger.defaults(), opts)
         this.name = name || ''
         this.opts.name = this.name
+        if (this.opts.theme) {
+            this.theme = Themes.getInstance(this.opts.theme)
+        } else {
+            this.theme = Themes.getDefaultInstance()
+        }
         Logger.logify(this, this.opts)
     }
 
@@ -78,6 +96,8 @@ class Logger {
             var format = Logger.getFormatServer(opts.name)
         } else if (opts.named) {
             var format = Logger.getFormatNamed(obj)
+        } else if (opts.alerter) {
+            var format = Logger.getFormatAlerter(obj)
         } else {
             var format = Logger.format
         }
@@ -128,6 +148,21 @@ class Logger {
               , '[' + name + ']'
               , ctx.msg
             ].join(' ')
+        }
+    }
+
+    static getFormatAlerter(obj) {
+        return ctx => {
+            const type = stripAnsi(ctx.type)
+            const levelKey = AlertThemeLevels[type]
+            const msgKey = AlertThemeMessage[type]
+            const chlk = obj.theme.alert
+            const parts = []
+            if (levelKey) {
+                parts.push(chlk[levelKey].level(type.toUpperCase()))
+            }
+            parts.push(chlk[msgKey].message(ctx.msg))
+            return parts.join(chlk[msgKey].message(' '))
         }
     }
 }

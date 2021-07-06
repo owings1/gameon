@@ -118,6 +118,13 @@ function parseKey(params) {
     return params.Message.Body.Text.Data.match(/^Key: (.*)$/)[1]
 }
 
+class MockPrompterError extends Error {
+    constructor(...args) {
+        super(...args)
+        this.name = this.constructor.name
+    }
+}
+
 function MockPrompter(responses, isSkipAssertAsked, isSkipAssertAnswered, isSkipAssertValid) {
 
     const isAssertAsked = !isSkipAssertAsked
@@ -131,83 +138,84 @@ function MockPrompter(responses, isSkipAssertAsked, isSkipAssertAnswered, isSkip
         const answers = {}
         const response = responses.shift()
         try {
-            if (response) {
+            if (!response) {
+                throw new MockPrompterError('MockPrompter did not have a reponse for seqi ' + seqi + ' with questions ' + questions.map(it => it.name).join(', '))
+            }
 
-                const unasked = {}
-                Object.keys(response).forEach(opt => unasked[opt] = true)
-                const unanswered = []
+            const unasked = Util.keyValuesTrue(Object.keys(response))
+            const unanswered = []
 
-                var shouldThrow = false
-                const alerts = []
+            var shouldThrow = false
+            const alerts = []
 
-                for (var question of questions) {
-                    if ('when' in question) {
-                        if (typeof question.when == 'function') {
-                            if (!question.when(answers)) {
-                                continue
-                            }
-                        }
-                        if (!question.when) {
+            for (var question of questions) {
+
+                if ('when' in question) {
+                    if (typeof question.when == 'function') {
+                        var whenResult = await question.when(answers)
+                        if (!whenResult) {
                             continue
                         }
                     }
-                    var opt = question.name
-                    delete unasked[opt]
-                    if (opt in response) {
-                        var value
-                        if (typeof response[opt] == 'function') {
-                            value = await response[opt](question)
-                        } else {
-                            value = response[opt]
-                        }
-                        if (typeof question.filter == 'function') {
-                            value = await question.filter(value, answers)
-                        }
-                        if ('validate' in question) {
-                            var valid = question.validate(value, answers)
-                            if (valid !== true) {
-                                alerts.push(
-                                    "Validation failed for " + opt + ": " + valid
-                                )
-                                shouldThrow = shouldThrow || isAssertValid
-                            }
-                        }
-                        if (typeof(question.default) == 'function') {
-                            // call for coverage
-                            question.default(answers)
-                        }
-                        answers[opt] = value
-                    } else {
-                        
-                        unanswered.push(opt)
+                    if (!question.when) {
+                        continue
                     }
                 }
 
-                if (Object.keys(unasked).length) {
-                    alerts.push(
-                        "MockPrompter was not asked: " + Object.keys(unasked).join(', ') + " in seqi " + seqi
-                    )
-                    shouldThrow = shouldThrow || isAssertAsked
+                var opt = question.name
+                delete unasked[opt]
+
+                if (!(opt in response)) {
+                    unanswered.push(opt)
+                    continue
                 }
 
-                if (unanswered.length) {
-                    alerts.push(
-                        "MockPrompter did not answer: " + unanswered.join(', ') + " in seqi " + seqi
-                    )
-                    shouldThrow = shouldThrow || isAssertAnswered
+                if (typeof response[opt] == 'function') {
+                    var value = await response[opt](question)
+                } else {
+                    var value = response[opt]
                 }
-
-                if (shouldThrow) {
-                    throw new Error(alerts.join(' AND '))
+                if (typeof question.filter == 'function') {
+                    value = await question.filter(value, answers)
                 }
-
-                if (alerts.length) {
-                    console.error('MockPrompter Alerts!', alerts)
+                if ('validate' in question) {
+                    var valid = await question.validate(value, answers)
+                    if (valid !== true) {
+                        alerts.push(
+                            "Validation failed for " + opt + ": " + valid
+                        )
+                        shouldThrow = shouldThrow || isAssertValid
+                    }
                 }
-                
-            } else {
-                throw new Error('MockPrompter did not have a reponse for seqi ' + seqi + ' with questions ' + questions.map(it => it.name).join(', '))
+                if (typeof question.default == 'function') {
+                    // call for coverage
+                    await question.default(answers)
+                }
+                answers[opt] = value
             }
+
+            if (Object.keys(unasked).length) {
+                alerts.push(
+                    "MockPrompter was not asked: " + Object.keys(unasked).join(', ') + " in seqi " + seqi
+                )
+                shouldThrow = shouldThrow || isAssertAsked
+            }
+
+            if (unanswered.length) {
+                alerts.push(
+                    "MockPrompter did not answer: " + unanswered.join(', ') + " in seqi " + seqi
+                )
+                shouldThrow = shouldThrow || isAssertAnswered
+            }
+
+            if (shouldThrow) {
+                throw new MockPrompterError(alerts.join(' AND '))
+            }
+
+            if (alerts.length) {
+                console.error('MockPrompter Alerts!', alerts)
+            }
+                
         } finally {
             if (prompter.debug) {
                 console.log({questions, answers})

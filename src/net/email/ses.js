@@ -22,31 +22,26 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-const Errors  = require('../../lib/errors')
-const Logger  = require('../../lib/logger')
-const Util    = require('../../lib/util')
+const Util = require('../../lib/util')
 
 const AWS = require('aws-sdk')
-
-const {InternalError} = Errors
-
-function getSesOpts(opts) {
-    return {
-        httpOptions: {
-            connectTimeout: opts.connectTimeout
-        }
-    }
-}
 
 class SesEmail {
 
     constructor(opts) {
-        //console.log(opts, getSesOpts(opts))
-        this.ses = new AWS.SES(getSesOpts(opts))
+        this.ses = new AWS.SES(SesEmail.getSesOpts(opts))
     }
 
     async send(params) {
         await this.ses.sendEmail(params).promise()
+    }
+
+    static getSesOpts(opts) {
+        return {
+            httpOptions: {
+                connectTimeout: opts.connectTimeout
+            }
+        }
     }
 }
 

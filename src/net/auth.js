@@ -61,6 +61,8 @@ const ImplClasses = {
   , s3        : require('./auth/s3')
 }
 
+const GenericMessage = 'Invalid username/password combination'
+
 class Auth {
 
     static defaults(env) {
@@ -87,12 +89,14 @@ class Auth {
         env = env || process.env
         const type = (opts && opts.authType) || env.AUTH_TYPE || DefaultAuthType
         const impl = new ImplClasses[type](opts)
-        return new Auth(impl, opts)
+        const auth = new Auth(impl, opts)
+        auth.type = type
+        return auth
     }
 
     constructor(impl, opts) {
 
-        this.impl = impl 
+        this.impl = impl
 
         this.opts = Util.defaults(Auth.defaults(process.env), opts)
 
@@ -132,7 +136,7 @@ class Auth {
             this.logger.warn(err, {username})
             if (err.name == 'UserNotFoundError') {
                 // Do not reveal non-existence of user
-                throw new BadCredentialsError
+                throw new BadCredentialsError(GenericMessage)
             }
             throw new InternalError(err)
         }
@@ -141,13 +145,13 @@ class Auth {
                 password = this.decryptPassword(password)
             }
             if (!password || !password.length || user.password != this.hashPassword(password)) {
-                throw new BadCredentialsError
+                throw new BadCredentialsError(GenericMessage)
             }
             if (user.locked) {
-                throw new UserLockedError
+                throw new UserLockedError('The user account is locked')
             }
             if (!user.confirmed) {
-                throw new UserNotConfirmedError
+                throw new UserNotConfirmedError('The user account is not confirmed')
             }
         } catch (err) {
             this.logger.warn(err, {username})
@@ -312,7 +316,7 @@ class Auth {
         username = username.toLowerCase()
         var user = await this.readUser(username)
         if (!confirmKey || this.hashPassword(confirmKey) != user.confirmKey) {
-            throw new BadCredentialsError
+            throw new BadCredentialsError('Invalid username and confirm key combination')
         }
         const timestamp = Util.timestamp()
         if (Util.timestamp() > user.confirmKeyCreated + this.opts.confirmExpiry) {
@@ -334,7 +338,7 @@ class Auth {
         username = username.toLowerCase()
         var user = await this.readUser(username)
         if (!resetKey || this.hashPassword(resetKey) != user.resetKey) {
-            throw new BadCredentialsError
+            throw new BadCredentialsError('Invalid username and reset key combination')
         }
         const timestamp = Util.timestamp()
         if (Util.timestamp() > user.resetKeyCreated + this.opts.resetExpiry) {
@@ -359,7 +363,7 @@ class Auth {
         username = username.toLowerCase()
         var user = await this.readUser(username)
         if (!oldPassword || this.hashPassword(oldPassword) != user.password) {
-            throw new BadCredentialsError
+            throw new BadCredentialsError(GenericMessage)
         }
         this.validatePassword(newPassword)
         user = {

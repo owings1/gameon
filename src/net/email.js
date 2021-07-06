@@ -49,6 +49,8 @@ class Email {
             fromName       : env.EMAIL_FROM_NAME    || DefaultEmailFromName
           , fromAddress    : env.EMAIL_FROM_ADDRESS || DefaultEmailFromAddress
           , connectTimeout : +env.EMAIL_CONNECTTIMEOUT || 60 * 1000
+          , logAllMessages : !!env.EMAIL_LOGALLMESSAGES
+          , loggerPrefix   : null
         }
     }
 
@@ -56,12 +58,16 @@ class Email {
         env = env || process.env
         const type = (opts && opts.emailType) || env.EMAIL_TYPE || DefaultEmailType
         const impl = new ImplClasses[type](opts)
-        return new Email(impl, opts)
+        const email = new Email(impl, opts)
+        email.type = type
+        return email
     }
 
     constructor(impl, opts) {
         this.impl = impl
         this.opts = Util.defaults(Email.defaults(process.env), opts)
+        const loggerName = [this.opts.loggerPrefix, this.constructor.name].filter(it => it).join('.')
+        this.logger = new Logger(loggerName, {server: true})
     }
 
     // standard is SES sendEmail structure
@@ -73,6 +79,10 @@ class Email {
             await this.impl.send(params)
         } catch (err) {
             throw new InternalError(err)
+        } finally {
+            if (this.opts.logAllMessages) {
+                this.logger.info(params)
+            }
         }
     }
 }

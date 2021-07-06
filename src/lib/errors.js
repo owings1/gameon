@@ -24,7 +24,7 @@
  */
 const Cache = {}
 
-function addProps(err) {
+function getProps(err) {
     if (!Cache[err.name]) {
         Cache[err.name] = []
         for (var name in Errors) {
@@ -33,8 +33,13 @@ function addProps(err) {
             }
         }
     }
-    for (var i = 0, ilen = Cache[err.name].length; i < ilen; ++i) {
-        err[Cache[err.name][i]] = true
+    return Cache[err.name]
+}
+
+function addProps(err, src) {
+    const props = getProps(src || err)
+    for (var i = 0, ilen = props.length; i < ilen; ++i) {
+        err[props[i]] = true
     }
 }
 
@@ -64,10 +69,11 @@ class RequestError extends BaseError {
         if (body && body.error) {
             if (body.error.name in Errors) {
                 err.cause = new Errors[body.error.name](body.error.message)
+                addProps(err, err.cause)
             } else {
                 err.cause = body.error
             }
-            err.message += ' (' + [err.cause.name, err.cause.message].filter(it => it).join(':') + ')'
+            err.message += ' (' + [err.cause.name, err.cause.message].filter(it => it).join(': ') + ')'
         }
         return err
     }
