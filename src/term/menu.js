@@ -105,15 +105,13 @@ const Questions = {
       , message : 'Enter confirm key'
       , cancel  : CancelChars.input
     }
-  , join : [
-        {
-            name     : 'matchId'
-          , message  : 'Match ID'
-          , type     : 'input'
-          , validate : value => !value || value.length == 8 || 'Invalid match ID format'
-          , cancel   : CancelChars.input
-        }
-    ]
+  , join : {
+        name     : 'matchId'
+      , message  : 'Match ID'
+      , type     : 'input'
+      , validate : value => !value || value.length == 8 || 'Invalid match ID format'
+      , cancel   : CancelChars.input
+    }
   , resetKey: {
         name    : 'resetKey'
       , message : 'Reset Key'
@@ -151,13 +149,43 @@ const LoginChoiceMap = {
 
 const PlayChoiceMap = {
     newOnline   : {
-        message : 'Start Online Match'
+        message    : 'Start Online Match'
+      , method     : 'startOnlineMatch'
+      , isAdvanced : false
+      , isOnline   : true
     }
   , playRobot   : {
-        message : 'Human vs Robot'
+        message    : 'Human vs Robot'
+      , method     : 'playRobot'
+      , isAdvanced : true
+      , isOnline   : false
     }
   , watchRobots : {
-        message : 'Watch Robots'
+        message    : 'Watch Robots'
+      , method     : 'playRobots'
+      , isAdvanced : true
+      , isOnline   : false
+    }
+  , newLocal : {
+        message    : 'Local Match'
+      , method     : 'playHumans'
+      , isAdvanced : true
+      , isOnline   : false
+    }
+}
+
+const MainChoiceMap = {
+    account : {
+        method: 'accountMenu'
+    }
+  , lab : {
+        method: 'runLab'
+    }
+  , play : {
+        method: 'playMenu'
+    }
+  , settings : {
+        method: 'settingsMenu'
     }
 }
 function isCredentialsFilled(credentials) {
@@ -181,19 +209,6 @@ function choiceQuestion(choices, value) {
     if (choice) {
         return choice.question
     }
-}
-
-function getMatchMenuMessage(isOnline, isRobot, isRobots) {
-    if (isRobots) {
-        return 'Watch Robots'
-    }
-    if (isRobot) {
-        return 'Human vs Robot'
-    }
-    if (isOnline) {
-        return 'Start Online Match'
-    }
-    return 'Local Match'
 }
 
 class Menu extends EventEmitter {
@@ -228,14 +243,11 @@ class Menu extends EventEmitter {
 
     async mainMenu() {
 
-        this.bread.push('Main')
-
-        try {
+        return this.crumb('Main', async () => {
 
             while (true) {
 
-                await this.clearMenu()
-                await this.consumeAlerts()
+                await this.clearAndConsume()
 
                 var {choice} = await this.menuChoice({
                     name     : 'mainChoice'
@@ -247,16 +259,8 @@ class Menu extends EventEmitter {
                     break
                 }
 
-                var isContinue = true
-                if (choice == 'play') {
-                    isContinue = await this.playMenu()
-                } else if (choice == 'account') {
-                    isContinue = await this.accountMenu()
-                } else if (choice == 'settings') {
-                    isContinue = await this.settingsMenu()
-                } else if (choice == 'lab') {
-                    isContinue = await this.runLab()
-                }
+                var {method} = MainChoiceMap[choice]
+                var isContinue = await this[method]()
 
                 if (!isContinue) {
                     break
@@ -264,17 +268,12 @@ class Menu extends EventEmitter {
             }
 
             return true
-
-        } finally {
-            this.bread.pop()
-        }
+        })
     }
 
     async playMenu() {
 
-        this.bread.push('Play')
-
-        try {
+        return this.crumb('Play', async () => {
 
             await this.ensureSettingsLoaded()
 
@@ -282,8 +281,7 @@ class Menu extends EventEmitter {
 
             while (true) {
 
-                await this.clearMenu()
-                await this.consumeAlerts()
+                await this.clearAndConsume()
 
                 isContinue = true
 
@@ -312,10 +310,7 @@ class Menu extends EventEmitter {
                     if (choice == 'joinOnline') {
                         isContinue = await this.joinMenu()
                     } else {
-                        var isOnline = choice == 'newOnline'
-                        var isRobot  = choice == 'playRobot'
-                        var isRobots = choice == 'watchRobots'
-                        isContinue = await this.matchMenu(isOnline, isRobot, isRobots)
+                        isContinue = await this.matchMenu(choice)
                     }
                     if (!isContinue) {
                         break
@@ -323,26 +318,20 @@ class Menu extends EventEmitter {
                 } catch (err) {
                     this.alerts.push(['error', err])
                     if (err.isAuthError) {
-                        this.alerts.push(['warn', 'Authentication error, go to Account to sign up or log in.'])
+                        this.alerts.push(['warn', 'Authentication failed. Go to Account to sign up or log in.'])
                     }
-                    //throw err
                 }
             }
 
             return isContinue
-
-        } finally {
-            this.bread.pop()
-        }        
+        })      
     }
 
-    async matchMenu(isOnline, isRobot, isRobots) {
+    async matchMenu(playChoice) {
 
-        const message = getMatchMenuMessage(isOnline, isRobot, isRobots)
+        const {message, method, isAdvanced} = PlayChoiceMap[playChoice]
 
-        this.bread.push(message)
-
-        try {
+        return this.crumb(message, async () => {
 
             await this.ensureSettingsLoaded()
 
@@ -351,14 +340,13 @@ class Menu extends EventEmitter {
 
             while (true) {
 
-                await this.clearMenu()
-                await this.consumeAlerts()
+                await this.clearAndConsume()
 
                 isContinue = true
 
                 var {choice, question} = await this.menuChoice({
                     name    : 'matchChoice'
-                  , choices : this.getMatchChoices(isOnline)
+                  , choices : this.getMatchChoices(playChoice)
                   , message
                 })
 
@@ -378,18 +366,10 @@ class Menu extends EventEmitter {
 
                 if (choice == 'start') {
                     var {matchOpts} = this.settings
-                    if (isOnline) {
-                        await this.startOnlineMatch(matchOpts)
-                        continue
+                    if (isAdvanced) {
+                        matchOpts = await this.getMatchOpts(matchOpts, advancedOpts)
                     }
-                    matchOpts = await this.getMatchOpts(matchOpts, advancedOpts)
-                    if (isRobot) {
-                        await this.playRobot(matchOpts)
-                    } else if (isRobots) {
-                        await this.playRobots(matchOpts)
-                    } else {
-                        await this.playHumans(matchOpts)
-                    }
+                    await this[method](matchOpts)
                     continue
                 }
 
@@ -404,24 +384,18 @@ class Menu extends EventEmitter {
             }
 
             return isContinue
-
-        } finally {
-            this.bread.pop()
-        }
+        })
     }
 
     async accountMenu() {
 
-        this.bread.push('Account')
-
-        try {
+        return this.crumb('Account', async () => {
 
             await this.ensureCredentialsLoaded()
 
             while (true) {
 
-                await this.clearMenu()
-                await this.consumeAlerts()
+                await this.clearAndConsume()
 
                 var {choice, question} = await this.menuChoice({
                     name     : 'accountChoice'
@@ -486,24 +460,18 @@ class Menu extends EventEmitter {
             }
 
             return true
-
-        } finally {
-            this.bread.pop()
-        }
+        })
     }
 
     async settingsMenu() {
 
-        this.bread.push('Settings')
-
-        try {
+        return this.crumb('Settings', async () => {
 
             await this.ensureSettingsLoaded()
 
             while (true) {
 
-                await this.clearMenu()
-                await this.consumeAlerts()
+                await this.clearAndConsume()
 
                 var {choice, question} = await this.menuChoice({
                     name     : 'settingChoice'
@@ -528,7 +496,6 @@ class Menu extends EventEmitter {
                 }
 
                 this.settings[choice] = answer
-
                 await this.saveSettings()
 
                 if (choice == 'isCustomRobot' && isChange) {
@@ -553,24 +520,18 @@ class Menu extends EventEmitter {
             }
 
             return true
-
-        } finally {
-            this.bread.pop()
-        }
+        })
     }
 
     async robotConfigsMenu() {
 
-        this.bread.push('Robots')
-
-        try {
+        return this.crumb('Robots', async () => {
 
             await this.ensureSettingsLoaded()
 
             while (true) {
 
-                await this.clearMenu()
-                await this.consumeAlerts()
+                await this.clearAndConsume()
 
                 var {choice} = await this.menuChoice({
                     name     : 'robotChoice'
@@ -592,34 +553,28 @@ class Menu extends EventEmitter {
             }
 
             return true
-
-        } finally {
-            this.bread.pop()
-        }
+        })
     }
 
     async configureRobotMenu(name) {
 
-        this.bread.push('Robot:' + name)
-
-        try {
+        return this.crumb('Robot:' + name, async () => {
 
             await this.ensureSettingsLoaded()
             const {defaults} = ConfidenceRobot.getClassMeta(name)
 
-            // always break, but put in loop for consistency
+            if (isEmptyObject(this.settings.robots[name])) {
+                this.settings.robots[name] = {
+                    version      : defaults.version
+                  , moveWeight   : 0
+                  , doubleWeight : 0
+                }
+            }
+
+            // always break
             while (true) {
 
-                await this.clearMenu()
-                await this.consumeAlerts()
-
-                if (isEmptyObject(this.settings.robots[name])) {
-                    this.settings.robots[name] = {
-                        version      : defaults.version
-                      , moveWeight   : 0
-                      , doubleWeight : 0
-                    }
-                }
+                await this.clearAndConsume()
 
                 var {choice, question} = await this.menuChoice({
                     name     : 'robotChoice'
@@ -650,32 +605,23 @@ class Menu extends EventEmitter {
             }
 
             return true
-
-        } finally {
-            this.bread.pop()
-        }
+        })
     }
 
     async joinMenu() {
 
-        this.bread.push('Join')
-
-        try {
-
+        return this.crumb('Join', async () => {
             // always break
             while (true) {
-                var answers = await this.prompt(Questions.join)
-                if (!answers._cancelEvent && answers.matchId) {
-                    await this.joinOnlineMatch(answers.matchId)
+                var {answer, isCancel} = await this.questionAnswer(Questions.join)
+                if (!isCancel && answer) {
+                    await this.joinOnlineMatch(answer)
                 }
                 break
             }
 
             return true
-
-        } finally {
-            this.bread.pop()
-        }
+        })
     }
 
     async promptCreateAccount() {
@@ -694,14 +640,14 @@ class Menu extends EventEmitter {
             return false
         }
 
-        const body = await this.sendSignup(
+        const {passwordEncrypted} = await this.sendSignup(
             credentials.serverUrl
           , answers.username
           , answers.password
         )
 
         credentials.username = answers.username
-        credentials.password = this.encryptPassword(body.passwordEncrypted)
+        credentials.password = this.encryptPassword(passwordEncrypted)
 
         return true
     }
@@ -810,11 +756,9 @@ class Menu extends EventEmitter {
         const {credentials} = this
 
         if (!credentials.username) {
-            const answers = await this.prompt(this.getUsernameQuestion())
 
-            const answer = answers.username
-
-            if (answers._cancelEvent || !answer.length) {
+            const {answer, isCancel} = await this.questionAnswer(this.getUsernameQuestion())
+            if (isCancel || !answer.length) {
                 return false
             }
             credentials.username = answer
@@ -926,27 +870,31 @@ class Menu extends EventEmitter {
         const client = this.newClient(this.credentials, true)
 
         try {
-            this.captureInterrupt = () => {
-                this.captureInterrupt = null
-                this.logger.console.log()
-                this.logger.warn('Aborting')
-                client.cancelWaiting(new WaitingAbortedError('Keyboard interrupt'))
-                return true
-            }
-            await client.connect()
-            const promise = isStart ? client.createMatch(matchOpts) : client.joinMatch(matchId)
-            this.emit('clientWaitStart', client)
-            const match = await promise
-            this.captureInterrupt = null
             const termPlayer = new TermPlayer(isStart ? White : Red, this.settings)
             const netPlayer  = new NetPlayer(client, isStart ? Red : White)
             const players = {
                 White : isStart ? termPlayer : netPlayer
               , Red   : isStart ? netPlayer  : termPlayer
             }
+            this.captureInterrupt = () => {
+                this.logger.console.log()
+                this.logger.warn('Aborting')
+                client.cancelWaiting(new WaitingAbortedError('Keyboard interrupt'))
+                return true
+            }
+
+            await client.connect()
+            const promise = isStart ? client.createMatch(matchOpts) : client.joinMatch(matchId)
+            this.emit('clientWaitStart', client)
+            const match = await promise
+
+            this.captureInterrupt = null
+            
             await this.runMatch(match, players)
+
         } catch (err) {
             if (err.isWaitingAbortedError) {
+                this.alerts.push(['warn', err])
                 return
             }
             throw err
@@ -960,21 +908,20 @@ class Menu extends EventEmitter {
         try {
             const coordinator = this.newCoordinator()
             this.captureInterrupt = () => {
-                this.captureInterrupt = null
                 this.logger.console.log()
                 this.logger.warn('Canceling match')
                 coordinator.cancelMatch(match, players, new MatchCanceledError('Keyboard interrupt'))
                 return true
             }
             this.emit('beforeMatchStart', match, players)
-            await this.term.moveTo(0, 0).eraseDisplayBelow()
+            await this.clearAndConsume()
             await coordinator.runMatch(match, players)
         } catch (err) {
             if (err.isMatchCanceledError) {
-                this.logger.warn('The match was canceled', '-', err.message)
-            } else {
-                throw err
+                this.alerts.push(['warn', err])
+                return
             }
+            throw err
         } finally {
             this.captureInterrupt = null
             await Util.destroyAll(players)
@@ -1125,8 +1072,8 @@ class Menu extends EventEmitter {
         return Menu.formatChoices(choices)
     }
 
-    getMatchChoices(isOnline) {
-
+    getMatchChoices(playChoice) {
+        const {isOnline} = PlayChoiceMap[playChoice]
         const choices = this.getBasicMatchInitialChoices()
         // only show advanced for local matches
         if (!isOnline) {
@@ -1590,7 +1537,22 @@ class Menu extends EventEmitter {
         return ''
     }
 
-    async consumeAlerts() {
+    handleInterrupt() {
+        const handler = this.captureInterrupt
+        this.captureInterrupt = null
+        return handler ? handler() : 1
+    }
+
+    async clearAndConsume() {
+        await this.clearMenu()
+        await this.consumeAlerts()
+    }
+
+    async clearMenu() {
+        await this.term.moveTo(0, 0).eraseDisplayBelow()
+    }
+
+    consumeAlerts() {
         const alerts = this.alerts.splice(0)
         const chlk = this.theme.alert
         alerts.forEach(alert => {
@@ -1692,8 +1654,13 @@ class Menu extends EventEmitter {
         return this._prompt
     }
 
-    async clearMenu() {
-        await this.term.moveTo(0, 0).eraseDisplayBelow()
+    async crumb(message, cb) {
+        this.bread.push(message)
+        try {
+            return await cb()
+        } finally {
+            this.bread.pop()
+        }
     }
 
     async menuChoice(question) {

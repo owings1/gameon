@@ -31,7 +31,7 @@ class PlayRobotCommand extends Base {
         if (this.flags.start) {
             await this.menu.playRobot(this.Settings.matchOpts)
         } else {
-            await this.menu.matchMenu(false, true, false)
+            await this.menu.matchMenu('playRobot')
         }
     }
 }

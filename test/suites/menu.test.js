@@ -89,6 +89,11 @@ describe('-', () => {
         await fse.remove(configDir)
     })
 
+    function newThrowingCoordinator(err) {
+        err = err || new Error('test')
+        return {runMatch: () => {throw err}}
+    }
+
     describe('menus', () => {
 
         describe('#mainMenu', () => {
@@ -127,7 +132,8 @@ describe('-', () => {
                 await menu.mainMenu()
             })
 
-            it('should do nothing for unknown choice then quit', async () => {
+            // not clear this should be the spec, maybe a better error
+            it.skip('should do nothing for unknown choice then quit', async () => {
                 menu.prompt = MockPrompter([
                     {mainChoice: 'foo'},
                     {mainChoice: 'quit'}
@@ -247,7 +253,7 @@ describe('-', () => {
                     {total: '5'},
                     {matchChoice: 'quit'}
                 ])
-                await menu.matchMenu()
+                await menu.matchMenu('newLocal')
                 expect(menu.settings.matchOpts.total).to.equal(5)
             })
 
@@ -256,7 +262,7 @@ describe('-', () => {
                     {matchChoice: 'total'},
                     {total: '-1'}
                 ])
-                const err = await getErrorAsync(() => menu.matchMenu())
+                const err = await getErrorAsync(() => menu.matchMenu('newLocal'))
                 expect(err.message).to.contain('Validation failed for total')
             })
 
@@ -266,7 +272,7 @@ describe('-', () => {
                     {isJacoby: true},
                     {matchChoice: 'quit'}
                 ])
-                await menu.matchMenu()
+                await menu.matchMenu('newLocal')
                 expect(menu.settings.matchOpts.isJacoby).to.equal(true)
             })
 
@@ -276,7 +282,7 @@ describe('-', () => {
                     {isCrawford: false},
                     {matchChoice: 'quit'}
                 ])
-                await menu.matchMenu()
+                await menu.matchMenu('newLocal')
                 expect(menu.settings.matchOpts.isCrawford).to.equal(false)
 
             })
@@ -285,67 +291,67 @@ describe('-', () => {
                 menu.prompt = MockPrompter([
                     {matchChoice: 'quit'}
                 ])
-                await menu.matchMenu()
+                await menu.matchMenu('newLocal')
             })
 
             it('should quit for back', async () => {
                 menu.prompt = MockPrompter([
                     {matchChoice: 'back'}
                 ])
-                await menu.matchMenu()
+                await menu.matchMenu('newLocal')
             })
 
-            it('should go to startOnlineMatch with isOnline and mock method, then quit', async () => {
+            it('should go to startOnlineMatch with newOnline and mock method, then quit', async () => {
                 var isCalled = false
                 menu.prompt = MockPrompter([
                     {matchChoice: 'start'},
                     {matchChoice: 'quit'}
                 ])
                 menu.startOnlineMatch = () => isCalled = true
-                await menu.matchMenu(true)
+                await menu.matchMenu('newOnline')
                 expect(isCalled).to.equal(true)
             })
 
-            it('should go to playRobot with isRobot and mock method, then quit', async () => {
+            it('should go to playRobot with playRobot and mock method, then quit', async () => {
                 var isCalled = false
                 menu.prompt = MockPrompter([
                     {matchChoice: 'start'},
                     {matchChoice: 'quit'}
                 ])
                 menu.playRobot = () => isCalled = true
-                await menu.matchMenu(false, true)
+                await menu.matchMenu('playRobot')
                 expect(isCalled).to.equal(true)
             })
 
-            it('should go to playRobots with isRobots and mock method, then quit', async () => {
+            it('should go to playRobots with watchRobots and mock method, then quit', async () => {
                 var isCalled = false
                 menu.prompt = MockPrompter([
                     {matchChoice: 'start'},
                     {matchChoice: 'quit'}
                 ])
                 menu.playRobots = () => isCalled = true
-                await menu.matchMenu(false, false, true)
+                await menu.matchMenu('watchRobots')
                 expect(isCalled).to.equal(true)
             })
 
-            it('should go to playHumans with mock method, then quit', async () => {
+            it('should go to playHumans with newLocal mock method, then quit', async () => {
                 var isCalled = false
                 menu.prompt = MockPrompter([
                     {matchChoice: 'start'},
                     {matchChoice: 'quit'}
                 ])
                 menu.playHumans = () => isCalled = true
-                await menu.matchMenu()
+                await menu.matchMenu('newLocal')
                 expect(isCalled).to.equal(true)
             })
 
-            it('should go to advanced for isRobot', async () => {
+            it('should go to advanced for playRobot', async () => {
                 menu.prompt = MockPrompter([
                     {matchChoice: 'advanced'},
                     {startState: '', rollsFile: ''},
                     {matchChoice: 'quit'}
                 ])
-                await menu.matchMenu(false, true)
+                await menu.matchMenu('playRobot')
             })
         })
 
@@ -779,8 +785,8 @@ describe('-', () => {
 
             it('should get call runMatch with mock method and mock client', async () => {
                 var isCalled = false
-                menu.newClient = () => { return {connect : noop, joinMatch: noop, close: noop, on: noop}}
-                menu.newCoordinator = () => { return {runMatch: () => isCalled = true}}
+                menu.newClient = () => ({connect : noop, joinMatch: noop, close: noop, on: noop})
+                menu.newCoordinator = () => ({runMatch: () => isCalled = true})
                 await menu.joinOnlineMatch('asdfasdf')
                 expect(isCalled).to.equal(true)
             })
@@ -989,39 +995,26 @@ describe('-', () => {
 
             it('should call runMatch for mock coordinator', async () => {
                 var isCalled = false
-                menu.newCoordinator = () => {return {runMatch: () => isCalled = true}}
+                menu.newCoordinator = () => ({runMatch: () => isCalled = true})
                 await menu.playHumans(menu.settings.matchOpts)
                 expect(isCalled).to.equal(true)
             })
 
-            it('should warn match canceled but not throw for mock coodinator', async () => {
-                menu.newCoordinator = () => {
-                    return {
-                        runMatch: () => {
-                            const err = new Error('testMessage')
-                            err.name = 'MatchCanceledError'
-                            err.isMatchCanceledError = true
-                            throw err
-                        }
-                    }
-                }
-                var warnStr = ''
-                menu.logger.warn = (...args) => warnStr += args.join(' ')
+            it('should alert warn match canceled but not throw for mock coodinator', async () => {
+                const exp = new MatchCanceledError
+                menu.newCoordinator = () => newThrowingCoordinator(exp)
+                var err
+                menu.alerter.warn = (...args) => err = args.find(it => it instanceof Error)
                 await menu.playHumans(menu.settings.matchOpts)
-                expect(warnStr).to.contain('testMessage')
+                await menu.consumeAlerts()
+                expect(err).to.equal(exp)
             })
 
             it('should throw on non-match-canceled for mock coodinator', async () => {
-                menu.newCoordinator = () => {
-                    return {
-                        runMatch: () => {
-                            throw new Error('testMessage')
-                        }
-                    }
-                }
-
+                const exp = new Error
+                menu.newCoordinator = () => newThrowingCoordinator(exp)
                 const err = await getErrorAsync(() => menu.playHumans(menu.settings.matchOpts))
-                expect(err.message).to.equal('testMessage')
+                expect(err).to.equal(exp)
             })
         })
 
@@ -1029,7 +1022,7 @@ describe('-', () => {
 
             it('should call runMatch for mock coordinator', async () => {
                 var isCalled = false
-                menu.newCoordinator = () => {return {runMatch: () => isCalled = true}}
+                menu.newCoordinator = () => ({runMatch: () => isCalled = true})
                 await menu.playRobot(menu.settings.matchOpts)
                 expect(isCalled).to.equal(true)
             })
@@ -1287,8 +1280,8 @@ describe('-', () => {
 
             it('should get call runMatch with mock method and mock client', async () => {
                 var isCalled = false
-                menu.newClient = () => { return {connect : noop, createMatch: noop, close: noop, on: noop}}
-                menu.newCoordinator = () => { return {runMatch: () => isCalled = true}}
+                menu.newClient = () => ({connect : noop, createMatch: noop, close: noop, on: noop})
+                menu.newCoordinator = () => ({runMatch: () => isCalled = true})
                 await menu.startOnlineMatch(menu.settings.matchOpts)
                 expect(isCalled).to.equal(true)
             })

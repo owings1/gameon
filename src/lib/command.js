@@ -51,6 +51,7 @@ class UserCommand extends AppCommand {
 
     async finally(...args) {
         clearInterval(this._hackInterval)
+        await this.menu.consumeAlerts()
         return super.finally(...args)
     }
 
@@ -68,14 +69,10 @@ class UserCommand extends AppCommand {
     _loadInterruptHandlers() {
         // For some reason we need an interval otherwise somebody else is
         // exiting first. So we set it to 30mins
-        this._hackInterval = setInterval(() => { /*console.log(new Date)*/ }, 1800 * 1000)
+        this._hackInterval = setInterval(() => {}, 1800 * 1000)
         this.proc.on('SIGINT', () => {
             this.logger.debug('SIGINT handler')
-            var code = 1
-            if (this.menu.captureInterrupt) {
-                code = this.menu.captureInterrupt()
-                this.menu.captureInterrupt = null
-            }
+            var code = this.menu.handleInterrupt()
             if (code !== true) {
                 code = Math.abs(+code)
                 if (isNaN(code) || code > 127) {

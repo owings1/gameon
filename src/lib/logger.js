@@ -86,8 +86,8 @@ class Logger {
         return this
     }
 
-    _error(...args) {
-        return this._parentError(...args)
+    getMessageForError(err) {
+        return [err.name || err.constructor.name, err.message].join(': ')
     }
 
     static logify(obj, opts) {
@@ -107,17 +107,27 @@ class Logger {
 
         obj.console = console
         obj._parentError = obj.error
+        obj._parentWarn = obj.warn
         obj.error = (...args) => {
             args = args.map(arg => {
                 if (arg instanceof Error) {
                     if (opts.server && obj.loglevel >= 0) {
                         obj.console.error(arg)
                     }
-                    return [arg.name || arg.constructor.name, arg.message].join(': ')
+                    return obj.getMessageForError(arg)
                 }
                 return arg
             })
-            return obj._error(...args)
+            return obj._parentError(...args)
+        }
+        obj.warn = (...args) => {
+            args = args.map(arg => {
+                if (arg instanceof Error) {
+                    return obj.getMessageForError(arg)
+                }
+                return arg
+            })
+            return obj._parentWarn(...args)
         }
         return obj
     }
