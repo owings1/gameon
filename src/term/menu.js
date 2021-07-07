@@ -96,6 +96,16 @@ const EnterChars = {
     back : ['escape', '`', '<']
   , quit : ['escape', '`']
 }
+const ExpandChars = {
+    input: ['right']
+}
+const RestoreChars = {
+    input    : ['up']
+  , password : ['up']
+}
+const ToggleChars = {
+    bool: ['up', 'down']
+}
 
 // static questions
 const Questions = {
@@ -432,7 +442,6 @@ class Menu extends EventEmitter {
                     var {answer, isCancel} = await this.questionAnswer(question)
                     var oldValue = this.credentials[choice]
 
-                    //console.log({answer, oldValue})
                     if (isCancel) {
                         continue
                     }
@@ -445,6 +454,7 @@ class Menu extends EventEmitter {
                         answer = this.encryptPassword(answer)
                     }
 
+                    this.credentials.isTested = false
                     this.credentials[choice] = answer
                 }
 
@@ -1125,7 +1135,8 @@ class Menu extends EventEmitter {
                   , validate : value => Number.isInteger(value) && value > 0 || 'Please enter a number > 0'
                   , filter   : value => +value
                   , cancel   : CancelChars.input
-                  , restoreDefault : 'up'
+                  , restoreDefault : RestoreChars.input
+                  , expandDefault  : ExpandChars.input
                 }
             }
           , {
@@ -1137,6 +1148,7 @@ class Menu extends EventEmitter {
                   , type    : 'confirm'
                   , default : () => this.settings.matchOpts.cubeEnabled
                   , cancel  : CancelChars.bool
+                  , toggle  : ToggleChars.bool
                 }
             }
           , {
@@ -1149,6 +1161,7 @@ class Menu extends EventEmitter {
                   , type    : 'confirm'
                   , default : () => this.settings.matchOpts.isCrawford
                   , cancel  : CancelChars.bool
+                  , toggle  : ToggleChars.bool
                 }
             }
           , {
@@ -1160,6 +1173,7 @@ class Menu extends EventEmitter {
                   , type    : 'confirm'
                   , default : () => this.settings.matchOpts.isJacoby
                   , cancel  : CancelChars.bool
+                  , toggle  : ToggleChars.bool
                 }
             }
           , new this.inquirer.Separator()
@@ -1226,7 +1240,8 @@ class Menu extends EventEmitter {
                   , type    : 'input'
                   , default : () => this.credentials.serverUrl
                   , cancel  : CancelChars.input
-                  , restoreDefault : 'up'
+                  , restoreDefault : RestoreChars.input
+                  , expandDefault  : ExpandChars.input
                 }
             }
           , {
@@ -1296,7 +1311,8 @@ class Menu extends EventEmitter {
           , display  : () => this.credentials.username + (this.credentials.isTested ? (' ' + this.theme.prompt.check.pass(Chars.check)) : '')
           , cancel   : CancelChars.input
           , when     : answers => !answers._cancelEvent
-          , restoreDefault : 'up'
+          , restoreDefault : RestoreChars.input
+          , expandDefault  : ExpandChars.input
         }
     }
 
@@ -1310,7 +1326,7 @@ class Menu extends EventEmitter {
           , mask     : '*'
           , cancel   : CancelChars.password
           , when     : answers => !answers._cancelEvent
-          , restoreDefault : 'up'
+          , restoreDefault : RestoreChars.password
         }
     }
 
@@ -1358,6 +1374,7 @@ class Menu extends EventEmitter {
                   , type    : 'confirm'
                   , default : () => this.settings.termEnabled
                   , cancel  : CancelChars.bool
+                  , toggle  : ToggleChars.bool
                 }
             }
           , new this.inquirer.Separator()
@@ -1370,17 +1387,7 @@ class Menu extends EventEmitter {
                   , type    : 'confirm'
                   , default : () => this.settings.fastForced
                   , cancel  : CancelChars.bool
-                }
-            }
-          , {
-                value    : 'isRecord'
-              , name     : 'Record Matches'
-              , question : {
-                    name    : 'isRecord'
-                  , message : 'Record Matches'
-                  , type    : 'confirm'
-                  , default : () => this.settings.isRecord
-                  , cancel  : CancelChars.bool
+                  , toggle  : ToggleChars.bool
                 }
             }
           , {
@@ -1394,7 +1401,21 @@ class Menu extends EventEmitter {
                   , default : () => homeTilde(this.settings.recordDir)
                   , filter  : value => value == null ? null : path.resolve(tildeHome(value))
                   , cancel  : CancelChars.input
-                  , restoreDefault : 'up'
+                  , clear   : 'ctrl-delete'
+                  , restoreDefault : RestoreChars.input
+                  , expandDefault  : ExpandChars.input
+                }
+            }
+          , {
+                value    : 'isRecord'
+              , name     : 'Record Matches'
+              , question : {
+                    name    : 'isRecord'
+                  , message : 'Record Matches'
+                  , type    : 'confirm'
+                  , default : () => this.settings.isRecord
+                  , cancel  : CancelChars.bool
+                  , toggle  : ToggleChars.bool
                 }
             }
           , new this.inquirer.Separator()
@@ -1410,7 +1431,8 @@ class Menu extends EventEmitter {
                   , validate : value => !isNaN(value) && value >= 0 || 'Please enter a number >= 0'
                   , cancel   : CancelChars.input
                   , writeInvalid   : () => ''
-                  , restoreDefault : 'up'
+                  , restoreDefault : RestoreChars.input
+                  , expandDefault  : ExpandChars.input
                 }
             }
           , {
@@ -1422,6 +1444,7 @@ class Menu extends EventEmitter {
                   , type    : 'confirm'
                   , default : () => this.settings.isCustomRobot
                   , cancel  : CancelChars.bool
+                  , toggle  : ToggleChars.bool
                 }
             }
           , {
@@ -1521,7 +1544,8 @@ class Menu extends EventEmitter {
                   , validate : weightValidator
                   , cancel   : CancelChars.input
                   , writeInvalid   : () => ''
-                  , restoreDefault : 'up'
+                  , restoreDefault : RestoreChars.input
+                  , expandDefault  : ExpandChars.input
                 }
             }
           , {
@@ -1538,7 +1562,8 @@ class Menu extends EventEmitter {
                   , validate : weightValidator
                   , cancel   : CancelChars.input
                   , writeInvalid   : () => ''
-                  , restoreDefault : 'up'
+                  , restoreDefault : RestoreChars.input
+                  , expandDefault  : ExpandChars.input
                 }
             }
         ])
@@ -1678,16 +1703,17 @@ class Menu extends EventEmitter {
     }
 
     async menuChoice(question) {
-        const {name} = question
-        const answers = await this.prompt({
-            type     : 'rawlist'
+        question = {
+            name     : 'choice'
+          , type     : 'rawlist'
           , pageSize : Infinity
           , prefix   : this.getMenuPrefix()
           , ...question
-        })
-        const choice = answers[name]
-        question = choiceQuestion(question.choices, choice)
-        return {answers, choice, question}
+        }
+        const {answers, answer, isCancel} = await this.questionAnswer(question)
+        question = choiceQuestion(question.choices, answer)
+        const choice = answer
+        return {answers, answer, isCancel, choice, question}
     }
 
     async questionAnswer(question) {
