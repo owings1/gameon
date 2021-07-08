@@ -141,6 +141,40 @@ class Util {
         return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
     }
 
+    static extendClass(TargetClass, SourceClass, opts) {
+
+        opts = opts || {}
+
+        ;['overrides', 'optionals'].forEach(key => {
+            if (opts[key] === true) {
+                opts[key] = {'*': true}
+            } else if (opts[key] === false) {
+                opts[key] = {}
+            } else {
+                opts[key] = Util.keyValuesTrue(Util.castToArray(opts[key]))
+            }
+        })
+
+        const {overrides, optionals} = opts
+        const isOverride = overrides['*'] || opts.isOverride
+        const isOptional = optionals['*'] || opts.isOptional
+
+        Object.getOwnPropertyNames(SourceClass.prototype).forEach(name => {
+            if (name == 'constructor' || name == '_constructor') {
+                return
+            }
+            if (name in TargetClass.prototype) {
+                if (!isOverride && !overrides[name]) {
+                    if (isOptional || optionals[name]) {
+                        return
+                    }
+                    throw new ProgrammerError(`Class ${TargetClass.name} already has method ${name}`)
+                }
+            }
+            TargetClass.prototype[name] = SourceClass.prototype[name]
+        })
+    }
+
     static fileDateString(date) {
         date = date || new Date
         const b = new StringBuilder
@@ -860,6 +894,7 @@ const {
   , IllegalStateError
   , IncompatibleKeysError
   , MissingDependencyError
+  , ProgrammerError
   , StyleError
   , UnresolvedDependencyError
 } = Errors

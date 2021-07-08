@@ -31,7 +31,7 @@ class PlayHumansCommand extends Base {
         if (this.flags.start) {
             await this.menu.playHumans(this.Settings.matchOpts)
         } else {
-            await this.menu.matchMenu('newLocal')
+            await this.menu.matchMenu('playHumans')
         }
     }
 }

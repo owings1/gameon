@@ -255,7 +255,7 @@ const Menu = {
     }
 
  ,  PlayChoiceMap : {
-        newOnline   : {
+        startOnline   : {
             message    : 'Start Online Match'
           , method     : 'startOnlineMatch'
           , isAdvanced : false
@@ -267,13 +267,13 @@ const Menu = {
           , isAdvanced : true
           , isOnline   : false
         }
-      , watchRobots : {
+      , playRobots : {
             message    : 'Watch Robots'
           , method     : 'playRobots'
           , isAdvanced : true
           , isOnline   : false
         }
-      , newLocal : {
+      , playHumans : {
             message    : 'Local Match'
           , method     : 'playHumans'
           , isAdvanced : true

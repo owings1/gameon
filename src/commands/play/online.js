@@ -32,7 +32,7 @@ class PlayOnlineCommand extends Base {
             if (this.flags.start) {
                 await this.menu.startOnlineMatch(this.Settings.matchOpts)
             } else {
-                await this.menu.matchMenu('newOnline')
+                await this.menu.matchMenu('startOnline')
             }
         } catch (err) {
             if (err.isAuthError) {

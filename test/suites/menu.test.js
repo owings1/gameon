@@ -106,7 +106,7 @@ describe('-', () => {
             it('should go to play menu, new local match menu, then come back, then quit', async () => {
                 menu.prompt = MockPrompter([
                     {mainChoice: 'play'},
-                    {playChoice: 'newLocal'},
+                    {playChoice: 'playHumans'},
                     {matchChoice: 'quit'},
                     {playChoice: 'quit'},
                     {mainChoice: 'quit'}
@@ -253,7 +253,7 @@ describe('-', () => {
                     {total: '5'},
                     {matchChoice: 'quit'}
                 ])
-                await menu.matchMenu('newLocal')
+                await menu.matchMenu('playHumans')
                 expect(menu.settings.matchOpts.total).to.equal(5)
             })
 
@@ -262,7 +262,7 @@ describe('-', () => {
                     {matchChoice: 'total'},
                     {total: '-1'}
                 ])
-                const err = await getErrorAsync(() => menu.matchMenu('newLocal'))
+                const err = await getErrorAsync(() => menu.matchMenu('playHumans'))
                 expect(err.message).to.contain('Validation failed for total')
             })
 
@@ -272,7 +272,7 @@ describe('-', () => {
                     {isJacoby: true},
                     {matchChoice: 'quit'}
                 ])
-                await menu.matchMenu('newLocal')
+                await menu.matchMenu('playHumans')
                 expect(menu.settings.matchOpts.isJacoby).to.equal(true)
             })
 
@@ -282,7 +282,7 @@ describe('-', () => {
                     {isCrawford: false},
                     {matchChoice: 'quit'}
                 ])
-                await menu.matchMenu('newLocal')
+                await menu.matchMenu('playHumans')
                 expect(menu.settings.matchOpts.isCrawford).to.equal(false)
 
             })
@@ -291,24 +291,24 @@ describe('-', () => {
                 menu.prompt = MockPrompter([
                     {matchChoice: 'quit'}
                 ])
-                await menu.matchMenu('newLocal')
+                await menu.matchMenu('playHumans')
             })
 
             it('should quit for back', async () => {
                 menu.prompt = MockPrompter([
                     {matchChoice: 'back'}
                 ])
-                await menu.matchMenu('newLocal')
+                await menu.matchMenu('playHumans')
             })
 
-            it('should go to startOnlineMatch with newOnline and mock method, then quit', async () => {
+            it('should go to startOnlineMatch with startOnline and mock method, then quit', async () => {
                 var isCalled = false
                 menu.prompt = MockPrompter([
                     {matchChoice: 'start'},
                     {matchChoice: 'quit'}
                 ])
                 menu.startOnlineMatch = () => isCalled = true
-                await menu.matchMenu('newOnline')
+                await menu.matchMenu('startOnline')
                 expect(isCalled).to.equal(true)
             })
 
@@ -323,25 +323,25 @@ describe('-', () => {
                 expect(isCalled).to.equal(true)
             })
 
-            it('should go to playRobots with watchRobots and mock method, then quit', async () => {
+            it('should go to playRobots with playRobots and mock method, then quit', async () => {
                 var isCalled = false
                 menu.prompt = MockPrompter([
                     {matchChoice: 'start'},
                     {matchChoice: 'quit'}
                 ])
                 menu.playRobots = () => isCalled = true
-                await menu.matchMenu('watchRobots')
+                await menu.matchMenu('playRobots')
                 expect(isCalled).to.equal(true)
             })
 
-            it('should go to playHumans with newLocal mock method, then quit', async () => {
+            it('should go to playHumans with playHumans mock method, then quit', async () => {
                 var isCalled = false
                 menu.prompt = MockPrompter([
                     {matchChoice: 'start'},
                     {matchChoice: 'quit'}
                 ])
                 menu.playHumans = () => isCalled = true
-                await menu.matchMenu('newLocal')
+                await menu.matchMenu('playHumans')
                 expect(isCalled).to.equal(true)
             })
 

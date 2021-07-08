@@ -94,7 +94,7 @@ const ToggleChars = {
     bool: ['up', 'down']
 }
 
-class QuestionHelper {
+class Questions {
 
     constructor(menu) {
         this.menu = menu
@@ -102,34 +102,34 @@ class QuestionHelper {
 
     mainChoices() {
         const {menu} = this
-        return QuestionHelper.formatChoices([
+        return Questions.formatChoices([
             this.br()
           , {
-                value : 'play'
-              , name  : 'Play'
-              , char  : 'p'
+                value  : 'play'
+              , name   : 'Play'
+              , select : 'p'
             }
           , {
-                value : 'account'
-              , name  : 'Account'
-              , char  : 'a'
+                value  : 'account'
+              , name   : 'Account'
+              , select : 'a'
             }
           , {
-                value : 'settings'
-              , name  : 'Settings'
-              , char  : 's'
+                value  : 'settings'
+              , name   : 'Settings'
+              , select : 's'
             }
           , {
-                value : 'lab'
-              , name  : 'Lab'
-              , char  : 'l'
+                value  : 'lab'
+              , name   : 'Lab'
+              , select : 'l'
             }
           , this.hr()
           , {
-                value     : 'quit'
-              , name      : 'Quit'
-              , char      : 'q'
-              , enterChar : EnterChars.quit
+                value  : 'quit'
+              , name   : 'Quit'
+              , select : 'q'
+              , enter  : EnterChars.quit
             }
           , this.br()
         ])
@@ -140,7 +140,7 @@ class QuestionHelper {
         const choices = [
             this.br()
           , {
-                value : 'newOnline'
+                value : 'startOnline'
               , name  : 'Create Online Match'
             }
           , {
@@ -149,7 +149,7 @@ class QuestionHelper {
             }
           , this.hr()
           , {
-                value : 'newLocal'
+                value : 'playHumans'
               , name  : 'Human vs Human'
             }
           , {
@@ -157,27 +157,27 @@ class QuestionHelper {
               , name  : 'Human vs Robot'
             }
           , {
-                value : 'watchRobots'
+                value : 'playRobots'
               , name  : 'Robot vs Robot'
             }
           , this.hr()
         ]
         if (menu.bread.length > 1) {
             choices.push({
-                value     : 'back'
-              , name      : 'Back'
-              , enterChar : EnterChars.back
+                value : 'back'
+              , name  : 'Back'
+              , enter : EnterChars.back
             })
         }
         append(choices, [
             {
-                  value : 'quit'
-                , name  : 'Quit'
-                , char  : 'q'
+                  value  : 'quit'
+                , name   : 'Quit'
+                , select : 'q'
             }
           , this.br()
         ])
-        return QuestionHelper.formatChoices(choices)
+        return Questions.formatChoices(choices)
     }
 
     matchChoices(playChoice) {
@@ -196,20 +196,20 @@ class QuestionHelper {
         }
         if (menu.bread.length > 1) {
             choices.push({
-                value     : 'back'
-              , name      : 'Back'
-              , enterChar : EnterChars.back
+                value : 'back'
+              , name  : 'Back'
+              , enter : EnterChars.back
             })
         }
         append(choices, [
             {
-                value : 'quit'
-              , name  : 'Quit'
-              , char  : 'q'
+                value  : 'quit'
+              , name   : 'Quit'
+              , select : 'q'
             }
           , this.br()
         ])
-        return QuestionHelper.formatChoices(choices)
+        return Questions.formatChoices(choices)
     }
 
     matchInitialChoices() {
@@ -217,15 +217,15 @@ class QuestionHelper {
         return [
             this.br()
           , {
-                value : 'start'
-              , name  : 'Start Match'
-              , char  : 's'
+                value  : 'start'
+              , name   : 'Start Match'
+              , select : 's'
             }
           , this.hr()
           , {
                 value : 'total'
               , name  : 'Match Total'
-              , char  : 't'
+              , select  : 't'
               , question : {
                     name     : 'total'
                   , message  : 'Match Total'
@@ -336,9 +336,9 @@ class QuestionHelper {
         const choices = [
             this.br()
           , {
-                value     : 'done'
-              , name      : 'Done'
-              , enterChar : EnterChars.back
+                value : 'done'
+              , name  : 'Done'
+              , enter : EnterChars.back
             }
           , this.hr()
           , {
@@ -409,17 +409,18 @@ class QuestionHelper {
             })
         }
         choices.push(this.br())
-        return QuestionHelper.formatChoices(choices)
+        return Questions.formatChoices(choices)
     }
 
     username() {
         const {menu} = this
+        const checkMark = menu.theme.prompt.check.pass(Chars.check)
         return {
             name    : 'username'
           , message : 'Username'
           , type    : 'input'
           , default : () => menu.credentials.username
-          , display : () => menu.credentials.username + (menu.credentials.isTested ? (' ' + menu.theme.prompt.check.pass(Chars.check)) : '')
+          , display : () => menu.credentials.username + (menu.credentials.isTested ? ' ' + checkMark : '')
           , cancel  : CancelChars.input
           , when    : answers => !answers._cancelEvent
           , restore : RestoreChars.input
@@ -514,13 +515,13 @@ class QuestionHelper {
 
     settingsChoices() {
         const {menu} = this
-        return QuestionHelper.formatChoices([
+        return Questions.formatChoices([
             this.br()
           , {
-                value     : 'done'
-              , name      : 'Done'
-              , enterChar : EnterChars.back
-              , char      : 'd'
+                value  : 'done'
+              , name   : 'Done'
+              , enter  : EnterChars.back
+              , select : 'd'
             }
           , this.hr()
           , {
@@ -564,7 +565,6 @@ class QuestionHelper {
           , {
                 value    : 'recordDir'
               , name     : 'Record Dir'
-              , when     : () => menu.settings.isRecord
               , question : {
                     name    : 'recordDir'
                   , message : 'Record Dir'
@@ -629,17 +629,17 @@ class QuestionHelper {
 
     robotConfigsChoices() {
         const {menu} = this
-        return QuestionHelper.formatChoices([
+        return Questions.formatChoices([
             {
-                value     : 'done'
-              , name      : 'Done'
-              , enterChar : EnterChars.back
-              , char      : 'd'
+                value  : 'done'
+              , name   : 'Done'
+              , enter  : EnterChars.back
+              , select : 'd'
             }
           , {
-                value : 'reset'
-              , name  : 'Reset defaults'
-              , char  : 'r'
+                value  : 'reset'
+              , name   : 'Reset defaults'
+              , select : 'r'
             }
           , ...RobotDelegator.listClassNames().map(name => {
                 const {defaults} = ConfidenceRobot.getClassMeta(name)
@@ -677,22 +677,22 @@ class QuestionHelper {
         const weightValidator = value => errMessage(() =>
             RobotDelegator.validateWeight(value)
         )
-        return QuestionHelper.formatChoices([
+        return Questions.formatChoices([
             {
-                value     : 'done'
-              , name      : 'Done'
-              , enterChar : EnterChars.back
-              , char      : 'd'
+                value  : 'done'
+              , name   : 'Done'
+              , enter  : EnterChars.back
+              , select : 'd'
             }
           , {
-                value : 'reset'
-              , name  : 'Reset defaults'
-              , char  : 'r'
+                value  : 'reset'
+              , name   : 'Reset defaults'
+              , select : 'r'
             }
           , {
                 value : 'version'
               , name  : 'Version'
-              , char  : 'v'
+              , select  : 'v'
               , question : {
                     name    : 'version'
                   , message : 'Version'
@@ -706,7 +706,7 @@ class QuestionHelper {
           , {
                 value : 'moveWeight'
               , name  : 'Move Weight'
-              , char  : 'm'
+              , select  : 'm'
               , question : {
                     name     : 'moveWeight'
                   , message  : 'Move Weight'
@@ -724,7 +724,7 @@ class QuestionHelper {
           , {
                 value : 'doubleWeight'
               , name  : 'Double Weight'
-              , char  : 'b'
+              , select  : 'b'
               , question : {
                     name     : 'doubleWeight'
                   , message  : 'Double Weight'
@@ -776,4 +776,4 @@ class QuestionHelper {
     }
 }
 
-module.exports = QuestionHelper
+module.exports = Questions
