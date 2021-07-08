@@ -210,6 +210,78 @@ const DefaultPasswordHelp = 'Minimum eight characters, at least one lowercase le
 const InvalidUsernameChars = '/\\?%*:|"\'&#'.split('')
 const EncryptedFlagPrefix = 'encrypted_'
 
+const Menu = {
+
+    LoginChoiceMap : {
+        changePassword  : {
+            message : 'Password changed'
+          , method  : 'promptChangePassword'
+        }
+      , confirmAccount  : {
+            message : 'Account confirmed'
+          , method  : 'promptConfirmAccount'
+        }
+      , createAccount   : {
+            message : 'Account created'
+          , method  : 'promptCreateAccount'
+        }
+      , forgotPassword  : {
+            message : 'Password reset'
+          , method  : 'promptForgotPassword'
+        }
+      , newConfirmKey   : {
+            message : 'New confirmation key requested. Check your email.'
+          , method  : 'promptNewConfirmKey'
+        }
+      , testCredentials : {
+            message : 'Testing credentials'
+          , method  : null
+        }
+    }
+
+  , MainChoiceMap : {
+        account : {
+            method: 'accountMenu'
+        }
+      , lab : {
+            method: 'runLab'
+        }
+      , play : {
+            method: 'playMenu'
+        }
+      , settings : {
+            method: 'settingsMenu'
+        }
+    }
+
+ ,  PlayChoiceMap : {
+        newOnline   : {
+            message    : 'Start Online Match'
+          , method     : 'startOnlineMatch'
+          , isAdvanced : false
+          , isOnline   : true
+        }
+      , playRobot   : {
+            message    : 'Human vs Robot'
+          , method     : 'playRobot'
+          , isAdvanced : true
+          , isOnline   : false
+        }
+      , watchRobots : {
+            message    : 'Watch Robots'
+          , method     : 'playRobots'
+          , isAdvanced : true
+          , isOnline   : false
+        }
+      , newLocal : {
+            message    : 'Local Match'
+          , method     : 'playHumans'
+          , isAdvanced : true
+          , isOnline   : false
+        }
+    }
+}
+
 
 const Constants = {
     BoardStrings
@@ -233,6 +305,7 @@ const Constants = {
   , EncryptedFlagPrefix
   , InsideOrigins
   , InvalidUsernameChars
+  , Menu
   , MoveCoords
   , MoveHashes
   , ObsoleteServerUrls
