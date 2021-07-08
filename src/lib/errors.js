@@ -96,12 +96,14 @@ class DependencyError extends BaseError {}
 class GameError       extends BaseError {}
 class InternalError   extends BaseError {}
 class MenuError       extends BaseError {}
+class ProgrammerError extends BaseError {}
 class RobotError      extends BaseError {}
 class SecurityError   extends BaseError {}
 class ThemeError      extends BaseError {}
 
 // ArgumentError
 class DuplicateColumnError  extends ArgumentError {}
+class DuplicateKeyError     extends ArgumentError {}
 class IncompatibleKeysError extends ArgumentError {}
 class InvalidColorError     extends ArgumentError {}
 class InvalidColumnError    extends ArgumentError {}
@@ -200,6 +202,7 @@ const Errors = {
   , DependencyError
   , DoubleNotAllowedError
   , DuplicateColumnError
+  , DuplicateKeyError
   , GameAlreadyStartedError
   , GameError
   , GameFinishedError
@@ -243,6 +246,7 @@ const Errors = {
   , NotYourTurnError
   , OccupiedSlotError
   , PieceOnBarError
+  , ProgrammerError
   , RequestError
   , ResetKeyNotEnteredError
   , RobotError

@@ -50,32 +50,41 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  */
 const Constants = require('../lib/constants')
+const Errors    = require('../lib/errors')
 const Themes    = require('./themes')
 const Util      = require('../lib/util')
 
-const inquirer = require('inquirer')
+const inquirer    = require('inquirer')
+const observe     = require('inquirer/lib/utils/events')
+const {takeUntil} = require('rxjs/operators')
+// for patch
+const {map} = require('rxjs/operators')
 
 const {Separator} = inquirer
 
-const observe     = require('inquirer/lib/utils/events')
-const {takeUntil} = require('rxjs/operators')
-
-//const runAsync = require('run-async')
-//const cliCursor = require('cli-cursor')
-//const {flatMap, take} = require('rxjs/operators')
-
-const {
-    Chars
-} = Constants
+const {Chars} = Constants
 
 const {
     castToArray
+  , ensure
+  , keypressName
   , keyValuesTrue
   , nchars
   , padEnd
   , stripAnsi
   , strlen
 } = Util
+
+const {
+    DuplicateKeyError
+  , ProgrammerError
+} = Errors
+
+const ModifiedStatuses = {
+    answered : true
+  , canceled : true
+  , touched  : true
+}
 
 const Prompter = inquirer.createPromptModule()
 
@@ -87,103 +96,169 @@ Prompter.prompt = (questions, answers, opts = {}) => {
     return Prompter(questions, answers)
 }
 
-// for patch
-const {map} = require('rxjs/operators')
-
 function debug(...args) {
     const brs = nchars(10, '\n')
     console.log(brs, ...args, brs)
 }
 
-function maxChoicesLength(choices) {
-    choices = choices.filter(it => it.type != 'separator')
-    return Math.max(...choices.map(it => strlen(it.name)))
-}
+class BaseMethods {
 
-function keypressName(e) {
-    if (e.key.name == 'escape') {
-        return e.key.name
-    }
-    const parts = ['ctrl', 'meta', 'shift'].filter(it => e.key[it])
-    if (parts.length) {
-        parts.push(e.key.name)
-        return parts.join('-')
-    }
-    if (e.value == null) {
-        return e.key.name
-    }
-    if (e.key.name && e.key.name.length > 1) {
-        return e.key.name
-    }
-    return e.value || ''
-}
-
-function getTheme(opt) {
-    const name = opt.theme || opt.settings.theme
-    if (name) {
-        return Themes.getInstance(name)
-    }
-    return Themes.getDefaultInstance()
-}
-
-/**
- * Adapted from inquirer/lib/prompts/password
- *
- * See https://github.com/SBoudrias/Inquirer.js/blob/master/packages/inquirer/lib/prompts/password.js
- */
-function mask(input, maskChar, limit = Infinity) {
-    input = String(input)
-    maskChar = typeof maskChar === 'string' ? maskChar : '*'
-    if (input.length === 0) {
-        return ''
-    }
-    return new Array(Math.min(input.length + 1, limit)).join(maskChar)
-}
-
-const ModifiedStatuses = {
-    answered : true
-  , canceled : true
-  , touched  : true
-}
-
-function extend(target, source) {
-    Object.entries(source).forEach(([name, method]) => {
-        target[name] = method
-    })
-}
-
-function ensure(target, defaults) {
-    Object.entries(defaults).forEach(([name, method]) => {
-        if (!(name in target)) {
-            target[name] = method
-        }
-    })
-}
-
-const Inits = {
-
-    base: function initBase(...args) {
-        extend(this, Methods.base)
+    _constructor() {
         this._charIndex = {}
+        this._charHandlers = {}
     }
 
-  , theme: function initTheme(question, ...args) {
+    addCharIndex(type, index, handler) {
+        Object.entries(index).forEach(([chr, value]) => {
+            if (chr in this._charIndex) {
+                throw new DuplicateKeyError('Duplicate key char: ' + chr)
+            }
+            this._charIndex[chr] = {type, value}
+            if (handler) {
+                this._charHandlers[type] = handler
+            }
+        })
+    }
 
-        extend(this, Methods.theme)
+    handleKeypress(e, type, cb) {
+        const chr = keypressName(e)
+        const info = this._charIndex[chr]
+        if (!chr.length || !info) {
+            return
+        }
+        if (type == null) {
+            type = info.type
+        }
+        if (info.type != type) {
+            return
+        }
+        cb = cb || this._charHandlers[type]
+        const result = cb(info.value, e)
+        if (result === false) {
+            return
+        }
+        return type
+    }
 
-        this.theme = getTheme(this.opt)
+    clearLine(isSubmit) {
+        this.rl.line = ''
+        this.rl.cursor = 0
+        if (isSubmit) {
+            this.submitLine()
+        }
+    }
+
+    setLine(value) {
+        this.rl.line = value
+        this.rl.cursor = value.length
+    }
+
+    submitLine(line = '') {
+        this.rl.emit('line', line)
+    }
+
+    initializer(...args) {
+        BaseMethods.prototype._constructor.call(this, ...args)
+        this.constructor.features().forEach(name => {
+            Features[name].prototype._constructor.call(this, ...args)
+        })
+    }
+}
+
+class TextMethods {
+
+    // Generic methods for input/password prompts.
+
+    cancel() {
+        this.answer = this.opt.cancel.value
+        this.status = 'canceled'
+        this.clearLine(true)
+    }
+
+    clear() {
+        this.answer = null
+        this.status = 'touched'
+        this.clearLine()
+    }
+
+    restoreDefault() {
+        this.answer = this.opt.default
+        this.status = 'pending'
+        this.clearLine()
+    }
+
+    expandDefault() {
+        this.answer = this.opt.default
+        this.status = 'touched'
+        this.setLine(this.answer)
+    }
+}
+
+class ThemeFeature {
+
+    static overrides() {
+        return ['getQuestion']
+    }
+
+    _constructor(question) {
+        this.theme = Themes.getSafe(this.opt.theme || this.opt.settings.theme)
         this.chlk = this.theme.prompt
         this.isPrefixDefault = !('prefix' in question)
     }
 
-  , cancel: function initCancel(...args) {
-        extend(this, Methods.cancel)
-        // default methods
-        if (this.isTextInput) {
-            ensure(this, {
-                cancel: Methods.textInput.cancel
-            })
+    getErrorString(error) {
+        const {chlk} = this
+        return chlk.caret.error('>> ') + chlk.message.error(error)
+    }
+
+   /**
+    * @override
+    *
+    * Adapted from inquirer/lib/prompts/base
+    *
+    * See https://github.com/SBoudrias/Inquirer.js/blob/master/packages/inquirer/lib/prompts/base.js
+    */
+    getQuestion() {
+
+        const {chlk, opt} = this
+
+        const heads = []
+
+        if (opt.prefix) {
+            if (this.isPrefixDefault) {
+                var prefix = chlk.message.prefix.default(stripAnsi(opt.prefix))
+            } else {
+                var prefix = chlk.message.prefix(opt.prefix)
+            }
+            heads.push(prefix)
         }
+        if (opt.message) {
+            heads.push(chlk.message.question(opt.message))
+        }
+        if (opt.suffix) {
+            heads.push(chlk.message.suffix(opt.suffix))
+        }
+
+        let message = heads.join(chlk.message.question(' '))
+
+        // Append the default if available, and if question isn't touched/answered
+        if (opt.default && !ModifiedStatuses[this.status]) {
+            message += chlk.message.prompt(' ')
+            // If default password is supplied, hide it
+            if (opt.type === 'password') {
+                message += chlk.message.help('[hidden]')
+            } else {
+                message += chlk.message.help('(' + opt.default + ')')
+            }
+        }
+
+        return message
+    }
+}
+
+class CancelFeature {
+
+    _constructor() {
         // intial state
         this.isCancel = false
 
@@ -205,25 +280,27 @@ const Inits = {
         opt.validate = (...args) => this.isCancel || validate(...args)
 
         const charIndex = keyValuesTrue(castToArray(opt.cancel.char))
-        this.addCharIndex('cancel', charIndex)
+        this.addCharIndex('cancel', charIndex, (value, e) => {
+            this.isCancel = true
+            if (this.opt.cancel.eventKey) {
+                this.answers[this.opt.cancel.eventKey] = e
+            }
+            this.cancel(e)
+        })
     }
+}
 
-  , clear: function initClear(...args) {
-        extend(this, Methods.clear)
-        // default methods
-        if (this.isTextInput) {
-            ensure(this, {
-                clear: Methods.textInput.clear
-            })
-        }
+class ClearFeature {
+
+    _constructor(...args) {
         const charIndex = keyValuesTrue(castToArray(this.opt.clear))
-        this.addCharIndex('clear', charIndex)
+        this.addCharIndex('clear', charIndex, this.clear.bind(this))
     }
+}
 
-  , select: function initSelect(...args) {
+class SelectFeature {
 
-        extend(this, Methods.select)
-
+    _constructor() {
         var index = 0
         const charIndex = {}
         this.opt.choices.forEach(choice => {
@@ -238,41 +315,41 @@ const Inits = {
             })
             index += 1
         })
-        this.addCharIndex('select', charIndex)
-    }
-
-  , invalid: function initInvalid(...args) {
-        ensure(this.opt, {
-            writeInvalid: value => value
+        this.addCharIndex('select', charIndex, ({index, isSubmit}) => {
+            this.selectIndex(index, isSubmit)
         })
     }
+}
 
-  , restoreDefault : function initRestoreDefault(...args) {
-        extend(this, Methods.restore)
-        // default methods
-        if (this.isTextInput) {
-            ensure(this, {
-                restoreDefault: Methods.textInput.restoreDefault
-            })
-        }
-        const charIndex = keyValuesTrue(castToArray(this.opt.restoreDefault))
-        this.addCharIndex('restore', charIndex)
+class RestoreFeature {
+
+    _constructor() {
+        const charIndex = keyValuesTrue(castToArray(this.opt.restore))
+        this.addCharIndex('restore', charIndex, () => {
+            if (!this.opt.default) {
+                return false
+            }
+            this.restoreDefault()
+        })
     }
+}
 
-  , expandDefault : function initExpandDefault(...args) {
-        extend(this, Methods.expand)
-        // default methods
-        if (this.isTextInput) {
-            ensure(this, {
-                expandDefault: Methods.textInput.expandDefault
-            })
-        }
-        const charIndex = keyValuesTrue(castToArray(this.opt.expandDefault))
-        this.addCharIndex('expand', charIndex)
+class ExpandFeature {
+
+    _constructor() {
+        const charIndex = keyValuesTrue(castToArray(this.opt.expand))
+        this.addCharIndex('expand', charIndex, () => {
+            if (!this.opt.default || ModifiedStatuses[this.status]) {
+                return false
+            }
+            this.expandDefault()
+        })
     }
+}
 
-  , toggle: function initToggle(...args) {
-        extend(this, Methods.toggle)
+class ToggleFeature {
+
+    _constructor() {
         const charIndex = {}
         castToArray(this.opt.toggle).forEach(chr => {
             charIndex[chr] = {isSubmit: false}
@@ -280,223 +357,51 @@ const Inits = {
         castToArray(this.opt.toggleEnter).forEach(chr => {
             charIndex[chr] = {isSubmit: true}
         })
-        this.addCharIndex('toggle', charIndex)
-    }
-}
-
-const Methods = {
-
-    base : {
-
-        addCharIndex: function addCharIndex(type, index) {
-            Object.entries(index).forEach(([chr, value]) => {
-                if (chr in this._charIndex) {
-                    throw new Error('duplicate ' + chr)
-                }
-                this._charIndex[chr] = {type, value}
-            })
-        }
-
-      , handleKeypress: function handleKeypress(e, type, cb) {
-            const chr = keypressName(e)
-            const info = this._charIndex[chr]
-            if (!chr.length || !info || info.type != type) {
-                return
-            }
-            cb(info.value)
-            return true
-        }
-
-      , clearLine: function clearLine(isSubmit) {
-            this.rl.line = ''
-            this.rl.cursor = 0
-            if (isSubmit) {
-                this.submitLine()
-            }
-        }
-
-      , setLine: function setLine(value) {
-            this.rl.line = value
-            this.rl.cursor = value.length
-        }
-
-      , submitLine: function submitLine(line = '') {
-            this.rl.emit('line', line)
-        }
-    }
-
-  , theme : {
-
-        getErrorString: function getErrorString(error) {
-            const {chlk} = this
-            return chlk.caret.error('>> ') + chlk.message.error(error)
-        }
-
-        // Adapted from inquirer/lib/prompts/base
-        // See https://github.com/SBoudrias/Inquirer.js/blob/master/packages/inquirer/lib/prompts/base.js
-      , getQuestion: function getQuestion() {
-
-            const {chlk, opt} = this
-
-            const heads = []
-
-            if (opt.prefix) {
-                if (this.isPrefixDefault) {
-                    var prefix = chlk.message.prefix.default(stripAnsi(opt.prefix))
-                } else {
-                    var prefix = chlk.message.prefix(opt.prefix)
-                }
-                heads.push(prefix)
-            }
-            if (opt.message) {
-                heads.push(chlk.message.question(opt.message))
-            }
-            if (opt.suffix) {
-                heads.push(chlk.message.suffix(opt.suffix))
-            }
-
-            let message = heads.join(chlk.message.question(' '))
-
-            // Append the default if available, and if question isn't touched/answered
-            if (opt.default && !ModifiedStatuses[this.status]) {
-                message += chlk.message.prompt(' ')
-                // If default password is supplied, hide it
-                if (opt.type === 'password') {
-                    message += chlk.message.help('[hidden]')
-                } else {
-                    message += chlk.message.help('(' + opt.default + ')')
-                }
-            }
-
-            return message
-        }
-    }
-
-  , cancel : {
-        keypressCancel: function keypressCancel(e) {
-            return this.handleKeypress(e, 'cancel', () => {
-                this.isCancel = true
-                if (this.opt.cancel.eventKey) {
-                    this.answers[this.opt.cancel.eventKey] = e
-                }
-                this.cancel(e)
-            })
-        }
-    }
-
-  , clear: {
-        keypressClear: function keypressClear(e) {
-            return this.handleKeypress(e, 'clear', () => {
-                this.clear(e)
-            })
-        }
-    }
-
-  , select: {
-        keypressSelect: function keypressSelect(e) {
-            return this.handleKeypress(e, 'select', ({index, isSubmit}) => {
-                this.selectIndex(index, isSubmit)
-            })
-        }
-    }
-
-  , restore: {
-        keypressRestore: function keypressRestore(e) {
-            if (!this.opt.default) {
-                return
-            }
-            return this.handleKeypress(e, 'restore', () => {
-                this.restoreDefault(e)
-            })
-        }
-    }
-
-  , expand: {
-        keypressExpand: function keypressExpand(e) {
-            if (!this.opt.default || ModifiedStatuses[this.status]) {
-                return
-            }
-            return this.handleKeypress(e, 'expand', () => {
-                this.expandDefault(e)
-            })
-        }
-    }
-
-  , toggle: {
-        keypressToggle: function keypressToggle(e) {
-            return this.handleKeypress(e, 'toggle', ({isSubmit}) => {
-                this.toggleValue(isSubmit)
-            })
-        }
-    }
-  , textInput : {
-
-        // Default implementations for text input prompts.
-
-        cancel: function cancelTextInput() {
-            this.answer = this.opt.cancel.value
-            this.status = 'canceled'
-            this.clearLine(true)
-        }
-
-      , clear: function clearTextInput() {
-            this.answer = null
-            this.status = 'touched'
-            this.clearLine()
-        }
-
-      , restoreDefault: function restoreTextInputDefault() {
-            this.answer = this.opt.default
-            this.status = 'pending'
-            this.clearLine()
-        }
-
-      , expandDefault: function expandTextInputDefault() {
-            this.answer = this.opt.default
-            this.status = 'touched'
-            this.setLine(this.answer)
-        }
+        this.addCharIndex('toggle', charIndex, ({isSubmit}) => {
+            this.toggleValue(isSubmit)
+        })
     }
 }
 
 class InputPrompt extends Prompter.prompts.input {
 
+    static features() {
+        return [
+            'theme'
+          , 'cancel'
+          , 'clear'
+          , 'restore'
+          , 'expand'
+        ]
+    }
+
+    static optionals() {
+        return [TextMethods]
+    }
+
     constructor(...args) {
         super(...args)
-        this.isTextInput = true
-        Inits.base.call(this, ...args)
-        Inits.theme.call(this, ...args)
-        Inits.cancel.call(this, ...args)
-        Inits.clear.call(this, ...args)
-        Inits.invalid.call(this, ...args)
-        Inits.restoreDefault.call(this, ...args)
-        Inits.expandDefault.call(this, ...args)
+        this.initializer(...args)
+        ensure(this.opt, {
+            writeInvalid: value => value
+        })
     }
 
     /**
      * @override for cancel, restore, expand, clear, and to fix bug
      */
     onKeypress(e) {
-        if (this.keypressCancel(e)) {
+        const type = this.handleKeypress(e)
+        if (type == 'cancel') {
             return
         }
-        try {
-            if (this.keypressRestore(e)) {
-                return
-            }
-            if (this.keypressExpand(e)) {
-                return
-            }
-            if (this.keypressClear(e)) {
-                return
-            }
+        if (!type) {
             // Fix bug introduced in commit 73b6e658
             // See https://github.com/SBoudrias/Inquirer.js/commit/73b6e658
             // See https://github.com/owings1/Inquirer.js/commit/21ea73a3
             this.status = 'touched'
-        } finally {
-            this.render()
         }
+        this.render()
     }
 
     /**
@@ -576,30 +481,35 @@ class InputPrompt extends Prompter.prompts.input {
 
 class PasswordPrompt extends Prompter.prompts.password {
 
+    static features() {
+        return [
+            'theme'
+          , 'cancel'
+          , 'restore'
+        ]
+    }
+
+    static optionals() {
+        return [TextMethods]
+    }
+
     constructor(...args) {
         super(...args)
-        this.isTextInput = true
-        Inits.base.call(this, ...args)
-        Inits.theme.call(this, ...args)
-        Inits.cancel.call(this, ...args)
-        Inits.restoreDefault.call(this, ...args)
+        this.initializer(...args)
     }
 
     /**
      * @override for cancel, restore, and to avoid clearing default
      */
     onKeypress(e) {
-        if (this.keypressCancel(e)) {
+        const type = this.handleKeypress(e)
+        if (type == 'cancel') {
             return
         }
-        try {
-            if (this.keypressRestore(e)) {
-                return
-            }
+        if (!type) {
             this.status = 'touched'
-        } finally {
-            this.render()
         }
+        this.render()
     }
 
     /**
@@ -632,10 +542,10 @@ class PasswordPrompt extends Prompter.prompts.password {
             message += chlk.message.help(' ' + this.opt.cancel.message)
         } else if (this.status === 'answered') {
             message += this.opt.mask
-                ? chlk.answer(' ' + mask(this.answer, this.opt.mask, 8))
+                ? chlk.answer(' ' + this._mask(this.answer, this.opt.mask, 8))
                 : chlk.message.help(' [hidden]')
         } else if (this.opt.mask) {
-            message += ' ' + mask(this.rl.line || '', this.opt.mask)
+            message += ' ' + this._mask(this.rl.line || '', this.opt.mask)
         } else {
             message += chlk.message.help(' [input is hidden] ')
         }
@@ -647,23 +557,44 @@ class PasswordPrompt extends Prompter.prompts.password {
 
         this.screen.render(message, bottomContent)
     }
+
+   /**
+    * Adapted from inquirer/lib/prompts/password
+    *
+    * See https://github.com/SBoudrias/Inquirer.js/blob/master/packages/inquirer/lib/prompts/password.js
+    */
+    _mask(input, maskChar, limit = Infinity) {
+       input = String(input)
+       maskChar = typeof maskChar === 'string' ? maskChar : '*'
+       if (input.length === 0) {
+           return ''
+       }
+       return new Array(Math.min(input.length + 1, limit)).join(maskChar)
+   }
 }
 
 class ListPrompt extends Prompter.prompts.list {
 
+    static features() {
+        return [
+            'theme'
+          , 'cancel'
+        ]
+    }
+
     constructor(...args) {
         super(...args)
-        Inits.base.call(this, ...args)
-        Inits.theme.call(this, ...args)
-        Inits.cancel.call(this, ...args)
-        this.pointerChar = this.opt.pointer || Chars.pointer
+        this.initializer(...args)
+        ensure(this.opt, {
+            pointer: Chars.pointer
+        })
     }
 
     /**
      * For cancel. Not bound in parent class, see _run below.
      */
     onKeypress(e) {
-        if (this.keypressCancel(e)) {
+        if (this.handleKeypress(e)) {
             return
         }
     }
@@ -765,7 +696,7 @@ class ListPrompt extends Prompter.prompts.list {
     _listRender(choices, pointer) {
 
         const {chlk} = this
-        const maxLen = maxChoicesLength(choices) + 2
+        const maxLen = ListPrompt.maxChoicesLength(choices) + 2
 
         let separatorOffset = 0
 
@@ -787,7 +718,7 @@ class ListPrompt extends Prompter.prompts.list {
             }
 
             const isSelected = i - separatorOffset === pointer
-            const text = (isSelected ? this.pointerChar + ' ' : '  ') + choice.name
+            const text = (isSelected ? this.opt.pointer + ' ' : '  ') + choice.name
             const line = padEnd(text, maxLen, ' ')
 
             if (isSelected) {
@@ -798,16 +729,26 @@ class ListPrompt extends Prompter.prompts.list {
 
         return choices.choices.map(getLine).join('\n')
     }
+
+    static maxChoicesLength(choices) {
+        choices = choices.filter(it => it.type != 'separator')
+        return Math.max(...choices.map(it => strlen(it.name)))
+    }
 }
 
 class RawListPrompt extends Prompter.prompts.rawlist {
 
+    static features() {
+        return [
+            'theme'
+          , 'cancel'
+          , 'select'
+        ]
+    }
+
     constructor(...args) {
         super(...args)
-        Inits.base.call(this, ...args)
-        Inits.theme.call(this, ...args)
-        Inits.cancel.call(this, ...args)
-        Inits.select.call(this, ...args)
+        this.initializer(...args)
         ensure(this.opt, {
             promptMessage : 'Answer'
           , errorMessage  : 'Please enter a valid index'
@@ -818,10 +759,7 @@ class RawListPrompt extends Prompter.prompts.rawlist {
      * @override for cancel and char select
      */
     onKeypress(e) {
-        if (this.keypressCancel(e)) {
-            return
-        }
-        if (this.keypressSelect(e)) {
+        if (this.handleKeypress(e)) {
             return
         }
         this.lastWasChar = false
@@ -868,7 +806,6 @@ class RawListPrompt extends Prompter.prompts.rawlist {
 
     // Called by keypressCancel
     cancel() {
-        debug('cancel')
         this.status = 'canceled'
         this.clearLine(true)
     }
@@ -919,7 +856,7 @@ class RawListPrompt extends Prompter.prompts.rawlist {
         let output = ''
         let separatorOffset = 0
 
-        const maxLen = maxChoicesLength(choices)
+        const maxLen = ListPrompt.maxChoicesLength(choices)
 
         choices.forEach((choice, i) => {
 
@@ -991,24 +928,25 @@ class RawListPrompt extends Prompter.prompts.rawlist {
 
 class ConfirmPrompt extends Prompter.prompts.confirm {
 
+    static features() {
+        return [
+            'theme'
+          , 'cancel'
+          , 'toggle'
+        ]
+    }
+
     constructor(...args) {
         super(...args)
-        this.isConfirmPrompt = true
         this.currentValue = this.opt.filter()
-        Inits.base.call(this, ...args)
-        Inits.theme.call(this, ...args)
-        Inits.cancel.call(this, ...args)
-        Inits.toggle.call(this, ...args)
+        this.initializer(...args)
     }
 
     /**
      * @override for cancel and toggle
      */
     onKeypress(e) {
-        if (this.keypressCancel(e)) {
-            return
-        }
-        if (this.keypressToggle(e)) {
+        if (this.handleKeypress(e)) {
             return
         }
         super.onKeypress()
@@ -1101,12 +1039,52 @@ const Prompts = {
   , rawlist  : RawListPrompt
 }
 
+const Features = {
+    theme   : ThemeFeature
+  , cancel  : CancelFeature
+  , clear   : ClearFeature
+  , select  : SelectFeature
+  , expand  : ExpandFeature
+  , restore : RestoreFeature
+  , toggle  : ToggleFeature
+}
+
 const AddClasses = {
     BrSeparator
   , Separator
 }
 
+function extendClass(TargetClass, SourceClass, overrides, isOptional) {
+    overrides = castToArray(overrides)
+    Object.getOwnPropertyNames(SourceClass.prototype).forEach(name => {
+        if (name == 'constructor' || name == '_constructor') {
+            return
+        }
+        if (name in TargetClass.prototype) {
+            if (isOptional) {
+                return
+            }
+            if (overrides.indexOf(name) < 0) {
+                console.log({overrides, TargetClass})
+                throw new ProgrammerError('Class ' + TargetClass.name + ' already has method ' + name)
+            }
+        }
+        TargetClass.prototype[name] = SourceClass.prototype[name]
+    })
+}
+
 Object.entries(Prompts).forEach(([name, PromptClass]) => {
+    extendClass(PromptClass, BaseMethods)
+    const features = PromptClass.features ? PromptClass.features() : []
+    features.forEach(name => {
+        const FeatureClass = Features[name]
+        const overrides = FeatureClass.overrides ? FeatureClass.overrides() : null
+        extendClass(PromptClass, FeatureClass, overrides)
+    })
+    const optionals = PromptClass.optionals ? PromptClass.optionals() : []
+    optionals.forEach(SourceClass => {
+        extendClass(PromptClass, SourceClass, null, true)
+    })
     Prompter.registerPrompt(name, PromptClass)
 })
 

@@ -1135,8 +1135,8 @@ class Menu extends EventEmitter {
                   , validate : value => Number.isInteger(value) && value > 0 || 'Please enter a number > 0'
                   , filter   : value => +value
                   , cancel   : CancelChars.input
-                  , restoreDefault : RestoreChars.input
-                  , expandDefault  : ExpandChars.input
+                  , restore  : RestoreChars.input
+                  , expand   : ExpandChars.input
                 }
             }
           , {
@@ -1240,8 +1240,8 @@ class Menu extends EventEmitter {
                   , type    : 'input'
                   , default : () => this.credentials.serverUrl
                   , cancel  : CancelChars.input
-                  , restoreDefault : RestoreChars.input
-                  , expandDefault  : ExpandChars.input
+                  , restore : RestoreChars.input
+                  , expand  : ExpandChars.input
                 }
             }
           , {
@@ -1304,29 +1304,29 @@ class Menu extends EventEmitter {
 
     getUsernameQuestion() {
         return {
-            name     : 'username'
-          , message  : 'Username'
-          , type     : 'input'
-          , default  : () => this.credentials.username
-          , display  : () => this.credentials.username + (this.credentials.isTested ? (' ' + this.theme.prompt.check.pass(Chars.check)) : '')
-          , cancel   : CancelChars.input
-          , when     : answers => !answers._cancelEvent
-          , restoreDefault : RestoreChars.input
-          , expandDefault  : ExpandChars.input
+            name    : 'username'
+          , message : 'Username'
+          , type    : 'input'
+          , default : () => this.credentials.username
+          , display : () => this.credentials.username + (this.credentials.isTested ? (' ' + this.theme.prompt.check.pass(Chars.check)) : '')
+          , cancel  : CancelChars.input
+          , when    : answers => !answers._cancelEvent
+          , restore : RestoreChars.input
+          , expand  : ExpandChars.input
         }
     }
 
     getPasswordQuestion() {
         return {
-            name     : 'password'
-          , message  : 'Password'
-          , type     : 'password'
-          , default  : () => this.credentials.password
-          , display  : () => this.credentials.password ? '******' : ''
-          , mask     : '*'
-          , cancel   : CancelChars.password
-          , when     : answers => !answers._cancelEvent
-          , restoreDefault : RestoreChars.password
+            name    : 'password'
+          , message : 'Password'
+          , type    : 'password'
+          , default : () => this.credentials.password
+          , display : () => this.credentials.password ? '******' : ''
+          , mask    : '*'
+          , cancel  : CancelChars.password
+          , when    : answers => !answers._cancelEvent
+          , restore : RestoreChars.password
         }
     }
 
@@ -1402,8 +1402,8 @@ class Menu extends EventEmitter {
                   , filter  : value => value == null ? null : path.resolve(tildeHome(value))
                   , cancel  : CancelChars.input
                   , clear   : 'ctrl-delete'
-                  , restoreDefault : RestoreChars.input
-                  , expandDefault  : ExpandChars.input
+                  , restore : RestoreChars.input
+                  , expand  : ExpandChars.input
                 }
             }
           , {
@@ -1430,9 +1430,9 @@ class Menu extends EventEmitter {
                   , filter   : value => +value
                   , validate : value => !isNaN(value) && value >= 0 || 'Please enter a number >= 0'
                   , cancel   : CancelChars.input
-                  , writeInvalid   : () => ''
-                  , restoreDefault : RestoreChars.input
-                  , expandDefault  : ExpandChars.input
+                  , restore  : RestoreChars.input
+                  , expand   : ExpandChars.input
+                  , writeInvalid : () => ''
                 }
             }
           , {
@@ -1521,13 +1521,13 @@ class Menu extends EventEmitter {
               , name  : 'Version'
               , char  : 'v'
               , question : {
-                    name     : 'version'
-                  , message  : 'Version'
-                  , type     : 'list'
-                  , default  : () => config().version
-                  , display  : () => chalkDiff(config().version, defaults.version)
-                  , choices  : () => Object.keys(versions)
-                  , cancel   : CancelChars.list
+                    name    : 'version'
+                  , message : 'Version'
+                  , type    : 'list'
+                  , default : () => config().version
+                  , display : () => chalkDiff(config().version, defaults.version)
+                  , choices : () => Object.keys(versions)
+                  , cancel  : CancelChars.list
                 }
             }
           , {
@@ -1543,9 +1543,9 @@ class Menu extends EventEmitter {
                   , filter   : value => +value
                   , validate : weightValidator
                   , cancel   : CancelChars.input
-                  , writeInvalid   : () => ''
-                  , restoreDefault : RestoreChars.input
-                  , expandDefault  : ExpandChars.input
+                  , restore  : RestoreChars.input
+                  , expand   : ExpandChars.input
+                  , writeInvalid : () => ''
                 }
             }
           , {
@@ -1561,9 +1561,9 @@ class Menu extends EventEmitter {
                   , filter   : value => +value
                   , validate : weightValidator
                   , cancel   : CancelChars.input
-                  , writeInvalid   : () => ''
-                  , restoreDefault : RestoreChars.input
-                  , expandDefault  : ExpandChars.input
+                  , restore  : RestoreChars.input
+                  , expand   : ExpandChars.input
+                  , writeInvalid : () => ''
                 }
             }
         ])

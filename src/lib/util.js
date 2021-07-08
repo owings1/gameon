@@ -119,6 +119,14 @@ class Util {
         return [iv.toString('hex'), encrypted.toString('hex')].join(':')
     }
 
+    static ensure(target, defaults) {
+        Object.entries(defaults).forEach(([name, method]) => {
+            if (!(name in target)) {
+                target[name] = method
+            }
+        })
+    }
+
     static errMessage(cb) {
         try {
             cb()
@@ -199,6 +207,24 @@ class Util {
 
     static isValidEmail(str) {
         return emailval.validate(str)
+    }
+
+    static keypressName(e) {
+        if (e.key.name == 'escape') {
+            return e.key.name
+        }
+        const parts = ['ctrl', 'meta', 'shift'].filter(it => e.key[it])
+        if (parts.length) {
+            parts.push(e.key.name)
+            return parts.join('-')
+        }
+        if (e.value == null) {
+            return e.key.name
+        }
+        if (e.key.name && e.key.name.length > 1) {
+            return e.key.name
+        }
+        return e.value || ''
     }
 
     static keyValuesTrue(input) {

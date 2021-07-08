@@ -117,6 +117,16 @@ class ThemeHelper {
         return this.getInstance(DefaultThemeName)
     }
 
+    static getSafe(name) {
+        if (name instanceof Theme) {
+            return name
+        }
+        if (!Store.All[name]) {
+            return this.getDefaultInstance()
+        }
+        return this.getInstance(name)
+    }
+
     static getConfig(name) {
         if (!Store.All[name]) {
             throw new ThemeNotFoundError('Theme not found: ' + name)
