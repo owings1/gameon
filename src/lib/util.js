@@ -145,7 +145,7 @@ class Util {
 
         opts = opts || {}
 
-        ;['overrides', 'optionals'].forEach(key => {
+        Object.values(['overrides', 'optionals']).forEach(key => {
             if (opts[key] === true) {
                 opts[key] = {'*': true}
             } else if (opts[key] === false) {

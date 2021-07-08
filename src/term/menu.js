@@ -236,9 +236,11 @@ class Menu extends EventEmitter {
 
                 isContinue = true
 
-                var {choice, question} = await this.menuChoice({
+                var {choice, question, toggle} = await this.menuChoice({
                     name    : 'matchChoice'
                   , choices : this.q.matchChoices(playChoice)
+                  , action  : {char: 'tab', name: '#toggle', all: false}
+                  , default : () => toggle
                   , message
                 })
 
@@ -262,6 +264,11 @@ class Menu extends EventEmitter {
                         matchOpts = await this.getMatchOpts(matchOpts, advancedOpts)
                     }
                     await this[method](matchOpts)
+                    continue
+                }
+
+                if (toggle) {
+                    this.settings.matchOpts[toggle] = !this.settings.matchOpts[toggle]
                     continue
                 }
 
@@ -366,9 +373,11 @@ class Menu extends EventEmitter {
 
                 await this.clearAndConsume()
 
-                var {choice, question} = await this.menuChoice({
+                var {choice, question, toggle} = await this.menuChoice({
                     name     : 'settingChoice'
                   , message  : 'Settings'
+                  , action   : {char: 'tab', name: '#toggle', all: false}
+                  , default  : () => choice
                   , choices  : this.q.settingsChoices()
                 })
 
@@ -381,14 +390,19 @@ class Menu extends EventEmitter {
                     continue
                 }
 
-                var {answer, isCancel} = await this.questionAnswer(question)
-                var isChange = this.settings[choice] != answer
+                if (toggle) {
+                    this.settings[toggle] = !this.settings[toggle]
+                } else {
+                    var {answer, isCancel} = await this.questionAnswer(question)
+                    var isChange = this.settings[choice] != answer
 
-                if (isCancel) {
-                    continue
+                    if (isCancel) {
+                        continue
+                    }
+
+                    this.settings[choice] = answer
                 }
 
-                this.settings[choice] = answer
                 await this.saveSettings()
 
                 if (choice == 'isCustomRobot' && isChange) {
@@ -1000,10 +1014,10 @@ class Menu extends EventEmitter {
           , prefix   : this.getMenuPrefix()
           , ...question
         }
-        const {answers, answer, isCancel} = await this.questionAnswer(question)
+        const {answers, answer, isCancel, toggle} = await this.questionAnswer(question)
         question = choiceQuestion(question.choices, answer)
         const choice = answer
-        return {answers, answer, isCancel, choice, question}
+        return {answers, answer, isCancel, choice, question, toggle}
     }
 
     async questionAnswer(question) {
@@ -1011,7 +1025,8 @@ class Menu extends EventEmitter {
         const answers = await this.prompt(question)
         const answer = answers[name]
         const isCancel = !!answers._cancelEvent
-        return {answers, answer, isCancel}
+        const toggle = answers['#toggle']
+        return {answers, answer, isCancel, toggle}
     }
 
     encryptPassword(password) {

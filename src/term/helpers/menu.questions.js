@@ -239,8 +239,9 @@ class Questions {
                 }
             }
           , {
-                value : 'cubeEnabled'
-              , name  : 'Cube Enabled'
+                value  : 'cubeEnabled'
+              , name   : 'Cube Enabled'
+              , action : ['#toggle']
               , question : {
                     name    : 'cubeEnabled'
                   , message : 'Cube Enabled'
@@ -251,9 +252,10 @@ class Questions {
                 }
             }
           , {
-                value : 'isCrawford'
-              , name  : 'Crawford Rule'
-              , when  : () => menu.settings.matchOpts.cubeEnabled
+                value  : 'isCrawford'
+              , name   : 'Crawford Rule'
+              , when   : () => menu.settings.matchOpts.cubeEnabled
+              , action : ['#toggle']
               , question : {
                     name    : 'isCrawford'
                   , message : 'Crawford Rule'
@@ -264,8 +266,9 @@ class Questions {
                 }
             }
           , {
-                value : 'isJacoby'
-              , name  : 'Jacoby Rule'
+                value  : 'isJacoby'
+              , name   : 'Jacoby Rule'
+              , action : ['#toggle']
               , question : {
                     name    : 'isJacoby'
                   , message : 'Jacoby Rule'
@@ -540,6 +543,7 @@ class Questions {
           , {
                 value  : 'termEnabled'
               , name   : 'Term Cursoring'
+              , action : ['#toggle']
               , question : {
                     name    : 'termEnabled'
                   , message : 'Enable term cursoring'
@@ -551,8 +555,9 @@ class Questions {
             }
           , this.hr()
           , {
-                value : 'fastForced'
-              , name  : 'Fast Forced Moves'
+                value  : 'fastForced'
+              , name   : 'Fast Forced Moves'
+              , action : ['#toggle']
               , question : {
                     name    : 'fastForced'
                   , message : 'Fast Forced Moves'
@@ -580,6 +585,7 @@ class Questions {
           , {
                 value    : 'isRecord'
               , name     : 'Record Matches'
+              , action   : ['#toggle']
               , question : {
                     name    : 'isRecord'
                   , message : 'Record Matches'
@@ -609,6 +615,7 @@ class Questions {
           , {
                 value    : 'isCustomRobot'
               , name     : 'Use Custom Robot'
+              , action   : ['#toggle']
               , question : {
                     name    : 'isCustomRobot'
                   , message : 'Use Custom Robot'

@@ -72,6 +72,7 @@ const BuiltIn = {
           , 'alert.error.message.color' : 'pink'
 
           , 'prompt.answer.color'               : 'blue'
+          , 'prompt.input.color'                : 'green'
           , 'prompt.choice.selected.background' : 'grey dim'
           , 'prompt.choice.selected.color'      : 'orange'
 
@@ -134,6 +135,7 @@ const Categories = [
   , 'prompt.choice.number.selected'
   , 'prompt.choice.paren'
   , 'prompt.choice.paren.selected'
+  , 'prompt.input'
   , 'prompt.message.prompt'
   , 'prompt.message.question'
   , 'prompt.message.prefix'
@@ -183,6 +185,7 @@ const CategoryAliases = {
   , 'prompt.check.pass'             : 'alert.success.message'
   , 'prompt.caret.error'            : 'alert.error.level'
   , 'prompt.message.prompt'         : 'text'
+  , 'prompt.input'                  : 'prompt.message.prompt'
   , 'prompt.message.error'          : 'alert.error.message'
   , 'prompt.message.question'       : 'text'
   , 'prompt.message.help'           : 'text'
