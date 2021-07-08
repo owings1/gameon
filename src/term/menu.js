@@ -86,50 +86,6 @@ const {
   , WaitingAbortedError
 } = Errors
 
-const CancelChars = {
-    bool     : ['escape', '<', '`']
-  , input    : ['escape']
-  , list     : ['escape', '<']
-  , password : ['escape']
-}
-const EnterChars = {
-    back : ['escape', '`', '<']
-  , quit : ['escape', '`']
-}
-const ExpandChars = {
-    input: ['right']
-}
-const RestoreChars = {
-    input    : ['up']
-  , password : ['up']
-}
-const ToggleChars = {
-    bool: ['up', 'down']
-}
-
-// static questions
-const Questions = {
-    confirmKey: {
-        name    : 'key'
-      , type    : 'input'
-      , message : 'Enter confirm key'
-      , cancel  : CancelChars.input
-    }
-  , join : {
-        name     : 'matchId'
-      , message  : 'Match ID'
-      , type     : 'input'
-      , validate : value => !value || value.length == 8 || 'Invalid match ID format'
-      , cancel   : CancelChars.input
-    }
-  , resetKey: {
-        name    : 'resetKey'
-      , message : 'Reset Key'
-      , type    : 'input'
-      , cancel  : CancelChars.input
-    }
-}
-
 const LoginChoiceMap = {
     changePassword  : {
         message : 'Password changed'
@@ -198,8 +154,12 @@ const MainChoiceMap = {
         method: 'settingsMenu'
     }
 }
-function isCredentialsFilled(credentials) {
-    return !['username', 'password', 'serverUrl'].find(key => !credentials[key])
+function isCredentialsFilled(credentials, isServer) {
+    const keys = ['username', 'password']
+    if (isServer) {
+        keys.push('serverUrl')
+    }
+    return !keys.find(key => !credentials[key])
 }
 
 function getDiffChalk(a, b) {
@@ -249,6 +209,7 @@ class Menu extends EventEmitter {
         this.term  = new TermHelper(this.settings.termEnabled)
 
         this.inquirer = inquirer
+        this.q = new QuestionHelper(this)
     }
 
     async mainMenu() {
@@ -262,7 +223,7 @@ class Menu extends EventEmitter {
                 var {choice} = await this.menuChoice({
                     name     : 'mainChoice'
                   , message  : 'Main Menu'
-                  , choices  : this.getMainChoices()
+                  , choices  : this.q.mainChoices()
                 })
 
                 if (choice == 'quit') {
@@ -298,7 +259,7 @@ class Menu extends EventEmitter {
                 var {choice} = await this.menuChoice({
                     name     : 'playChoice'
                   , message  : 'Play'
-                  , choices  : this.getPlayChoices()
+                  , choices  : this.q.playChoices()
                   , default  : () => this.settings.lastPlayChoice
                 })
 
@@ -356,7 +317,7 @@ class Menu extends EventEmitter {
 
                 var {choice, question} = await this.menuChoice({
                     name    : 'matchChoice'
-                  , choices : this.getMatchChoices(playChoice)
+                  , choices : this.q.matchChoices(playChoice)
                   , message
                 })
 
@@ -410,7 +371,7 @@ class Menu extends EventEmitter {
                 var {choice, question, isCancel} = await this.menuChoice({
                     name     : 'accountChoice'
                   , message  : 'Account'
-                  , choices  : this.getAccountChoices()
+                  , choices  : this.q.accountChoices()
                 })
 
                 if (choice == 'done') {
@@ -459,7 +420,7 @@ class Menu extends EventEmitter {
                 }
 
                 try {
-                    if (!isCredentialsFilled(this.credentials)) {
+                    if (!isCredentialsFilled(this.credentials, true)) {
                         continue
                     }
                     await this.doLogin()
@@ -487,7 +448,7 @@ class Menu extends EventEmitter {
                 var {choice, question} = await this.menuChoice({
                     name     : 'settingChoice'
                   , message  : 'Settings'
-                  , choices  : this.getSettingsChoices()
+                  , choices  : this.q.settingsChoices()
                 })
 
                 if (choice == 'done') {
@@ -547,7 +508,7 @@ class Menu extends EventEmitter {
                 var {choice} = await this.menuChoice({
                     name     : 'robotChoice'
                   , message  : 'Configure Robots'
-                  , choices  : this.getRobotConfigsChoices()
+                  , choices  : this.q.robotConfigsChoices()
                 })
 
                 if (choice == 'done') {
@@ -590,7 +551,7 @@ class Menu extends EventEmitter {
                 var {choice, question} = await this.menuChoice({
                     name     : 'robotChoice'
                   , message  : 'Configure ' + name
-                  , choices  : this.getConfigureRobotChoices(name)
+                  , choices  : this.q.configureRobotChoices(name)
                 })
 
                 if (choice == 'done') {
@@ -624,7 +585,7 @@ class Menu extends EventEmitter {
         return this.crumb('Join', async () => {
             // always break
             while (true) {
-                var {answer, isCancel} = await this.questionAnswer(Questions.join)
+                var {answer, isCancel} = await this.questionAnswer(this.q.join())
                 if (!isCancel && answer) {
                     await this.joinOnlineMatch(answer)
                 }
@@ -641,11 +602,7 @@ class Menu extends EventEmitter {
 
         const {credentials} = this
 
-        const answers = await this.prompt([
-            this.getUsernameQuestion()
-          , this.getPasswordQuestion()
-          , this.getPasswordConfirmQuestion()
-        ])
+        const answers = await this.prompt(this.q.createAccount())
 
         if (answers._cancelEvent) {
             return false
@@ -669,7 +626,7 @@ class Menu extends EventEmitter {
 
         const {credentials} = this
 
-        const {answer, isCancel} = await this.questionAnswer(this.getUsernameQuestion())
+        const {answer, isCancel} = await this.questionAnswer(this.q.username())
 
         if (isCancel) {
             return false
@@ -680,17 +637,7 @@ class Menu extends EventEmitter {
 
         this.alerts.push(['info', 'Reset key sent, check email'])
 
-        const answers = await this.prompt([
-            Questions.resetKey
-          , {
-                ...this.getPasswordQuestion()
-              , when: answers => !answers._cancelEvent && answers.resetKey
-            }
-          , {
-                ...this.getPasswordConfirmQuestion()
-              , when: answers => !answers._cancelEvent && answers.resetKey
-            }
-        ])
+        const answers = await this.prompt(this.q.forgotPassword())
 
         if (answers._cancelEvent || !answers.resetKey) {
             return false
@@ -708,21 +655,7 @@ class Menu extends EventEmitter {
 
         const {credentials} = this
 
-        const answers = await this.prompt([
-            {
-                ...this.getPasswordQuestion()
-              , name    : 'oldPassword'
-              , message : 'Current password'
-              , default : ''
-            }
-          , {
-                ...this.getPasswordQuestion()
-              , name    : 'newPassword'
-              , message : 'New password'
-              , default : ''
-            }
-          , this.getPasswordConfirmQuestion('newPassword')
-        ])
+        const answers = await this.prompt(this.q.changePassword())
 
         if (answers._cancelEvent) {
             return false
@@ -738,7 +671,7 @@ class Menu extends EventEmitter {
 
         await this.ensureCredentialsLoaded()
 
-        const {answer, isCancel} = await this.questionAnswer(Questions.confirmKey)
+        const {answer, isCancel} = await this.questionAnswer(this.q.confirmKey())
 
         if (isCancel || !answer.length) {
             return false
@@ -768,7 +701,7 @@ class Menu extends EventEmitter {
 
         if (!credentials.username) {
 
-            const {answer, isCancel} = await this.questionAnswer(this.getUsernameQuestion())
+            const {answer, isCancel} = await this.questionAnswer(this.q.username())
             if (isCancel || !answer.length) {
                 return false
             }
@@ -781,7 +714,7 @@ class Menu extends EventEmitter {
     }
 
     async promptMatchAdvancedOpts(defaults) {
-        const questions = this.getMatchAdvancedQuestions(defaults)
+        const questions = this.q.matchAdvanced(defaults)
         const answers = await this.prompt(questions)
         if (answers._cancelEvent) {
             return {...defaults}
@@ -799,9 +732,9 @@ class Menu extends EventEmitter {
 
         try {
 
-            const body = await this.testCredentials(credentials, true)
+            const {passwordEncrypted} = await this.testCredentials(credentials, true)
 
-            credentials.password = this.encryptPassword(body.passwordEncrypted)
+            credentials.password = this.encryptPassword(passwordEncrypted)
 
         } catch (err) {
 
@@ -1003,570 +936,6 @@ class Menu extends EventEmitter {
 
     newDefaultRobot(...args) {
         return RobotDelegator.forDefaults(...args)
-    }
-
-    getMainChoices() {
-        return Menu.formatChoices([
-            new this.inquirer.BrSeparator()
-          , {
-                value : 'play'
-              , name  : 'Play'
-              , char  : 'p'
-            }
-          , {
-                value : 'account'
-              , name  : 'Account'
-              , char  : 'a'
-            }
-          , {
-                value : 'settings'
-              , name  : 'Settings'
-              , char  : 's'
-            }
-          , {
-                value : 'lab'
-              , name  : 'Lab'
-              , char  : 'l'
-            }
-          , new this.inquirer.Separator()
-          , {
-                value     : 'quit'
-              , name      : 'Quit'
-              , char      : 'q'
-              , enterChar : EnterChars.quit
-            }
-          , new this.inquirer.BrSeparator()
-        ])
-    }
-
-    getPlayChoices() {
-        const choices = [
-            new this.inquirer.BrSeparator()
-          , {
-                value : 'newOnline'
-              , name  : 'Create Online Match'
-            }
-          , {
-                value : 'joinOnline'
-              , name  : 'Join Online Match'
-            }
-          , new this.inquirer.Separator()
-          , {
-                value : 'newLocal'
-              , name  : 'Human vs Human'
-            }
-          , {
-                value : 'playRobot'
-              , name  : 'Human vs Robot'
-            }
-          , {
-                value : 'watchRobots'
-              , name  : 'Robot vs Robot'
-            }
-          , new this.inquirer.Separator()
-        ]
-        if (this.bread.length > 1) {
-            choices.push({
-                value     : 'back'
-              , name      : 'Back'
-              , enterChar : EnterChars.back
-            })
-        }
-        append(choices, [
-            {
-                  value : 'quit'
-                , name  : 'Quit'
-                , char  : 'q'
-            }
-          , new this.inquirer.BrSeparator()
-        ])
-        return Menu.formatChoices(choices)
-    }
-
-    getMatchChoices(playChoice) {
-        const {isOnline} = PlayChoiceMap[playChoice]
-        const choices = this.getBasicMatchInitialChoices()
-        // only show advanced for local matches
-        if (!isOnline) {
-            append(choices, [
-                {
-                    value : 'advanced'
-                  , name  : 'Advanced'
-                }
-              , new this.inquirer.Separator()
-            ])
-        }
-        if (this.bread.length > 1) {
-            choices.push({
-                value     : 'back'
-              , name      : 'Back'
-              , enterChar : EnterChars.back
-            })
-        }
-        append(choices, [
-            {
-                value : 'quit'
-              , name  : 'Quit'
-              , char  : 'q'
-            }
-          , new this.inquirer.BrSeparator()
-        ])
-        return Menu.formatChoices(choices)
-    }
-
-    getBasicMatchInitialChoices() {
-        return [
-            new this.inquirer.BrSeparator()
-          , {
-                value : 'start'
-              , name  : 'Start Match'
-              , char  : 's'
-            }
-          , new this.inquirer.Separator()
-          , {
-                value : 'total'
-              , name  : 'Match Total'
-              , char  : 't'
-              , question : {
-                    name     : 'total'
-                  , message  : 'Match Total'
-                  , type     : 'input'
-                  , default  : () => this.settings.matchOpts.total
-                  , validate : value => Number.isInteger(value) && value > 0 || 'Please enter a number > 0'
-                  , filter   : value => +value
-                  , cancel   : CancelChars.input
-                  , restore  : RestoreChars.input
-                  , expand   : ExpandChars.input
-                }
-            }
-          , {
-                value : 'cubeEnabled'
-              , name  : 'Cube Enabled'
-              , question : {
-                    name    : 'cubeEnabled'
-                  , message : 'Cube Enabled'
-                  , type    : 'confirm'
-                  , default : () => this.settings.matchOpts.cubeEnabled
-                  , cancel  : CancelChars.bool
-                  , toggle  : ToggleChars.bool
-                }
-            }
-          , {
-                value : 'isCrawford'
-              , name  : 'Crawford Rule'
-              , when  : () => this.settings.matchOpts.cubeEnabled
-              , question : {
-                    name    : 'isCrawford'
-                  , message : 'Crawford Rule'
-                  , type    : 'confirm'
-                  , default : () => this.settings.matchOpts.isCrawford
-                  , cancel  : CancelChars.bool
-                  , toggle  : ToggleChars.bool
-                }
-            }
-          , {
-                value : 'isJacoby'
-              , name  : 'Jacoby Rule'
-              , question : {
-                    name    : 'isJacoby'
-                  , message : 'Jacoby Rule'
-                  , type    : 'confirm'
-                  , default : () => this.settings.matchOpts.isJacoby
-                  , cancel  : CancelChars.bool
-                  , toggle  : ToggleChars.bool
-                }
-            }
-          , new this.inquirer.Separator()
-        ]
-    }
-
-    getMatchAdvancedQuestions(advancedOpts) {
-        advancedOpts = advancedOpts || {}
-        const stateValidator = value => {
-            if (!value.length) {
-                return true
-            }
-            try {
-                Board.fromStateString(value).analyzer.validateLegalBoard()
-            } catch (err) {
-                return err.message
-            }
-            return true
-        }
-        const rollsFileValidator = value => {
-            if (!value.length) {
-                return true
-            }
-            const data = fse.readJsonSync(value)
-            return errMessage(() => Dice.validateRollsData(data))
-        }
-        return [
-            {
-                name     : 'startState'
-              , message  : 'Start State'
-              , type     : 'input'
-              , default  : () => advancedOpts.startState
-              , validate : stateValidator
-              , cancel   : CancelChars.input
-            }
-          , {
-                name     : 'rollsFile'
-              , message  : 'Rolls File'
-              , type     : 'input'
-              , default  : () => homeTilde(advancedOpts.rollsFile)
-              , filter   : value => tildeHome(value)
-              , validate : rollsFileValidator
-              , cancel   : CancelChars.input
-              , when     : answers => !answers._cancelEvent
-            }
-        ]
-    }
-
-    getAccountChoices() {
-        const choices = [
-            new this.inquirer.BrSeparator()
-          , {
-                value     : 'done'
-              , name      : 'Done'
-              , enterChar : EnterChars.back
-            }
-          , new this.inquirer.Separator()
-          , {
-                value : 'serverUrl'
-              , name  : 'Server'
-              , question : {
-                    name    : 'serverUrl'
-                  , message : 'Server URL'
-                  , type    : 'input'
-                  , default : () => this.credentials.serverUrl
-                  , cancel  : CancelChars.input
-                  , restore : RestoreChars.input
-                  , expand  : ExpandChars.input
-                }
-            }
-          , {
-                value    : 'username'
-              , name     : 'Username'
-              , question : this.getUsernameQuestion()
-            }
-          , {
-                value    : 'password'
-              , name     : 'Password'
-              , question : this.getPasswordQuestion()
-            }
-        ]
-        choices.push(new this.inquirer.Separator())
-        if (!this.credentials.username || !this.credentials.password) {
-            append(choices, [
-                {
-                    value : 'createAccount'
-                  , name  : 'Create Account'
-                }
-              , {
-                    value : 'forgotPassword'
-                  , name  : 'Forgot Password'
-                }
-            ])
-        } else {
-            if (this.credentials.needsConfirm) {
-                append(choices, [
-                    {
-                        value : 'confirmAccount'
-                      , name  : 'Enter confirm key'
-                    }
-                  , {
-                        value : 'newConfirmKey'
-                      , name  : 'Get new confirm key'
-                    }
-                  , new this.inquirer.Separator()
-                ])
-            }
-            append(choices, [
-                {
-                    value : 'testCredentials'
-                  , name  : 'Test Credentials'
-                }
-              , {
-                    value : 'changePassword'
-                  , name  : 'Change Password'
-                }
-            ])
-        }
-        if (this.credentials.username || this.credentials.password) {
-            choices.push({
-                value : 'clearCredentials'
-              , name  : 'Clear Credentials'
-            })
-        }
-        choices.push(new this.inquirer.BrSeparator())
-        return Menu.formatChoices(choices)
-    }
-
-    getUsernameQuestion() {
-        return {
-            name    : 'username'
-          , message : 'Username'
-          , type    : 'input'
-          , default : () => this.credentials.username
-          , display : () => this.credentials.username + (this.credentials.isTested ? (' ' + this.theme.prompt.check.pass(Chars.check)) : '')
-          , cancel  : CancelChars.input
-          , when    : answers => !answers._cancelEvent
-          , restore : RestoreChars.input
-          , expand  : ExpandChars.input
-        }
-    }
-
-    getPasswordQuestion() {
-        return {
-            name    : 'password'
-          , message : 'Password'
-          , type    : 'password'
-          , default : () => this.credentials.password
-          , display : () => this.credentials.password ? '******' : ''
-          , mask    : '*'
-          , cancel  : CancelChars.password
-          , when    : answers => !answers._cancelEvent
-          , restore : RestoreChars.password
-        }
-    }
-
-    getPasswordConfirmQuestion(checkKey = 'password') {
-        return {
-            name     : 'passwordConfirm'
-          , message  : 'Confirm password'
-          , type     : 'password'
-          , validate : (value, answers) => value == answers[checkKey] || 'Passwords do not match'
-          , mask     : '*'
-          , cancel   : CancelChars.password
-          , when     : answers => !answers._cancelEvent
-        }
-    }
-
-    getSettingsChoices() {
-        return Menu.formatChoices([
-            new this.inquirer.BrSeparator()
-          , {
-                value     : 'done'
-              , name      : 'Done'
-              , enterChar : EnterChars.back
-              , char      : 'd'
-            }
-          , new this.inquirer.Separator()
-          , {
-                value : 'theme'
-              , name  : 'Theme'
-              , question : {
-                    name : 'theme'
-                  , message : 'Choose a theme'
-                  , type    : 'list'
-                  , default : () => this.settings.theme
-                  , choices : () => [new this.inquirer.BrSeparator()].concat(Themes.list())
-                  , cancel  : CancelChars.list
-                  , prefix  : ''
-                }
-            }
-          , {
-                value  : 'termEnabled'
-              , name   : 'Term Cursoring'
-              , question : {
-                    name    : 'termEnabled'
-                  , message : 'Enable term cursoring'
-                  , type    : 'confirm'
-                  , default : () => this.settings.termEnabled
-                  , cancel  : CancelChars.bool
-                  , toggle  : ToggleChars.bool
-                }
-            }
-          , new this.inquirer.Separator()
-          , {
-                value : 'fastForced'
-              , name  : 'Fast Forced Moves'
-              , question : {
-                    name    : 'fastForced'
-                  , message : 'Fast Forced Moves'
-                  , type    : 'confirm'
-                  , default : () => this.settings.fastForced
-                  , cancel  : CancelChars.bool
-                  , toggle  : ToggleChars.bool
-                }
-            }
-          , {
-                value    : 'recordDir'
-              , name     : 'Record Dir'
-              , when     : () => this.settings.isRecord
-              , question : {
-                    name    : 'recordDir'
-                  , message : 'Record Dir'
-                  , type    : 'input'
-                  , default : () => homeTilde(this.settings.recordDir)
-                  , filter  : value => value == null ? null : path.resolve(tildeHome(value))
-                  , cancel  : CancelChars.input
-                  , clear   : 'ctrl-delete'
-                  , restore : RestoreChars.input
-                  , expand  : ExpandChars.input
-                }
-            }
-          , {
-                value    : 'isRecord'
-              , name     : 'Record Matches'
-              , question : {
-                    name    : 'isRecord'
-                  , message : 'Record Matches'
-                  , type    : 'confirm'
-                  , default : () => this.settings.isRecord
-                  , cancel  : CancelChars.bool
-                  , toggle  : ToggleChars.bool
-                }
-            }
-          , new this.inquirer.Separator()
-          , {
-                value : 'delay'
-              , name  : 'Robot Delay'
-              , question : {
-                    name     : 'delay'
-                  , message  : 'Robot Delay (seconds)'
-                  , type     : 'input'
-                  , default  : () => this.settings.delay
-                  , filter   : value => +value
-                  , validate : value => !isNaN(value) && value >= 0 || 'Please enter a number >= 0'
-                  , cancel   : CancelChars.input
-                  , restore  : RestoreChars.input
-                  , expand   : ExpandChars.input
-                  , writeInvalid : () => ''
-                }
-            }
-          , {
-                value    : 'isCustomRobot'
-              , name     : 'Use Custom Robot'
-              , question : {
-                    name    : 'isCustomRobot'
-                  , message : 'Use Custom Robot'
-                  , type    : 'confirm'
-                  , default : () => this.settings.isCustomRobot
-                  , cancel  : CancelChars.bool
-                  , toggle  : ToggleChars.bool
-                }
-            }
-          , {
-                value : 'robotConfigs'
-              , name  : 'Robot Configuration'
-              , when  : () => this.settings.isCustomRobot
-            }
-          , new this.inquirer.BrSeparator()
-        ])
-    }
-
-    getRobotConfigsChoices() {
-        return Menu.formatChoices([
-            {
-                value     : 'done'
-              , name      : 'Done'
-              , enterChar : EnterChars.back
-              , char      : 'd'
-            }
-          , {
-                value : 'reset'
-              , name  : 'Reset defaults'
-              , char  : 'r'
-            }
-          , ...RobotDelegator.listClassNames().map(name => {
-                const {defaults} = ConfidenceRobot.getClassMeta(name)
-                return {
-                    value    : name
-                  , name     : name
-                  , question : {
-                        display : () => {
-                            const config = this.settings.robots[name] || {
-                                version      : defaults.version
-                              , moveWeight   : 0
-                              , doubleWeight : 0
-                            }
-                            const b = new StringBuilder
-                            b.sp(
-                                'version:'
-                              , chalkDiff(config.version, defaults.version) + ','
-                              , 'moveWeight:'
-                              , padStart(chalkDiff(config.moveWeight, defaults.moveWeight), 4, ' ') + ','
-                              , 'doubleWeight:'
-                              , chalkDiff(config.doubleWeight, defaults.doubleWeight)
-                            )
-                            return b.toString()
-                        }
-                    }
-                }
-            })
-        ])
-    }
-
-    getConfigureRobotChoices(name) {
-        const {defaults, versions} = ConfidenceRobot.getClassMeta(name)
-        const config = () => this.settings.robots[name]
-        const weightValidator = value => errMessage(() =>
-            RobotDelegator.validateWeight(value)
-        )
-        return Menu.formatChoices([
-            {
-                value     : 'done'
-              , name      : 'Done'
-              , enterChar : EnterChars.back
-              , char      : 'd'
-            }
-          , {
-                value : 'reset'
-              , name  : 'Reset defaults'
-              , char  : 'r'
-            }
-          , {
-                value : 'version'
-              , name  : 'Version'
-              , char  : 'v'
-              , question : {
-                    name    : 'version'
-                  , message : 'Version'
-                  , type    : 'list'
-                  , default : () => config().version
-                  , display : () => chalkDiff(config().version, defaults.version)
-                  , choices : () => Object.keys(versions)
-                  , cancel  : CancelChars.list
-                }
-            }
-          , {
-                value : 'moveWeight'
-              , name  : 'Move Weight'
-              , char  : 'm'
-              , question : {
-                    name     : 'moveWeight'
-                  , message  : 'Move Weight'
-                  , type     : 'input'
-                  , default  : () => config().moveWeight
-                  , display  : () => chalkDiff(config().moveWeight, defaults.moveWeight)
-                  , filter   : value => +value
-                  , validate : weightValidator
-                  , cancel   : CancelChars.input
-                  , restore  : RestoreChars.input
-                  , expand   : ExpandChars.input
-                  , writeInvalid : () => ''
-                }
-            }
-          , {
-                value : 'doubleWeight'
-              , name  : 'Double Weight'
-              , char  : 'b'
-              , question : {
-                    name     : 'doubleWeight'
-                  , message  : 'Double Weight'
-                  , type     : 'input'
-                  , default  : () => config().doubleWeight
-                  , display  : () => chalkDiff(config().doubleWeight, defaults.doubleWeight)
-                  , filter   : value => +value
-                  , validate : weightValidator
-                  , cancel   : CancelChars.input
-                  , restore  : RestoreChars.input
-                  , expand   : ExpandChars.input
-                  , writeInvalid : () => ''
-                }
-            }
-        ])
     }
 
     getMenuPrefix() {
@@ -1946,6 +1315,698 @@ class Menu extends EventEmitter {
         return defaults
     }
 
+    static getDefaultConfigDir() {
+        return path.resolve(os.homedir(), '.gameon')
+    }
+
+    static getDefaultServerUrl() {
+        return DefaultServerUrl
+    }
+
+    static getDefaultRecordDir() {
+        return path.resolve(os.homedir(), 'gameon')
+    }
+}
+
+
+
+const CancelChars = {
+    bool     : ['escape', '<', '`']
+  , input    : ['escape']
+  , list     : ['escape', '<']
+  , password : ['escape']
+}
+const EnterChars = {
+    back : ['escape', '`', '<']
+  , quit : ['escape', '`']
+}
+const ExpandChars = {
+    input: ['right']
+}
+const RestoreChars = {
+    input    : ['up']
+  , password : ['up']
+}
+const ToggleChars = {
+    bool: ['up', 'down']
+}
+
+class QuestionHelper {
+
+    constructor(menu) {
+        this.menu = menu
+    }
+
+    mainChoices() {
+        const {menu} = this
+        return QuestionHelper.formatChoices([
+            this.br()
+          , {
+                value : 'play'
+              , name  : 'Play'
+              , char  : 'p'
+            }
+          , {
+                value : 'account'
+              , name  : 'Account'
+              , char  : 'a'
+            }
+          , {
+                value : 'settings'
+              , name  : 'Settings'
+              , char  : 's'
+            }
+          , {
+                value : 'lab'
+              , name  : 'Lab'
+              , char  : 'l'
+            }
+          , this.hr()
+          , {
+                value     : 'quit'
+              , name      : 'Quit'
+              , char      : 'q'
+              , enterChar : EnterChars.quit
+            }
+          , this.br()
+        ])
+    }
+
+    playChoices() {
+        const {menu} = this
+        const choices = [
+            this.br()
+          , {
+                value : 'newOnline'
+              , name  : 'Create Online Match'
+            }
+          , {
+                value : 'joinOnline'
+              , name  : 'Join Online Match'
+            }
+          , this.hr()
+          , {
+                value : 'newLocal'
+              , name  : 'Human vs Human'
+            }
+          , {
+                value : 'playRobot'
+              , name  : 'Human vs Robot'
+            }
+          , {
+                value : 'watchRobots'
+              , name  : 'Robot vs Robot'
+            }
+          , this.hr()
+        ]
+        if (menu.bread.length > 1) {
+            choices.push({
+                value     : 'back'
+              , name      : 'Back'
+              , enterChar : EnterChars.back
+            })
+        }
+        append(choices, [
+            {
+                  value : 'quit'
+                , name  : 'Quit'
+                , char  : 'q'
+            }
+          , this.br()
+        ])
+        return QuestionHelper.formatChoices(choices)
+    }
+
+    matchChoices(playChoice) {
+        const {menu} = this
+        const {isOnline} = PlayChoiceMap[playChoice]
+        const choices = this.matchInitialChoices()
+        // only show advanced for local matches
+        if (!isOnline) {
+            append(choices, [
+                {
+                    value : 'advanced'
+                  , name  : 'Advanced'
+                }
+              , this.hr()
+            ])
+        }
+        if (menu.bread.length > 1) {
+            choices.push({
+                value     : 'back'
+              , name      : 'Back'
+              , enterChar : EnterChars.back
+            })
+        }
+        append(choices, [
+            {
+                value : 'quit'
+              , name  : 'Quit'
+              , char  : 'q'
+            }
+          , this.br()
+        ])
+        return QuestionHelper.formatChoices(choices)
+    }
+
+    matchInitialChoices() {
+        const {menu} = this
+        return [
+            this.br()
+          , {
+                value : 'start'
+              , name  : 'Start Match'
+              , char  : 's'
+            }
+          , this.hr()
+          , {
+                value : 'total'
+              , name  : 'Match Total'
+              , char  : 't'
+              , question : {
+                    name     : 'total'
+                  , message  : 'Match Total'
+                  , type     : 'input'
+                  , default  : () => menu.settings.matchOpts.total
+                  , validate : value => Number.isInteger(value) && value > 0 || 'Please enter a number > 0'
+                  , filter   : value => +value
+                  , cancel   : CancelChars.input
+                  , restore  : RestoreChars.input
+                  , expand   : ExpandChars.input
+                }
+            }
+          , {
+                value : 'cubeEnabled'
+              , name  : 'Cube Enabled'
+              , question : {
+                    name    : 'cubeEnabled'
+                  , message : 'Cube Enabled'
+                  , type    : 'confirm'
+                  , default : () => menu.settings.matchOpts.cubeEnabled
+                  , cancel  : CancelChars.bool
+                  , toggle  : ToggleChars.bool
+                }
+            }
+          , {
+                value : 'isCrawford'
+              , name  : 'Crawford Rule'
+              , when  : () => menu.settings.matchOpts.cubeEnabled
+              , question : {
+                    name    : 'isCrawford'
+                  , message : 'Crawford Rule'
+                  , type    : 'confirm'
+                  , default : () => menu.settings.matchOpts.isCrawford
+                  , cancel  : CancelChars.bool
+                  , toggle  : ToggleChars.bool
+                }
+            }
+          , {
+                value : 'isJacoby'
+              , name  : 'Jacoby Rule'
+              , question : {
+                    name    : 'isJacoby'
+                  , message : 'Jacoby Rule'
+                  , type    : 'confirm'
+                  , default : () => menu.settings.matchOpts.isJacoby
+                  , cancel  : CancelChars.bool
+                  , toggle  : ToggleChars.bool
+                }
+            }
+          , this.hr()
+        ]
+    }
+
+    matchAdvanced(advancedOpts) {
+        advancedOpts = advancedOpts || {}
+        const stateValidator = value => {
+            if (!value.length) {
+                return true
+            }
+            try {
+                Board.fromStateString(value).analyzer.validateLegalBoard()
+            } catch (err) {
+                return err.message
+            }
+            return true
+        }
+        const rollsFileValidator = value => {
+            if (!value.length) {
+                return true
+            }
+            const data = fse.readJsonSync(value)
+            return errMessage(() => Dice.validateRollsData(data))
+        }
+        return [
+            {
+                name     : 'startState'
+              , message  : 'Start State'
+              , type     : 'input'
+              , default  : () => advancedOpts.startState
+              , validate : stateValidator
+              , cancel   : CancelChars.input
+            }
+          , {
+                name     : 'rollsFile'
+              , message  : 'Rolls File'
+              , type     : 'input'
+              , default  : () => homeTilde(advancedOpts.rollsFile)
+              , filter   : value => tildeHome(value)
+              , validate : rollsFileValidator
+              , cancel   : CancelChars.input
+              , when     : answers => !answers._cancelEvent
+            }
+        ]
+    }
+
+    join() {
+        return {
+            name     : 'matchId'
+          , message  : 'Match ID'
+          , type     : 'input'
+          , validate : value => !value || value.length == 8 || 'Invalid match ID format'
+          , cancel   : CancelChars.input
+        }
+    }
+
+    accountChoices() {
+        const {menu} = this
+        const choices = [
+            this.br()
+          , {
+                value     : 'done'
+              , name      : 'Done'
+              , enterChar : EnterChars.back
+            }
+          , this.hr()
+          , {
+                value : 'serverUrl'
+              , name  : 'Server'
+              , question : {
+                    name    : 'serverUrl'
+                  , message : 'Server URL'
+                  , type    : 'input'
+                  , default : () => menu.credentials.serverUrl
+                  , cancel  : CancelChars.input
+                  , restore : RestoreChars.input
+                  , expand  : ExpandChars.input
+                }
+            }
+          , {
+                value    : 'username'
+              , name     : 'Username'
+              , question : this.username()
+            }
+          , {
+                value    : 'password'
+              , name     : 'Password'
+              , question : this.password()
+            }
+          , this.hr()
+        ]
+        if (!isCredentialsFilled(menu.credentials)) {
+            append(choices, [
+                {
+                    value : 'createAccount'
+                  , name  : 'Create Account'
+                }
+              , {
+                    value : 'forgotPassword'
+                  , name  : 'Forgot Password'
+                }
+            ])
+        } else {
+            if (menu.credentials.needsConfirm) {
+                append(choices, [
+                    {
+                        value : 'confirmAccount'
+                      , name  : 'Enter confirm key'
+                    }
+                  , {
+                        value : 'newConfirmKey'
+                      , name  : 'Get new confirm key'
+                    }
+                  , this.hr()
+                ])
+            }
+            append(choices, [
+                {
+                    value : 'testCredentials'
+                  , name  : 'Test Credentials'
+                }
+              , {
+                    value : 'changePassword'
+                  , name  : 'Change Password'
+                }
+            ])
+        }
+        if (menu.credentials.username || menu.credentials.password) {
+            choices.push({
+                value : 'clearCredentials'
+              , name  : 'Clear Credentials'
+            })
+        }
+        choices.push(this.br())
+        return QuestionHelper.formatChoices(choices)
+    }
+
+    username() {
+        const {menu} = this
+        return {
+            name    : 'username'
+          , message : 'Username'
+          , type    : 'input'
+          , default : () => menu.credentials.username
+          , display : () => menu.credentials.username + (menu.credentials.isTested ? (' ' + menu.theme.prompt.check.pass(Chars.check)) : '')
+          , cancel  : CancelChars.input
+          , when    : answers => !answers._cancelEvent
+          , restore : RestoreChars.input
+          , expand  : ExpandChars.input
+        }
+    }
+
+    password() {
+        const {menu} = this
+        return {
+            name    : 'password'
+          , message : 'Password'
+          , type    : 'password'
+          , default : () => menu.credentials.password
+          , display : () => menu.credentials.password ? '******' : ''
+          , mask    : '*'
+          , cancel  : CancelChars.password
+          , when    : answers => !answers._cancelEvent
+          , restore : RestoreChars.password
+        }
+    }
+
+    passwordConfirm(checkKey = 'password') {
+        return {
+            name     : 'passwordConfirm'
+          , message  : 'Confirm password'
+          , type     : 'password'
+          , validate : (value, answers) => value == answers[checkKey] || 'Passwords do not match'
+          , mask     : '*'
+          , cancel   : CancelChars.password
+          , when     : answers => !answers._cancelEvent
+        }
+    }
+
+    changePassword() {
+        return [
+            {
+                ...this.password()
+              , name    : 'oldPassword'
+              , message : 'Current password'
+              , default : ''
+            }
+          , {
+                ...this.password()
+              , name    : 'newPassword'
+              , message : 'New password'
+              , default : ''
+            }
+          , this.passwordConfirm('newPassword')
+        ]
+    }
+
+    forgotPassword() {
+        return [
+            this.resetKey()
+          , {
+                ...this.password()
+              , when: answers => !answers._cancelEvent && answers.resetKey
+            }
+          , {
+                ...this.passwordConfirm()
+              , when: answers => !answers._cancelEvent && answers.resetKey
+            }
+        ]
+    }
+
+    createAccount() {
+        return [
+            this.username()
+          , this.password()
+          , this.passwordConfirm()
+        ]
+    }
+
+    confirmKey() {
+        return {
+            name    : 'key'
+          , type    : 'input'
+          , message : 'Enter confirm key'
+          , cancel  : CancelChars.input
+        }
+    }
+
+    resetKey() {
+        return {
+            name    : 'resetKey'
+          , message : 'Reset Key'
+          , type    : 'input'
+          , cancel  : CancelChars.input
+        }
+    }
+
+    settingsChoices() {
+        const {menu} = this
+        return QuestionHelper.formatChoices([
+            this.br()
+          , {
+                value     : 'done'
+              , name      : 'Done'
+              , enterChar : EnterChars.back
+              , char      : 'd'
+            }
+          , this.hr()
+          , {
+                value : 'theme'
+              , name  : 'Theme'
+              , question : {
+                    name : 'theme'
+                  , message : 'Choose a theme'
+                  , type    : 'list'
+                  , default : () => menu.settings.theme
+                  , choices : () => [this.br()].concat(Themes.list())
+                  , cancel  : CancelChars.list
+                  , prefix  : ''
+                }
+            }
+          , {
+                value  : 'termEnabled'
+              , name   : 'Term Cursoring'
+              , question : {
+                    name    : 'termEnabled'
+                  , message : 'Enable term cursoring'
+                  , type    : 'confirm'
+                  , default : () => menu.settings.termEnabled
+                  , cancel  : CancelChars.bool
+                  , toggle  : ToggleChars.bool
+                }
+            }
+          , this.hr()
+          , {
+                value : 'fastForced'
+              , name  : 'Fast Forced Moves'
+              , question : {
+                    name    : 'fastForced'
+                  , message : 'Fast Forced Moves'
+                  , type    : 'confirm'
+                  , default : () => menu.settings.fastForced
+                  , cancel  : CancelChars.bool
+                  , toggle  : ToggleChars.bool
+                }
+            }
+          , {
+                value    : 'recordDir'
+              , name     : 'Record Dir'
+              , when     : () => menu.settings.isRecord
+              , question : {
+                    name    : 'recordDir'
+                  , message : 'Record Dir'
+                  , type    : 'input'
+                  , default : () => homeTilde(menu.settings.recordDir)
+                  , filter  : value => value == null ? null : path.resolve(tildeHome(value))
+                  , cancel  : CancelChars.input
+                  , clear   : 'ctrl-delete'
+                  , restore : RestoreChars.input
+                  , expand  : ExpandChars.input
+                }
+            }
+          , {
+                value    : 'isRecord'
+              , name     : 'Record Matches'
+              , question : {
+                    name    : 'isRecord'
+                  , message : 'Record Matches'
+                  , type    : 'confirm'
+                  , default : () => menu.settings.isRecord
+                  , cancel  : CancelChars.bool
+                  , toggle  : ToggleChars.bool
+                }
+            }
+          , this.hr()
+          , {
+                value : 'delay'
+              , name  : 'Robot Delay'
+              , question : {
+                    name     : 'delay'
+                  , message  : 'Robot Delay (seconds)'
+                  , type     : 'input'
+                  , default  : () => menu.settings.delay
+                  , filter   : value => +value
+                  , validate : value => !isNaN(value) && value >= 0 || 'Please enter a number >= 0'
+                  , cancel   : CancelChars.input
+                  , restore  : RestoreChars.input
+                  , expand   : ExpandChars.input
+                  , writeInvalid : () => ''
+                }
+            }
+          , {
+                value    : 'isCustomRobot'
+              , name     : 'Use Custom Robot'
+              , question : {
+                    name    : 'isCustomRobot'
+                  , message : 'Use Custom Robot'
+                  , type    : 'confirm'
+                  , default : () => menu.settings.isCustomRobot
+                  , cancel  : CancelChars.bool
+                  , toggle  : ToggleChars.bool
+                }
+            }
+          , {
+                value : 'robotConfigs'
+              , name  : 'Robot Configuration'
+              , when  : () => menu.settings.isCustomRobot
+            }
+          , this.br()
+        ])
+    }
+
+    robotConfigsChoices() {
+        const {menu} = this
+        return QuestionHelper.formatChoices([
+            {
+                value     : 'done'
+              , name      : 'Done'
+              , enterChar : EnterChars.back
+              , char      : 'd'
+            }
+          , {
+                value : 'reset'
+              , name  : 'Reset defaults'
+              , char  : 'r'
+            }
+          , ...RobotDelegator.listClassNames().map(name => {
+                const {defaults} = ConfidenceRobot.getClassMeta(name)
+                return {
+                    value    : name
+                  , name     : name
+                  , question : {
+                        display : () => {
+                            const config = menu.settings.robots[name] || {
+                                version      : defaults.version
+                              , moveWeight   : 0
+                              , doubleWeight : 0
+                            }
+                            const b = new StringBuilder
+                            b.sp(
+                                'version:'
+                              , chalkDiff(config.version, defaults.version) + ','
+                              , 'moveWeight:'
+                              , padStart(chalkDiff(config.moveWeight, defaults.moveWeight), 4, ' ') + ','
+                              , 'doubleWeight:'
+                              , chalkDiff(config.doubleWeight, defaults.doubleWeight)
+                            )
+                            return b.toString()
+                        }
+                    }
+                }
+            })
+        ])
+    }
+
+    configureRobotChoices(name) {
+        const {menu} = this
+        const {defaults, versions} = ConfidenceRobot.getClassMeta(name)
+        const config = () => menu.settings.robots[name]
+        const weightValidator = value => errMessage(() =>
+            RobotDelegator.validateWeight(value)
+        )
+        return QuestionHelper.formatChoices([
+            {
+                value     : 'done'
+              , name      : 'Done'
+              , enterChar : EnterChars.back
+              , char      : 'd'
+            }
+          , {
+                value : 'reset'
+              , name  : 'Reset defaults'
+              , char  : 'r'
+            }
+          , {
+                value : 'version'
+              , name  : 'Version'
+              , char  : 'v'
+              , question : {
+                    name    : 'version'
+                  , message : 'Version'
+                  , type    : 'list'
+                  , default : () => config().version
+                  , display : () => chalkDiff(config().version, defaults.version)
+                  , choices : () => Object.keys(versions)
+                  , cancel  : CancelChars.list
+                }
+            }
+          , {
+                value : 'moveWeight'
+              , name  : 'Move Weight'
+              , char  : 'm'
+              , question : {
+                    name     : 'moveWeight'
+                  , message  : 'Move Weight'
+                  , type     : 'input'
+                  , default  : () => config().moveWeight
+                  , display  : () => chalkDiff(config().moveWeight, defaults.moveWeight)
+                  , filter   : value => +value
+                  , validate : weightValidator
+                  , cancel   : CancelChars.input
+                  , restore  : RestoreChars.input
+                  , expand   : ExpandChars.input
+                  , writeInvalid : () => ''
+                }
+            }
+          , {
+                value : 'doubleWeight'
+              , name  : 'Double Weight'
+              , char  : 'b'
+              , question : {
+                    name     : 'doubleWeight'
+                  , message  : 'Double Weight'
+                  , type     : 'input'
+                  , default  : () => config().doubleWeight
+                  , display  : () => chalkDiff(config().doubleWeight, defaults.doubleWeight)
+                  , filter   : value => +value
+                  , validate : weightValidator
+                  , cancel   : CancelChars.input
+                  , restore  : RestoreChars.input
+                  , expand   : ExpandChars.input
+                  , writeInvalid : () => ''
+                }
+            }
+        ])
+    }
+
+    br() {
+        return new this.menu.inquirer.BrSeparator()
+    }
+
+    hr() {
+        return new this.menu.inquirer.Separator()
+    }
+
     static formatChoices(choices) {
         choices = choices.filter(choice => !('when' in choice) || choice.when())
         const maxLength = Math.max(...choices.map(choice => choice.name ? choice.name.length : 0))
@@ -1970,18 +2031,5 @@ class Menu extends EventEmitter {
         })
         return choices
     }
-
-    static getDefaultConfigDir() {
-        return path.resolve(os.homedir(), '.gameon')
-    }
-
-    static getDefaultServerUrl() {
-        return DefaultServerUrl
-    }
-
-    static getDefaultRecordDir() {
-        return path.resolve(os.homedir(), 'gameon')
-    }
 }
-
 module.exports = Menu

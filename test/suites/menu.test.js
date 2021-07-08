@@ -600,8 +600,8 @@ describe('-', () => {
                     await menu.settingsMenu()
                 })
 
-                it('getSettingsChoices.theme.choices', () => {
-                    const choices = menu.getSettingsChoices()
+                it('settingsChoices.theme.choices', () => {
+                    const choices = menu.q.settingsChoices()
                     const question = choices.find(choice => choice.value == 'theme').question
                     const res = question.choices()
                     expect(res).to.contain('Default')
@@ -682,7 +682,7 @@ describe('-', () => {
                 await menu.robotConfigsMenu()
                 expect(menu.settings.robots.RandomRobot.version).to.equal('v2')
                 // call .choices() for coverage
-                const question = menu.getConfigureRobotChoices('RandomRobot', menu.settings.robots.RandomRobot, defaults).find(it => it.value == 'version').question
+                const question = menu.q.configureRobotChoices('RandomRobot', menu.settings.robots.RandomRobot, defaults).find(it => it.value == 'version').question
                 const choices = question.choices()
                 expect(choices).to.contain('v2')
             })
@@ -772,10 +772,10 @@ describe('-', () => {
             })
         })
 
-        describe('#getPasswordConfirmQuestion', () => {
+        describe('#q.passwordConfirm', () => {
 
             it('question should invalidate non-matching password', () => {
-                const question = menu.getPasswordConfirmQuestion()
+                const question = menu.q.passwordConfirm()
                 const res = question.validate('asdf', {password:'fdsa'})
                 expect(res.toLowerCase()).to.contain('password').and.to.contain('match')
             })
