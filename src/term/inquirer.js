@@ -538,16 +538,17 @@ class PasswordPrompt extends Prompter.prompts.password {
         let message = this.getQuestion()
         let bottomContent = ''
 
+        message += ' '
         if (this.isCancel) {
-            message += chlk.message.help(' ' + this.opt.cancel.message)
+            message += chlk.message.help(this.opt.cancel.message)
         } else if (this.status === 'answered') {
             message += this.opt.mask
-                ? chlk.answer(' ' + this._mask(this.answer, this.opt.mask, 8))
-                : chlk.message.help(' [hidden]')
+                ? chlk.answer(this._mask(this.answer, this.opt.mask, 8))
+                : chlk.message.help('[hidden]')
         } else if (this.opt.mask) {
-            message += ' ' + this._mask(this.rl.line || '', this.opt.mask)
+            message += this._mask(this.rl.line || '', this.opt.mask)
         } else {
-            message += chlk.message.help(' [input is hidden] ')
+            message += chlk.message.help('[input is hidden] ')
         }
 
         if (error) {
@@ -648,8 +649,9 @@ class ListPrompt extends Prompter.prompts.list {
         }
 
         // Render choices or answer depending on the state
+        message += ' '
         if (this.isCancel) {
-            message += chlk.message.help(' ' + this.opt.cancel.message)
+            message += chlk.message.help(this.opt.cancel.message)
         } else if (this.status == 'answered') {
             message += chlk.answer(choices.getChoice(this.selected).short)
         } else {
@@ -693,7 +695,7 @@ class ListPrompt extends Prompter.prompts.list {
     *
     * See https://github.com/SBoudrias/Inquirer.js/blob/master/packages/inquirer/lib/prompts/list.js
     */
-    _listRender(choices, pointer) {
+    _listRender(choices, selected) {
 
         const {chlk} = this
         const maxLen = ListPrompt.maxChoicesLength(choices) + 2
@@ -705,7 +707,7 @@ class ListPrompt extends Prompter.prompts.list {
             if (choice.type === 'separator') {
                 separatorOffset += 1
                 if (choice.br) {
-                    return ''
+                    return '  '
                 }
                 return chlk.separator(''.padEnd(maxLen + 3, Chars.hr))                
             }
@@ -717,7 +719,7 @@ class ListPrompt extends Prompter.prompts.list {
                 return chlk.choice.disabled(dstr)
             }
 
-            const isSelected = i - separatorOffset === pointer
+            const isSelected = i - separatorOffset === selected
             const text = (isSelected ? this.opt.pointer + ' ' : '  ') + choice.name
             const line = padEnd(text, maxLen, ' ')
 
@@ -750,7 +752,8 @@ class RawListPrompt extends Prompter.prompts.rawlist {
         super(...args)
         this.initializer(...args)
         ensure(this.opt, {
-            promptMessage : 'Answer'
+            pointer       : Chars.pointer
+          , promptMessage : 'Answer'
           , errorMessage  : 'Please enter a valid index'
         })
     }
@@ -759,10 +762,10 @@ class RawListPrompt extends Prompter.prompts.rawlist {
      * @override for cancel and char select
      */
     onKeypress(e) {
+        this.lastWasSelect = false
         if (this.handleKeypress(e)) {
             return
         }
-        this.lastWasChar = false
         super.onKeypress()
     }
 
@@ -773,7 +776,7 @@ class RawListPrompt extends Prompter.prompts.rawlist {
         if (this.isCancel) {
             return this.opt.cancel.value
         }
-        if (this.lastWasChar) {
+        if (this.lastWasSelect) {
             // super expects 1-based, not 0-based.
             index = this.selected + 1
         }
@@ -790,7 +793,7 @@ class RawListPrompt extends Prompter.prompts.rawlist {
     // Called by keypressSelect
     selectIndex(index, isSubmit) {
 
-        this.lastWasChar = true
+        this.lastWasSelect = true
         this.selected = index
 
         const line = (index + 1).toString()
@@ -825,7 +828,9 @@ class RawListPrompt extends Prompter.prompts.rawlist {
         let message = this.getQuestion()
         let bottomContent = ''
 
-        if (this.status === 'answered') {
+        if (this.isCancel) {
+            message += chlk.message.help(' ' + this.opt.cancel.message)
+        } else if (this.status === 'answered') {
             message += chlk.answer(' ' + this.opt.choices.getChoice(this.selected).short)
         } else {
             const choicesStr = this._renderChoices(this.opt.choices, this.selected)
@@ -860,10 +865,11 @@ class RawListPrompt extends Prompter.prompts.rawlist {
 
         choices.forEach((choice, i) => {
 
-            output += '\n  '
+            output += '\n'
 
             if (choice.type === 'separator') {
                 separatorOffset++
+                output += '  '
                 if (!choice.br) {
                     output += chlk.separator(''.padEnd(maxLen + 3, Chars.hr))
                 }
@@ -875,10 +881,12 @@ class RawListPrompt extends Prompter.prompts.rawlist {
             const parenstr =  ') '
             var display = ''
             if (index === pointer) {
+                display += chlk.choice.number.selected(this.opt.pointer + ' ')
                 display += chlk.choice.number.selected(numstr)
                 display += chlk.choice.paren.selected(parenstr)
                 display += chlk.choice.selected(padEnd(choice.name, maxLen, ' '))
             } else {
+                display += chlk.choice.number('  ')
                 display += chlk.choice.number(numstr)
                 display += chlk.choice.paren(parenstr)
                 display += chlk.choice(padEnd(choice.name, maxLen, ' '))

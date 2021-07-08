@@ -407,7 +407,7 @@ class Menu extends EventEmitter {
 
                 await this.clearAndConsume()
 
-                var {choice, question} = await this.menuChoice({
+                var {choice, question, isCancel} = await this.menuChoice({
                     name     : 'accountChoice'
                   , message  : 'Account'
                   , choices  : this.getAccountChoices()
@@ -1360,7 +1360,7 @@ class Menu extends EventEmitter {
                   , message : 'Choose a theme'
                   , type    : 'list'
                   , default : () => this.settings.theme
-                  , choices : () => Themes.list()
+                  , choices : () => [new this.inquirer.BrSeparator()].concat(Themes.list())
                   , cancel  : CancelChars.list
                   , prefix  : ''
                 }
