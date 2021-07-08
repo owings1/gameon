@@ -221,6 +221,60 @@ class TextMethods {
 
 class ListMethods {
 
+    static overrides() {
+        return ['render']
+    }
+
+    // Called by keypressCancel
+    cancel() {
+        this.status = 'canceled'
+        this.clearLine(true)
+    }
+
+   /**
+    * @override for theme and cancel
+    *
+    * Adapted from inquirer/lib/prompts/list and rawlist
+    *
+    * See https://github.com/SBoudrias/Inquirer.js/blob/master/packages/inquirer/lib/prompts/list.js
+    * See https://github.com/SBoudrias/Inquirer.js/blob/master/packages/inquirer/lib/prompts/rawlist.js
+    */
+    render(error) {
+
+        const {chlk} = this
+        const {choices} = this.opt
+
+        // Render question
+        let message = this.getQuestion()
+        let bottomContent = ''
+
+        if (this.firstRender && this.opt.firstHelp) {
+            message += chlk.message.help(' ' + this.opt.firstHelp)
+        }
+
+        message += ' '
+        if (this.isCancel) {
+            message += chlk.message.help(this.opt.cancel.message)
+        } else if (this.status === 'answered') {
+            message += chlk.answer(choices.getChoice(this.selected).short)
+        } else {
+            message += '\n'
+            message += this.renderPaginated()
+            if (this.opt.promptMessage) {
+                message += '\n'
+                message += chlk.message.prompt('  ' + this.opt.promptMessage + ': ')
+                message += this.rl.line
+            }
+        }
+
+        if (error) {
+            bottomContent += '\n'
+            bottomContent += this.getErrorString(error)
+        }
+
+        this.screen.render(message, bottomContent)
+    }
+
     /**
      * Adapted from inquirer/lib/prompts/rawlist
      *
@@ -268,7 +322,7 @@ class ListMethods {
             }
         }
 
-        if (number != null) {
+        if (this.opt.numbers && number != null) {
             const numstr = number.toString()
             const parenstr =  ') '
             const numlength = numstr.length + parenstr.length
@@ -307,7 +361,9 @@ class ListMethods {
     renderSeparator(choice, length) {
         const {chlk} = this
         var str = ''
-        if (!choice.br) {
+        if (choice.br) {
+            str += ' '
+        } else {
             str += chlk.separator(''.padEnd(length, Chars.hr))
         }
         return str
@@ -322,6 +378,42 @@ class ListMethods {
         choices = choices.filter(it => it.type != 'separator')
         const extra = this.opt.numbers ? choices.length.toString().length + 2 : 0
         return extra + Math.max(...choices.map(it => strlen(it.name)))
+    }
+
+   /**
+    * Adapted from inquirer/lib/prompts/list
+    *
+    * See https://github.com/SBoudrias/Inquirer.js/blob/master/packages/inquirer/lib/prompts/list.js
+    */
+    renderPaginated() {
+        const {choices} = this.opt
+        const choicesStr = this.renderChoices(choices, this.selected)
+        const indexPosition = choices.indexOf(
+            choices.getChoice(this.selected)
+        )
+        const realIndexPosition = choices.reduce((acc, value, i) => {
+
+            // Dont count lines past the choice we are looking at
+            if (i > indexPosition) {
+                return acc
+            }
+
+            // Add line if it's a separator
+            if (value.type === 'separator') {
+                return acc + 1
+            }
+
+            // Non-strings take up one line
+            if (typeof value.name !== 'string') {
+                return acc + 1
+            }
+
+            // Calculate lines taken up by string
+            return acc + value.name.split('\n').length
+
+        }, 0) - 1
+
+        return this.paginator.paginate(choicesStr, realIndexPosition, this.opt.pageSize)
     }
 }
 
@@ -691,8 +783,9 @@ class ListPrompt extends Prompter.prompts.list {
         super(...args)
         this.initializer(...args)
         ensure(this.opt, {
-            numbers : false
-          , pointer : Chars.pointer
+            numbers   : false
+          , pointer   : Chars.pointer
+          , firstHelp : '(Use arrow keys)'
         })
     }
 
@@ -715,12 +808,6 @@ class ListPrompt extends Prompter.prompts.list {
         return super.getCurrentValue()
     }
 
-    // Called by keypressCancel
-    cancel() {
-        this.status = 'canceled'
-        this.submitLine()
-    }
-
     /**
      * @override Add keypress listener
      */
@@ -732,67 +819,6 @@ class ListPrompt extends Prompter.prompts.list {
             this.onKeypress.bind(this)
         )
         return super._run(cb)
-    }
-
-   /**
-    * @override for theme and cancel
-    *
-    * Adapted from inquirer/lib/prompts/list
-    *
-    * See https://github.com/SBoudrias/Inquirer.js/blob/master/packages/inquirer/lib/prompts/list.js
-    */
-    render() {
-
-        const {chlk} = this
-        const {choices} = this.opt
-
-        // Render question
-        let message = this.getQuestion()
-
-        if (this.firstRender) {
-            message += chlk.message.help(' (Use arrow keys)')
-        }
-
-        // Render choices or answer depending on the state
-        message += ' '
-        if (this.isCancel) {
-            message += chlk.message.help(this.opt.cancel.message)
-        } else if (this.status == 'answered') {
-            message += chlk.answer(choices.getChoice(this.selected).short)
-        } else {
-            const choicesStr = this.renderChoices(choices, this.selected)
-            const indexPosition = choices.indexOf(
-                choices.getChoice(this.selected)
-            )
-            const realIndexPosition = choices.reduce((acc, value, i) => {
-
-                // Dont count lines past the choice we are looking at
-                if (i > indexPosition) {
-                    return acc
-                }
-
-                // Add line if it's a separator
-                if (value.type === 'separator') {
-                    return acc + 1
-                }
-
-                // Non-strings take up one line
-                if (typeof value.name !== 'string') {
-                    return acc + 1
-                }
-        
-                // Calculate lines taken up by string
-                return acc + value.name.split('\n').length
-
-            }, 0) - 1
-
-            message += '\n'
-            message += this.paginator.paginate(choicesStr, realIndexPosition, this.opt.pageSize)
-        }
-
-        this.firstRender = false
-
-        this.screen.render(message)
     }
 }
 
@@ -868,48 +894,6 @@ class RawListPrompt extends Prompter.prompts.rawlist {
         if (isSubmit) {
             this.clearLine(true)
         }
-    }
-
-    // Called by keypressCancel
-    cancel() {
-        this.status = 'canceled'
-        this.clearLine(true)
-    }
-
-    /**
-     * @override for theme and cancel
-     *
-     * Adapted from inquirer/lib/prompts/rawlist
-     *
-     * See https://github.com/SBoudrias/Inquirer.js/blob/master/packages/inquirer/lib/prompts/rawlist.js
-     */
-    render(error) {
-
-        const {chlk} = this
-
-        // Render question
-        let message = this.getQuestion()
-        let bottomContent = ''
-
-        if (this.isCancel) {
-            message += chlk.message.help(' ' + this.opt.cancel.message)
-        } else if (this.status === 'answered') {
-            message += chlk.answer(' ' + this.opt.choices.getChoice(this.selected).short)
-        } else {
-            const choicesStr = this.renderChoices(this.opt.choices, this.selected)
-            message += '\n'
-            message += this.paginator.paginate(choicesStr, this.selected, this.opt.pageSize)
-            message += '\n'
-            message += chlk.message.prompt('  ' + this.opt.promptMessage + ': ')
-        }
-        message += this.rl.line
-
-        if (error) {
-            bottomContent += '\n'
-            bottomContent += this.getErrorString(error)
-        }
-
-        this.screen.render(message, bottomContent)
     }
 
     /**
