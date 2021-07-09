@@ -60,7 +60,7 @@ const {takeUntil} = require('rxjs/operators')
 // for patch
 const {map} = require('rxjs/operators')
 
-const {Separator} = inquirer
+//const {Separator} = inquirer
 
 const {Chars} = Constants
 
@@ -411,9 +411,7 @@ class ListMethods {
         let nameText = ''
         let padChar = ' '
         if (isSeparator) {
-            if (!choice.br) {
-                padChar = Chars.hr
-            }
+            padChar = choice.char.length ? choice.char : ' '
         } else {
             nameText += choice.name
             if (isDisabled) {
@@ -1112,12 +1110,19 @@ class ConfirmPrompt extends Prompter.prompts.confirm {
     }
 }
 
-class BrSeparator extends Separator {
-
-    constructor(...args) {
-        super(...args)
-        this.br = true
-        this.line = ''
+class Separator extends inquirer.Separator {
+    constructor(chr, size) {
+        if (chr == null) {
+            chr = Chars.hr
+        }
+        // default line
+        const line = chr.length ? nchars(15, chr) : ''
+        super(line)
+        this.char = chr
+    }
+    when(when) {
+        this.when = when
+        return this
     }
 }
 
@@ -1154,8 +1159,7 @@ Object.entries(Prompts).forEach(([name, PromptClass]) => {
 })
 
 const AddClasses = {
-    BrSeparator
-  , Separator
+    Separator
 }
 
 Object.entries(AddClasses).forEach(([name, AddClass]) => {
