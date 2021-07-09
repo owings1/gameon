@@ -99,35 +99,35 @@ describe('-', () => {
         describe('#mainMenu', () => {
 
             it('should quit', async () => {
-                menu.prompt = MockPrompter({mainChoice: 'quit'})
+                menu.prompt = MockPrompter({choice: 'quit'})
                 await menu.mainMenu()
             })
 
             it('should go to play menu, new local match menu, then come back, then quit', async () => {
                 menu.prompt = MockPrompter([
-                    {mainChoice: 'play'},
-                    {playChoice: 'playHumans'},
-                    {matchChoice: 'quit'},
-                    {playChoice: 'quit'},
-                    {mainChoice: 'quit'}
+                    {choice: 'play'},
+                    {choice: 'playHumans'},
+                    {choice: 'quit'},
+                    {choice: 'quit'},
+                    {choice: 'quit'}
                 ])
                 await menu.mainMenu()
             })
 
             it('should go to settings menu then done then quit', async () => {
                 menu.prompt = MockPrompter([
-                    {mainChoice: 'settings'},
-                    {settingChoice: 'done'},
-                    {mainChoice: 'quit'}
+                    {choice: 'settings'},
+                    {choice: 'done'},
+                    {choice: 'quit'}
                 ])
                 await menu.mainMenu()
             })
 
             it('should go to account menu then quit', async () => {
                 menu.prompt = MockPrompter([
-                    {mainChoice: 'account'},
-                    {accountChoice: 'done'},
-                    {mainChoice: 'quit'}
+                    {choice: 'account'},
+                    {choice: 'done'},
+                    {choice: 'quit'}
                 ])
                 await menu.mainMenu()
             })
@@ -135,16 +135,16 @@ describe('-', () => {
             // not clear this should be the spec, maybe a better error
             it.skip('should do nothing for unknown choice then quit', async () => {
                 menu.prompt = MockPrompter([
-                    {mainChoice: 'foo'},
-                    {mainChoice: 'quit'}
+                    {choice: 'foo'},
+                    {choice: 'quit'}
                 ])
                 await menu.mainMenu()
             })
 
             it('should run lab and quit', async () => {
                 menu.prompt = MockPrompter([
-                    {mainChoice: 'lab'},
-                    {mainChoice: 'quit'}
+                    {choice: 'lab'},
+                    {choice: 'quit'}
                 ])
                 menu.runLab = noop
                 await menu.mainMenu()
@@ -188,9 +188,9 @@ describe('-', () => {
             it('should invalidate match id abcd with joinOnline, then quit', async () => {
                 menu.alerter.loglevel = -1
                 menu.prompt = MockPrompter([
-                    {playChoice: 'joinOnline'},
+                    {choice: 'joinOnline'},
                     {matchId: 'abcd'},
-                    {playChoice: 'quit'}
+                    {choice: 'quit'}
                 ])
                 await menu.playMenu()
             })
@@ -199,9 +199,9 @@ describe('-', () => {
                 menu.credentials.username = 'nobody@nowhere.example'
                 menu.credentials.password = menu.encryptPassword('s9GLdoe9')
                 menu.prompt = MockPrompter([
-                    {playChoice: 'joinOnline'},
+                    {choice: 'joinOnline'},
                     {matchId: '12345678'},
-                    {playChoice: 'quit'}
+                    {choice: 'quit'}
                 ])
                 var msg
                 menu.alerter.warn = m => msg = m
@@ -218,8 +218,8 @@ describe('-', () => {
                     throw exp
                 }
                 menu.prompt = MockPrompter([
-                    {playChoice: 'joinOnline'},
-                    {playChoice: 'quit'}
+                    {choice: 'joinOnline'},
+                    {choice: 'quit'}
                 ])
                 var err
                 menu.alerter.error = e => err = e
@@ -229,7 +229,7 @@ describe('-', () => {
 
             it('should return true for choice back', async () => {
                 menu.prompt = MockPrompter([
-                    {playChoice: 'back'}
+                    {choice: 'back'}
                 ])
                 const res = await menu.playMenu()
                 expect(res).to.equal(true)
@@ -237,8 +237,8 @@ describe('-', () => {
 
             it('should continue when matchMenu returns true', async () => {
                 menu.prompt = MockPrompter([
-                    {playChoice: 'playRobot'},
-                    {playChoice: 'quit'}
+                    {choice: 'playRobot'},
+                    {choice: 'quit'}
                 ])
                 menu.matchMenu = () => true
                 await menu.playMenu()
@@ -249,9 +249,9 @@ describe('-', () => {
 
             it('should set match total to 5', async () => {
                 menu.prompt = MockPrompter([
-                    {matchChoice: 'total'},
+                    {choice: 'total'},
                     {total: '5'},
-                    {matchChoice: 'quit'}
+                    {choice: 'quit'}
                 ])
                 await menu.matchMenu('playHumans')
                 expect(menu.settings.matchOpts.total).to.equal(5)
@@ -259,7 +259,7 @@ describe('-', () => {
 
             it('should invalidate total=-1', async () => {
                 menu.prompt = MockPrompter([
-                    {matchChoice: 'total'},
+                    {choice: 'total'},
                     {total: '-1'}
                 ])
                 const err = await getErrorAsync(() => menu.matchMenu('playHumans'))
@@ -268,9 +268,9 @@ describe('-', () => {
 
             it('should set isJacoby to true', async () => {
                 menu.prompt = MockPrompter([
-                    {matchChoice: 'isJacoby'},
+                    {choice: 'isJacoby'},
                     {isJacoby: true},
-                    {matchChoice: 'quit'}
+                    {choice: 'quit'}
                 ])
                 await menu.matchMenu('playHumans')
                 expect(menu.settings.matchOpts.isJacoby).to.equal(true)
@@ -278,9 +278,9 @@ describe('-', () => {
 
             it('should set isCrawford to false', async () => {
                 menu.prompt = MockPrompter([
-                    {matchChoice: 'isCrawford'},
+                    {choice: 'isCrawford'},
                     {isCrawford: false},
-                    {matchChoice: 'quit'}
+                    {choice: 'quit'}
                 ])
                 await menu.matchMenu('playHumans')
                 expect(menu.settings.matchOpts.isCrawford).to.equal(false)
@@ -289,14 +289,14 @@ describe('-', () => {
 
             it('should quit', async () => {
                 menu.prompt = MockPrompter([
-                    {matchChoice: 'quit'}
+                    {choice: 'quit'}
                 ])
                 await menu.matchMenu('playHumans')
             })
 
             it('should quit for back', async () => {
                 menu.prompt = MockPrompter([
-                    {matchChoice: 'back'}
+                    {choice: 'back'}
                 ])
                 await menu.matchMenu('playHumans')
             })
@@ -304,8 +304,8 @@ describe('-', () => {
             it('should go to startOnlineMatch with startOnline and mock method, then quit', async () => {
                 var isCalled = false
                 menu.prompt = MockPrompter([
-                    {matchChoice: 'start'},
-                    {matchChoice: 'quit'}
+                    {choice: 'start'},
+                    {choice: 'quit'}
                 ])
                 menu.startOnlineMatch = () => isCalled = true
                 await menu.matchMenu('startOnline')
@@ -315,8 +315,8 @@ describe('-', () => {
             it('should go to playRobot with playRobot and mock method, then quit', async () => {
                 var isCalled = false
                 menu.prompt = MockPrompter([
-                    {matchChoice: 'start'},
-                    {matchChoice: 'quit'}
+                    {choice: 'start'},
+                    {choice: 'quit'}
                 ])
                 menu.playRobot = () => isCalled = true
                 await menu.matchMenu('playRobot')
@@ -326,8 +326,8 @@ describe('-', () => {
             it('should go to playRobots with playRobots and mock method, then quit', async () => {
                 var isCalled = false
                 menu.prompt = MockPrompter([
-                    {matchChoice: 'start'},
-                    {matchChoice: 'quit'}
+                    {choice: 'start'},
+                    {choice: 'quit'}
                 ])
                 menu.playRobots = () => isCalled = true
                 await menu.matchMenu('playRobots')
@@ -337,8 +337,8 @@ describe('-', () => {
             it('should go to playHumans with playHumans mock method, then quit', async () => {
                 var isCalled = false
                 menu.prompt = MockPrompter([
-                    {matchChoice: 'start'},
-                    {matchChoice: 'quit'}
+                    {choice: 'start'},
+                    {choice: 'quit'}
                 ])
                 menu.playHumans = () => isCalled = true
                 await menu.matchMenu('playHumans')
@@ -347,9 +347,9 @@ describe('-', () => {
 
             it('should go to advanced for playRobot', async () => {
                 menu.prompt = MockPrompter([
-                    {matchChoice: 'advanced'},
+                    {choice: 'advanced'},
                     {startState: '', rollsFile: ''},
-                    {matchChoice: 'quit'}
+                    {choice: 'quit'}
                 ])
                 await menu.matchMenu('playRobot')
             })
@@ -376,10 +376,10 @@ describe('-', () => {
                 const username = 'nobody@nowhere.example'
                 const password = '9Axf5kAR'
                 menu.prompt = MockPrompter([
-                    {accountChoice: 'createAccount'},
+                    {choice: 'createAccount'},
                     {username, password, passwordConfirm: password},
                     {key: () => parseKey(server.api.auth.email.impl.lastEmail)},
-                    {accountChoice: 'done'}
+                    {choice: 'done'}
                 ])
                 await menu.accountMenu()
                 const user = await server.auth.readUser(username)
@@ -390,10 +390,10 @@ describe('-', () => {
                 const {username, password} = await makeUser(null, '8QwuU68W')
                 const oldPassword = '2q2y9K7V'
                 menu.prompt = MockPrompter([
-                    {accountChoice: 'forgotPassword'},
+                    {choice: 'forgotPassword'},
                     {username},
                     {resetKey: () => parseKey(server.api.auth.email.impl.lastEmail), password, passwordConfirm: password},
-                    {accountChoice: 'done'}
+                    {choice: 'done'}
                 ])
                 await menu.accountMenu()
                 await server.auth.authenticate(username, password)
@@ -406,9 +406,9 @@ describe('-', () => {
                 await server.auth.createUser(username, oldPassword, true)
                 menu.credentials.username = username
                 menu.prompt = MockPrompter([
-                    {accountChoice: 'changePassword'},
+                    {choice: 'changePassword'},
                     {oldPassword, newPassword, passwordConfirm: newPassword},
-                    {accountChoice: 'done'}
+                    {choice: 'done'}
                 ])
                 await menu.accountMenu()
                 await server.auth.authenticate(username, newPassword)
@@ -418,8 +418,8 @@ describe('-', () => {
                 menu.credentials.username = 'nobody@nowhere.example'
                 menu.credentials.password = menu.encryptPassword('qN3zUpVh')
                 menu.prompt = MockPrompter([
-                    {accountChoice: 'clearCredentials'},
-                    {accountChoice: 'done'}
+                    {choice: 'clearCredentials'},
+                    {choice: 'done'}
                 ])
                 await menu.accountMenu()
                 expect(!!menu.credentials.username).to.equal(false)
@@ -429,9 +429,9 @@ describe('-', () => {
             it('should change username', async () => {
                 const username = 'nobody@nowhere.example'
                 menu.prompt = MockPrompter([
-                    {accountChoice: 'username'},
+                    {choice: 'username'},
                     {username},
-                    {accountChoice: 'done'}
+                    {choice: 'done'}
                 ])
                 await menu.accountMenu()
                 expect(menu.credentials.username).to.equal(username)
@@ -440,9 +440,9 @@ describe('-', () => {
             it('should change and encrypt password', async () => {
                 const password = '6yahTQ8H'
                 menu.prompt = MockPrompter([
-                    {accountChoice: 'password'},
+                    {choice: 'password'},
                     {password},
-                    {accountChoice: 'done'}
+                    {choice: 'done'}
                 ])
                 await menu.accountMenu()
                 expect(menu.decryptPassword(menu.credentials.password)).to.equal(password)
@@ -451,9 +451,9 @@ describe('-', () => {
             it('should change serverUrl', async () => {
                 const serverUrl = 'http://nowhere.example'
                 menu.prompt = MockPrompter([
-                    {accountChoice: 'serverUrl'},
+                    {choice: 'serverUrl'},
                     {serverUrl},
-                    {accountChoice: 'done'}
+                    {choice: 'done'}
                 ])
                 await menu.accountMenu()
                 expect(menu.credentials.serverUrl).to.equal(serverUrl)
@@ -464,10 +464,10 @@ describe('-', () => {
                 const password = 'd4PUxRs2'
                 await server.auth.createUser(username, password, true)
                 menu.prompt = MockPrompter([
-                    {accountChoice: 'forgotPassword'},
+                    {choice: 'forgotPassword'},
                     {username},
                     {resetKey: ''},
-                    {accountChoice: 'done'}
+                    {choice: 'done'}
                 ])
                 await menu.accountMenu()
             })
@@ -481,8 +481,8 @@ describe('-', () => {
                 const password = 'd4PUxRs2'
                 await server.auth.createUser(username, password, true)
                 menu.prompt = MockPrompter([
-                    {accountChoice: 'forgotPassword'},
-                    {accountChoice: 'done'}
+                    {choice: 'forgotPassword'},
+                    {choice: 'done'}
                 ])
                 await menu.accountMenu()
                 expect(err).to.equal(exp)
@@ -495,9 +495,9 @@ describe('-', () => {
                 menu.credentials.username = 'nobody2@nowhere.example'
                 const password = 'JUzrDc5k'
                 menu.prompt = MockPrompter([
-                    {accountChoice: 'password'},
+                    {choice: 'password'},
                     {password},
-                    {accountChoice: 'done'}
+                    {choice: 'done'}
                 ])
                 await menu.accountMenu()
                 expect(err.isBadCredentialsError).to.equal(true)
@@ -514,9 +514,9 @@ describe('-', () => {
                 menu.credentials.username = username
                 menu.credentials.password = menu.encryptPassword(oldPassword)
                 menu.prompt = MockPrompter([
-                    {accountChoice: 'changePassword'},
+                    {choice: 'changePassword'},
                     {oldPassword: badPassword, newPassword: password, passwordConfirm: password},
-                    {accountChoice: 'done'}
+                    {choice: 'done'}
                 ])
                 await menu.accountMenu()
                 expect(err.isBadCredentialsError).to.equal(true)
@@ -527,9 +527,9 @@ describe('-', () => {
 
             it('should set robot delay to 4 then done', async () => {
                 menu.prompt = MockPrompter([
-                    {settingChoice: 'delay'},
+                    {choice: 'delay'},
                     {delay: '4'},
-                    {settingChoice: 'done'}
+                    {choice: 'done'}
                 ])
                 await menu.settingsMenu()
                 expect(menu.settings.delay).to.equal(4)
@@ -537,9 +537,9 @@ describe('-', () => {
 
             it('should invalidate robot delay foo', async () => {
                 menu.prompt = MockPrompter([
-                    {settingChoice: 'delay'},
+                    {choice: 'delay'},
                     {delay: 'foo'},
-                    {settingChoice: 'done'}
+                    {choice: 'done'}
                 ])
                 const err = await getErrorAsync(() => menu.settingsMenu())
                 expect(err.message).to.contain('Validation failed for delay')
@@ -547,28 +547,28 @@ describe('-', () => {
 
             it('should go to robotConfgs then done', async () => {
                 menu.prompt = MockPrompter([
-                    {settingChoice: 'robotConfigs'},
-                    {robotChoice: 'done'},
-                    {settingChoice: 'done'}
+                    {choice: 'robotConfigs'},
+                    {choice: 'done'},
+                    {choice: 'done'}
                 ])
                 await menu.settingsMenu()
             })
 
-            it('should go to robotConfigsMenu for isCustomRobot=true', async () => {
+            it('should go to robotsMenu for isCustomRobot=true', async () => {
                 menu.prompt = MockPrompter([
-                    {settingChoice: 'isCustomRobot'},
+                    {choice: 'isCustomRobot'},
                     {isCustomRobot: true},
-                    {robotChoice: 'done'},
-                    {settingChoice: 'done'}
+                    {choice: 'done'},
+                    {choice: 'done'}
                 ])
                 await menu.settingsMenu()
             })
 
             it('should set theme to Default', async () => {
                 menu.prompt = MockPrompter([
-                    {settingChoice: 'theme'},
+                    {choice: 'theme'},
                     {theme: 'Default'},
-                    {settingChoice: 'done'}
+                    {choice: 'done'}
                 ])
                 await menu.settingsMenu()
             })
@@ -579,10 +579,10 @@ describe('-', () => {
                     await menu.ensureSettingsLoaded()
                     menu.settings.robots = Menu.robotDefaults()
                     menu.prompt = MockPrompter([
-                        {settingChoice: 'isCustomRobot'},
+                        {choice: 'isCustomRobot'},
                         {isCustomRobot: true},
-                        {robotChoice: 'done'},
-                        {settingChoice: 'done'}
+                        {choice: 'done'},
+                        {choice: 'done'}
                     ])
                     await menu.settingsMenu()
                 })
@@ -592,10 +592,10 @@ describe('-', () => {
                     menu.settings.recordDir = null
                     menu.settings.robots = Menu.robotDefaults()
                     menu.prompt = MockPrompter([
-                        {settingChoice: 'isCustomRobot'},
+                        {choice: 'isCustomRobot'},
                         {isCustomRobot: true},
-                        {robotChoice: 'done'},
-                        {settingChoice: 'done'}
+                        {choice: 'done'},
+                        {choice: 'done'}
                     ])
                     await menu.settingsMenu()
                 })
@@ -610,7 +610,7 @@ describe('-', () => {
         
         })
 
-        describe('#configureRobotMenu', () => {
+        describe('#robotMenu', () => {
 
             it('should reset RunningRobot moveWeight', async () => {
                 await menu.ensureSettingsLoaded()
@@ -618,84 +618,84 @@ describe('-', () => {
                 const exp = menu.settings.robots.RunningRobot.moveWeight
                 menu.settings.robots.RunningRobot.moveWeight *= 0.5
                 menu.prompt = MockPrompter([
-                    {robotChoice: 'reset'}
+                    {choice: 'reset'}
                 ])
-                await menu.configureRobotMenu('RunningRobot')
+                await menu.robotMenu('RunningRobot')
                 expect(menu.settings.robots.RunningRobot.moveWeight).to.equal(exp)
             })
         })
 
-        describe('#robotConfigsMenu', () => {
+        describe('#robotsMenu', () => {
 
             it('should run and done', async () => {
                 menu.prompt = MockPrompter([
-                    {robotChoice: 'done'}
+                    {choice: 'done'}
                 ])
-                await menu.robotConfigsMenu()
+                await menu.robotsMenu()
             })
 
             it('should reset config, select RandomRobot and done', async () => {
                 menu.prompt = MockPrompter([
-                    {robotChoice: 'reset'},
-                    {robotChoice: 'RandomRobot'},
-                    {robotChoice: 'done'},
-                    {robotChoice: 'done'}
+                    {choice: 'reset'},
+                    {choice: 'RandomRobot'},
+                    {choice: 'done'},
+                    {choice: 'done'}
                 ])
-                await menu.robotConfigsMenu()
+                await menu.robotsMenu()
             })
 
             it('should set RandomRobot moveWeight to 1', async () => {
                 menu.prompt = MockPrompter([
-                    {robotChoice: 'RandomRobot'},
-                    {robotChoice: 'moveWeight'},
+                    {choice: 'RandomRobot'},
+                    {choice: 'moveWeight'},
                     {moveWeight: 1},
-                    {robotChoice: 'done'},
-                    {robotChoice: 'done'}
+                    {choice: 'done'},
+                    {choice: 'done'}
                 ])
-                await menu.robotConfigsMenu()
+                await menu.robotsMenu()
                 expect(menu.settings.robots.RandomRobot.moveWeight).to.equal(1)
             })
 
             it('should set RandomRobot moveWeight to 1 then reset', async () => {
                 const defaults = Robot.ConfidenceRobot.getClassMeta('RandomRobot').defaults
                 menu.prompt = MockPrompter([
-                    {robotChoice: 'RandomRobot'},
-                    {robotChoice: 'moveWeight'},
+                    {choice: 'RandomRobot'},
+                    {choice: 'moveWeight'},
                     {moveWeight: 1},
-                    {robotChoice: 'reset'},
-                    {robotChoice: 'done'},
-                    {robotChoice: 'done'}
+                    {choice: 'reset'},
+                    {choice: 'done'},
+                    {choice: 'done'}
                 ])
-                await menu.robotConfigsMenu()
+                await menu.robotsMenu()
                 expect(menu.settings.robots.RandomRobot.moveWeight).to.equal(defaults.moveWeight)
             })
 
             it('should set RandomRobot version to v2', async () => {
                 const defaults = Robot.ConfidenceRobot.getClassMeta('RandomRobot').defaults
                 menu.prompt = MockPrompter([
-                    {robotChoice: 'RandomRobot'},
-                    {robotChoice: 'version'},
+                    {choice: 'RandomRobot'},
+                    {choice: 'version'},
                     {version: 'v2'},
-                    {robotChoice: 'done'},
-                    {robotChoice: 'done'}
+                    {choice: 'done'},
+                    {choice: 'done'}
                 ])
-                await menu.robotConfigsMenu()
+                await menu.robotsMenu()
                 expect(menu.settings.robots.RandomRobot.version).to.equal('v2')
                 // call .choices() for coverage
-                const question = menu.q.configureRobotChoices('RandomRobot', menu.settings.robots.RandomRobot, defaults).find(it => it.value == 'version').question
+                const question = menu.q.robotChoices('RandomRobot', menu.settings.robots.RandomRobot, defaults).find(it => it.value == 'version').question
                 const choices = question.choices()
                 expect(choices).to.contain('v2')
             })
 
             it('should set RandomRobot doubleWeight to 1', async () => {
                 menu.prompt = MockPrompter([
-                    {robotChoice: 'RandomRobot'},
-                    {robotChoice: 'doubleWeight'},
+                    {choice: 'RandomRobot'},
+                    {choice: 'doubleWeight'},
                     {doubleWeight: '1'},
-                    {robotChoice: 'done'},
-                    {robotChoice: 'done'}
+                    {choice: 'done'},
+                    {choice: 'done'}
                 ])
-                await menu.robotConfigsMenu()
+                await menu.robotsMenu()
                 expect(menu.settings.robots.RandomRobot.doubleWeight).to.equal(1)
             })
         })

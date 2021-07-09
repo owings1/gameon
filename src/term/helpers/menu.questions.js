@@ -97,11 +97,58 @@ const ToggleChars = {
 class Questions {
 
     constructor(menu) {
-        this.menu = menu
+        this._menu = menu
+    }
+
+    menu(title, extra) {
+        const menu = this._menu
+        const name = title.toLowerCase()
+        switch (name) {
+            case 'main':
+                return {
+                    message : title
+                  , choices : this.mainChoices(extra)
+                }
+            case 'play':
+                return {
+                    message : title
+                  , choices : this.playChoices(extra)
+                  , default : () => menu.settings.lastPlayChoice
+                }
+            case 'match':
+                return {
+                    message : PlayChoiceMap[extra].message
+                  , choices : this.matchChoices(extra)
+                  , default : () => menu.lastToggleChoice
+                  , action  : {char: 'tab', name: '#toggle', all: false}
+                }
+            case 'account':
+                return {
+                    message : title
+                  , choices : this.accountChoices(extra)
+                }
+            case 'settings':
+                return {
+                    message  : title
+                  , choices  : this.settingsChoices(extra)
+                  , default  : () => menu.lastMenuChoice
+                  , action   : {char: 'tab', name: '#toggle', all: false}
+                }
+            case 'robots':
+                return {
+                    message  : title
+                  , choices  : this.robotsChoices(extra)
+                }
+            case 'robot':
+                return {
+                    message  : extra
+                  , choices  : this.robotChoices(extra)
+                }
+            }
     }
 
     mainChoices() {
-        const {menu} = this
+        const menu = this._menu
         return Questions.formatChoices([
             this.br()
           , {
@@ -136,8 +183,8 @@ class Questions {
     }
 
     playChoices() {
-        const {menu} = this
-        const choices = [
+        const menu = this._menu
+        return Questions.formatChoices([
             this.br()
           , {
                 value : 'startOnline'
@@ -161,48 +208,41 @@ class Questions {
               , name  : 'Robot vs Robot'
             }
           , this.hr()
-        ]
-        if (menu.bread.length > 1) {
-            choices.push({
+          , {
                 value : 'back'
               , name  : 'Back'
+              , when  : menu.bread.length > 1
               , enter : EnterChars.back
-            })
-        }
-        append(choices, [
-            {
-                  value  : 'quit'
-                , name   : 'Quit'
-                , select : 'q'
+            }
+          , {
+                value  : 'quit'
+              , name   : 'Quit'
+              , select : 'q'
             }
           , this.br()
         ])
-        return Questions.formatChoices(choices)
     }
 
     matchChoices(playChoice) {
-        const {menu} = this
+        const menu = this._menu
         const {isOnline} = PlayChoiceMap[playChoice]
         const choices = this.matchInitialChoices()
-        // only show advanced for local matches
-        if (!isOnline) {
-            append(choices, [
-                {
-                    value : 'advanced'
-                  , name  : 'Advanced'
-                }
-              , this.hr()
-            ])
-        }
-        if (menu.bread.length > 1) {
-            choices.push({
+
+        append(choices, [
+            // only show advanced for local matches
+            {
+                value : 'advanced'
+              , name  : 'Advanced'
+              , when  : !isOnline
+            }
+          , this.hr().when(!isOnline)
+          , {
                 value : 'back'
               , name  : 'Back'
+              , when  : menu.bread.length > 1
               , enter : EnterChars.back
-            })
-        }
-        append(choices, [
-            {
+            }
+          , {
                 value  : 'quit'
               , name   : 'Quit'
               , select : 'q'
@@ -213,7 +253,7 @@ class Questions {
     }
 
     matchInitialChoices() {
-        const {menu} = this
+        const menu = this._menu
         return [
             this.br()
           , {
@@ -335,8 +375,11 @@ class Questions {
     }
 
     accountChoices() {
-        const {menu} = this
-        const choices = [
+        const menu = this._menu
+        const isFilled = isCredentialsFilled(menu.credentials)
+        const {needsConfirm} = menu.credentials
+        const hasCredential = menu.credentials.username || menu.credentials.password
+        return Questions.formatChoices([
             this.br()
           , {
                 value : 'done'
@@ -368,62 +411,56 @@ class Questions {
               , question : this.password()
             }
           , this.hr()
-        ]
-        if (!isCredentialsFilled(menu.credentials)) {
-            append(choices, [
-                {
-                    value : 'createAccount'
-                  , name  : 'Create Account'
-                }
-              , {
-                    value : 'forgotPassword'
-                  , name  : 'Forgot Password'
-                }
-            ])
-        } else {
-            if (menu.credentials.needsConfirm) {
-                append(choices, [
-                    {
-                        value : 'confirmAccount'
-                      , name  : 'Enter confirm key'
-                    }
-                  , {
-                        value : 'newConfirmKey'
-                      , name  : 'Get new confirm key'
-                    }
-                  , this.hr()
-                ])
+          , {
+                value : 'createAccount'
+              , name  : 'Create Account'
+              , when  : !isFilled
             }
-            append(choices, [
-                {
-                    value : 'testCredentials'
-                  , name  : 'Test Credentials'
-                }
-              , {
-                    value : 'changePassword'
-                  , name  : 'Change Password'
-                }
-            ])
-        }
-        if (menu.credentials.username || menu.credentials.password) {
-            choices.push({
+          , {
+                value : 'forgotPassword'
+              , name  : 'Forgot Password'
+              , when  : !isFilled
+            }
+          , {
+                value : 'confirmAccount'
+              , name  : 'Enter confirm key'
+              , when  : isFilled && needsConfirm
+            }
+          , {
+                value : 'newConfirmKey'
+              , name  : 'Get new confirm key'
+              , when  : isFilled && needsConfirm
+            }
+          , this.hr().when(isFilled && needsConfirm)
+          , {
+                value : 'testCredentials'
+              , name  : 'Test Credentials'
+              , when  : isFilled && !needsConfirm
+            }
+          , {
+                value : 'changePassword'
+              , name  : 'Change Password'
+              , when  : isFilled && !needsConfirm
+            }
+          , {
                 value : 'clearCredentials'
               , name  : 'Clear Credentials'
-            })
-        }
-        choices.push(this.br())
-        return Questions.formatChoices(choices)
+              , when  : hasCredential
+            }
+          , this.br()
+        ])
     }
 
     username() {
-        const {menu} = this
+        const menu = this._menu
         const checkMark = menu.theme.prompt.check.pass(Chars.check)
+        const checkSuffix = menu.credentials.isTested ? ' ' + checkMark : ''
         return {
             name    : 'username'
           , message : 'Username'
           , type    : 'input'
           , default : () => menu.credentials.username
-          , display : () => menu.credentials.username + (menu.credentials.isTested ? ' ' + checkMark : '')
+          , display : () => menu.credentials.username + checkSuffix
           , cancel  : CancelChars.input
           , when    : answers => !answers._cancelEvent
           , restore : RestoreChars.input
@@ -432,7 +469,7 @@ class Questions {
     }
 
     password() {
-        const {menu} = this
+        const menu = this._menu
         return {
             name    : 'password'
           , message : 'Password'
@@ -517,7 +554,7 @@ class Questions {
     }
 
     settingsChoices() {
-        const {menu} = this
+        const menu = this._menu
         return Questions.formatChoices([
             this.br()
           , {
@@ -628,14 +665,14 @@ class Questions {
           , {
                 value : 'robotConfigs'
               , name  : 'Robot Configuration'
-              , when  : () => menu.settings.isCustomRobot
+              , when  : menu.settings.isCustomRobot
             }
           , this.br()
         ])
     }
 
-    robotConfigsChoices() {
-        const {menu} = this
+    robotsChoices() {
+        const menu = this._menu
         return Questions.formatChoices([
             {
                 value  : 'done'
@@ -677,8 +714,8 @@ class Questions {
         ])
     }
 
-    configureRobotChoices(name) {
-        const {menu} = this
+    robotChoices(name) {
+        const menu = this._menu
         const {defaults, versions} = ConfidenceRobot.getClassMeta(name)
         const config = () => menu.settings.robots[name]
         const weightValidator = value => errMessage(() =>
@@ -750,15 +787,23 @@ class Questions {
     }
 
     br() {
-        return new this.menu.inquirer.BrSeparator()
+        return new this._menu.inquirer.Separator('')
     }
 
     hr() {
-        return new this.menu.inquirer.Separator()
+        return new this._menu.inquirer.Separator()
     }
 
     static formatChoices(choices) {
-        choices = choices.filter(choice => !('when' in choice) || choice.when())
+        choices = choices.filter(choice => {
+            if (!('when' in choice)) {
+                return true
+            }
+            if (typeof choice.when == 'function') {
+                return choice.when()
+            }
+            return !!choice.when
+        })
         const maxLength = Math.max(...choices.map(choice => choice.name ? choice.name.length : 0))
         var p = 1
         var i = 0

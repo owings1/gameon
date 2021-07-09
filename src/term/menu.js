@@ -102,6 +102,11 @@ function choiceQuestion(choices, value) {
     }
 }
 
+const InterruptCancelEvent = {
+    interrupt: true
+  , key: {name: 'c', ctrl: true}
+}
+
 class Menu extends EventEmitter {
 
     constructor(configDir) {
@@ -135,17 +140,16 @@ class Menu extends EventEmitter {
 
     async mainMenu() {
 
+        this.lastMenuChoice = null
+        this.lastToggleChoice = null
+
         return this.crumb('Main', async () => {
 
             while (true) {
 
                 await this.clearAndConsume()
 
-                var {choice} = await this.menuChoice({
-                    name     : 'mainChoice'
-                  , message  : 'Main Menu'
-                  , choices  : this.q.mainChoices()
-                })
+                var {choice} = await this.menuChoice(this.q.menu('Main'))
 
                 if (choice == 'quit') {
                     break
@@ -165,6 +169,9 @@ class Menu extends EventEmitter {
 
     async playMenu() {
 
+        this.lastMenuChoice = null
+        this.lastToggleChoice = null
+
         return this.crumb('Play', async () => {
 
             await this.ensureSettingsLoaded()
@@ -177,12 +184,7 @@ class Menu extends EventEmitter {
 
                 isContinue = true
 
-                var {choice} = await this.menuChoice({
-                    name     : 'playChoice'
-                  , message  : 'Play'
-                  , choices  : this.q.playChoices()
-                  , default  : () => this.settings.lastPlayChoice
-                })
+                var {choice} = await this.menuChoice(this.q.menu('Play'))
 
                 if (choice == 'back') {
                     break
@@ -221,6 +223,9 @@ class Menu extends EventEmitter {
 
     async matchMenu(playChoice) {
 
+        this.lastMenuChoice = null
+        this.lastToggleChoice = null
+
         const {message, method, isAdvanced} = PlayChoiceMap[playChoice]
 
         return this.crumb(message, async () => {
@@ -236,13 +241,7 @@ class Menu extends EventEmitter {
 
                 isContinue = true
 
-                var {choice, question, toggle} = await this.menuChoice({
-                    name    : 'matchChoice'
-                  , choices : this.q.matchChoices(playChoice)
-                  , action  : {char: 'tab', name: '#toggle', all: false}
-                  , default : () => toggle
-                  , message
-                })
+                var {choice, question, toggle} = await this.menuChoice(this.q.menu('Match', playChoice))
 
                 if (choice == 'back') {
                     break
@@ -288,6 +287,9 @@ class Menu extends EventEmitter {
 
     async accountMenu() {
 
+        this.lastMenuChoice = null
+        this.lastToggleChoice = null
+
         return this.crumb('Account', async () => {
 
             await this.ensureCredentialsLoaded()
@@ -296,11 +298,7 @@ class Menu extends EventEmitter {
 
                 await this.clearAndConsume()
 
-                var {choice, question, isCancel} = await this.menuChoice({
-                    name     : 'accountChoice'
-                  , message  : 'Account'
-                  , choices  : this.q.accountChoices()
-                })
+                var {choice, question, isCancel} = await this.menuChoice(this.q.menu('Account'))
 
                 if (choice == 'done') {
                     break
@@ -365,6 +363,9 @@ class Menu extends EventEmitter {
 
     async settingsMenu() {
 
+        this.lastMenuChoice = null
+        this.lastToggleChoice = null
+
         return this.crumb('Settings', async () => {
 
             await this.ensureSettingsLoaded()
@@ -373,20 +374,14 @@ class Menu extends EventEmitter {
 
                 await this.clearAndConsume()
 
-                var {choice, question, toggle} = await this.menuChoice({
-                    name     : 'settingChoice'
-                  , message  : 'Settings'
-                  , action   : {char: 'tab', name: '#toggle', all: false}
-                  , default  : () => choice
-                  , choices  : this.q.settingsChoices()
-                })
+                var {choice, question, toggle} = await this.menuChoice(this.q.menu('Settings'))
 
                 if (choice == 'done') {
                     break
                 }
 
                 if (choice == 'robotConfigs') {
-                    await this.robotConfigsMenu()
+                    await this.robotsMenu()
                     continue
                 }
 
@@ -412,7 +407,7 @@ class Menu extends EventEmitter {
                         this.settings.robots = Menu.robotDefaults()
                         await this.saveSettings()
                     }
-                    await this.robotConfigsMenu()
+                    await this.robotsMenu()
                     continue
                 }
 
@@ -430,7 +425,10 @@ class Menu extends EventEmitter {
         })
     }
 
-    async robotConfigsMenu() {
+    async robotsMenu() {
+
+        this.lastMenuChoice = null
+        this.lastToggleChoice = null
 
         return this.crumb('Robots', async () => {
 
@@ -440,11 +438,7 @@ class Menu extends EventEmitter {
 
                 await this.clearAndConsume()
 
-                var {choice} = await this.menuChoice({
-                    name     : 'robotChoice'
-                  , message  : 'Configure Robots'
-                  , choices  : this.q.robotConfigsChoices()
-                })
+                var {choice} = await this.menuChoice(this.q.menu('Robots'))
 
                 if (choice == 'done') {
                     break
@@ -456,14 +450,17 @@ class Menu extends EventEmitter {
                     continue
                 }
 
-                await this.configureRobotMenu(choice)
+                await this.robotMenu(choice)
             }
 
             return true
         })
     }
 
-    async configureRobotMenu(name) {
+    async robotMenu(name) {
+
+        this.lastMenuChoice = null
+        this.lastToggleChoice = null
 
         return this.crumb('Robot:' + name, async () => {
 
@@ -483,11 +480,7 @@ class Menu extends EventEmitter {
 
                 await this.clearAndConsume()
 
-                var {choice, question} = await this.menuChoice({
-                    name     : 'robotChoice'
-                  , message  : 'Configure ' + name
-                  , choices  : this.q.configureRobotChoices(name)
-                })
+                var {choice, question} = await this.menuChoice(this.q.menu('Robot', name))
 
                 if (choice == 'done') {
                     break
@@ -756,7 +749,6 @@ class Menu extends EventEmitter {
               , Red   : isStart ? netPlayer  : termPlayer
             }
             this.captureInterrupt = () => {
-                this.logger.console.log()
                 this.logger.warn('Aborting')
                 client.cancelWaiting(new WaitingAbortedError('Keyboard interrupt'))
                 return true
@@ -787,7 +779,6 @@ class Menu extends EventEmitter {
         try {
             const coordinator = this.newCoordinator()
             this.captureInterrupt = () => {
-                this.logger.console.log()
                 this.logger.warn('Canceling match')
                 coordinator.cancelMatch(match, players, new MatchCanceledError('Keyboard interrupt'))
                 return true
@@ -883,7 +874,11 @@ class Menu extends EventEmitter {
     handleInterrupt() {
         const handler = this.captureInterrupt
         this.captureInterrupt = null
-        return handler ? handler() : 1
+        if (handler) {
+            this.logger.console.log()
+            return handler()
+        }
+        return 1
     }
 
     async clearAndConsume() {
@@ -993,8 +988,26 @@ class Menu extends EventEmitter {
 
     prompt(questions, answers, opts) {
         opts = {theme: this.theme, ...opts}
-        this._prompt = this.inquirer.prompt(questions, answers, opts)
-        return this._prompt
+        
+        return new Promise((resolve, reject) => {
+            if (opts.cancelOnInterrupt) {
+                this.captureInterrupt = () => {
+                    if (this._prompt && this._prompt.ui) {
+                        resolve({_cancelEvent: InterruptCancelEvent})
+                        this._prompt.ui.close()
+                        return true
+                    }
+                }
+            }
+            this._prompt = this.inquirer.prompt(questions, answers, opts)
+            this._prompt.then(answers => {
+                this.captureInterrupt = null
+                resolve(answers)
+            }).catch(err => {
+                this.captureInterrupt = null
+                reject(err)
+            })
+        })
     }
 
     async crumb(message, cb) {
@@ -1006,7 +1019,7 @@ class Menu extends EventEmitter {
         }
     }
 
-    async menuChoice(question) {
+    async menuChoice(question, opts) {
         question = {
             name     : 'choice'
           , type     : 'rawlist'
@@ -1014,15 +1027,23 @@ class Menu extends EventEmitter {
           , prefix   : this.getMenuPrefix()
           , ...question
         }
-        const {answers, answer, isCancel, toggle} = await this.questionAnswer(question)
+        const {answer, isCancel, toggle, ...result} = await this.questionAnswer(question, opts)
         question = choiceQuestion(question.choices, answer)
         const choice = answer
-        return {answers, answer, isCancel, choice, question, toggle}
+        if (!isCancel) {
+            this.lastMenuChoice = choice
+        }
+        this.lastToggleChoice = toggle
+        return {answer, isCancel, choice, question, toggle, ...result}
     }
 
-    async questionAnswer(question) {
+    async questionAnswer(question, opts) {
+        opts = {
+            cancelOnInterrupt: !!question.cancel
+          , ...opts
+        }
         const {name} = question
-        const answers = await this.prompt(question)
+        const answers = await this.prompt(question, null, opts)
         const answer = answers[name]
         const isCancel = !!answers._cancelEvent
         const toggle = answers['#toggle']
