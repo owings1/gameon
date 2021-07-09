@@ -198,7 +198,7 @@ class TextMethods {
     expandDefault() {
         this.answer = this.opt.default
         this.status = 'touched'
-        this.setLine(this.answer)
+        this.setLine(this.answer.toString())
     }
 
     /**
@@ -614,6 +614,7 @@ class ChoiceActionFeature {
         })
     }
 }
+
 class RestoreFeature {
 
     _constructor() {
