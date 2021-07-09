@@ -105,6 +105,7 @@ class ThemeError      extends BaseError {}
 class DuplicateColumnError  extends ArgumentError {}
 class DuplicateKeyError     extends ArgumentError {}
 class IncompatibleKeysError extends ArgumentError {}
+class InvalidCharError      extends ArgumentError {}
 class InvalidColorError     extends ArgumentError {}
 class InvalidColumnError    extends ArgumentError {}
 class InvalidDirError       extends ArgumentError {}
@@ -216,6 +217,7 @@ const Errors = {
   , IllegalStateError
   , IncompatibleKeysError
   , InternalError
+  , InvalidCharError
   , InvalidColorError
   , InvalidColumnError
   , InvalidDirError

@@ -285,8 +285,11 @@ class Util {
         return merge(...args)
     }
 
-    static nchars(n, char) {
-        return ''.padEnd(n, char)
+    static nchars(n, chr) {
+        if (!chr.length) {
+            throw new InvalidCharError(`Unrepeatable character: '${chr}'`)
+        }
+        return ''.padEnd(n, chr)
     }
 
     // returns a new object with the same keys, transforming
@@ -317,6 +320,9 @@ class Util {
 
     // ansi safe
     static padEnd(str, n, chr) {
+        if (!chr.length) {
+            throw new InvalidCharError(`Unrepeatable character: '${chr}'`)
+        }
         while (Util.stripAnsi(str).length < n) {
             str += chr
         }
@@ -325,6 +331,9 @@ class Util {
 
     // ansi safe
     static padStart(str, n, chr) {
+        if (!chr.length) {
+            throw new InvalidCharError(`Unrepeatable character: '${chr}'`)
+        }
         while (Util.stripAnsi(str).length < n) {
             str = chr + str
         }
@@ -696,7 +705,7 @@ class DependencyHelper {
     add(name, dependencies) {
 
         if (this.added[name]) {
-            throw new DependencyError('Duplicate name: ' + name)
+            throw new DependencyError(`Duplicate name: ${name}`)
         }
         this.added[name] = true
 
@@ -706,7 +715,7 @@ class DependencyHelper {
             dependencies.forEach(dependency => {
                 if (!this.resolved[dependency]) {
                     if (this.unresolved[dependency] && this.unresolved[dependency][name]) {
-                        throw new CircularDependencyError('Circular dependecy: ' + name + ' <-> ' + dependency)
+                        throw new CircularDependencyError(`Circular dependecy: ${name} <-> ${dependency}`)
                     }
                     this.unresolved[name][dependency] = true
                 }
@@ -734,7 +743,7 @@ class DependencyHelper {
             }
         }
         if (Object.keys(missing).length) {
-            throw new MissingDependencyError('Missing dependencies ' + Object.keys(missing).join(', '))
+            throw new MissingDependencyError(`Missing dependencies: ${Object.keys(missing).join(', ')}`)
         }
 
         do {
@@ -743,7 +752,7 @@ class DependencyHelper {
 
         const unresolvedNames = Object.keys(this.unresolved)
         if (unresolvedNames.length) {
-            throw new UnresolvedDependencyError('Unmet dependecies for: ' + unresolvedNames.join(', '))
+            throw new UnresolvedDependencyError(`Unmet dependecies for: ${unresolvedNames.join(', ')}`)
         }
 
         return this.order
@@ -893,6 +902,7 @@ const {
   , DependencyError
   , IllegalStateError
   , IncompatibleKeysError
+  , InvalidCharError
   , MissingDependencyError
   , ProgrammerError
   , StyleError
