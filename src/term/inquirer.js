@@ -1158,7 +1158,8 @@ class ScreenManager extends ScreenBase {
           , defaultWidth : 80
           , ...opts
         }
-        //opts.indent = 0
+        //opts.indent = 15
+        //opts.maxWidth = 70//99
         this.opts = opts
         this.cur = new RlHelper(this)
     }
@@ -1185,19 +1186,24 @@ class ScreenManager extends ScreenBase {
          */
 
         const width = Math.min(this.normalizedCliWidth() - opts.indent, opts.maxWidth)
-        //const width = this.normalizedCliWidth() - this.indent
-
-
-        // debug
-        //bottomContent = JSON.stringify({
-        //    norm: this.normalizedCliWidth()
-        //  , width
-        //})
+        const lessWidth = Math.max(0, this.normalizedCliWidth() - width)
 
 
         const promptLine = content.split('\n').pop()
         const rawPromptLine = stripAnsi(promptLine)
         const isEndOfLine = rawPromptLine.length % width === 0
+
+        // How many additional lines (> 1) for the prompt.
+        const extraPromptLineCount = Math.floor(rawPromptLine.length / width)
+
+        // debug
+        //bottomContent = JSON.stringify({
+        //    norm: this.normalizedCliWidth()
+        //  , width
+        //  , isEndOfLine
+        //  , lessWidth
+        //  , 'rawPromptLine.length' : rawPromptLine.length
+        //})
 
         content = this.forceLineReturn(content, width)
         if (bottomContent) {
@@ -1210,8 +1216,8 @@ class ScreenManager extends ScreenBase {
         const fullLines = fullContent.split('\n')
         const lastFullLine = fullLines[fullLines.length - 1]
 
-        // Correct for input longer than width when there is an indent
-        const addPromptLen = Math.floor(rawPromptLine.length / width) * opts.indent
+        // Correct for input longer than width when width is less than available
+        const addPromptLen = extraPromptLineCount * lessWidth
 
         // Remove the rl.line from our prompt. We can't rely on the content of
         // rl.line (mainly because of the password prompt), so just rely on it's
@@ -1231,7 +1237,7 @@ class ScreenManager extends ScreenBase {
 
         // We need to consider parts of the prompt under the cursor as part of the bottom
         // content in order to correctly cleanup and re-render.
-        const promptLineUpDiff = Math.floor(rawPromptLine.length / width) - cursorPos.rows
+        const promptLineUpDiff = extraPromptLineCount - cursorPos.rows
         const bottomHeight = promptLineUpDiff + bottomLineCount
 
         // Write content lines
@@ -1259,7 +1265,7 @@ class ScreenManager extends ScreenBase {
         if (cursorPos.cols > 0) {
             this.cur.right(cursorPos.cols)
         }
-        // Adjust one over to the right
+        // Special case: adjust one over to the right
         if (isEndOfLine && opts.indent && !bottomLineCount) {
             this.cur.right(1)
         }

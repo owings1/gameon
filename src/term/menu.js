@@ -140,12 +140,12 @@ class Menu extends EventEmitter {
         this.theme = Themes.getDefaultInstance()
         this.term  = new TermHelper(this.settings.termEnabled)
         this.top = 10
-        this.indent = 10//10//2//1//0//20
-        this.maxWidth = Infinity//60
+        this.maxWidth = 80
         this.linesToClear = 0
 
         this.inquirer = inquirer
         this.q = new QuestionHelper(this)
+        this.lastPromptOpts = this.getPromptOpts()
     }
 
     mainMenu() {
@@ -884,9 +884,7 @@ class Menu extends EventEmitter {
     }
 
     prompt(questions, answers, opts) {
-        const indent = this.settings.termEnabled ? this.indent : 0
-        const maxWidth = this.settings.termEnabled ? this.maxWidth : Infinity
-        opts = {indent, maxWidth, theme: this.theme, ...opts}
+        opts = {...this.getPromptOpts(), ...opts}
         return new Promise((resolve, reject) => {
             if (opts.cancelOnInterrupt) {
                 this.captureInterrupt = () => {
@@ -903,12 +901,27 @@ class Menu extends EventEmitter {
             )
             this._prompt.then(answers => {
                 this.captureInterrupt = null
+                this.lastPromptOpts = opts
                 resolve(answers)
             }).catch(err => {
                 this.captureInterrupt = null
+                this.lastPromptOpts = opts
                 reject(err)
             })
         })
+    }
+
+    getPromptOpts() {
+        const opts = {theme: this.theme}
+        if (this.settings.termEnabled) {
+            const extraWidth = this.term.width - this.maxWidth
+            opts.maxWidth = Math.min(this.maxWidth, this.term.width)
+            opts.indent = Math.max(0, Math.floor(extraWidth / 2))
+        } else {
+            opts.maxWidth = Infinity
+            opts.indent = 0
+        }
+        return opts
     }
 
     async runMenu(title, run) {
@@ -998,9 +1011,9 @@ class Menu extends EventEmitter {
     }
 
     async clearMenu() {
-        const width = this.term.width - this.indent
+        const {maxWidth, indent} = this.lastPromptOpts
         const height = 2 + this.linesToClear
-        this.term.eraseArea(this.indent, this.top, width, height).moveTo(1, this.top)
+        this.term.eraseArea(indent, this.top, maxWidth, height).moveTo(1, this.top)
         this.linesToClear = 0
     }
 
@@ -1037,8 +1050,7 @@ class Menu extends EventEmitter {
             ? [arg.name || arg.constructor.name, arg.message].join(': ')
             : arg
         const strsWidth = args => sumArray(args.map(stringWidth)) + args.length - 1
-        const maxWidth = this.settings.termEnabled ? this.term.width - this.indent : Infinity
-
+        const {maxWidth, indent} = this.lastPromptOpts
 
         for (var alert of alerts) {
 
@@ -1069,7 +1081,7 @@ class Menu extends EventEmitter {
             lines.push(msgs.join(chlk[level].message(' ')))
 
             for (var line of lines) {
-                await this.term.right(this.indent)
+                await this.term.right(indent)
                 this.alerter[alevel](line)
                 this.linesToClear += 1
             }
