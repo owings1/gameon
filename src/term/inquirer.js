@@ -54,6 +54,7 @@ const Errors    = require('../lib/errors')
 const Themes    = require('./themes')
 const Util      = require('../lib/util')
 
+const cliWidth    = require('cli-width')
 const inquirer    = require('inquirer')
 const observe     = require('inquirer/lib/utils/events')
 const RlUtil      = require('inquirer/lib/utils/readline')
@@ -1149,15 +1150,16 @@ class Separator extends inquirer.Separator {
 
 class ScreenManager extends ScreenBase {
 
-    constructor(rl, settings) {
+    constructor(rl, opts) {
         super(rl)
-        settings = {
-            indent   : 0
-          , maxWidth : Infinity
-          , ...settings
+        opts = {
+            indent       : 0
+          , maxWidth     : Infinity
+          , defaultWidth : 80
+          , ...opts
         }
-        this.indent = settings.indent
-        this.maxWidth = settings.maxWidth
+        //opts.indent = 0
+        this.opts = opts
         this.cur = new RlHelper(this)
     }
 
@@ -1170,6 +1172,7 @@ class ScreenManager extends ScreenBase {
     */
     render(content, bottomContent, spinning = false) {
 
+        const {opts} = this
         if (this.spinnerId && !spinning) {
             clearInterval(this.spinnerId)
         }
@@ -1181,8 +1184,16 @@ class ScreenManager extends ScreenBase {
          * Write message to screen and setPrompt to control backspace
          */
 
-        const width = Math.min(this.normalizedCliWidth() - this.indent, this.maxWidth)
+        const width = Math.min(this.normalizedCliWidth() - opts.indent, opts.maxWidth)
         //const width = this.normalizedCliWidth() - this.indent
+
+
+        // debug
+        //bottomContent = JSON.stringify({
+        //    norm: this.normalizedCliWidth()
+        //  , width
+        //})
+
 
         const promptLine = content.split('\n').pop()
         const rawPromptLine = stripAnsi(promptLine)
@@ -1200,7 +1211,7 @@ class ScreenManager extends ScreenBase {
         const lastFullLine = fullLines[fullLines.length - 1]
 
         // Correct for input longer than width when there is an indent
-        const addPromptLen = Math.floor(rawPromptLine.length / width) * this.indent
+        const addPromptLen = Math.floor(rawPromptLine.length / width) * opts.indent
 
         // Remove the rl.line from our prompt. We can't rely on the content of
         // rl.line (mainly because of the password prompt), so just rely on it's
@@ -1228,8 +1239,8 @@ class ScreenManager extends ScreenBase {
             if (i > 0) {
                 this.rl.output.write('\n')
             }
-            if (this.indent) {
-                this.cur.right(this.indent)
+            if (opts.indent) {
+                this.cur.right(opts.indent)
             }
             this.rl.output.write(line)
         })
@@ -1249,7 +1260,7 @@ class ScreenManager extends ScreenBase {
             this.cur.right(cursorPos.cols)
         }
         // Adjust one over to the right
-        if (isEndOfLine && this.indent) {
+        if (isEndOfLine && opts.indent && !bottomLineCount) {
             this.cur.right(1)
         }
 
@@ -1260,6 +1271,16 @@ class ScreenManager extends ScreenBase {
         this.height = fullLines.length
 
         this.rl.output.mute()
+    }
+
+    /**
+     * @override for defaultWidth option.
+     */
+    normalizedCliWidth() {
+        return cliWidth({
+            defaultWidth : this.opts.defaultWidth
+          , output       : this.rl.output
+        })
     }
 }
 

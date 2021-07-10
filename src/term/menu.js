@@ -139,8 +139,9 @@ class Menu extends EventEmitter {
 
         this.theme = Themes.getDefaultInstance()
         this.term  = new TermHelper(this.settings.termEnabled)
-        this.top = 0//10
-        this.indent = 0//10//2//1//0//20
+        this.top = 10
+        this.indent = 10//10//2//1//0//20
+        this.maxWidth = Infinity//60
         this.linesToClear = 0
 
         this.inquirer = inquirer
@@ -884,8 +885,8 @@ class Menu extends EventEmitter {
 
     prompt(questions, answers, opts) {
         const indent = this.settings.termEnabled ? this.indent : 0
-        //const maxWidth = this.settings.termEnabled ? this.maxWidth : Infinity
-        opts = {indent, /*maxWidth,*/ theme: this.theme, ...opts}
+        const maxWidth = this.settings.termEnabled ? this.maxWidth : Infinity
+        opts = {indent, maxWidth, theme: this.theme, ...opts}
         return new Promise((resolve, reject) => {
             if (opts.cancelOnInterrupt) {
                 this.captureInterrupt = () => {
