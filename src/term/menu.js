@@ -140,7 +140,7 @@ class Menu extends EventEmitter {
         this.theme = Themes.getDefaultInstance()
         this.term  = new TermHelper(this.settings.termEnabled)
         this.top = 0//10
-        this.indent = 0//20
+        this.indent = 0//10//2//1//0//20
         this.linesToClear = 0
 
         this.inquirer = inquirer

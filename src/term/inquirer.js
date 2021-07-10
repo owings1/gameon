@@ -56,9 +56,9 @@ const Util      = require('../lib/util')
 
 const inquirer    = require('inquirer')
 const observe     = require('inquirer/lib/utils/events')
+const RlUtil      = require('inquirer/lib/utils/readline')
 const ScreenBase  = require('inquirer/lib/utils/screen-manager')
 const {takeUntil} = require('rxjs/operators')
-const iutil       = require('inquirer/lib/utils/readline')
 // for patch
 const {map} = require('rxjs/operators')
 
@@ -100,6 +100,24 @@ function debug(...args) {
     const brs = nchars(10, '\n')
     console.log(brs, ...args, brs)
 }
+
+class RlHelper {
+
+    constructor(inst) {
+        this.inst = inst
+    }
+
+    get rl() {
+        return this.inst.rl
+    }
+}
+
+Object.entries(RlUtil).forEach(([name, method]) =>
+    RlHelper.prototype[name] = function(...args) {
+        method(this.rl, ...args)
+        return this
+    }
+)
 
 class BaseMethods {
 
@@ -1134,16 +1152,17 @@ class ScreenManager extends ScreenBase {
     constructor(rl, settings) {
         super(rl)
         settings = {
-            indent : 0
-          //, maxWidth: Infinity
+            indent   : 0
+          , maxWidth : Infinity
           , ...settings
         }
         this.indent = settings.indent
-        //this.maxWidth = settings.maxWidth
+        this.maxWidth = settings.maxWidth
+        this.cur = new RlHelper(this)
     }
 
    /**
-    * @override for cursor placing
+    * @override For indent and custom width
     *
     * Copied from inquirer/lib/utils/screen-manager, with minor modifications.
     *
@@ -1162,9 +1181,26 @@ class ScreenManager extends ScreenBase {
          * Write message to screen and setPrompt to control backspace
          */
 
-        const promptLine = content.split('\n').pop()
+        const width = Math.min(this.normalizedCliWidth() - this.indent, this.maxWidth)
+        //const width = this.normalizedCliWidth() - this.indent
 
+        const promptLine = content.split('\n').pop()
         const rawPromptLine = stripAnsi(promptLine)
+        const isEndOfLine = rawPromptLine.length % width === 0
+
+        content = this.forceLineReturn(content, width)
+        if (bottomContent) {
+            bottomContent = this.forceLineReturn(bottomContent, width)
+        }
+
+        const bottomLineCount = bottomContent ? bottomContent.split('\n').length : 0
+
+        const fullContent = content + (bottomContent ? '\n' + bottomContent : '')
+        const fullLines = fullContent.split('\n')
+        const lastFullLine = fullLines[fullLines.length - 1]
+
+        // Correct for input longer than width when there is an indent
+        const addPromptLen = Math.floor(rawPromptLine.length / width) * this.indent
 
         // Remove the rl.line from our prompt. We can't rely on the content of
         // rl.line (mainly because of the password prompt), so just rely on it's
@@ -1173,64 +1209,54 @@ class ScreenManager extends ScreenBase {
         if (this.rl.line.length) {
             prompt = prompt.slice(0, -this.rl.line.length)
         }
-
-        this.rl.setPrompt(prompt)
+        if (addPromptLen) {
+            // We can pad the end of the prompt, since only the length matters.
+            prompt += nchars(addPromptLen, ' ')
+        }
 
         // SetPrompt will change cursor position, now we can get correct value
+        this.rl.setPrompt(prompt)
         const cursorPos = this.rl._getCursorPos()
-        const width = this.normalizedCliWidth()
 
-        content = this.forceLineReturn(content, width)
-        if (bottomContent) {
-            bottomContent = this.forceLineReturn(bottomContent, width)
-        }
+        // We need to consider parts of the prompt under the cursor as part of the bottom
+        // content in order to correctly cleanup and re-render.
+        const promptLineUpDiff = Math.floor(rawPromptLine.length / width) - cursorPos.rows
+        const bottomHeight = promptLineUpDiff + bottomLineCount
 
-        // Manually insert an extra line if we're at the end of the line.
-        // This prevent the cursor from appearing at the beginning of the
-        // current line.
-        if (rawPromptLine.length % width === 0) {
-            content += '\n'
-        }
-
-        const fullContent = content + (bottomContent ? '\n' + bottomContent : '')
-
-        const fullLines = fullContent.split('\n')
+        // Write content lines
         fullLines.forEach((line, i) => {
             if (i > 0) {
                 this.rl.output.write('\n')
             }
-            iutil.right(this.rl, this.indent)
-            //if (stringWidth(line) > this.maxWidth) {
-            //    line = stripAnsi(line).substring(0, this.maxWidth)
-            //}
+            if (this.indent) {
+                this.cur.right(this.indent)
+            }
             this.rl.output.write(line)
         })
 
         /**
          * Re-adjust the cursor at the correct position.
          */
-
-        // We need to consider parts of the prompt under the cursor as part of the bottom
-        // content in order to correctly cleanup and re-render.
-        const promptLineUpDiff = Math.floor(rawPromptLine.length / width) - cursorPos.rows
-        const bottomContentHeight = promptLineUpDiff + (bottomContent ? bottomContent.split('\n').length : 0)
-        if (bottomContentHeight > 0) {
-            iutil.up(this.rl, bottomContentHeight)
+        if (bottomHeight > 0) {
+            this.cur.up(bottomHeight)
         }
 
         // Reset cursor at the beginning of the line
-        const lastFullLine = fullLines[fullLines.length - 1]
-        iutil.left(this.rl, stringWidth(lastFullLine))
+        this.cur.left(stringWidth(lastFullLine))
 
         // Adjust cursor on the right
         if (cursorPos.cols > 0) {
-            iutil.right(this.rl, cursorPos.cols)
+            this.cur.right(cursorPos.cols)
+        }
+        // Adjust one over to the right
+        if (isEndOfLine && this.indent) {
+            this.cur.right(1)
         }
 
         /**
          * Set up state for next re-rendering
          */
-        this.extraLinesUnderPrompt = bottomContentHeight
+        this.extraLinesUnderPrompt = bottomHeight
         this.height = fullLines.length
 
         this.rl.output.mute()
