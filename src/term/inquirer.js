@@ -56,11 +56,11 @@ const Util      = require('../lib/util')
 
 const inquirer    = require('inquirer')
 const observe     = require('inquirer/lib/utils/events')
+const ScreenBase  = require('inquirer/lib/utils/screen-manager')
 const {takeUntil} = require('rxjs/operators')
+const iutil       = require('inquirer/lib/utils/readline')
 // for patch
 const {map} = require('rxjs/operators')
-
-//const {Separator} = inquirer
 
 const {Chars} = Constants
 
@@ -72,8 +72,8 @@ const {
   , keyValuesTrue
   , nchars
   , padEnd
+  , stringWidth
   , stripAnsi
-  , strlen
 } = Util
 
 const {
@@ -103,7 +103,8 @@ function debug(...args) {
 
 class BaseMethods {
 
-    _constructor() {
+    _constructor(question) {
+        this.screen = new ScreenManager(this.rl, question.settings)
         this._keypressIndex = {}
         this._keyHandlers = {}
     }
@@ -234,7 +235,6 @@ class TextMethods {
             return input
         }
         return this.opt.default == null ? '' : this.opt.default
-        //return super.filterInput(input)
     }
 }
 
@@ -448,7 +448,7 @@ class ListMethods {
     choicesLineLength(choices) {
         choices = choices.filter(it => it.type != 'separator')
         const extra = this.opt.numbers ? choices.length.toString().length + 2 : 0
-        return extra + Math.max(...choices.map(it => strlen(it.name)))
+        return extra + Math.max(...choices.map(it => stringWidth(it.name)))
     }
 }
 
@@ -1126,6 +1126,114 @@ class Separator extends inquirer.Separator {
     text(line) {
         this.line = line
         
+    }
+}
+
+class ScreenManager extends ScreenBase {
+
+    constructor(rl, settings) {
+        super(rl)
+        settings = {
+            indent : 0
+          //, maxWidth: Infinity
+          , ...settings
+        }
+        this.indent = settings.indent
+        //this.maxWidth = settings.maxWidth
+    }
+
+   /**
+    * @override for cursor placing
+    *
+    * Copied from inquirer/lib/utils/screen-manager, with minor modifications.
+    *
+    * See https://github.com/SBoudrias/Inquirer.js/blob/master/packages/inquirer/lib/utils/screen-manager.js
+    */
+    render(content, bottomContent, spinning = false) {
+
+        if (this.spinnerId && !spinning) {
+            clearInterval(this.spinnerId)
+        }
+
+        this.rl.output.unmute()
+        this.clean(this.extraLinesUnderPrompt)
+
+        /**
+         * Write message to screen and setPrompt to control backspace
+         */
+
+        const promptLine = content.split('\n').pop()
+
+        const rawPromptLine = stripAnsi(promptLine)
+
+        // Remove the rl.line from our prompt. We can't rely on the content of
+        // rl.line (mainly because of the password prompt), so just rely on it's
+        // length.
+        let prompt = rawPromptLine
+        if (this.rl.line.length) {
+            prompt = prompt.slice(0, -this.rl.line.length)
+        }
+
+        this.rl.setPrompt(prompt)
+
+        // SetPrompt will change cursor position, now we can get correct value
+        const cursorPos = this.rl._getCursorPos()
+        const width = this.normalizedCliWidth()
+
+        content = this.forceLineReturn(content, width)
+        if (bottomContent) {
+            bottomContent = this.forceLineReturn(bottomContent, width)
+        }
+
+        // Manually insert an extra line if we're at the end of the line.
+        // This prevent the cursor from appearing at the beginning of the
+        // current line.
+        if (rawPromptLine.length % width === 0) {
+            content += '\n'
+        }
+
+        const fullContent = content + (bottomContent ? '\n' + bottomContent : '')
+
+        const fullLines = fullContent.split('\n')
+        fullLines.forEach((line, i) => {
+            if (i > 0) {
+                this.rl.output.write('\n')
+            }
+            iutil.right(this.rl, this.indent)
+            //if (stringWidth(line) > this.maxWidth) {
+            //    line = stripAnsi(line).substring(0, this.maxWidth)
+            //}
+            this.rl.output.write(line)
+        })
+
+        /**
+         * Re-adjust the cursor at the correct position.
+         */
+
+        // We need to consider parts of the prompt under the cursor as part of the bottom
+        // content in order to correctly cleanup and re-render.
+        const promptLineUpDiff = Math.floor(rawPromptLine.length / width) - cursorPos.rows
+        const bottomContentHeight = promptLineUpDiff + (bottomContent ? bottomContent.split('\n').length : 0)
+        if (bottomContentHeight > 0) {
+            iutil.up(this.rl, bottomContentHeight)
+        }
+
+        // Reset cursor at the beginning of the line
+        const lastFullLine = fullLines[fullLines.length - 1]
+        iutil.left(this.rl, stringWidth(lastFullLine))
+
+        // Adjust cursor on the right
+        if (cursorPos.cols > 0) {
+            iutil.right(this.rl, cursorPos.cols)
+        }
+
+        /**
+         * Set up state for next re-rendering
+         */
+        this.extraLinesUnderPrompt = bottomContentHeight
+        this.height = fullLines.length
+
+        this.rl.output.mute()
     }
 }
 

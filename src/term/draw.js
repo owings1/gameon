@@ -849,6 +849,13 @@ class TermHelper {
         return this
     }
 
+    eraseArea(...args) {
+        if (this.enabled) {
+            this.term.eraseArea(...args)
+        }
+        return this
+    }
+
     eraseDisplayBelow(...args) {
         if (this.enabled) {
             this.term.eraseDisplayBelow(...args)
@@ -863,6 +870,47 @@ class TermHelper {
         return this
     }
 
+    up(...args) {
+        if (this.enabled) {
+            this.term.up(...args)
+        }
+        return this
+    }
+
+    down(...args) {
+        if (this.enabled) {
+            this.term.down(...args)
+        }
+        return this
+    }
+
+    left(...args) {
+        if (this.enabled) {
+            this.term.left(...args)
+        }
+        return this
+    }
+
+    right(...args) {
+        if (this.enabled) {
+            this.term.right(...args)
+        }
+        return this
+    }
+
+    get height() {
+        if (this.enabled) {
+            return this.term.height
+        }
+        return 40
+    }
+
+    get width() {
+        if (this.enabled) {
+            return this.term.width
+        }
+        return 80
+    }
     /*
     async getCursorLocation(...args) {
         if (!this.enabled) {
@@ -878,12 +926,7 @@ class TermHelper {
         this.term.column(...args)
     }
 
-    up(...args) {
-        if (!this.enabled) {
-            return
-        }
-        this.term.up(...args)
-    }
+    
     */
 }
 

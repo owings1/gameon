@@ -240,17 +240,25 @@ const Menu = {
     }
 
   , MainChoiceMap : {
-        account : {
-            method: 'accountMenu'
+        play : {
+            name   : 'Play'
+          , method : 'playMenu'
+          , select : 'p'
         }
-      , lab : {
-            method: 'runLab'
-        }
-      , play : {
-            method: 'playMenu'
+      , account : {
+            name   : 'Account'
+          , method : 'accountMenu'
+          , select : 'a'
         }
       , settings : {
-            method: 'settingsMenu'
+            name   : 'Settings'
+          , method : 'settingsMenu'
+          , select : 's'
+        }
+      , lab : {
+            name   : 'Lab'
+          , method : 'runLab'
+          , select : 'l'
         }
     }
 
@@ -260,24 +268,41 @@ const Menu = {
           , method     : 'startOnlineMatch'
           , isAdvanced : false
           , isOnline   : true
+          , isCreate   : true
+          , isJoin     : false
+        }
+      , joinOnline : {
+            message     : 'Join Online Match'
+          , method      : 'joinOnlineMatch'
+          , isAdvanced  : false
+          , isOnline    : true
+          , isCreate    : false
+          , isJoin      : true
+          , matchAnswer : 'start'
+        }
+      , playHumans : {
+            message    : 'Human vs Human'
+          , method     : 'playHumans'
+          , isAdvanced : true
+          , isOnline   : false
+          , isCreate   : true
+          , isJoin     : false
         }
       , playRobot   : {
             message    : 'Human vs Robot'
           , method     : 'playRobot'
           , isAdvanced : true
           , isOnline   : false
+          , isCreate   : true
+          , isJoin     : false
         }
       , playRobots : {
-            message    : 'Watch Robots'
+            message    : 'Robot vs Robot'
           , method     : 'playRobots'
           , isAdvanced : true
           , isOnline   : false
-        }
-      , playHumans : {
-            message    : 'Local Match'
-          , method     : 'playHumans'
-          , isAdvanced : true
-          , isOnline   : false
+          , isCreate   : true
+          , isJoin     : false
         }
     }
 }

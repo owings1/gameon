@@ -151,7 +151,8 @@ describe('-', () => {
             })
         })
 
-        describe('#joinMenu', () => {
+        // obsolete method
+        describe.skip('#joinMenu', () => {
 
             it('should go to joinOnlineMatch for matchId with mock method', async () => {
                 var isCalled = false
@@ -200,19 +201,21 @@ describe('-', () => {
                 menu.credentials.password = menu.encryptPassword('s9GLdoe9')
                 menu.prompt = MockPrompter([
                     {choice: 'joinOnline'},
+                    {choice: 'start'},
                     {matchId: '12345678'},
                     {choice: 'quit'}
                 ])
-                var msg
-                menu.alerter.warn = m => msg = m
-                var err
-                menu.alerter.error = e => err = e
+                var wmsg
+                menu.alerter.warn = msg => wmsg = msg
+                var emsg
+                menu.alerter.error = msg => emsg = msg
                 await menu.playMenu()
-                expect(!!msg).to.equal(true)
-                expect(err.isBadCredentialsError).to.equal(true)
+                expect(emsg).to.contain('BadCredentialsError')
+                expect(!!wmsg).to.equal(true)
             })
 
-            it('should alert error then done when joinMenu throws MatchCanceledError', async () => {
+            // TODO refactor since joinMenu is obsolete
+            it.skip('should alert error then done when joinMenu throws MatchCanceledError', async () => {
                 const exp = new MatchCanceledError
                 menu.joinMenu = () => {
                     throw exp
@@ -473,10 +476,10 @@ describe('-', () => {
             })
 
             it('should alert error and done when promptForgotPassword throws', async () => {
-                const exp = new Error
-                var err
-                menu.alerter.error = e => err = e
-                menu.promptForgotPassword = () => { throw exp }
+                const err = new Error('testMessage')
+                var emsg
+                menu.alerter.error = msg => emsg = msg
+                menu.promptForgotPassword = () => { throw err }
                 const username = 'nobody@nowhere.example'
                 const password = 'd4PUxRs2'
                 await server.auth.createUser(username, password, true)
@@ -485,13 +488,13 @@ describe('-', () => {
                     {choice: 'done'}
                 ])
                 await menu.accountMenu()
-                expect(err).to.equal(exp)
+                expect(emsg).to.contain('testMessage')
             })
 
             it('should alert BadCredentialsError and done when password entered and login fails', async () => {
-                var err
+                var emsg
                 menu.alerter.loglevel = 0
-                menu.alerter.error = e => err = e
+                menu.alerter.error = msg => emsg = msg
                 menu.credentials.username = 'nobody2@nowhere.example'
                 const password = 'JUzrDc5k'
                 menu.prompt = MockPrompter([
@@ -500,12 +503,12 @@ describe('-', () => {
                     {choice: 'done'}
                 ])
                 await menu.accountMenu()
-                expect(err.isBadCredentialsError).to.equal(true)
+                expect(emsg).to.contain('BadCredentialsError')
             })
 
             it('should alert BadCredentialsError then done on incorrect password for change-password', async () => {
-                var err
-                menu.alerter.error = e => err = e
+                var emsg
+                menu.alerter.error = msg => emsg = msg
                 const username = 'nobody@nowhere.example'
                 const oldPassword = 'C7pUaA3c'
                 const badPassword = 'etzF4Y8L'
@@ -519,7 +522,7 @@ describe('-', () => {
                     {choice: 'done'}
                 ])
                 await menu.accountMenu()
-                expect(err.isBadCredentialsError).to.equal(true)
+                expect(emsg).to.contain('BadCredentialsError')
             })
         })
 
@@ -1001,13 +1004,13 @@ describe('-', () => {
             })
 
             it('should alert warn match canceled but not throw for mock coodinator', async () => {
-                const exp = new MatchCanceledError
-                menu.newCoordinator = () => newThrowingCoordinator(exp)
-                var err
-                menu.alerter.warn = (...args) => err = args.find(it => it instanceof Error)
+                const err = new MatchCanceledError
+                menu.newCoordinator = () => newThrowingCoordinator(err)
+                var emsg
+                menu.alerter.warn = msg => emsg = msg
                 await menu.playHumans(menu.settings.matchOpts)
                 await menu.consumeAlerts()
-                expect(err).to.equal(exp)
+                expect(emsg).to.contain('MatchCanceledError')
             })
 
             it('should throw on non-match-canceled for mock coodinator', async () => {

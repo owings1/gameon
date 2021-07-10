@@ -60,6 +60,9 @@ const {inquirer} = require('./inquirer')
 const {
     castToArray
   , isEmptyObject
+  , stringWidth
+  , stripAnsi
+  , sumArray
 } = Util
 
 const {
@@ -107,6 +110,12 @@ const InterruptCancelEvent = {
   , key: {name: 'c', ctrl: true}
 }
 
+const CHash = (() => {
+    const hash = crypto.createHash('md5')
+    hash.update('main-menu')
+    return hash.digest('hex')
+}).call()
+
 class Menu extends EventEmitter {
 
     constructor(configDir) {
@@ -124,71 +133,63 @@ class Menu extends EventEmitter {
         this.isSettingsLoaded = false
         this.isThemesLoaded = false
 
-        const hash = crypto.createHash('md5')
-        hash.update('main-menu')
-        this.chash = hash.digest('hex')
-
+        this.chash = CHash
         this.bread = []
         this.alerts = []
 
         this.theme = Themes.getDefaultInstance()
         this.term  = new TermHelper(this.settings.termEnabled)
+        this.top = 0//10
+        this.indent = 0//20
+        this.linesToClear = 0
 
         this.inquirer = inquirer
         this.q = new QuestionHelper(this)
     }
 
-    async mainMenu() {
+    mainMenu() {
 
-        await this.beforeMenuStart()
+        return this.runMenu('Main', async (choose, loop) => {
 
-        return this.crumb('Main', async () => {
+            await loop(async () => {
 
-            while (true) {
-
-                await this.clearAndConsume()
-
-                var {choice} = await this.menuChoice(this.q.menu('Main'))
+                const {choice} = await choose()
 
                 if (choice == 'quit') {
-                    break
+                    return
                 }
 
-                var {method} = MainChoiceMap[choice]
-                var isContinue = await this[method]()
-
-                if (!isContinue) {
-                    break
+                const {method} = MainChoiceMap[choice]
+                const isContinue = await this[method]()
+                if (choice == 'lab') {
+                    await this.eraseScreen()
                 }
-            }
+                return isContinue
+            })
 
             return true
         })
     }
 
-    async playMenu() {
+    playMenu() {
 
-        await this.beforeMenuStart()
+        return this.runMenu('Play', async (choose, loop) => {
 
-        return this.crumb('Play', async () => {
+            var isContinue = true
 
-            var isContinue
-
-            while (true) {
-
-                await this.clearAndConsume()
+            await loop(async () => {
 
                 isContinue = true
 
-                var {choice} = await this.menuChoice(this.q.menu('Play'))
+                const {choice, ask} = await choose()
 
                 if (choice == 'back') {
-                    break
+                    return
                 }
 
                 if (choice == 'quit') {
                     isContinue = false
-                    break
+                    return
                 }
 
                 if (this.settings.lastPlayChoice != choice) {
@@ -197,33 +198,28 @@ class Menu extends EventEmitter {
                 }
 
                 try {
-                    if (choice == 'joinOnline') {
-                        isContinue = await this.joinMenu()
-                    } else {
-                        isContinue = await this.matchMenu(choice)
-                    }
-                    if (!isContinue) {
-                        break
-                    }
+                    isContinue = await this.matchMenu(choice)
                 } catch (err) {
                     this.alerts.push(['error', err])
                     if (err.isAuthError) {
                         this.alerts.push(['warn', 'Authentication failed. Go to Account to sign up or log in.'])
                     }
                 }
-            }
+
+                return isContinue
+            })
 
             return isContinue
-        })      
+        })
     }
 
     matchMenu(playChoice) {
 
         return this.runMenu('Match', async (choose, loop) => {
 
-            const {message, method, isAdvanced} = PlayChoiceMap[playChoice]
+            const {message, method, isAdvanced, isJoin} = PlayChoiceMap[playChoice]
 
-            var isContinue = true
+            var isContinue
             var advancedOpts = {}
 
             await loop(async () => {
@@ -253,11 +249,21 @@ class Menu extends EventEmitter {
                 }
 
                 if (choice == 'start') {
-                    var {matchOpts} = this.settings
-                    if (isAdvanced) {
-                        matchOpts = await this.getMatchOpts(matchOpts, advancedOpts)
+                    const args = []
+                    if (isJoin) {
+                        const join = await ask()
+                        if (join.isCancel || !join.answer) {
+                            return false
+                        }
+                        args.push(join.answer)
+                    } else {
+                        var {matchOpts} = this.settings
+                        if (isAdvanced) {
+                            matchOpts = await this.getMatchOpts(matchOpts, advancedOpts)
+                        }
+                        args.push(matchOpts)
                     }
-                    await this[method](matchOpts)
+                    await this[method](...args)
                     return true
                 }
 
@@ -343,7 +349,7 @@ class Menu extends EventEmitter {
         })
     }
 
-    async settingsMenu() {
+    settingsMenu() {
 
         return this.runMenu('Settings', async (choose, loop) => {
 
@@ -461,22 +467,6 @@ class Menu extends EventEmitter {
         })
     }
 
-    async joinMenu() {
-
-        return this.crumb('Join', async () => {
-            // always break
-            while (true) {
-                var {answer, isCancel} = await this.questionAnswer(this.q.join())
-                if (!isCancel && answer) {
-                    await this.joinOnlineMatch(answer)
-                }
-                break
-            }
-
-            return true
-        })
-    }
-
     async promptCreateAccount() {
 
         await this.ensureCredentialsLoaded()
@@ -516,7 +506,8 @@ class Menu extends EventEmitter {
         await this.sendForgotPassword(credentials.serverUrl, answer)
         credentials.username = answer
 
-        this.alerter.info('Reset key requested, check your email.')
+        this.alerts.push(['info', 'Reset key requested, check your email.'])
+        await this.consumeAlerts()
 
         const answers = await this.prompt(this.q.forgotPassword(), null, {cancelOnInterrupt: true})
 
@@ -623,7 +614,8 @@ class Menu extends EventEmitter {
 
             if (err.isUserNotConfirmedError) {
 
-                this.logger.info('You must confirm your account. Check your email for a confirmation key.')
+                this.alerts.push(['info', 'You must confirm your account. Check your email for a confirmation key.'])
+                await this.consumeAlerts()
 
                 credentials.needsConfirm = true
 
@@ -637,7 +629,7 @@ class Menu extends EventEmitter {
         }
 
         const chlk = this.theme.alert
-        this.alerts.push(['info', chlk.success.message('Login success'), 'to', credentials.serverUrl])
+        this.alerts.push(['info', chlk.success.message('Login success'), 'to', credentials.serverUrl, Util.nchars(200, '-')])
 
         credentials.needsConfirm = false
         credentials.isTested = true
@@ -730,7 +722,7 @@ class Menu extends EventEmitter {
         try {
             const coordinator = this.newCoordinator()
             this.captureInterrupt = () => {
-                this.logger.warn('Canceling match')
+                this.alerts.push(['warn', 'Canceling match'])
                 coordinator.cancelMatch(match, players, new MatchCanceledError('Keyboard interrupt'))
                 return true
             }
@@ -746,7 +738,7 @@ class Menu extends EventEmitter {
         } finally {
             this.captureInterrupt = null
             await Util.destroyAll(players)
-            await this.term.clear()
+            await this.clearScreen()
         }
     }
 
@@ -891,7 +883,9 @@ class Menu extends EventEmitter {
     }
 
     prompt(questions, answers, opts) {
-        opts = {theme: this.theme, ...opts}
+        const indent = this.settings.termEnabled ? this.indent : 0
+        //const maxWidth = this.settings.termEnabled ? this.maxWidth : Infinity
+        opts = {indent, /*maxWidth,*/ theme: this.theme, ...opts}
         return new Promise((resolve, reject) => {
             if (opts.cancelOnInterrupt) {
                 this.captureInterrupt = () => {
@@ -903,6 +897,9 @@ class Menu extends EventEmitter {
                 }
             }
             this._prompt = this.inquirer.prompt(questions, answers, opts)
+            this._prompt.ui.process.subscribe(
+                () => this.linesToClear += 1
+            )
             this._prompt.then(answers => {
                 this.captureInterrupt = null
                 resolve(answers)
@@ -914,36 +911,29 @@ class Menu extends EventEmitter {
     }
 
     async runMenu(title, run) {
-        await this.beforeMenuStart()
-        return this.crumb(title, () => run(
-            hint => this.menuChoice(this.q.menu(title, hint))
-          , async loop => {
-                var res
-                while (true) {
-                    await this.clearAndConsume()
-                    res = await loop()
-                    if (res !== true) {
-                        break
-                    }
-                }
-                return res
-            }
-        ))
-    }
-
-    async crumb(message, cb) {
-        this.bread.push(message)
+        this.bread.push(title)
         try {
-            return await cb()
+            await this.ensureClearScreen()
+            await this.ensureLoaded(true)
+            this.lastMenuChoice = null
+            this.lastToggleChoice = null
+            return await run(
+                hint => this.menuChoice(this.q.menu(title, hint))
+              , async loop => {
+                    var res
+                    while (true) {
+                        await this.clearAndConsume()
+                        res = await loop()
+                        if (res !== true) {
+                            break
+                        }
+                    }
+                    return res
+                }
+            )
         } finally {
             this.bread.pop()
         }
-    }
-
-    async beforeMenuStart() {
-        await this.ensureLoaded(true)
-        this.lastMenuChoice = null
-        this.lastToggleChoice = null
     }
 
     async menuChoice(question, opts) {
@@ -967,12 +957,16 @@ class Menu extends EventEmitter {
 
     async questionAnswer(question, opts) {
         opts = {
-            cancelOnInterrupt: !!question.cancel
+            cancelOnInterrupt: !!question.cancel && !question.noInterrupt
           , ...opts
         }
         const {name} = question
         const oldValue = typeof question.default == 'function' ? question.default() : question.default
-        const answers = await this.prompt(question, null, opts)
+        var answers = {}
+        if (question.answer != null) {
+            answers[name] = question.answer
+        }
+        answers = await this.prompt(question, answers, opts)
         const answer = answers[name]
         const isCancel = !!answers._cancelEvent
         const isChange = !isCancel && answer != oldValue
@@ -1003,28 +997,82 @@ class Menu extends EventEmitter {
     }
 
     async clearMenu() {
-        await this.term.moveTo(0, 0).eraseDisplayBelow()
+        const width = this.term.width - this.indent
+        const height = 2 + this.linesToClear
+        this.term.eraseArea(this.indent, this.top, width, height).moveTo(1, this.top)
+        this.linesToClear = 0
     }
 
-    consumeAlerts() {
+    async clearScreen() {
+        this.term.clear()
+        this.linesToClear = 0
+    }
+
+    async eraseScreen() {
+        this.term.moveTo(1, 1).eraseDisplayBelow()
+        this.linesToClear = 0
+    }
+
+    async ensureClearScreen() {
+        if (!this.hasClearedScreen) {
+            await this.clearScreen()
+            this.hasClearedScreen = true
+        }
+    }
+
+    async consumeAlerts() {
         const alerts = this.alerts.splice(0)
+        if (!alerts.length) {
+            return
+        }
         const chlk = this.theme.alert
-        alerts.forEach(alert => {
-            try {
-                var [level, ...args] = castToArray(alert)
-                if (level == 'success') {
-                    args = args.map(msg => chlk.success.message(msg))
-                    level = 'info'
-                }
-                if (!this.alerter[level]) {
-                    args.unshift(level)
-                    level = 'warn'
-                }
-                this.alerter[level](...args)
-            } catch (err) {
-                this.logger.error(err)
+        const levelsMap = {
+            success : true
+          , info   : true
+          , warn   : true
+          , error  : true
+        }
+        const makeMsg = arg => arg instanceof Error
+            ? [arg.name || arg.constructor.name, arg.message].join(': ')
+            : arg
+        const strsWidth = args => sumArray(args.map(stringWidth)) + args.length - 1
+        const maxWidth = this.settings.termEnabled ? this.term.width - this.indent : Infinity
+
+
+        for (var alert of alerts) {
+
+            var args = castToArray(alert).map(makeMsg)
+            var level = levelsMap[args[0]] ? args.shift() : 'warn'
+            var alevel = level == 'success' ? 'info' : level
+
+            if (chlk[level].level) {
+                args.unshift(`[${level.toUpperCase()}]`)
             }
-        })
+
+            // truncate
+            // TODO: don't truncate, split lines
+            var lines = []
+            for (var len = strsWidth(args); len > maxWidth; len = strsWidth(args)) {
+                var surplus = len - maxWidth
+                var str = stripAnsi(args.pop())
+                if (str.length > surplus) {
+                    args.push(str.substring(0, str.length - surplus))
+                }
+            }
+            var msgs = args.map((msg, i) =>
+                i == 0 && chlk[level].level
+                    ? chlk[level].level(msg)
+                    : chlk[level].message(msg)
+            )
+
+            lines.push(msgs.join(chlk[level].message(' ')))
+
+            for (var line of lines) {
+                await this.term.right(this.indent)
+                this.alerter[alevel](line)
+                this.linesToClear += 1
+            }
+        }
     }
 
     async ensureLoaded(isQuiet) {
@@ -1051,7 +1099,7 @@ class Menu extends EventEmitter {
         if (this.settings.isCustomRobot && isEmptyObject(this.settings.robots)) {
             // populate for legacy format
             this.settings.robots = Menu.robotsDefaults()
-            this.logger.info('Migrating legacy robot config')
+            this.alerts.push(['info', 'Migrating legacy robot config'])
             await this.saveSettings()
         }
 
@@ -1060,7 +1108,9 @@ class Menu extends EventEmitter {
             this.alerter.theme = this.theme
         }
 
-        this.term.enabled = this.settings.termEnabled
+        if (this.term.enabled != this.settings.termEnabled) {
+            this.term.enabled = this.settings.termEnabled
+        }
 
         this.isSettingsLoaded = true
     }
@@ -1083,7 +1133,18 @@ class Menu extends EventEmitter {
         this.theme = Themes.getInstance(this.settings.theme)
         this.alerter.theme = this.theme
         // Set term enabled
-        this.term.enabled = this.settings.termEnabled
+        if (this.term.enabled != this.settings.termEnabled) {
+            this.term.enabled = this.settings.termEnabled
+            if (this.settings.termEnabled) {
+                if (this.hasClearedScreen) {
+                    await this.eraseScreen()
+                } else {
+                    await this.clearScreen()
+                }
+            } else {
+                this.hasClearedScreen = false
+            }
+        }
     }
 
     async loadCredentials() {

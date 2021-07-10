@@ -52,7 +52,10 @@ const {
 
 
 const {Chars} = Constants
-const {PlayChoiceMap} = Constants.Menu
+const {
+    MainChoiceMap
+  , PlayChoiceMap
+} = Constants.Menu
 
 function isCredentialsFilled(credentials, isServer) {
     const keys = ['username', 'password']
@@ -148,6 +151,8 @@ class Questions {
                   , choices : this.matchChoices(extra)
                   , default : () => menu.lastToggleChoice
                   , action  : {char: 'tab', name: '#toggle', all: false}
+                    // this skips the match menu for joinOnline
+                  , answer  : PlayChoiceMap[extra].matchAnswer
                 }
             case 'account':
                 return {
@@ -176,28 +181,11 @@ class Questions {
 
     mainChoices() {
         const menu = this._menu
+        const entries = Object.entries(MainChoiceMap)
+        const entryChoice = ([value, {name, select}]) => ({name, value, select})
         return this.formatChoices([
             this.br()
-          , {
-                value  : 'play'
-              , name   : 'Play'
-              , select : 'p'
-            }
-          , {
-                value  : 'account'
-              , name   : 'Account'
-              , select : 'a'
-            }
-          , {
-                value  : 'settings'
-              , name   : 'Settings'
-              , select : 's'
-            }
-          , {
-                value  : 'lab'
-              , name   : 'Lab'
-              , select : 'l'
-            }
+          , ...entries.map(entryChoice)
           , this.hr()
           , {
                 value  : 'quit'
@@ -211,29 +199,13 @@ class Questions {
 
     playChoices() {
         const menu = this._menu
+        const entries = Object.entries(PlayChoiceMap)
+        const entryChoice = ([name, {message}]) => ({value: name, name: message})
         return this.formatChoices([
             this.br()
-          , {
-                value : 'startOnline'
-              , name  : 'Create Online Match'
-            }
-          , {
-                value : 'joinOnline'
-              , name  : 'Join Online Match'
-            }
+          , ...entries.filter(([name, {isOnline}]) => isOnline).map(entryChoice)
           , this.hr()
-          , {
-                value : 'playHumans'
-              , name  : 'Human vs Human'
-            }
-          , {
-                value : 'playRobot'
-              , name  : 'Human vs Robot'
-            }
-          , {
-                value : 'playRobots'
-              , name  : 'Robot vs Robot'
-            }
+          , ...entries.filter(([name, {isOnline}]) => !isOnline).map(entryChoice)
           , this.hr()
           , {
                 value : 'back'
@@ -252,9 +224,9 @@ class Questions {
 
     matchChoices(playChoice) {
         const menu = this._menu
-        const {isOnline} = PlayChoiceMap[playChoice]
+        const {isOnline, isJoin} = PlayChoiceMap[playChoice]
         return this.formatChoices(
-            this.matchInitialChoices().concat([
+            this.matchInitialChoices(playChoice).concat([
                 // only show advanced for local matches
                 {
                     value : 'advanced'
@@ -278,14 +250,15 @@ class Questions {
         )
     }
 
-    matchInitialChoices() {
+    matchInitialChoices(playChoice) {
         const menu = this._menu
         return [
             this.br()
           , {
-                value  : 'start'
-              , name   : 'Start Match'
-              , select : 's'
+                value    : 'start'
+              , name     : 'Start Match'
+              , select   : 's'
+              , question : PlayChoiceMap[playChoice].isJoin ? this.matchId() : null
             }
           , this.hr()
           , {
@@ -372,7 +345,7 @@ class Questions {
         ]
     }
 
-    join() {
+    matchId() {
         return {
             name     : 'matchId'
           , message  : 'Match ID'
@@ -824,8 +797,10 @@ class Questions {
                 if (!('short' in choice)) {
                     choice.short = choice.name
                 }
-                const display = question.display ? question.display() : question.default()
-                choice.name = sp(choice.name.padEnd(maxLength + p, ' '), ':', display)
+                if (question.display || question.default) {
+                    const display = question.display ? question.display() : question.default()
+                    choice.name = sp(choice.name.padEnd(maxLength + p, ' '), ':', display)
+                }
             }
             i += 1
         })

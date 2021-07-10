@@ -22,14 +22,15 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-const chalk     = require('chalk')
-const crypto    = require('crypto')
-const emailval  = require('email-validator')
-const Errors    = require('./errors')
-const os        = require('os')
-const path      = require('path')
-const stripAnsi = require('strip-ansi')
-const uuid      = require('uuid')
+const chalk       = require('chalk')
+const crypto      = require('crypto')
+const emailval    = require('email-validator')
+const Errors      = require('./errors')
+const os          = require('os')
+const path        = require('path')
+const stringWidth = require('string-width')
+const stripAnsi   = require('strip-ansi')
+const uuid        = require('uuid')
 
 class Util {
 
@@ -438,12 +439,17 @@ class Util {
         return str
     }
 
+    static stringWidth(str) {
+        return stringWidth(str)
+    }
+
     // ansi safe
     static strlen(str) {
-        if (str == null) {
-            return 0
-        }
-        return Util.stripAnsi(str.toString()).length
+        return stringWidth(str)
+        //if (str == null) {
+        //    return 0
+        //}
+        //return Util.stripAnsi(str.toString()).length
     }
 
     static sumArray(arr) {

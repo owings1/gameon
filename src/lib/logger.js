@@ -27,7 +27,7 @@ const Themes  = require('../term/themes')
 const Util    = require('./util')
 const chalk   = require('chalk')
 
-const {stripAnsi} = Util
+const {stringWidth, stripAnsi} = Util
 
 const Levels = {
    debug : 4
@@ -62,7 +62,7 @@ const AlertThemeMessage = {
 class Logger {
 
     static defaults() {
-        return {server: false, named: false, alerter: false, theme: null}
+        return {server: false, named: false, alerter: false, theme: null/*, maxWidth: Infinity*/}
     }
 
     constructor(name, opts) {
@@ -163,16 +163,28 @@ class Logger {
 
     static getFormatAlerter(obj) {
         return ctx => {
+            obj.lastMessage = ctx.msg
+            return ctx.msg
+            /*
             const type = stripAnsi(ctx.type)
             const levelKey = AlertThemeLevels[type]
             const msgKey = AlertThemeMessage[type]
             const chlk = obj.theme.alert
             const parts = []
+            let msgWidth = 0
             if (levelKey) {
                 parts.push(chlk[levelKey].level(type.toUpperCase()))
+                msgWidth += type.length + 1
+            }
+            msgWidth += stringWidth(ctx.msg)
+            if (msgWidth > obj.opts.maxWidth) {
+                ctx.msg = stripAnsi(ctx.msg).substring(0, obj.opts.maxWidth)
             }
             parts.push(chlk[msgKey].message(ctx.msg))
-            return parts.join(chlk[msgKey].message(' '))
+            const msg = parts.join(chlk[msgKey].message(' '))
+            obj.lastMessage = msg
+            return msg
+            */
         }
     }
 }
