@@ -110,7 +110,11 @@ class ConfidenceRobot extends Robot {
             classMeta.class = require('./robots/' + classMeta.filename)
             classMeta.versions = classMeta.class.getClassVersions()
         }
-        return classMeta
+        // make a copy
+        return {
+            ...classMeta
+          , defaults: {...classMeta.defaults}
+        }
     }
 
     static getClassVersion(name, version) {

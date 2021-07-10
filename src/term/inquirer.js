@@ -174,7 +174,7 @@ class TextMethods {
     }
 
     static overrides() {
-        return ['onKeypress']
+        return ['onKeypress', 'filterInput']
     }
 
     cancel() {
@@ -216,6 +216,25 @@ class TextMethods {
             this.status = 'touched'
         }
         this.render()
+    }
+
+    /**
+     * @override for cancel, and to fix bug
+     *
+     * Bound to events.line before validation.
+     */
+    filterInput(input) {
+        if (this.isCancel) {
+            return this.opt.cancel.value
+        }
+        // Fix bug introduced in commit 73b6e658
+        // See https://github.com/SBoudrias/Inquirer.js/commit/73b6e658
+        // See https://github.com/owings1/Inquirer.js/commit/21ea73a3
+        if (this.status == 'touched') {
+            return input
+        }
+        return this.opt.default == null ? '' : this.opt.default
+        //return super.filterInput(input)
     }
 }
 
@@ -680,24 +699,6 @@ class InputPrompt extends Prompter.prompts.input {
     }
 
     /**
-     * @override for cancel, and to fix bug
-     *
-     * Bound to events.line before validation.
-     */
-    filterInput(input) {
-        if (this.isCancel) {
-            return this.opt.cancel.value
-        }
-        // Fix bug introduced in commit 73b6e658
-        // See https://github.com/SBoudrias/Inquirer.js/commit/73b6e658
-        // See https://github.com/owings1/Inquirer.js/commit/21ea73a3
-        if (this.status == 'touched') {
-            return input
-        }
-        return super.filterInput(input)
-    }
-
-    /**
      * @override for writeInvalid
      *
      * Bound to validation.error.
@@ -769,18 +770,6 @@ class PasswordPrompt extends Prompter.prompts.password {
     constructor(...args) {
         super(...args)
         this.initializer(...args)
-    }
-
-    /**
-     * @override for cancel
-     *
-     * Bound to events.line before validation.
-     */
-    filterInput(input) {
-        if (this.isCancel) {
-            return this.opt.cancel.value
-        }
-        return super.filterInput(input)
     }
 
    /**
@@ -1119,10 +1108,24 @@ class Separator extends inquirer.Separator {
         const line = chr.length ? nchars(15, chr) : ''
         super(line)
         this.char = chr
+        this._when = null
     }
     when(when) {
-        this.when = when
+        if (typeof when == 'undefined') {
+            if (this._when == null) {
+                return true
+            }
+            if (typeof this._when == 'function') {
+                return this._when()
+            }
+            return this._when
+        }
+        this._when = when
         return this
+    }
+    text(line) {
+        this.line = line
+        
     }
 }
 

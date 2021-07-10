@@ -518,7 +518,7 @@ describe('-', () => {
     describe('#newRobot', () => {
 
         it('should return custom robot with opts.isCustomRobot and opts.robots', () => {
-            const configs = Menu.robotDefaults()
+            const configs = Menu.robotsDefaults()
             configs.FirstTurnRobot.moveWeight = 0
             lab.opts.isCustomRobot = true
             lab.opts.robots = configs

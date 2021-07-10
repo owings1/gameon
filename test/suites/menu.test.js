@@ -577,7 +577,7 @@ describe('-', () => {
 
                 it('isCustomRobot=true robots non-empty', async () => {
                     await menu.ensureSettingsLoaded()
-                    menu.settings.robots = Menu.robotDefaults()
+                    menu.settings.robots = Menu.robotsDefaults()
                     menu.prompt = MockPrompter([
                         {choice: 'isCustomRobot'},
                         {isCustomRobot: true},
@@ -590,7 +590,7 @@ describe('-', () => {
                 it('isCustomRobot=true recordDir empty', async () => {
                     await menu.ensureSettingsLoaded()
                     menu.settings.recordDir = null
-                    menu.settings.robots = Menu.robotDefaults()
+                    menu.settings.robots = Menu.robotsDefaults()
                     menu.prompt = MockPrompter([
                         {choice: 'isCustomRobot'},
                         {isCustomRobot: true},
@@ -614,7 +614,7 @@ describe('-', () => {
 
             it('should reset RunningRobot moveWeight', async () => {
                 await menu.ensureSettingsLoaded()
-                menu.settings.robots = Menu.robotDefaults()
+                menu.settings.robots = Menu.robotsDefaults()
                 const exp = menu.settings.robots.RunningRobot.moveWeight
                 menu.settings.robots.RunningRobot.moveWeight *= 0.5
                 menu.prompt = MockPrompter([

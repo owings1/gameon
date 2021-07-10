@@ -268,7 +268,7 @@ describe('TermPlayer', () => {
 
         it('should return instance when isCustomRobot and robots are configs', () => {
             player.opts.isCustomRobot = true
-            player.opts.robots = Menu.robotDefaults()
+            player.opts.robots = Menu.robotsDefaults()
             const res = player.newRobot(Red)
             expect(res.isRobot).to.equal(true)
         })

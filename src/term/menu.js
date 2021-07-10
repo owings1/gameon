@@ -140,8 +140,7 @@ class Menu extends EventEmitter {
 
     async mainMenu() {
 
-        this.lastMenuChoice = null
-        this.lastToggleChoice = null
+        await this.beforeMenuStart()
 
         return this.crumb('Main', async () => {
 
@@ -169,12 +168,9 @@ class Menu extends EventEmitter {
 
     async playMenu() {
 
-        this.lastMenuChoice = null
-        this.lastToggleChoice = null
+        await this.beforeMenuStart()
 
         return this.crumb('Play', async () => {
-
-            await this.ensureSettingsLoaded()
 
             var isContinue
 
@@ -221,40 +217,39 @@ class Menu extends EventEmitter {
         })      
     }
 
-    async matchMenu(playChoice) {
+    matchMenu(playChoice) {
 
-        this.lastMenuChoice = null
-        this.lastToggleChoice = null
+        return this.runMenu('Match', async (choose, loop) => {
 
-        const {message, method, isAdvanced} = PlayChoiceMap[playChoice]
-
-        return this.crumb(message, async () => {
-
-            await this.ensureSettingsLoaded()
+            const {message, method, isAdvanced} = PlayChoiceMap[playChoice]
 
             var isContinue = true
             var advancedOpts = {}
 
-            while (true) {
-
-                await this.clearAndConsume()
+            await loop(async () => {
 
                 isContinue = true
 
-                var {choice, question, toggle} = await this.menuChoice(this.q.menu('Match', playChoice))
+                const {choice, toggle, ask} = await choose(playChoice)
 
                 if (choice == 'back') {
-                    break
+                    return
                 }
 
                 if (choice == 'quit') {
                     isContinue = false
-                    break
+                    return
+                }
+
+                if (toggle) {
+                    this.settings.matchOpts[choice] = !this.settings.matchOpts[choice]
+                    await this.saveSettings()
+                    return true
                 }
 
                 if (choice == 'advanced') {
                     advancedOpts = await this.promptMatchAdvancedOpts(advancedOpts)
-                    continue
+                    return true
                 }
 
                 if (choice == 'start') {
@@ -263,91 +258,76 @@ class Menu extends EventEmitter {
                         matchOpts = await this.getMatchOpts(matchOpts, advancedOpts)
                     }
                     await this[method](matchOpts)
-                    continue
+                    return true
                 }
 
-                if (toggle) {
-                    this.settings.matchOpts[toggle] = !this.settings.matchOpts[toggle]
-                    continue
-                }
+                const {answer, isCancel, isChange} = await ask()
 
-                var {answer, isCancel} = await this.questionAnswer(question)
-
-                if (isCancel) {
-                    continue
+                if (isCancel || !isChange) {
+                    return true
                 }
 
                 this.settings.matchOpts[choice] = answer
                 await this.saveSettings()
-            }
+
+                return true
+            })
 
             return isContinue
         })
     }
 
-    async accountMenu() {
+    accountMenu() {
 
-        this.lastMenuChoice = null
-        this.lastToggleChoice = null
+        return this.runMenu('Account', async (choose, loop) => {
 
-        return this.crumb('Account', async () => {
+            await loop(async () => {
 
-            await this.ensureCredentialsLoaded()
-
-            while (true) {
-
-                await this.clearAndConsume()
-
-                var {choice, question, isCancel} = await this.menuChoice(this.q.menu('Account'))
+                const {choice, ask} = await choose()
 
                 if (choice == 'done') {
-                    break
+                    return
                 }
 
                 if (choice == 'clearCredentials') {
                     this.clearCredentials()
                     await this.saveCredentials()
-                    continue
+                    return true
                 }
 
                 if (LoginChoiceMap[choice]) {
-                    var {message, method} = LoginChoiceMap[choice]
                     try {
-                        this.logger.log(message)
+                        const {message, method} = LoginChoiceMap[choice]
                         if (method) {
-                            var isAction = await this[method]()
-                            if (!isAction) {
-                                continue
+                            if (await this[method].call(this)) {
+                                this.alerts.push(['info', message])
+                            } else {
+                                return true
                             }
                         }
                     } catch (err) {
                         this.alerts.push(['error', err])
-                        continue
+                        return true
                     }
                 } else {
 
-                    var {answer, isCancel} = await this.questionAnswer(question)
-                    var oldValue = this.credentials[choice]
+                    const {answer, isCancel, isChange} = await ask()
 
-                    if (isCancel) {
-                        continue
-                    }
-
-                    if (answer == oldValue) {
-                        continue
-                    }
-
-                    if (choice == 'password') {
-                        answer = this.encryptPassword(answer)
+                    if (isCancel || !isChange) {
+                        return true
                     }
 
                     this.credentials.isTested = false
-                    this.credentials[choice] = answer
+                    if (choice == 'password') {
+                        this.credentials[choice] = this.encryptPassword(answer)
+                    } else {
+                        this.credentials[choice] = answer
+                    }
                 }
 
                 try {
                     if (!isCredentialsFilled(this.credentials, true)) {
-                        continue
+                        return true
                     }
                     await this.doLogin()
                 } catch (err) {
@@ -355,7 +335,9 @@ class Menu extends EventEmitter {
                 } finally {
                     await this.saveCredentials()
                 }
-            }
+
+                return true
+            })
 
             return true
         })
@@ -363,146 +345,117 @@ class Menu extends EventEmitter {
 
     async settingsMenu() {
 
-        this.lastMenuChoice = null
-        this.lastToggleChoice = null
+        return this.runMenu('Settings', async (choose, loop) => {
 
-        return this.crumb('Settings', async () => {
+            await loop(async () => {
 
-            await this.ensureSettingsLoaded()
-
-            while (true) {
-
-                await this.clearAndConsume()
-
-                var {choice, question, toggle} = await this.menuChoice(this.q.menu('Settings'))
+                const {choice, toggle, ask} = await choose()
 
                 if (choice == 'done') {
-                    break
+                    return
+                }
+
+                if (toggle) {
+                    this.settings[choice] = !this.settings[choice]
+                    await this.saveSettings()
+                    return true
                 }
 
                 if (choice == 'robotConfigs') {
                     await this.robotsMenu()
-                    continue
+                    return true
                 }
 
-                if (toggle) {
-                    this.settings[toggle] = !this.settings[toggle]
-                } else {
-                    var {answer, isCancel} = await this.questionAnswer(question)
-                    var isChange = this.settings[choice] != answer
+                const {answer, isCancel, isChange} = await ask()
 
-                    if (isCancel) {
-                        continue
-                    }
-
-                    this.settings[choice] = answer
+                if (isCancel || !isChange) {
+                    return true
                 }
 
+                this.settings[choice] = answer
                 await this.saveSettings()
 
-                if (choice == 'isCustomRobot' && isChange) {
-                    // We changed to custom robot, go directly to robots menu
-                    if (isEmptyObject(this.settings.robots)) {
-                        this.logger.info('Loading robot defaults')
-                        this.settings.robots = Menu.robotDefaults()
-                        await this.saveSettings()
-                    }
+                if (choice == 'isCustomRobot') {
+                    // We changed to custom robot, go directly to robots menu.
+                    // This excludes toggle above.
                     await this.robotsMenu()
-                    continue
+                    return true
                 }
 
-                if (choice == 'theme') {
-                    // Load current theme
-                    this.theme = Themes.getInstance(this.settings.theme)
-                    this.alerter.theme = this.theme
-                } else if (choice == 'termEnabled') {
-                    // Set term enabled
-                    this.term.enabled = this.settings.termEnabled
-                }
-            }
+                return true
+            })
 
             return true
         })
     }
 
-    async robotsMenu() {
+    robotsMenu() {
 
-        this.lastMenuChoice = null
-        this.lastToggleChoice = null
+        return this.runMenu('Robots', async (choose, loop) => {
 
-        return this.crumb('Robots', async () => {
+            if (isEmptyObject(this.settings.robots)) {
+                this.logger.info('Loading robot defaults')
+                this.settings.robots = this.robotsDefaults()
+                await this.saveSettings()
+            }
 
-            await this.ensureSettingsLoaded()
+            await loop(async () => {
 
-            while (true) {
-
-                await this.clearAndConsume()
-
-                var {choice} = await this.menuChoice(this.q.menu('Robots'))
+                const {choice} = await choose()
 
                 if (choice == 'done') {
-                    break
+                    return
                 }
 
                 if (choice == 'reset') {
-                    this.settings.robots = Menu.robotDefaults()
+                    this.settings.robots = this.robotsDefaults()
                     await this.saveSettings()
-                    continue
+                    return true
                 }
 
                 await this.robotMenu(choice)
-            }
+
+                return true
+            })
 
             return true
         })
     }
 
-    async robotMenu(name) {
+    robotMenu(name) {
 
-        this.lastMenuChoice = null
-        this.lastToggleChoice = null
-
-        return this.crumb('Robot:' + name, async () => {
-
-            await this.ensureSettingsLoaded()
-            const {defaults} = ConfidenceRobot.getClassMeta(name)
+        return this.runMenu('Robot', async (choose, loop) => {
 
             if (isEmptyObject(this.settings.robots[name])) {
-                this.settings.robots[name] = {
-                    version      : defaults.version
-                  , moveWeight   : 0
-                  , doubleWeight : 0
-                }
+                this.settings.robots[name] = this.robotMinimalConfig(name)
             }
 
-            // always break
-            while (true) {
+            await loop(async () => {
 
-                await this.clearAndConsume()
-
-                var {choice, question} = await this.menuChoice(this.q.menu('Robot', name))
+                const {choice, ask} = await choose(name)
 
                 if (choice == 'done') {
-                    break
+                    return
                 }
 
                 if (choice == 'reset') {
-                    this.settings.robots[name] = {...defaults}
+                    this.settings.robots[name] = this.robotDefaults(name)
                     await this.saveSettings()
-                    break
+                    return
                 }
 
-                var {answer, isCancel} = await this.questionAnswer(question)
+                const {answer, isCancel, isChange} = await ask()
 
-                if (isCancel) {
-                    break
+                if (isCancel || !isChange) {
+                    return
                 }
 
                 this.settings.robots[name][choice] = answer
                 await this.saveSettings()
 
-                break
-            }
+                // always break
+                //return true
+            })
 
             return true
         })
@@ -563,9 +516,9 @@ class Menu extends EventEmitter {
         await this.sendForgotPassword(credentials.serverUrl, answer)
         credentials.username = answer
 
-        this.alerts.push(['info', 'Reset key sent, check email'])
+        this.alerter.info('Reset key requested, check your email.')
 
-        const answers = await this.prompt(this.q.forgotPassword())
+        const answers = await this.prompt(this.q.forgotPassword(), null, {cancelOnInterrupt: true})
 
         if (answers._cancelEvent || !answers.resetKey) {
             return false
@@ -735,9 +688,7 @@ class Menu extends EventEmitter {
 
     async _runOnlineMatch(matchOpts, isStart, matchId) {
 
-        await this.ensureSettingsLoaded()
-        await this.ensureThemesLoaded()
-        await this.ensureCredentialsLoaded()
+        await this.ensureLoaded()
 
         const client = this.newClient(this.credentials, true)
 
@@ -864,53 +815,6 @@ class Menu extends EventEmitter {
         return RobotDelegator.forDefaults(...args)
     }
 
-    getMenuPrefix() {
-        if (this.bread.length > 1) {
-            return this.bread.slice(0, this.bread.length - 1).join(' > ') + ' >'
-        }
-        return ''
-    }
-
-    handleInterrupt() {
-        const handler = this.captureInterrupt
-        this.captureInterrupt = null
-        if (handler) {
-            this.logger.console.log()
-            return handler()
-        }
-        return 1
-    }
-
-    async clearAndConsume() {
-        await this.clearMenu()
-        await this.consumeAlerts()
-    }
-
-    async clearMenu() {
-        await this.term.moveTo(0, 0).eraseDisplayBelow()
-    }
-
-    consumeAlerts() {
-        const alerts = this.alerts.splice(0)
-        const chlk = this.theme.alert
-        alerts.forEach(alert => {
-            try {
-                var [level, ...args] = castToArray(alert)
-                if (level == 'success') {
-                    args = args.map(msg => chlk.success.message(msg))
-                    level = 'info'
-                }
-                if (!this.alerter[level]) {
-                    args.unshift(level)
-                    level = 'warn'
-                }
-                this.alerter[level](...args)
-            } catch (err) {
-                this.logger.error(err)
-            }
-        })
-    }
-
     async testCredentials(credentials, isDecrypt) {
         const client = this.newClient(credentials, isDecrypt)
         try {
@@ -988,7 +892,6 @@ class Menu extends EventEmitter {
 
     prompt(questions, answers, opts) {
         opts = {theme: this.theme, ...opts}
-        
         return new Promise((resolve, reject) => {
             if (opts.cancelOnInterrupt) {
                 this.captureInterrupt = () => {
@@ -1010,6 +913,24 @@ class Menu extends EventEmitter {
         })
     }
 
+    async runMenu(title, run) {
+        await this.beforeMenuStart()
+        return this.crumb(title, () => run(
+            hint => this.menuChoice(this.q.menu(title, hint))
+          , async loop => {
+                var res
+                while (true) {
+                    await this.clearAndConsume()
+                    res = await loop()
+                    if (res !== true) {
+                        break
+                    }
+                }
+                return res
+            }
+        ))
+    }
+
     async crumb(message, cb) {
         this.bread.push(message)
         try {
@@ -1017,6 +938,12 @@ class Menu extends EventEmitter {
         } finally {
             this.bread.pop()
         }
+    }
+
+    async beforeMenuStart() {
+        await this.ensureLoaded(true)
+        this.lastMenuChoice = null
+        this.lastToggleChoice = null
     }
 
     async menuChoice(question, opts) {
@@ -1029,12 +956,13 @@ class Menu extends EventEmitter {
         }
         const {answer, isCancel, toggle, ...result} = await this.questionAnswer(question, opts)
         question = choiceQuestion(question.choices, answer)
+        const ask = () => this.questionAnswer(question, opts)
         const choice = answer
         if (!isCancel) {
             this.lastMenuChoice = choice
         }
         this.lastToggleChoice = toggle
-        return {answer, isCancel, choice, question, toggle, ...result}
+        return {answer, isCancel, choice, question, ask, toggle, ...result}
     }
 
     async questionAnswer(question, opts) {
@@ -1043,19 +971,66 @@ class Menu extends EventEmitter {
           , ...opts
         }
         const {name} = question
+        const oldValue = typeof question.default == 'function' ? question.default() : question.default
         const answers = await this.prompt(question, null, opts)
         const answer = answers[name]
         const isCancel = !!answers._cancelEvent
+        const isChange = !isCancel && answer != oldValue
         const toggle = answers['#toggle']
-        return {answers, answer, isCancel, toggle}
+        return {answers, answer, isCancel, oldValue, isChange, toggle}
     }
 
-    encryptPassword(password) {
-        return password ? Util.encrypt1(password, this.chash) : ''
+    getMenuPrefix() {
+        if (this.bread.length > 1) {
+            return this.bread.slice(0, this.bread.length - 1).join(' > ') + ' >'
+        }
+        return ''
     }
 
-    decryptPassword(password) {
-        return password ? Util.decrypt1(password, this.chash) : ''
+    handleInterrupt() {
+        const handler = this.captureInterrupt
+        this.captureInterrupt = null
+        if (handler) {
+            this.logger.console.log()
+            return handler()
+        }
+        return 1
+    }
+
+    async clearAndConsume() {
+        await this.clearMenu()
+        await this.consumeAlerts()
+    }
+
+    async clearMenu() {
+        await this.term.moveTo(0, 0).eraseDisplayBelow()
+    }
+
+    consumeAlerts() {
+        const alerts = this.alerts.splice(0)
+        const chlk = this.theme.alert
+        alerts.forEach(alert => {
+            try {
+                var [level, ...args] = castToArray(alert)
+                if (level == 'success') {
+                    args = args.map(msg => chlk.success.message(msg))
+                    level = 'info'
+                }
+                if (!this.alerter[level]) {
+                    args.unshift(level)
+                    level = 'warn'
+                }
+                this.alerter[level](...args)
+            } catch (err) {
+                this.logger.error(err)
+            }
+        })
+    }
+
+    async ensureLoaded(isQuiet) {
+        await this.ensureThemesLoaded(isQuiet)
+        await this.ensureSettingsLoaded()
+        await this.ensureCredentialsLoaded()
     }
 
     async loadSettings() {
@@ -1075,7 +1050,7 @@ class Menu extends EventEmitter {
 
         if (this.settings.isCustomRobot && isEmptyObject(this.settings.robots)) {
             // populate for legacy format
-            this.settings.robots = Menu.robotDefaults()
+            this.settings.robots = Menu.robotsDefaults()
             this.logger.info('Migrating legacy robot config')
             await this.saveSettings()
         }
@@ -1104,6 +1079,11 @@ class Menu extends EventEmitter {
             const settings = Util.defaults(Menu.settingsDefaults(), this.settings)
             await fse.writeJson(settingsFile, settings, {spaces: 2})
         }
+        // Load current theme
+        this.theme = Themes.getInstance(this.settings.theme)
+        this.alerter.theme = this.theme
+        // Set term enabled
+        this.term.enabled = this.settings.termEnabled
     }
 
     async loadCredentials() {
@@ -1201,11 +1181,11 @@ class Menu extends EventEmitter {
         return loaded
     }
 
-    async ensureThemesLoaded() {
+    async ensureThemesLoaded(isQuiet) {
         if (this.isThemesLoaded) {
             return
         }
-        await this.loadCustomThemes()
+        await this.loadCustomThemes(isQuiet)
     }
 
     getSettingsFile() {
@@ -1230,6 +1210,30 @@ class Menu extends EventEmitter {
         if (this.configDir) {
             return path.resolve(this.configDir, 'themes')
         }
+    }
+
+    encryptPassword(password) {
+        return password ? Util.encrypt1(password, this.chash) : ''
+    }
+
+    decryptPassword(password) {
+        return password ? Util.decrypt1(password, this.chash) : ''
+    }
+
+    robotsDefaults() {
+        return Menu.robotsDefaults()
+    }
+
+    robotMeta(name) {
+        return Menu.robotMeta(name)
+    }
+
+    robotDefaults(name) {
+        return Menu.robotDefaults(name)
+    }
+
+    robotMinimalConfig(name) {
+        return Menu.robotMinimalConfig(name)
     }
 
     static settingsDefaults() {
@@ -1263,13 +1267,29 @@ class Menu extends EventEmitter {
         }
     }
 
-    static robotDefaults() {
+    static robotsDefaults() {
         const defaults = {}
         RobotDelegator.listClassNames().forEach(name => {
-            const meta = ConfidenceRobot.getClassMeta(name)
-            defaults[name] = {...meta.defaults}
+            defaults[name] = Menu.robotDefaults(name)
         })
         return defaults
+    }
+
+    static robotMeta(name) {
+        const {defaults, versions} = ConfidenceRobot.getClassMeta(name)
+        return {defaults, versions}
+    }
+
+    static robotDefaults(name) {
+        return Menu.robotMeta(name).defaults
+    }
+
+    static robotMinimalConfig(name) {
+        return {
+            ...Menu.robotDefaults(name)
+          , moveWeight   : 0
+          , doubleWeight : 0
+        }
     }
 
     static getDefaultConfigDir() {

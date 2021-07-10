@@ -44,6 +44,7 @@ const {
     append
   , errMessage
   , homeTilde
+  , padEnd
   , padStart
   , sp
   , tildeHome
@@ -71,6 +72,32 @@ function getDiffChalk(a, b) {
 
 function chalkDiff(value, defaultValue) {
     return getDiffChalk(value, defaultValue)(value.toString())
+}
+
+function weightValidator(value) {
+    return errMessage(() =>
+        RobotDelegator.validateWeight(value)
+    )
+}
+
+function stateValidator(value) {
+    if (!value.length) {
+        return true
+    }
+    try {
+        Board.fromStateString(value).analyzer.validateLegalBoard()
+    } catch (err) {
+        return err.message
+    }
+    return true
+}
+
+function rollsFileValidator(value) {
+    if (!value.length) {
+        return true
+    }
+    const data = fse.readJsonSync(value)
+    return errMessage(() => Dice.validateRollsData(data))
 }
 
 const CancelChars = {
@@ -149,7 +176,7 @@ class Questions {
 
     mainChoices() {
         const menu = this._menu
-        return Questions.formatChoices([
+        return this.formatChoices([
             this.br()
           , {
                 value  : 'play'
@@ -184,7 +211,7 @@ class Questions {
 
     playChoices() {
         const menu = this._menu
-        return Questions.formatChoices([
+        return this.formatChoices([
             this.br()
           , {
                 value : 'startOnline'
@@ -226,30 +253,29 @@ class Questions {
     matchChoices(playChoice) {
         const menu = this._menu
         const {isOnline} = PlayChoiceMap[playChoice]
-        const choices = this.matchInitialChoices()
-
-        append(choices, [
-            // only show advanced for local matches
-            {
-                value : 'advanced'
-              , name  : 'Advanced'
-              , when  : !isOnline
-            }
-          , this.hr().when(!isOnline)
-          , {
-                value : 'back'
-              , name  : 'Back'
-              , when  : menu.bread.length > 1
-              , enter : EnterChars.back
-            }
-          , {
-                value  : 'quit'
-              , name   : 'Quit'
-              , select : 'q'
-            }
-          , this.br()
-        ])
-        return Questions.formatChoices(choices)
+        return this.formatChoices(
+            this.matchInitialChoices().concat([
+                // only show advanced for local matches
+                {
+                    value : 'advanced'
+                  , name  : 'Advanced'
+                  , when  : !isOnline
+                }
+              , this.hr().when(!isOnline)
+              , {
+                    value : 'back'
+                  , name  : 'Back'
+                  , when  : menu.bread.length > 1
+                  , enter : EnterChars.back
+                }
+              , {
+                    value  : 'quit'
+                  , name   : 'Quit'
+                  , select : 'q'
+                }
+              , this.br()
+            ])
+        )
     }
 
     matchInitialChoices() {
@@ -324,24 +350,6 @@ class Questions {
 
     matchAdvanced(advancedOpts) {
         advancedOpts = advancedOpts || {}
-        const stateValidator = value => {
-            if (!value.length) {
-                return true
-            }
-            try {
-                Board.fromStateString(value).analyzer.validateLegalBoard()
-            } catch (err) {
-                return err.message
-            }
-            return true
-        }
-        const rollsFileValidator = value => {
-            if (!value.length) {
-                return true
-            }
-            const data = fse.readJsonSync(value)
-            return errMessage(() => Dice.validateRollsData(data))
-        }
         return [
             {
                 name     : 'startState'
@@ -379,7 +387,7 @@ class Questions {
         const isFilled = isCredentialsFilled(menu.credentials)
         const {needsConfirm} = menu.credentials
         const hasCredential = menu.credentials.username || menu.credentials.password
-        return Questions.formatChoices([
+        return this.formatChoices([
             this.br()
           , {
                 value : 'done'
@@ -515,10 +523,16 @@ class Questions {
 
     forgotPassword() {
         return [
-            this.resetKey()
+            {
+                name    : 'resetKey'
+              , type    : 'input'
+              , message : 'Enter reset key'
+              , cancel  : CancelChars.input
+            }
           , {
                 ...this.password()
-              , when: answers => !answers._cancelEvent && answers.resetKey
+              , message : 'New password'
+              , when    : answers => !answers._cancelEvent && answers.resetKey
             }
           , {
                 ...this.passwordConfirm()
@@ -544,18 +558,9 @@ class Questions {
         }
     }
 
-    resetKey() {
-        return {
-            name    : 'resetKey'
-          , message : 'Reset Key'
-          , type    : 'input'
-          , cancel  : CancelChars.input
-        }
-    }
-
     settingsChoices() {
         const menu = this._menu
-        return Questions.formatChoices([
+        return this.formatChoices([
             this.br()
           , {
                 value  : 'done'
@@ -673,55 +678,51 @@ class Questions {
 
     robotsChoices() {
         const menu = this._menu
-        return Questions.formatChoices([
-            {
+        const entries = Object.entries(menu.robotsDefaults())
+        return this.formatChoices([
+            this.br()
+          , {
                 value  : 'done'
               , name   : 'Done'
               , enter  : EnterChars.back
               , select : 'd'
             }
+          , this.hr()
           , {
                 value  : 'reset'
               , name   : 'Reset defaults'
               , select : 'r'
             }
-          , ...RobotDelegator.listClassNames().map(name => {
-                const {defaults} = ConfidenceRobot.getClassMeta(name)
-                return {
+          , this.hr()
+          , ...entries.map(([name, defaults]) => (
+                {
                     value    : name
                   , name     : name
                   , question : {
                         display : () => {
-                            const config = menu.settings.robots[name] || {
-                                version      : defaults.version
-                              , moveWeight   : 0
-                              , doubleWeight : 0
-                            }
+                            const config = menu.settings.robots[name] || menu.robotMinimalConfig(name)
                             const b = new StringBuilder
                             b.sp(
-                                'version:'
-                              , chalkDiff(config.version, defaults.version) + ','
-                              , 'moveWeight:'
-                              , padStart(chalkDiff(config.moveWeight, defaults.moveWeight), 4, ' ') + ','
-                              , 'doubleWeight:'
+                                chalkDiff(config.version, defaults.version) + ','
+                              , 'move:'
+                              , padEnd(chalkDiff(config.moveWeight, defaults.moveWeight), 4, ' ') + ','
+                              , 'double:'
                               , chalkDiff(config.doubleWeight, defaults.doubleWeight)
                             )
                             return b.toString()
                         }
                     }
                 }
-            })
+            ))
+          , this.br()
         ])
     }
 
     robotChoices(name) {
         const menu = this._menu
-        const {defaults, versions} = ConfidenceRobot.getClassMeta(name)
+        const {defaults, versions} = menu.robotMeta(name)
         const config = () => menu.settings.robots[name]
-        const weightValidator = value => errMessage(() =>
-            RobotDelegator.validateWeight(value)
-        )
-        return Questions.formatChoices([
+        return this.formatChoices([
             {
                 value  : 'done'
               , name   : 'Done'
@@ -792,6 +793,10 @@ class Questions {
 
     hr() {
         return new this._menu.inquirer.Separator()
+    }
+
+    formatChoices(choices) {
+        return Questions.formatChoices(choices)
     }
 
     static formatChoices(choices) {
