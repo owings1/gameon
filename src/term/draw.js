@@ -30,8 +30,8 @@ const Robot       = require('../robot/player')
 const Themes      = require('./themes')
 const Util        = require('../lib/util')
 
-const inquirer = require('inquirer')
-const term     = require('terminal-kit').terminal
+const ansiEscapes = require('ansi-escapes')
+const term        = require('terminal-kit').terminal
 
 const {RobotDelegator} = Robot
 const {StringBuilder}  = Util
@@ -898,6 +898,13 @@ class TermHelper {
         return this
     }
 
+    column(...args) {
+        if (this.enabled) {
+            this.term.column(...args)
+        }
+        return this
+    }
+
     get height() {
         if (this.enabled) {
             return this.term.height
@@ -919,19 +926,55 @@ class TermHelper {
         return this.term.getCursorLocation(...args)
     }
 
-    column(...args) {
-        if (!this.enabled) {
-            return
-        }
-        this.term.column(...args)
-    }
+
 
     
     */
 }
 
+class AnsiHelper {
+
+    constructor(inst) {
+        this.inst = inst
+    }
+
+    get rl() {
+        return this.inst.rl
+    }
+
+    left(x) {
+        return this.write(ansiEscapes.cursorBackward(x))
+    }
+
+    right(x) {
+        return this.write(ansiEscapes.cursorForward(x))
+    }
+
+    up(x) {
+        return this.write(ansiEscapes.cursorUp(x))
+    }
+
+    down(x) {
+        return this.write(ansiEscapes.cursorDown(x))
+    }
+
+    moveTo(x, y) {
+        return this.write(ansiEscapes.cursorTo(x, y))
+    }
+
+    column(x) {
+        return this.write(ansiEscapes.cursorTo(x))
+    }
+
+    write(str) {
+        this.rl.output.write(str)
+        return this
+    }
+}
+
 module.exports = {
-    DrawHelper
+    AnsiHelper
+  , DrawHelper
   , Reporter
   , TermHelper
 }

@@ -55,11 +55,12 @@ const path     = require('path')
 const {EventEmitter} = require('events')
 
 const QuestionHelper = require('./helpers/menu.questions')
-const {inquirer} = require('./inquirer')
+const {inquirer, ScreenManager} = require('./inquirer')
 
 const {
     castToArray
   , isEmptyObject
+  , nchars
   , stringWidth
   , stripAnsi
   , sumArray
@@ -141,11 +142,46 @@ class Menu extends EventEmitter {
         this.term  = new TermHelper(this.settings.termEnabled)
         this.top = 10
         this.maxWidth = 80
-        this.linesToClear = 0
 
         this.inquirer = inquirer
         this.q = new QuestionHelper(this)
-        this.lastPromptOpts = this.getPromptOpts()
+
+        this.screenStatus = {
+            trackHeight: 0
+          , thisHeight: 0
+          , get height() {
+                return this.trackHeight + this.thisHeight
+            }
+          , width : 0
+          , indent : null
+          , checkIndent : function (indent) {
+                if (this.indent == null) {
+                    this.indent = indent
+                }
+                if (indent != this.indent) {
+                    this.width += Math.abs(index - this.indent)
+                    this.indent = Math.min(indent, this.indent)
+                }
+            }
+          , reset: function () {
+                this.trackHeight = 0
+                this.thisHeight = 0
+                this.width = 0
+                this.indent = null
+            }
+        }
+        this.on('screenStart', ({indent}) => {
+            const status = this.screenStatus
+            status.trackHeight += status.thisHeight
+            status.thisHeight = 0
+            status.checkIndent(indent)
+        })
+        this.on('screenRender', ({indent, width, height}) => {
+            const status = this.screenStatus
+            status.checkIndent(indent)
+            status.width = Math.max(status.width, width)
+            status.thisHeight = Math.max(status.thisHeight, height)
+        })
     }
 
     mainMenu() {
@@ -630,7 +666,7 @@ class Menu extends EventEmitter {
         }
 
         const chlk = this.theme.alert
-        this.alerts.push(['info', chlk.success.message('Login success'), 'to', credentials.serverUrl, Util.nchars(200, '-')])
+        this.alerts.push(['info', chlk.success.message('Login success'), 'to', credentials.serverUrl, nchars(200, '-')])
 
         credentials.needsConfirm = false
         credentials.isTested = true
@@ -896,30 +932,27 @@ class Menu extends EventEmitter {
                 }
             }
             this._prompt = this.inquirer.prompt(questions, answers, opts)
-            this._prompt.ui.process.subscribe(
-                () => this.linesToClear += 1
-            )
             this._prompt.then(answers => {
                 this.captureInterrupt = null
-                this.lastPromptOpts = opts
                 resolve(answers)
             }).catch(err => {
                 this.captureInterrupt = null
-                this.lastPromptOpts = opts
                 reject(err)
             })
         })
     }
 
     getPromptOpts() {
-        const opts = {theme: this.theme}
+        const opts = {theme: this.theme, emitter: this}
         if (this.settings.termEnabled) {
             const extraWidth = this.term.width - this.maxWidth
             opts.maxWidth = Math.min(this.maxWidth, this.term.width)
             opts.indent = Math.max(0, Math.floor(extraWidth / 2))
+            opts.top = this.top
         } else {
             opts.maxWidth = Infinity
             opts.indent = 0
+            opts.top = 1
         }
         return opts
     }
@@ -960,7 +993,10 @@ class Menu extends EventEmitter {
         }
         const {answer, isCancel, toggle, ...result} = await this.questionAnswer(question, opts)
         question = choiceQuestion(question.choices, answer)
-        const ask = () => this.questionAnswer(question, opts)
+        const ask = async () => {
+            await this.clearAndConsume()
+            return this.questionAnswer(question, opts)
+        }
         const choice = answer
         if (!isCancel) {
             this.lastMenuChoice = choice
@@ -1011,27 +1047,39 @@ class Menu extends EventEmitter {
     }
 
     async clearMenu() {
-        const {maxWidth, indent} = this.lastPromptOpts
-        const height = 2 + this.linesToClear
-        this.term.eraseArea(indent, this.top, maxWidth, height).moveTo(1, this.top)
-        this.linesToClear = 0
+        //console.log(this.screenStatus)
+        //await new Promise(resolve => setTimeout(resolve, 1000))
+        const {indent, width, height} = this.screenStatus
+        this.term.eraseArea(indent + 1, this.top, width, height)
+        this.term.moveTo(1, this.top)
+        this.screenStatus.reset()
     }
 
-    async clearScreen() {
+    writeBg() {
+        this.term.moveTo(1, 1)
+        for (var i = 0; i < this.term.height; ++i) {
+            console.log(chalk.bgGreen.green(nchars(this.term.width, 'x')))
+        }
+        this.term.moveTo(1, 1)
+    }
+
+    clearScreen() {
         this.term.clear()
-        this.linesToClear = 0
+        this.eraseScreen()
     }
 
-    async eraseScreen() {
+    eraseScreen() {
         this.term.moveTo(1, 1).eraseDisplayBelow()
-        this.linesToClear = 0
+        this.writeBg()
+        this.screenStatus.reset()
     }
 
     async ensureClearScreen() {
-        if (!this.hasClearedScreen) {
-            await this.clearScreen()
-            this.hasClearedScreen = true
+        if (this.hasClearedScreen) {
+            return
         }
+        this.clearScreen()
+        this.hasClearedScreen = true
     }
 
     async consumeAlerts() {
@@ -1050,7 +1098,7 @@ class Menu extends EventEmitter {
             ? [arg.name || arg.constructor.name, arg.message].join(': ')
             : arg
         const strsWidth = args => sumArray(args.map(stringWidth)) + args.length - 1
-        const {maxWidth, indent} = this.lastPromptOpts
+        const {maxWidth, indent} = this.getPromptOpts()
 
         for (var alert of alerts) {
 
@@ -1081,9 +1129,10 @@ class Menu extends EventEmitter {
             lines.push(msgs.join(chlk[level].message(' ')))
 
             for (var line of lines) {
+                this.emit('screenStart', {indent})
                 await this.term.right(indent)
                 this.alerter[alevel](line)
-                this.linesToClear += 1
+                this.emit('screenRender', {indent, width: stringWidth(line), height: 1})
             }
         }
     }

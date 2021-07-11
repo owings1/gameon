@@ -57,13 +57,18 @@ const Util      = require('../lib/util')
 const cliWidth    = require('cli-width')
 const inquirer    = require('inquirer')
 const observe     = require('inquirer/lib/utils/events')
+const readline    = require('readline')
 const RlUtil      = require('inquirer/lib/utils/readline')
 const ScreenBase  = require('inquirer/lib/utils/screen-manager')
+const term        = require('terminal-kit').terminal
 const {takeUntil} = require('rxjs/operators')
 // for patch
 const {map} = require('rxjs/operators')
 
 const {Chars} = Constants
+const {EventEmitter} = require('events')
+
+const {AnsiHelper} = require('./draw')
 
 const {
     castToArray
@@ -89,10 +94,18 @@ const ModifiedStatuses = {
 
 const Prompter = inquirer.createPromptModule()
 
-// Add options parameter, which goes to question.settings
+const NullEmitter = new EventEmitter
+// Add options parameter, which goes to question.opts
 Prompter.prompt = (questions, answers, opts = {}) => {
     questions = castToArray(questions).map(question =>
-        ({...question, settings: {...opts, ...question.settings}})
+        ({
+            ...question
+          , opts: {
+                emitter: NullEmitter
+              , ...opts
+              , ...question.opts
+            }
+        })
     )
     return Prompter(questions, answers)
 }
@@ -123,7 +136,7 @@ Object.entries(RlUtil).forEach(([name, method]) =>
 class BaseMethods {
 
     _constructor(question) {
-        this.screen = new ScreenManager(this.rl, question.settings)
+        this.screen = new ScreenManager(this.rl, question.opts)
         this._keypressIndex = {}
         this._keyHandlers = {}
     }
@@ -311,6 +324,7 @@ class ListMethods {
                 message += chlk.message.prompt('  ' + this.opt.promptMessage + ': ')
                 message += chlk.input(this.rl.line)
             }
+            //bottomContent += 'You are looking at a list'
         }
 
         if (error) {
@@ -478,7 +492,7 @@ class ThemeFeature {
     }
 
     _constructor(question) {
-        this.theme = Themes.getSafe(this.opt.theme || this.opt.settings.theme)
+        this.theme = Themes.getSafe(this.opt.theme || this.opt.opts.theme)
         this.chlk = this.theme.prompt
         this.isPrefixDefault = !('prefix' in question)
     }
@@ -941,9 +955,12 @@ class RawListPrompt extends Prompter.prompts.rawlist {
         if (this.isCancel) {
             return this.opt.cancel.value
         }
-        if (index == null && this.selected != null) {
-            // super expects 1-based, not 0-based.
-            index = this.selected + 1
+        if (index == null || index == '') {
+            if (this.selected != null) {
+                // super expects 1-based, not 0-based.
+                return super.getCurrentValue(this.selected + 1)
+            }
+            return null
         }
         return super.getCurrentValue(index)
     }
@@ -1154,14 +1171,21 @@ class ScreenManager extends ScreenBase {
         super(rl)
         opts = {
             indent       : 0
+          //, top          : 1
           , maxWidth     : Infinity
           , defaultWidth : 80
+          , emitter      : NullEmitter
           , ...opts
         }
         //opts.indent = 15
         //opts.maxWidth = 70//99
         this.opts = opts
-        this.cur = new RlHelper(this)
+        this.cur = new AnsiHelper(this)
+        this.isFirstRender = true
+        this.width = 0
+        this.height = 0
+        this.widthMax = 0
+        this.heightMax = 0
     }
 
    /**
@@ -1173,41 +1197,46 @@ class ScreenManager extends ScreenBase {
     */
     render(content, bottomContent, spinning = false) {
 
+        //debug({height: this.height, widht: this.width})
         const {opts} = this
+        const {emitter} = opts
+
         if (this.spinnerId && !spinning) {
             clearInterval(this.spinnerId)
         }
 
         this.rl.output.unmute()
-        this.clean(this.extraLinesUnderPrompt)
 
         /**
          * Write message to screen and setPrompt to control backspace
          */
 
-        const width = Math.min(this.normalizedCliWidth() - opts.indent, opts.maxWidth)
-        const lessWidth = Math.max(0, this.normalizedCliWidth() - width)
-
+        const maxWidth = Math.min(this.normalizedCliWidth() - opts.indent, opts.maxWidth)
+        const lessWidth = Math.max(0, this.normalizedCliWidth() - maxWidth)
 
         const promptLine = content.split('\n').pop()
         const rawPromptLine = stripAnsi(promptLine)
-        const isEndOfLine = rawPromptLine.length % width === 0
+        const isEndOfLine = rawPromptLine.length % maxWidth === 0
 
         // How many additional lines (> 1) for the prompt.
-        const extraPromptLineCount = Math.floor(rawPromptLine.length / width)
+        const extraPromptLineCount = Math.floor(rawPromptLine.length / maxWidth)
 
         // debug
         //bottomContent = JSON.stringify({
         //    norm: this.normalizedCliWidth()
-        //  , width
+        //  , maxWidth
         //  , isEndOfLine
         //  , lessWidth
         //  , 'rawPromptLine.length' : rawPromptLine.length
         //})
-
-        content = this.forceLineReturn(content, width)
         if (bottomContent) {
-            bottomContent = this.forceLineReturn(bottomContent, width)
+            bottomContent += '\n'
+        }
+        bottomContent += 'butterfly knife'
+
+        content = this.forceLineReturn(content, maxWidth)
+        if (bottomContent) {
+            bottomContent = this.forceLineReturn(bottomContent, maxWidth)
         }
 
         const bottomLineCount = bottomContent ? bottomContent.split('\n').length : 0
@@ -1215,7 +1244,11 @@ class ScreenManager extends ScreenBase {
         const fullContent = content + (bottomContent ? '\n' + bottomContent : '')
         const fullLines = fullContent.split('\n')
         const lastFullLine = fullLines[fullLines.length - 1]
+        const minWidth = Math.max(...fullLines.map(stringWidth))
 
+        if (this.isFirstRender) {
+            emitter.emit('screenStart', opts)
+        }
         // Correct for input longer than width when width is less than available
         const addPromptLen = extraPromptLineCount * lessWidth
 
@@ -1240,6 +1273,9 @@ class ScreenManager extends ScreenBase {
         const promptLineUpDiff = extraPromptLineCount - cursorPos.rows
         const bottomHeight = promptLineUpDiff + bottomLineCount
 
+        this.clean()
+
+        this.cur.column(0)
         // Write content lines
         fullLines.forEach((line, i) => {
             if (i > 0) {
@@ -1247,6 +1283,9 @@ class ScreenManager extends ScreenBase {
             }
             if (opts.indent) {
                 this.cur.right(opts.indent)
+            }
+            if (this.isFirstRender || i >= this.height) {
+                term.erase(minWidth)
             }
             this.rl.output.write(line)
         })
@@ -1274,9 +1313,55 @@ class ScreenManager extends ScreenBase {
          * Set up state for next re-rendering
          */
         this.extraLinesUnderPrompt = bottomHeight
+        this.width = Math.max(this.width, minWidth)
         this.height = fullLines.length
+        this.maxHeight = Math.max(this.heightMax, this.height)
 
         this.rl.output.mute()
+
+        const result = {
+            width         : this.width
+          , height        : this.height
+          , indent        : opts.indent
+          , isFirstRender : this.isFirstRender
+        }
+
+        emitter.emit('screenRender', result)
+
+        this.isFirstRender = false
+    }
+
+    /**
+     * @override
+     */
+    clean() {
+        if (this.isFirstRender || !this.width || !this.height) {
+            return
+        }
+
+        const {opts} = this
+
+        const extraLines = this.extraLinesUnderPrompt
+        const next = ['down', 'up'][+this.isFirstRender]
+        const prev = ['up', 'down'][+this.isFirstRender]    
+
+        for (var i = 0; i < extraLines; ++i) {
+            this.cur.down(1)
+            this.cur.column(opts.indent)
+            term.erase(this.width)
+        }
+
+        this.cur.up(this.height)
+
+        for (var i = 0; i < this.height; ++i) {
+            this.cur.down(1)
+            this.cur.column(opts.indent)
+            term.erase(this.width)
+        }
+        
+        if (!this.isFirstRender) {
+            this.cur.up(this.height - 1)
+        }
     }
 
     /**
@@ -1323,7 +1408,8 @@ Object.entries(Prompts).forEach(([name, PromptClass]) => {
 })
 
 const AddClasses = {
-    Separator
+    ScreenManager
+  , Separator
 }
 
 Object.entries(AddClasses).forEach(([name, AddClass]) => {
