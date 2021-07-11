@@ -44,21 +44,23 @@ const {Match, Board, Dice} = Core
 const {DependencyHelper}   = Util
 const {StringBuilder}      = Util
 
-const chalk    = require('chalk')
-const crypto   = require('crypto')
-const fs       = require('fs')
-const fse      = require('fs-extra')
-const globby   = require('globby')
-const os       = require('os')
-const path     = require('path')
+const chalk      = require('chalk')
+const fs         = require('fs')
+const fse        = require('fs-extra')
+const globby     = require('globby')
+const {inquirer} = require('./inquirer')
+const os         = require('os')
+const path       = require('path')
 
 const {EventEmitter} = require('events')
 
-const Questions = require('./helpers/menu.questions')
-const {inquirer, ScreenManager} = require('./inquirer')
+const Alerts       = require('./helpers/menu.alerts')
+const Questions    = require('./helpers/menu.questions')
+const ScreenStatus = require('./helpers/menu.screen')
 
 const {
     castToArray
+  , forceLineReturn
   , isCredentialsFilled
   , isEmptyObject
   , nchars
@@ -105,70 +107,6 @@ const InterruptCancelAnsers = {
     _cancelEvent: InterruptCancelEvent
 }
 
-class ScreenStatus extends EventEmitter {
-
-    constructor(defaults) {
-        super()
-        this._defaults = defaults
-        this.reset()
-        this.on('beforeFirstRender', () => {
-            this.trackBottom += this.thisHeight
-            this.thisHeight = 0
-        })
-        this.on('render', ({indent, width, height}) => {
-            if (!width) {
-                return
-            }
-            if (!this.width) {
-                this.left = indent + 1
-            }
-            this.right = Math.max(this.right, indent + width + 1)
-            this.thisHeight = Math.max(this.thisHeight, height)
-        })
-        this.on('line', ({indent, width}) => {
-            if (!width) {
-                return
-            }
-            if (!this.width) {
-                this.left = indent + 1
-            }
-            this.right = Math.max(this.right, indent + width + 1)
-            this.thisHeight += 1
-        })
-    }
-
-    get defaults() {
-        return Util.defaults({
-            thisHeight  : 0
-          , top         : 1
-          , left        : 1
-        }, this._defaults)
-    }
-
-    reset() {
-        Object.entries(this.defaults).forEach(([prop, value]) => {
-            this[prop] = value
-        })
-        this.trackBottom = this.top
-        this.right = this.left
-    }
-
-    get width() {
-        return this.right - this.left
-    }
-
-    get height() {
-        return this.bottom - this.top
-    }
-
-    get bottom() {
-        return this.trackBottom + this.thisHeight
-    }
-}
-
-
-
-
 class Menu extends EventEmitter {
 
     constructor(configDir) {
@@ -176,6 +114,7 @@ class Menu extends EventEmitter {
         super()
 
         this.logger = new Logger('Menu', {named: true})
+        this.alerts = new Alerts(this)
         this.alerter = new Logger('Alerter', {alerter: true})
         this.configDir = configDir
 
@@ -188,7 +127,6 @@ class Menu extends EventEmitter {
 
         this.chash = CHash
         this.bread = []
-        this.alerts = []
 
         this.theme = Themes.getDefaultInstance()
         this.term  = new TermHelper(this.settings.termEnabled)
@@ -252,9 +190,9 @@ class Menu extends EventEmitter {
                 try {
                     isContinue = await this.matchMenu(choice)
                 } catch (err) {
-                    this.alerts.push(['error', err])
+                    this.alerts.error(err)
                     if (err.isAuthError) {
-                        this.alerts.push(['warn', 'Authentication failed. Go to Account to sign up or log in.'])
+                        this.alerts.warn('Authentication failed. Go to Account to sign up or log in.')
                     }
                 }
 
@@ -358,13 +296,13 @@ class Menu extends EventEmitter {
                         const {message, method} = LoginChoiceMap[choice]
                         if (method) {
                             if (await this[method].call(this)) {
-                                this.alerts.push(['info', message])
+                                this.alerts.info(message)
                             } else {
                                 return true
                             }
                         }
                     } catch (err) {
-                        this.alerts.push(['error', err])
+                        this.alerts.error(err)
                         return true
                     }
                 } else {
@@ -389,7 +327,7 @@ class Menu extends EventEmitter {
                     }
                     await this.doLogin()
                 } catch (err) {
-                    this.alerts.push(['error', err])
+                    this.alerts.error(err)
                 } finally {
                     await this.saveCredentials()
                 }
@@ -512,7 +450,6 @@ class Menu extends EventEmitter {
                 await this.saveSettings()
 
                 // always break
-                //return true
             })
 
             return true
@@ -558,7 +495,7 @@ class Menu extends EventEmitter {
         await this.sendForgotPassword(credentials.serverUrl, answer)
         credentials.username = answer
 
-        this.alerts.push(['info', 'Reset key requested, check your email.'])
+        this.alerts.info('Reset key requested, check your email.')
         await this.consumeAlerts()
 
         const answers = await this.prompt(this.q.forgotPassword(), null, {cancelOnInterrupt: true})
@@ -606,7 +543,7 @@ class Menu extends EventEmitter {
             await this.sendConfirmKey(credentials, answer)
         } catch (err) {
             if (err.isUserConfirmedError) {
-                this.alerts.push(['warn', 'Account already confirmed'])
+                this.alerts.warn('Account already confirmed')
             } else {
                 throw err
             }
@@ -666,7 +603,7 @@ class Menu extends EventEmitter {
 
             if (err.isUserNotConfirmedError) {
 
-                this.alerts.push(['info', 'You must confirm your account. Check your email for a confirmation key.'])
+                this.alerts.info('You must confirm your account. Check your email for a confirmation key.')
                 await this.consumeAlerts()
 
                 credentials.needsConfirm = true
@@ -675,13 +612,13 @@ class Menu extends EventEmitter {
             }
 
             if (!isSuccess) {
-                this.alerts.push(['warn', 'Login failed to', credentials.serverUrl])
+                this.alerts.warn('Login failed to', credentials.serverUrl)
                 throw err
             }
         }
 
         const chlk = this.theme.alert
-        this.alerts.push(['info', chlk.success.message('Login success'), 'to', credentials.serverUrl, nchars(200, '-')])
+        this.alerts.success('Login success to', credentials.serverUrl)
 
         credentials.needsConfirm = false
         credentials.isTested = true
@@ -760,7 +697,7 @@ class Menu extends EventEmitter {
 
         } catch (err) {
             if (err.isWaitingAbortedError) {
-                this.alerts.push(['warn', err])
+                this.alerts.warn(err)
                 return
             }
             throw err
@@ -783,7 +720,7 @@ class Menu extends EventEmitter {
             await coordinator.runMatch(match, players)
         } catch (err) {
             if (err.isMatchCanceledError) {
-                this.alerts.push(['warn', err])
+                this.alerts.warn(err)
                 return
             }
             throw err
@@ -868,40 +805,40 @@ class Menu extends EventEmitter {
         }
     }
 
-    async sendSignup(serverUrl, username, password) {
+    sendSignup(serverUrl, username, password) {
         const client = this.newClient(serverUrl)
         const data = {username, password}
-        return await this.handleRequest(client, '/api/v1/signup', data)
+        return this.handleRequest(client, '/api/v1/signup', data)
     }
 
-    async sendConfirmKey({serverUrl, username}, confirmKey) {
+    sendConfirmKey({serverUrl, username}, confirmKey) {
         const client = this.newClient(serverUrl)
         const data = {username, confirmKey}
-        return await this.handleRequest(client, '/api/v1/confirm-account', data)
+        return this.handleRequest(client, '/api/v1/confirm-account', data)
     }
 
-    async sendRequestConfirmKey({serverUrl, username}) {
+    sendRequestConfirmKey({serverUrl, username}) {
         const client = this.newClient(serverUrl)
         const data = {username}
-        return await this.handleRequest(client, '/api/v1/send-confirm-email', data)
+        return this.handleRequest(client, '/api/v1/send-confirm-email', data)
     }
 
-    async sendForgotPassword(serverUrl, username) {
+    sendForgotPassword(serverUrl, username) {
         const client = this.newClient(serverUrl)
         const data = {username}
-        return await this.handleRequest(client, '/api/v1/forgot-password', data)
+        return this.handleRequest(client, '/api/v1/forgot-password', data)
     }
 
-    async sendResetPassword({serverUrl, username}, {password, resetKey}) {
+    sendResetPassword({serverUrl, username}, {password, resetKey}) {
         const client = this.newClient(serverUrl)
         const data = {username, password, resetKey}
-        return await this.handleRequest(client, '/api/v1/reset-password', data)
+        return this.handleRequest(client, '/api/v1/reset-password', data)
     }
 
-    async sendChangePassword({serverUrl, username}, {oldPassword, newPassword}) {
+    sendChangePassword({serverUrl, username}, {oldPassword, newPassword}) {
         const client = this.newClient(serverUrl)
         const data = {username, oldPassword, newPassword}
-        return await this.handleRequest(client, '/api/v1/change-password', data)
+        return this.handleRequest(client, '/api/v1/change-password', data)
     }
 
     async handleRequest(client, uri, data) {
@@ -1104,58 +1041,22 @@ class Menu extends EventEmitter {
     }
 
     consumeAlerts() {
-        //await new Promise(resolve => setTimeout(resolve, 3000))
-        const alerts = this.alerts.splice(0)
-        if (!alerts.length) {
+
+        if (!this.alerts.length) {
             return
         }
-        const chlk = this.theme.alert
-        const levelsMap = {
-            success : true
-          , info   : true
-          , warn   : true
-          , error  : true
-        }
-        const makeMsg = arg => arg instanceof Error
-            ? [arg.name || arg.constructor.name, arg.message].join(': ')
-            : arg
-        const strsWidth = args => sumArray(args.map(stringWidth)) + args.length - 1
+
         const {maxWidth, indent} = this.getPromptOpts()
 
-        for (var alert of alerts) {
-
-            var args = castToArray(alert).map(makeMsg)
-            var level = levelsMap[args[0]] ? args.shift() : 'warn'
-            var alevel = level == 'success' ? 'info' : level
-
-            if (chlk[level].level) {
-                args.unshift(`[${level.toUpperCase()}]`)
-            }
-
-            // truncate
-            // TODO: don't truncate, split lines
-            var lines = []
-            for (var len = strsWidth(args); len > maxWidth; len = strsWidth(args)) {
-                var surplus = len - maxWidth
-                var str = stripAnsi(args.pop())
-                if (str.length > surplus) {
-                    args.push(str.substring(0, str.length - surplus))
-                }
-            }
-            var msgs = args.map((msg, i) =>
-                i == 0 && chlk[level].level
-                    ? chlk[level].level(msg)
-                    : chlk[level].message(msg)
+        this.alerts.splice(0).map(({logLevel, formatted}) =>
+            forceLineReturn(formatted.string, maxWidth).split('\n').map(line =>
+                [logLevel, line]
             )
-
-            lines.push(msgs.join(chlk[level].message(' ')))
-
-            for (var line of lines) {
-                this.term.right(indent)
-                this.alerter[alevel](line)
-                this.sstatus.emit('line', {indent, width: stringWidth(line)})
-            }
-        }
+        ).flat().forEach(([logLevel, line]) => {
+            this.term.right(indent)
+            this.alerter[logLevel](line)
+            this.sstatus.emit('line', {indent, width: stringWidth(line)})
+        })
     }
 
     async ensureLoaded(isQuiet) {
@@ -1307,10 +1208,10 @@ class Menu extends EventEmitter {
 
         const {loaded, errors} = await Themes.loadDirectory(themesDir)
         errors.forEach(info => {
-            this.logger.error(info.error, {...info, error: undefined})
+            this.alerts.error(info.error, {...info, error: undefined})
         })
         if (!isQuiet && loaded.length) {
-            this.logger.info('Loaded', loaded.length, 'custom themes')
+            this.alerts.info('Loaded', loaded.length, 'custom themes')
         }
 
         this.theme = Themes.getInstance(this.settings.theme)

@@ -59,6 +59,48 @@ class Util {
         return false
     }
 
+   /**
+    * From inquirer/lib/utils/screen-manager.
+    *
+    * See https://github.com/SBoudrias/Inquirer.js/blob/master/packages/inquirer/lib/utils/screen-manager.js
+    *
+    * ---------------------------------------------------------------
+    *
+    * Copyright (c) 2012 Simon Boudrias
+    *
+    * Permission is hereby granted, free of charge, to any person
+    * obtaining a copy of this software and associated documentation
+    * files (the "Software"), to deal in the Software without
+    * restriction, including without limitation the rights to use,
+    * copy, modify, merge, publish, distribute, sublicense, and/or sell
+    * copies of the Software, and to permit persons to whom the
+    * Software is furnished to do so, subject to the following
+    * conditions:
+    *
+    * The above copyright notice and this permission notice shall be
+    * included in all copies or substantial portions of the Software.
+    *
+    * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+    * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+    * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+    * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+    * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+    * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+    * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+    * OTHER DEALINGS IN THE SOFTWARE.
+    */
+    static breakLines(lines, width) {
+        // Break lines who're longer than the width so we can normalize the natural line
+        // returns behavior across terminals.
+        const regex = new RegExp('(?:(?:\\033[[0-9;]*m)*.?){1,' + width + '}', 'g')
+        return lines.map(line => {
+            const chunk = line.match(regex)
+            // Last match is always empty
+            chunk.pop()
+            return chunk || ''
+        })
+    }
+
     static castToArray(val) {
         if (Array.isArray(val)) {
             return val
@@ -72,7 +114,7 @@ class Util {
 
     static chunkArray(arr, numChunks) {
         const chunks = Util.intRange(1, numChunks).map(() => [])
-        var c = 0
+        let c = 0
         while (arr.length > 0) {
             chunks[c].push(arr.shift())
             c += 1
@@ -96,6 +138,18 @@ class Util {
         return num.toString().split('.')[1].length //|| 0
     }
 
+    static createHash(type, input, digest) {
+        const hash = crypto.createHash(type)
+        if (input == null) {
+            return hash
+        }
+        hash.update(input)
+        if (digest == null) {
+            return hash
+        }
+        return hash.digest(digest)
+    }
+
     // from:  https://stackoverflow.com/questions/60369148/how-do-i-replace-deprecated-crypto-createcipher-in-nodejs
     static decrypt1(text, key) {
         const textParts = text.split(':')
@@ -107,7 +161,7 @@ class Util {
     }
 
     static defaults(defaults, ...opts) {
-        var obj = {...defaults}
+        let obj = {...defaults}
         opts.forEach(opts => obj = {...obj, ...opts})
         return Util.propsFrom(obj, defaults)
     }
@@ -212,6 +266,17 @@ class Util {
 
     static filepathWithoutExtension(str) {
         return str.replace(/\.[^/.]+$/, '')
+    }
+
+   /**
+    * From inquirer/lib/utils/screen-manager. See breakLines() above.
+    */
+    static forceLineReturn(content, width) {
+        return Util.breakLines(content.split('\n'), width).flat().join('\n')
+    }
+
+    static get hash() {
+        return Util.createHash
     }
 
     static homeTilde(str) {
@@ -319,7 +384,7 @@ class Util {
     }
 
     static ntimes(n, cb) {
-        var ret
+        let ret
         for (var i = 0; i < n; ++i) {
             ret = cb(i)
         }
@@ -373,7 +438,7 @@ class Util {
 
     // from: https://stackoverflow.com/a/15762794
     static roundTo(n, digits) {
-        var isNegative = false
+        let isNegative = false
         if (typeof digits == 'undefined') {
             digits = 0
         }
@@ -482,6 +547,10 @@ class Util {
         return Math.floor(+date / 1000)
     }
 
+    static get tstamp() {
+        return Util.timestamp
+    }
+
     static ucfirst(str) {
         if (str == null || !str.length) {
             return str
@@ -501,6 +570,14 @@ class Util {
         const map = {}
         arr.forEach(it => map[it] = true)
         return Object.keys(map)
+    }
+
+    static update(target, source) {
+        target = target || {}
+        Object.entries(source).forEach(([key, value]) => {
+            target[key] = value
+        })
+        return target
     }
 
     static uuid() {

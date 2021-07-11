@@ -28,8 +28,7 @@ const Errors    = require('../lib/errors')
 const Logger    = require('../lib/logger')
 const Util      = require('../lib/util')
 
-const crypto = require('crypto')
-const path   = require('path')
+const path = require('path')
 
 const {
     DefaultAuthType
@@ -54,6 +53,15 @@ const {
   , UserNotFoundError
   , ValidateError
 } = Errors
+
+const {
+    decrypt1
+  , encrypt1
+  , hash
+  , isValidEmail
+  , tstamp
+  , uuid
+} = Util
 
 const ImplClasses = {
     anonymous : require('./auth/anonymous')
@@ -107,18 +115,14 @@ class Auth {
 
         this.checkSecurity()
 
-        const saltHash = crypto.createHash(this.opts.saltHash)
-        saltHash.update(this.opts.salt)
-        this.saltHash = saltHash.digest('base64')
+        this.saltHash = hash(this.opts.saltHash, this.opts.salt, 'base64')
 
-        const saltMd5 = crypto.createHash('md5')
-        saltMd5.update(this.opts.salt)
-        this.saltMd5 = saltMd5.digest('hex')
+        this.saltMd5 = hash('md5', this.opts.salt, 'hex')
 
         this.passwordRegex = new RegExp(this.opts.passwordRegex)
 
         // fail fast
-        crypto.createHash(this.opts.hash)
+        hash(this.opts.hash)
     }
 
     async authenticate(username, password) {
@@ -179,7 +183,7 @@ class Auth {
             throw new UserExistsError('User already exists.')
         }
         this.validatePassword(password)
-        const timestamp = Util.timestamp()
+        const timestamp = tstamp()
         const user = {
             username
           , password          : this.hashPassword(password)
@@ -234,7 +238,7 @@ class Auth {
         if (user.confirmed) {
             throw new UserConfirmedError
         }
-        const timestamp = Util.timestamp()
+        const timestamp = tstamp()
         const confirmKey = this.generateConfirmKey()
         user = {
             ...user
@@ -277,7 +281,7 @@ class Auth {
         if (!user.confirmed) {
             throw new UserNotConfirmedError
         }
-        const timestamp = Util.timestamp()
+        const timestamp = tstamp()
         const resetKey = this.generateConfirmKey()
         user = {
             ...user
@@ -318,8 +322,8 @@ class Auth {
         if (!confirmKey || this.hashPassword(confirmKey) != user.confirmKey) {
             throw new BadCredentialsError('Invalid username and confirm key combination')
         }
-        const timestamp = Util.timestamp()
-        if (Util.timestamp() > user.confirmKeyCreated + this.opts.confirmExpiry) {
+        const timestamp = tstamp()
+        if (tstamp() > user.confirmKeyCreated + this.opts.confirmExpiry) {
             throw new BadCredentialsError('Confirm key expired')
         }
         user = {
@@ -340,8 +344,8 @@ class Auth {
         if (!resetKey || this.hashPassword(resetKey) != user.resetKey) {
             throw new BadCredentialsError('Invalid username and reset key combination')
         }
-        const timestamp = Util.timestamp()
-        if (Util.timestamp() > user.resetKeyCreated + this.opts.resetExpiry) {
+        const timestamp = tstamp()
+        if (tstamp() > user.resetKeyCreated + this.opts.resetExpiry) {
             throw new BadCredentialsError('Reset key expired')
         }
         this.validatePassword(password)
@@ -369,7 +373,7 @@ class Auth {
         user = {
             ...user
           , password : this.hashPassword(newPassword)
-          , updated  : Util.timestamp()
+          , updated  : tstamp()
         }
         await this._updateUser(username, user)
         user.passwordEncrypted = this.encryptPassword(newPassword)
@@ -384,7 +388,7 @@ class Auth {
         user = {
             ...user
           , locked  : true
-          , updated : Util.timestamp()
+          , updated : tstamp()
         }
         await this._updateUser(username, user)
         this.logger.info('LockUser', {username})
@@ -397,7 +401,7 @@ class Auth {
         user = {
             ...user
           , locked  : false
-          , updated : Util.timestamp()
+          , updated : tstamp()
         }
         await this._updateUser(username, user)
         this.logger.info('UnlockUser', {username})
@@ -413,7 +417,7 @@ class Auth {
         if (badChar) {
             throw new ValidateError('Bad character in username:' + badChar)
         }
-        if (!Util.isValidEmail(str)) {
+        if (!isValidEmail(str)) {
             throw new ValidateError('Username is not a valid email address.')
         }
     }
@@ -436,23 +440,19 @@ class Auth {
     // Util
 
     hashPassword(password) {
-        const hash = crypto.createHash(this.opts.hash)
-        hash.update(password + this.opts.salt)
-        return hash.digest('base64')
+        return hash(this.opts.hash, password + this.opts.salt, 'base64')
     }
 
     encryptPassword(password) {
-        return EncryptedFlagPrefix + Util.encrypt1(password, this.saltMd5)
+        return EncryptedFlagPrefix + encrypt1(password, this.saltMd5)
     }
 
     decryptPassword(passwordEncrypted) {
-        return Util.decrypt1(passwordEncrypted.substring(EncryptedFlagPrefix.length), this.saltMd5)
+        return decrypt1(passwordEncrypted.substring(EncryptedFlagPrefix.length), this.saltMd5)
     }
 
     generateConfirmKey() {
-        const hash = crypto.createHash(this.opts.hash)
-        hash.update(Util.uuid() + this.opts.salt)
-        return hash.digest('hex')
+        return hash(this.opts.hash, uuid() + this.opts.salt, 'hex')
     }
 
     isEncryptedPassword(password) {

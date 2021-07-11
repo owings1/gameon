@@ -1309,4 +1309,14 @@ describe('-', () => {
         })
         
     })
+
+    describe('Alerts', () => {
+        it.only('should have alert with error', () => {
+            const exp = new Error('test')
+            menu.alerts.error(exp)
+            const res = menu.alerts.getErrors()[0]
+            expect(res).to.equal(exp)
+            
+        })
+    })
 })
