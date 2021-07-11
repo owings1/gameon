@@ -23,6 +23,7 @@
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 const chalk       = require('chalk')
+const cliWidth    = require('cli-width')
 const crypto      = require('crypto')
 const emailval    = require('email-validator')
 const Errors      = require('./errors')
@@ -82,6 +83,10 @@ class Util {
         return chunks
     }
 
+    static get cliWidth() {
+        return cliWidth
+    }
+
     // adapted from: https://stackoverflow.com/a/17369245
     static countDecimalPlaces(num) {
         if (Math.floor(num.valueOf()) === num.valueOf()) {
@@ -105,7 +110,6 @@ class Util {
         var obj = {...defaults}
         opts.forEach(opts => obj = {...obj, ...opts})
         return Util.propsFrom(obj, defaults)
-        //return Util.propsFrom(Util.merge({}, defaults, ...opts), defaults)
     }
 
     static destroyAll(obj) {
@@ -126,6 +130,7 @@ class Util {
                 target[name] = method
             }
         })
+        return target
     }
 
     static errMessage(cb) {
@@ -174,6 +179,8 @@ class Util {
             }
             TargetClass.prototype[name] = SourceClass.prototype[name]
         })
+
+        return TargetClass
     }
 
     static fileDateString(date) {
@@ -230,6 +237,12 @@ class Util {
         return range
     }
 
+    static isCredentialsFilled(credentials, isServer) {
+        return Boolean(
+            credentials.username && credentials.password && (!isServer || credentials.serverUrl)
+        )
+    }
+
     static isEmptyObject(obj) {
         if (obj == null) {
             return true
@@ -263,9 +276,7 @@ class Util {
     }
 
     static keyValuesTrue(input) {
-        const res = {}
-        Object.values(input).forEach(value => res[value] = true)
-        return res
+        return Object.fromEntries(Object.values(input).map(value => [value, true]))
     }
 
     static makeErrorObject(err) {
@@ -280,10 +291,6 @@ class Util {
         }
         obj.name = err.name || err.constructor.name
         return obj
-    }
-
-    static merge(...args) {
-        return merge(...args)
     }
 
     static nchars(n, chr) {
@@ -402,8 +409,8 @@ class Util {
 
     static spreadScore(obj, isInverse) {
         const iobj = {}
-        var size = 0
-        var minRaw = Infinity
+        let size = 0
+        let minRaw = Infinity
         for (var k in obj) {
             iobj[k] = isInverse ? -obj[k] : obj[k]
             if (iobj[k] < minRaw) {
@@ -412,7 +419,7 @@ class Util {
             size += 1
         }
         const normObj = {}
-        var scale = 0
+        let scale = 0
         for (var k in obj) {
             normObj[k] = iobj[k] - minRaw
             scale += normObj[k]
@@ -429,8 +436,8 @@ class Util {
         return spreadObj
     }
 
-    static stripAnsi(str) {
-        return stripAnsi(str)
+    static get stripAnsi() {
+        return stripAnsi
     }
 
     static stripLeadingSlash(str) {
@@ -447,17 +454,13 @@ class Util {
         return str
     }
 
-    static stringWidth(str) {
-        return stringWidth(str)
+    static get stringWidth() {
+        return stringWidth
     }
 
     // ansi safe
-    static strlen(str) {
-        return stringWidth(str)
-        //if (str == null) {
-        //    return 0
-        //}
-        //return Util.stripAnsi(str.toString()).length
+    static get strlen() {
+        return stringWidth
     }
 
     static sumArray(arr) {

@@ -54,13 +54,15 @@ const path     = require('path')
 
 const {EventEmitter} = require('events')
 
-const QuestionHelper = require('./helpers/menu.questions')
+const Questions = require('./helpers/menu.questions')
 const {inquirer, ScreenManager} = require('./inquirer')
 
 const {
     castToArray
+  , isCredentialsFilled
   , isEmptyObject
   , nchars
+  , ntimes
   , stringWidth
   , stripAnsi
   , sumArray
@@ -68,6 +70,7 @@ const {
 
 const {
     Chars
+  , CHash
   , DefaultServerUrl
   , DefaultTermEnabled
   , DefaultThemeName
@@ -91,32 +94,16 @@ const {
   , PlayChoiceMap
 } = Constants.Menu
 
-function isCredentialsFilled(credentials, isServer) {
-    const keys = ['username', 'password']
-    if (isServer) {
-        keys.push('serverUrl')
-    }
-    return !keys.find(key => !credentials[key])
-}
-
-function choiceQuestion(choices, value) {
-    const choice = choices.find(choice => choice.value == value)
-    if (choice) {
-        return choice.question
-    }
-}
+const MenuWidth = 50
 
 const InterruptCancelEvent = {
     interrupt: true
   , key: {name: 'c', ctrl: true}
 }
 
-const CHash = (() => {
-    const hash = crypto.createHash('md5')
-    hash.update('main-menu')
-    return hash.digest('hex')
-}).call()
-
+const InterruptCancelAnsers = {
+    _cancelEvent: InterruptCancelEvent
+}
 
 class ScreenStatus extends EventEmitter {
 
@@ -180,7 +167,7 @@ class ScreenStatus extends EventEmitter {
 }
 
 
-const MenuWidth = 50
+
 
 class Menu extends EventEmitter {
 
@@ -207,7 +194,7 @@ class Menu extends EventEmitter {
         this.term  = new TermHelper(this.settings.termEnabled)
 
         this.inquirer = inquirer
-        this.q = new QuestionHelper(this)
+        this.q = new Questions(this)
 
         this.sstatus = new ScreenStatus({top: 10})
     }
@@ -948,19 +935,19 @@ class Menu extends EventEmitter {
     }
 
     prompt(questions, answers, opts) {
-        opts = {...this.getPromptOpts(), ...opts}
+        opts = this.getPromptOpts(opts)
         return new Promise((resolve, reject) => {
             if (opts.cancelOnInterrupt) {
                 this.captureInterrupt = () => {
-                    if (this._prompt && this._prompt.ui) {
-                        resolve({_cancelEvent: InterruptCancelEvent})
-                        this._prompt.ui.close()
+                    if (this.prompter && this.prompter.ui) {
+                        resolve(InterruptCancelAnswers)
+                        this.prompter.ui.close()
                         return true
                     }
                 }
             }
-            this._prompt = this.inquirer.prompt(questions, answers, opts)
-            this._prompt.then(answers => {
+            this.prompter = this.inquirer.prompt(questions, answers, opts)
+            this.prompter.then(answers => {
                 this.captureInterrupt = null
                 resolve(answers)
             }).catch(err => {
@@ -970,7 +957,7 @@ class Menu extends EventEmitter {
         })
     }
 
-    getPromptOpts() {
+    getPromptOpts(opts) {
         const available = Math.min(this.term.width, 1024)
         const maxWidth = Math.min(available, MenuWidth)
         const surplus = available - maxWidth
@@ -981,6 +968,7 @@ class Menu extends EventEmitter {
           , term     : this.term
           , maxWidth
           , indent
+          , ...opts
         }
     }
 
@@ -994,7 +982,7 @@ class Menu extends EventEmitter {
             return await run(
                 hint => this.menuChoice(this.q.menu(title, hint))
               , async loop => {
-                    var res
+                    let res
                     while (true) {
                         await this.clearAndConsume()
                         res = await loop()
@@ -1019,12 +1007,9 @@ class Menu extends EventEmitter {
           , ...question
         }
         const {answer, isCancel, toggle, ...result} = await this.questionAnswer(question, opts)
-        question = choiceQuestion(question.choices, answer)
-        const ask = async () => {
-            //await this.clearAndConsume()
-            return this.questionAnswer(question, opts)
-        }
         const choice = answer
+        question = (question.choices.find(c => c.value == choice) || {}).question
+        const ask = () => this.questionAnswer(question, opts)
         if (!isCancel) {
             this.lastMenuChoice = choice
         }
@@ -1068,32 +1053,24 @@ class Menu extends EventEmitter {
         return 1
     }
 
-    async clearAndConsume() {
-        await this.clearMenu()
-        await this.consumeAlerts()
+    clearAndConsume() {
+        this.clearMenu()
+        this.consumeAlerts()
     }
 
-    async clearMenu() {
+    clearMenu() {
         const {left, top, width, height} = this.sstatus
-        //console.log({left, width, height})
-        //await new Promise(resolve => setTimeout(resolve, 2000))
         if (width) {
-            //console.log({'term.enabled': this.term.enabled})
-            await this.term.eraseArea(left, top, width, height)
-            //await new Promise(resolve => setTimeout(resolve, 2000))
-            //await this.term.eraseArea(5, 10, 20, 20)
-            //console.log(this.sstatus)
+            this.term.eraseArea(left, top, width, height)
         }
-        await this.term.moveTo(1, top)
-        //this.clearScreen()
-        //console.log({left, top, width, height})
-        //this.clearScreen()
-        //await new Promise(resolve => setTimeout(resolve, 2000))
+        this.term.moveTo(1, top)
         this.sstatus.reset()
-        //console.log(this.sstatus)
     }
 
     writeBg() {
+        if (!this.settings.termEnabled) {
+            return
+        }
         this.term.moveTo(1, 1)
         for (var i = 0; i < this.term.height; ++i) {
             if (i > 0) {
@@ -1104,26 +1081,29 @@ class Menu extends EventEmitter {
         this.term.moveTo(1, 1)
     }
 
-    async clearScreen() {
-        await this.term.clear()
-        await this.eraseScreen()
+    clearScreen() {
+        this.term.clear()
+        this.eraseScreen()
     }
 
-    async eraseScreen() {
-        await this.term.moveTo(1, 1).eraseDisplayBelow()
+    eraseScreen() {
+        this.term.moveTo(1, 1).eraseDisplayBelow()
         this.writeBg()
         this.sstatus.reset()
+        if (!this.settings.termEnabled) {
+            ntimes(this.term.height, () => this.logger.console.log())
+        }
     }
 
-    async ensureClearScreen() {
+    ensureClearScreen() {
         if (this.hasClearedScreen) {
             return
         }
-        await this.clearScreen()
+        this.clearScreen()
         this.hasClearedScreen = true
     }
 
-    async consumeAlerts() {
+    consumeAlerts() {
         //await new Promise(resolve => setTimeout(resolve, 3000))
         const alerts = this.alerts.splice(0)
         if (!alerts.length) {

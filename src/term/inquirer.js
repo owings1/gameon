@@ -54,21 +54,23 @@ const Errors    = require('../lib/errors')
 const Themes    = require('./themes')
 const Util      = require('../lib/util')
 
-const cliWidth    = require('cli-width')
-const inquirer    = require('inquirer')
-const observe     = require('inquirer/lib/utils/events')
-const ScreenBase  = require('inquirer/lib/utils/screen-manager')
-const {takeUntil} = require('rxjs/operators')
+const {defer, from} = require('rxjs')
+const Inquirer      = require('inquirer')
+const observe       = require('inquirer/lib/utils/events')
+const ScreenBase    = require('inquirer/lib/utils/screen-manager')
+const {takeUntil}   = require('rxjs/operators')
+
+const {AnsiHelper, TermHelper}    = require('./draw')
+const {Chars, DefaultTermEnabled} = Constants
+const {DuplicateKeyError}         = Errors
+const {EventEmitter}              = require('events')
+
 // for patch
 const {map} = require('rxjs/operators')
 
-const {Chars, DefaultTermEnabled} = Constants
-const {EventEmitter} = require('events')
-
-const {AnsiHelper, TermHelper} = require('./draw')
-
 const {
     castToArray
+  , cliWidth
   , ensure
   , extendClass
   , keypressName
@@ -80,34 +82,84 @@ const {
   , stripAnsi
 } = Util
 
-const {
-    DuplicateKeyError
-} = Errors
-
 const ModifiedStatuses = {
     answered : true
   , canceled : true
   , touched  : true
 }
 
-const Prompter = inquirer.createPromptModule()
-
 const NullEmitter = new EventEmitter
 const DefaultTerm = new TermHelper(DefaultTermEnabled)
 
-// Add options parameter, which goes to question.opts
-Prompter.prompt = (questions, answers, opts = {}) => {
-    questions = castToArray(questions).map(question =>
-        ({
+const _inquirer = Inquirer.createPromptModule()
+
+/**
+ * Create prompter module.
+ *
+ * Use a custom `prompt` method, which adds a third `opts` parameter, which
+ * gets populated on all the questions. This allows the individual prompt
+ * class constructors to pass options to other internal classes, for example,
+ * the ScreenManager.
+ */
+function createPromptModule(opt) {
+    
+    const self = (questions, answers, opts) => {
+        opts = {
+            emitter  : NullEmitter
+          , ...opts
+          , readline : {
+              ...opt
+            , ...opts.readline
+          }
+        }
+        questions = castToArray(questions).map(question => ({
             ...question
           , opts: {
-                emitter: NullEmitter
-              , ...opts
+                ...opts
               , ...question.opts
             }
-        })
-    )
-    return Prompter(questions, answers)
+        }))
+        /**
+         * Copied and adapted from inquirer/lib/inquirer.js
+         */
+        let ui
+        try {
+            ui = new self.ui.Prompt(self.prompts, {...opt, ...opts.readline}, self)
+        } catch (error) {
+            return Promise.reject(error)
+        }
+        const promise = ui.run(questions, answers)
+
+        // Monkey patch the UI and opts on the promise object so
+        // that it remains publicly accessible.
+        promise.ui = ui
+        promise.opts = opts
+
+        return promise
+    }
+
+    self.createPromptModule = createPromptModule
+
+    self.prompt = self
+    self.prompts = {}
+    self.ui = {...Inquirer.ui, Prompt: PromptUI}
+    self.ScreenManager = ScreenManager
+    self.Separator = Separator
+
+    self.registerPrompt = (name, prompt) => {
+        self.prompts[name] = prompt
+        return self
+    }
+
+    self.restoreDefaultPrompts = () => {
+        self.prompts = {
+            ...Inquirer.createPromptModule().prompts
+          , ...Prompts
+        }
+        return self
+    }
+
+    return self
 }
 
 function debug(...args) {
@@ -118,9 +170,17 @@ function debug(...args) {
 class BaseMethods {
 
     _constructor(question) {
-        this.screen = new ScreenManager(this.rl, question.opts)
+        this.screen = this.newScreenManager(this.rl, question.opts)
+        this.emitter = (question.opts && question.opts.emitter) || NullEmitter
         this._keypressIndex = {}
         this._keyHandlers = {}
+    }
+
+    newScreenManager(...args) {
+        if (this.ui && this.ui.newScreenManager) {
+            return this.ui.newScreenManager(...args)
+        }
+        return new ScreenManager(...args)
     }
 
     addKeypressIndex(type, index, handler) {
@@ -161,15 +221,18 @@ class BaseMethods {
         if (isSubmit) {
             this.submitLine()
         }
+        return this
     }
 
     setLine(value) {
         this.rl.line = value
         this.rl.cursor = value.length
+        return this
     }
 
     submitLine(line = '') {
         this.rl.emit('line', line)
+        return this
     }
 
     initializer(...args) {
@@ -196,24 +259,28 @@ class TextMethods {
         this.answer = this.opt.cancel.value
         this.status = 'canceled'
         this.clearLine(true)
+        return this
     }
 
     clear() {
         this.answer = null
         this.status = 'touched'
         this.clearLine()
+        return this
     }
 
     restoreDefault() {
         this.answer = this.opt.default
         this.status = 'pending'
         this.clearLine()
+        return this
     }
 
     expandDefault() {
         this.answer = this.opt.default
         this.status = 'touched'
         this.setLine(this.answer.toString())
+        return this
     }
 
     /**
@@ -262,6 +329,7 @@ class ListMethods {
     cancel() {
         this.status = 'canceled'
         this.clearLine(true)
+        return this
     }
 
     getSelectedIndex() {
@@ -271,6 +339,7 @@ class ListMethods {
     choiceAction(action) {
         this.answers[action.name] = this.getCurrentValue()
         this.submitLine()
+        return this
     }
 
    /**
@@ -688,7 +757,7 @@ class ToggleFeature {
     }
 }
 
-class InputPrompt extends Prompter.prompts.input {
+class InputPrompt extends Inquirer.prompt.prompts.input {
 
     static features() {
         return [
@@ -767,7 +836,7 @@ class InputPrompt extends Prompter.prompts.input {
     }
 }
 
-class PasswordPrompt extends Prompter.prompts.password {
+class PasswordPrompt extends Inquirer.prompt.prompts.password {
 
     static features() {
         return [
@@ -836,7 +905,7 @@ class PasswordPrompt extends Prompter.prompts.password {
    }
 }
 
-class ListPrompt extends Prompter.prompts.list {
+class ListPrompt extends Inquirer.prompt.prompts.list {
 
     static features() {
         return [
@@ -893,7 +962,7 @@ class ListPrompt extends Prompter.prompts.list {
     }
 }
 
-class RawListPrompt extends Prompter.prompts.rawlist {
+class RawListPrompt extends Inquirer.prompt.prompts.rawlist {
 
     static features() {
         return [
@@ -1005,7 +1074,7 @@ class RawListPrompt extends Prompter.prompts.rawlist {
     }
 }
 
-class ConfirmPrompt extends Prompter.prompts.confirm {
+class ConfirmPrompt extends Inquirer.prompt.prompts.confirm {
 
     static features() {
         return [
@@ -1115,7 +1184,7 @@ class ConfirmPrompt extends Prompter.prompts.confirm {
     }
 }
 
-class Separator extends inquirer.Separator {
+class Separator extends Inquirer.Separator {
     constructor(chr, size) {
         if (chr == null) {
             chr = Chars.hr
@@ -1276,6 +1345,7 @@ class ScreenManager extends ScreenBase {
         rl.output.mute()
 
         // Set state for next rendering.
+
         this.width = Math.max(this.width, thisWidth)
         this.height = lines.length
         this.heightMax = Math.max(this.height, this.heightMax)
@@ -1323,6 +1393,39 @@ class ScreenManager extends ScreenBase {
     }
 }
 
+class PromptUI extends Inquirer.ui.Prompt {
+
+    constructor(prompts, opt, prompter) {
+        super(prompts, opt)
+        this.prompter = prompter
+    }
+
+    newScreenManager(...args) {
+        const ScreenClass = (this.prompter && this.prompter.ScreenManager) || ScreenManager
+        return new ScreenClass(...args)
+    }
+
+    /**
+     * @override To store reference to UI and Prompt module in Prompt instances.
+     *
+     * Copied and adapted from inquirer/lib/ui/prompt
+     *
+     * See https://github.com/SBoudrias/Inquirer.js/blob/master/packages/inquirer/lib/ui/prompt.js
+     */
+    fetchAnswer(question) {
+        const Prompt = this.prompts[question.type]
+        this.activePrompt = new Prompt(question, this.rl, this.answers)
+        this.activePrompt.prompter = this.prompter
+        this.activePrompt.ui = this
+        return defer(() =>
+            from(this.activePrompt.run().then((answer) => ({ name: question.name, answer })))
+        )
+    }
+}
+/**
+ * Extend prompt classes according to static features and inherits methods.
+ */
+
 const Prompts = {
     confirm  : ConfirmPrompt
   , input    : InputPrompt
@@ -1354,20 +1457,13 @@ Object.entries(Prompts).forEach(([name, TargetClass]) => {
         const optionals = SourceClass.optionals ? SourceClass.optionals() : null
         extendClass(TargetClass, SourceClass, {overrides, optionals})
     })
-
-    Prompter.registerPrompt(name, TargetClass)
 })
 
-const AddClasses = {
-    ScreenManager
-  , Separator
-}
+const Prompter = createPromptModule().restoreDefaultPrompts()
 
-Object.entries(AddClasses).forEach(([name, AddClass]) => {
-    Prompter[name] = AddClass
-})
+
+
 
 module.exports = {
     inquirer : Prompter
- ,  ...AddClasses
 }

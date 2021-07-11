@@ -52,7 +52,7 @@ const {
   , InvalidRegexError
 } = Errors
 
-const Questions = require('./res/tables.questions')
+const Questions = require('./helpers/tables.questions')
 
 class TableHelper {
 
