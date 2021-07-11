@@ -311,6 +311,14 @@ class Util {
         return arr
     }
 
+    static ntimes(n, cb) {
+        var ret
+        for (var i = 0; i < n; ++i) {
+            ret = cb(i)
+        }
+        return ret
+    }
+
     // ansi safe
     static pad(str, align, width, chr = ' ') {
         if (align == 'right') {

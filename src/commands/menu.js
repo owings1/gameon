@@ -28,7 +28,21 @@ const Base    = require('../lib/command').UserCommand
 class MenuCommand extends Base {
 
     async run() {
+        //console.log(this.menu.sstatus)
+        //const {sstatus} = this.menu
+        //console.log('defaults', sstatus.defaults)
+        //const {width, height, top, bottom, left, right} = sstatus
+        //console.log({width, height, top, bottom, left, right})
+        //return
         await this.menu.mainMenu()
+        await this.menu.clearScreen()
+        console.log(this.menu.getPromptOpts())
+        
+        console.log(this.menu.sstatus)
+        const {sstatus} = this.menu
+        console.log('defaults', sstatus.defaults)
+        const {width, height, top, bottom, left, right} = sstatus
+        console.log({width, height, top, bottom, left, right})
     }
 }
 

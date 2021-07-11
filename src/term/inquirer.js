@@ -57,18 +57,15 @@ const Util      = require('../lib/util')
 const cliWidth    = require('cli-width')
 const inquirer    = require('inquirer')
 const observe     = require('inquirer/lib/utils/events')
-const readline    = require('readline')
-const RlUtil      = require('inquirer/lib/utils/readline')
 const ScreenBase  = require('inquirer/lib/utils/screen-manager')
-const term        = require('terminal-kit').terminal
 const {takeUntil} = require('rxjs/operators')
 // for patch
 const {map} = require('rxjs/operators')
 
-const {Chars} = Constants
+const {Chars, DefaultTermEnabled} = Constants
 const {EventEmitter} = require('events')
 
-const {AnsiHelper} = require('./draw')
+const {AnsiHelper, TermHelper} = require('./draw')
 
 const {
     castToArray
@@ -77,6 +74,7 @@ const {
   , keypressName
   , keyValuesTrue
   , nchars
+  , ntimes
   , padEnd
   , stringWidth
   , stripAnsi
@@ -95,6 +93,8 @@ const ModifiedStatuses = {
 const Prompter = inquirer.createPromptModule()
 
 const NullEmitter = new EventEmitter
+const DefaultTerm = new TermHelper(DefaultTermEnabled)
+
 // Add options parameter, which goes to question.opts
 Prompter.prompt = (questions, answers, opts = {}) => {
     questions = castToArray(questions).map(question =>
@@ -111,27 +111,9 @@ Prompter.prompt = (questions, answers, opts = {}) => {
 }
 
 function debug(...args) {
-    const brs = nchars(10, '\n')
+    const brs = nchars(15, '\n')
     console.log(brs, ...args, brs)
 }
-
-class RlHelper {
-
-    constructor(inst) {
-        this.inst = inst
-    }
-
-    get rl() {
-        return this.inst.rl
-    }
-}
-
-Object.entries(RlUtil).forEach(([name, method]) =>
-    RlHelper.prototype[name] = function(...args) {
-        method(this.rl, ...args)
-        return this
-    }
-)
 
 class BaseMethods {
 
@@ -324,7 +306,6 @@ class ListMethods {
                 message += chlk.message.prompt('  ' + this.opt.promptMessage + ': ')
                 message += chlk.input(this.rl.line)
             }
-            //bottomContent += 'You are looking at a list'
         }
 
         if (error) {
@@ -975,7 +956,6 @@ class RawListPrompt extends Prompter.prompts.rawlist {
     // Called by keypressSelect
     selectIndex(index, isSubmit) {
 
-        //this.lastWasSelect = true
         this.selected = index
 
         const line = (index + 1).toString()
@@ -1171,162 +1151,137 @@ class ScreenManager extends ScreenBase {
         super(rl)
         opts = {
             indent       : 0
-          //, top          : 1
           , maxWidth     : Infinity
           , defaultWidth : 80
           , emitter      : NullEmitter
+          , term         : DefaultTerm
           , ...opts
         }
-        //opts.indent = 15
-        //opts.maxWidth = 70//99
         this.opts = opts
         this.cur = new AnsiHelper(this)
         this.isFirstRender = true
         this.width = 0
         this.height = 0
-        this.widthMax = 0
         this.heightMax = 0
     }
 
    /**
-    * @override For indent and custom width
+    * @override For sparse erasing, events, and other options.
     *
-    * Copied from inquirer/lib/utils/screen-manager, with minor modifications.
+    * Adapted from inquirer/lib/utils/screen-manager.
     *
     * See https://github.com/SBoudrias/Inquirer.js/blob/master/packages/inquirer/lib/utils/screen-manager.js
     */
-    render(content, bottomContent, spinning = false) {
-
-        //debug({height: this.height, widht: this.width})
-        const {opts} = this
-        const {emitter} = opts
+    render(body, footer, spinning = false) {
+        
+        const {opts, cur, rl} = this
+        const {emitter, term, indent} = opts
 
         if (this.spinnerId && !spinning) {
             clearInterval(this.spinnerId)
         }
 
-        this.rl.output.unmute()
+        rl.output.unmute()
 
         /**
-         * Write message to screen and setPrompt to control backspace
+         * Write message to screen and setPrompt to control backspace.
          */
 
-        const maxWidth = Math.min(this.normalizedCliWidth() - opts.indent, opts.maxWidth)
-        const lessWidth = Math.max(0, this.normalizedCliWidth() - maxWidth)
+        const cliWidth = this.normalizedCliWidth()
 
-        const promptLine = content.split('\n').pop()
-        const rawPromptLine = stripAnsi(promptLine)
-        const isEndOfLine = rawPromptLine.length % maxWidth === 0
+        // Limit maxWidth to cli width.
+        const maxWidth = Math.min(cliWidth - indent, opts.maxWidth)
+        // The remaining unused cli width, if any.
+        const unusedWidth = Math.max(0, cliWidth - maxWidth)
+
+        // The last line of regular body content is where the prompt is.
+        const promptLine = body.split('\n').pop()
+        const promptLineRaw = stripAnsi(promptLine)
+
+        // Whether we are at the end of a line.
+        const isEndOfLine = promptLineRaw.length % maxWidth === 0
 
         // How many additional lines (> 1) for the prompt.
-        const extraPromptLineCount = Math.floor(rawPromptLine.length / maxWidth)
+        const extraPromptHeight = Math.floor(promptLineRaw.length / maxWidth)
 
-        // debug
-        //bottomContent = JSON.stringify({
-        //    norm: this.normalizedCliWidth()
-        //  , maxWidth
-        //  , isEndOfLine
-        //  , lessWidth
-        //  , 'rawPromptLine.length' : rawPromptLine.length
-        //})
-        if (bottomContent) {
-            bottomContent += '\n'
-        }
-        bottomContent += 'butterfly knife'
+        // Ensure non-empty contents end with line break.
+        body = this.forceLineReturn(body, maxWidth)
+        footer = footer && this.forceLineReturn(footer, maxWidth)
 
-        content = this.forceLineReturn(content, maxWidth)
-        if (bottomContent) {
-            bottomContent = this.forceLineReturn(bottomContent, maxWidth)
-        }
+        const content  = body + (footer ? '\n' + footer : '')
+        const lines    = content.split('\n')
+        const lastLine = lines[lines.length - 1]
 
-        const bottomLineCount = bottomContent ? bottomContent.split('\n').length : 0
-
-        const fullContent = content + (bottomContent ? '\n' + bottomContent : '')
-        const fullLines = fullContent.split('\n')
-        const lastFullLine = fullLines[fullLines.length - 1]
-        const minWidth = Math.max(...fullLines.map(stringWidth))
+        // The width required for this render, i.e. the longest line.
+        const thisWidth = Math.max(...lines.map(stringWidth))
 
         if (this.isFirstRender) {
-            emitter.emit('screenStart', opts)
+            emitter.emit('beforeFirstRender', this)
+        } else {
+            // Clean previous render.
+            this.clean(this.footerHeight)
         }
-        // Correct for input longer than width when width is less than available
-        const addPromptLen = extraPromptLineCount * lessWidth
+
+        // Correct for input longer than width when width is less than available.
+        const promptPad = nchars(extraPromptHeight * unusedWidth, ' ')
 
         // Remove the rl.line from our prompt. We can't rely on the content of
         // rl.line (mainly because of the password prompt), so just rely on it's
-        // length.
-        let prompt = rawPromptLine
-        if (this.rl.line.length) {
-            prompt = prompt.slice(0, -this.rl.line.length)
-        }
-        if (addPromptLen) {
-            // We can pad the end of the prompt, since only the length matters.
-            prompt += nchars(addPromptLen, ' ')
-        }
+        // length. Finally, pad the prompt with spaces if necessary, to get the
+        // correct length.
+        const prompt = promptLineRaw.slice(0, - rl.line.length || undefined) + promptPad
 
-        // SetPrompt will change cursor position, now we can get correct value
-        this.rl.setPrompt(prompt)
-        const cursorPos = this.rl._getCursorPos()
+        // setPrompt will change cursor position, now we can get correct value.
+        rl.setPrompt(prompt)
+        const cpos = rl._getCursorPos()
 
         // We need to consider parts of the prompt under the cursor as part of the bottom
         // content in order to correctly cleanup and re-render.
-        const promptLineUpDiff = extraPromptLineCount - cursorPos.rows
-        const bottomHeight = promptLineUpDiff + bottomLineCount
+        const footerLineCount = footer ? footer.split('\n').length : 0
+        const footerHeight = extraPromptHeight - cpos.rows + footerLineCount
 
-        this.clean()
-
-        this.cur.column(0)
-        // Write content lines
-        fullLines.forEach((line, i) => {
+        // Write content lines.
+        cur.column(0)
+        lines.forEach((line, i) => {
             if (i > 0) {
-                this.rl.output.write('\n')
+                rl.output.write('\n')
             }
-            if (opts.indent) {
-                this.cur.right(opts.indent)
+            if (indent) {
+                cur.right(indent)
             }
             if (this.isFirstRender || i >= this.height) {
-                term.erase(minWidth)
+                term.erase(thisWidth)
             }
-            this.rl.output.write(line)
+            rl.output.write(line)
         })
 
-        /**
-         * Re-adjust the cursor at the correct position.
-         */
-        if (bottomHeight > 0) {
-            this.cur.up(bottomHeight)
+        // Re-adjust the cursor to the correct position.
+        if (footerHeight > 0) {
+            cur.up(footerHeight)
         }
 
-        // Reset cursor at the beginning of the line
-        this.cur.left(stringWidth(lastFullLine))
+        // Reset cursor at the beginning of the line.
+        cur.left(stringWidth(lastLine))
 
-        // Adjust cursor on the right
-        if (cursorPos.cols > 0) {
-            this.cur.right(cursorPos.cols)
-        }
-        // Special case: adjust one over to the right
-        if (isEndOfLine && opts.indent && !bottomLineCount) {
-            this.cur.right(1)
+        // Adjust cursor on the right.
+        if (cpos.cols > 0) {
+            cur.right(cpos.cols)
         }
 
-        /**
-         * Set up state for next re-rendering
-         */
-        this.extraLinesUnderPrompt = bottomHeight
-        this.width = Math.max(this.width, minWidth)
-        this.height = fullLines.length
-        this.maxHeight = Math.max(this.heightMax, this.height)
-
-        this.rl.output.mute()
-
-        const result = {
-            width         : this.width
-          , height        : this.height
-          , indent        : opts.indent
-          , isFirstRender : this.isFirstRender
+        // Special case: adjust one over to the right.
+        if (isEndOfLine && indent && !footer) {
+            cur.right(1)
         }
 
-        emitter.emit('screenRender', result)
+        rl.output.mute()
+
+        // Set state for next rendering.
+        this.width = Math.max(this.width, thisWidth)
+        this.height = lines.length
+        this.heightMax = Math.max(this.height, this.heightMax)
+        this.footerHeight = footerHeight
+
+        emitter.emit('render', {indent, width: this.width, height: this.height})
 
         this.isFirstRender = false
     }
@@ -1335,33 +1290,26 @@ class ScreenManager extends ScreenBase {
      * @override
      */
     clean() {
+
+        const {term, indent} = this.opts
+
+        if (!term.enabled) {
+            return super.clean(this.footerHeight)
+        }
+        
         if (this.isFirstRender || !this.width || !this.height) {
             return
         }
 
-        const {opts} = this
+        const down = () => term.down(1).column(indent + 1)
 
-        const extraLines = this.extraLinesUnderPrompt
-        const next = ['down', 'up'][+this.isFirstRender]
-        const prev = ['up', 'down'][+this.isFirstRender]    
+        ntimes(this.footerHeight, () => down().erase(this.width))
 
-        for (var i = 0; i < extraLines; ++i) {
-            this.cur.down(1)
-            this.cur.column(opts.indent)
-            term.erase(this.width)
-        }
+        term.up(this.height)
 
-        this.cur.up(this.height)
+        ntimes(this.height, () => down().erase(this.width))
 
-        for (var i = 0; i < this.height; ++i) {
-            this.cur.down(1)
-            this.cur.column(opts.indent)
-            term.erase(this.width)
-        }
-        
-        if (!this.isFirstRender) {
-            this.cur.up(this.height - 1)
-        }
+        ntimes(this.height > 1, () => term.up(this.height - 1))
     }
 
     /**
@@ -1394,17 +1342,20 @@ const Features = {
   , action  : ChoiceActionFeature
 }
 
-Object.entries(Prompts).forEach(([name, PromptClass]) => {
-    const features = PromptClass.features ? PromptClass.features() : []
-    const inherits = PromptClass.inherits ? PromptClass.inherits() : []
-    const sources = features.map(name => Features[name]).concat(inherits)
-    extendClass(PromptClass, BaseMethods)
+Object.entries(Prompts).forEach(([name, TargetClass]) => {
+
+    const features = TargetClass.features ? TargetClass.features() : []
+    const inherits = TargetClass.inherits ? TargetClass.inherits() : []
+
+    const sources = [BaseMethods, ...features.map(name => Features[name]), ...inherits]
+
     sources.forEach(SourceClass => {
         const overrides = SourceClass.overrides ? SourceClass.overrides() : null
         const optionals = SourceClass.optionals ? SourceClass.optionals() : null
-        extendClass(PromptClass, SourceClass, {overrides, optionals})
+        extendClass(TargetClass, SourceClass, {overrides, optionals})
     })
-    Prompter.registerPrompt(name, PromptClass)
+
+    Prompter.registerPrompt(name, TargetClass)
 })
 
 const AddClasses = {

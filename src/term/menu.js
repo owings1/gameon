@@ -117,6 +117,71 @@ const CHash = (() => {
     return hash.digest('hex')
 }).call()
 
+
+class ScreenStatus extends EventEmitter {
+
+    constructor(defaults) {
+        super()
+        this._defaults = defaults
+        this.reset()
+        this.on('beforeFirstRender', () => {
+            this.trackBottom += this.thisHeight
+            this.thisHeight = 0
+        })
+        this.on('render', ({indent, width, height}) => {
+            if (!width) {
+                return
+            }
+            if (!this.width) {
+                this.left = indent + 1
+            }
+            this.right = Math.max(this.right, indent + width + 1)
+            this.thisHeight = Math.max(this.thisHeight, height)
+        })
+        this.on('line', ({indent, width}) => {
+            if (!width) {
+                return
+            }
+            if (!this.width) {
+                this.left = indent + 1
+            }
+            this.right = Math.max(this.right, indent + width + 1)
+            this.thisHeight += 1
+        })
+    }
+
+    get defaults() {
+        return Util.defaults({
+            thisHeight  : 0
+          , top         : 1
+          , left        : 1
+        }, this._defaults)
+    }
+
+    reset() {
+        Object.entries(this.defaults).forEach(([prop, value]) => {
+            this[prop] = value
+        })
+        this.trackBottom = this.top
+        this.right = this.left
+    }
+
+    get width() {
+        return this.right - this.left
+    }
+
+    get height() {
+        return this.bottom - this.top
+    }
+
+    get bottom() {
+        return this.trackBottom + this.thisHeight
+    }
+}
+
+
+const MenuWidth = 50
+
 class Menu extends EventEmitter {
 
     constructor(configDir) {
@@ -140,48 +205,11 @@ class Menu extends EventEmitter {
 
         this.theme = Themes.getDefaultInstance()
         this.term  = new TermHelper(this.settings.termEnabled)
-        this.top = 10
-        this.maxWidth = 80
 
         this.inquirer = inquirer
         this.q = new QuestionHelper(this)
 
-        this.screenStatus = {
-            trackHeight: 0
-          , thisHeight: 0
-          , get height() {
-                return this.trackHeight + this.thisHeight
-            }
-          , width : 0
-          , indent : null
-          , checkIndent : function (indent) {
-                if (this.indent == null) {
-                    this.indent = indent
-                }
-                if (indent != this.indent) {
-                    this.width += Math.abs(index - this.indent)
-                    this.indent = Math.min(indent, this.indent)
-                }
-            }
-          , reset: function () {
-                this.trackHeight = 0
-                this.thisHeight = 0
-                this.width = 0
-                this.indent = null
-            }
-        }
-        this.on('screenStart', ({indent}) => {
-            const status = this.screenStatus
-            status.trackHeight += status.thisHeight
-            status.thisHeight = 0
-            status.checkIndent(indent)
-        })
-        this.on('screenRender', ({indent, width, height}) => {
-            const status = this.screenStatus
-            status.checkIndent(indent)
-            status.width = Math.max(status.width, width)
-            status.thisHeight = Math.max(status.thisHeight, height)
-        })
+        this.sstatus = new ScreenStatus({top: 10})
     }
 
     mainMenu() {
@@ -943,18 +971,17 @@ class Menu extends EventEmitter {
     }
 
     getPromptOpts() {
-        const opts = {theme: this.theme, emitter: this}
-        if (this.settings.termEnabled) {
-            const extraWidth = this.term.width - this.maxWidth
-            opts.maxWidth = Math.min(this.maxWidth, this.term.width)
-            opts.indent = Math.max(0, Math.floor(extraWidth / 2))
-            opts.top = this.top
-        } else {
-            opts.maxWidth = Infinity
-            opts.indent = 0
-            opts.top = 1
+        const available = Math.min(this.term.width, 1024)
+        const maxWidth = Math.min(available, MenuWidth)
+        const surplus = available - maxWidth
+        const indent = Math.max(0, Math.floor(surplus / 2))
+        return {
+            theme    : this.theme
+          , emitter  : this.sstatus
+          , term     : this.term
+          , maxWidth
+          , indent
         }
-        return opts
     }
 
     async runMenu(title, run) {
@@ -994,7 +1021,7 @@ class Menu extends EventEmitter {
         const {answer, isCancel, toggle, ...result} = await this.questionAnswer(question, opts)
         question = choiceQuestion(question.choices, answer)
         const ask = async () => {
-            await this.clearAndConsume()
+            //await this.clearAndConsume()
             return this.questionAnswer(question, opts)
         }
         const choice = answer
@@ -1047,42 +1074,57 @@ class Menu extends EventEmitter {
     }
 
     async clearMenu() {
-        //console.log(this.screenStatus)
-        //await new Promise(resolve => setTimeout(resolve, 1000))
-        const {indent, width, height} = this.screenStatus
-        this.term.eraseArea(indent + 1, this.top, width, height)
-        this.term.moveTo(1, this.top)
-        this.screenStatus.reset()
+        const {left, top, width, height} = this.sstatus
+        //console.log({left, width, height})
+        //await new Promise(resolve => setTimeout(resolve, 2000))
+        if (width) {
+            //console.log({'term.enabled': this.term.enabled})
+            await this.term.eraseArea(left, top, width, height)
+            //await new Promise(resolve => setTimeout(resolve, 2000))
+            //await this.term.eraseArea(5, 10, 20, 20)
+            //console.log(this.sstatus)
+        }
+        await this.term.moveTo(1, top)
+        //this.clearScreen()
+        //console.log({left, top, width, height})
+        //this.clearScreen()
+        //await new Promise(resolve => setTimeout(resolve, 2000))
+        this.sstatus.reset()
+        //console.log(this.sstatus)
     }
 
     writeBg() {
         this.term.moveTo(1, 1)
         for (var i = 0; i < this.term.height; ++i) {
-            console.log(chalk.bgGreen.green(nchars(this.term.width, 'x')))
+            if (i > 0) {
+                this.logger.writeStdout('\n')
+            }
+            this.logger.writeStdout(chalk.bgGreen.green(nchars(this.term.width, 'x')))
         }
         this.term.moveTo(1, 1)
     }
 
-    clearScreen() {
-        this.term.clear()
-        this.eraseScreen()
+    async clearScreen() {
+        await this.term.clear()
+        await this.eraseScreen()
     }
 
-    eraseScreen() {
-        this.term.moveTo(1, 1).eraseDisplayBelow()
+    async eraseScreen() {
+        await this.term.moveTo(1, 1).eraseDisplayBelow()
         this.writeBg()
-        this.screenStatus.reset()
+        this.sstatus.reset()
     }
 
     async ensureClearScreen() {
         if (this.hasClearedScreen) {
             return
         }
-        this.clearScreen()
+        await this.clearScreen()
         this.hasClearedScreen = true
     }
 
     async consumeAlerts() {
+        //await new Promise(resolve => setTimeout(resolve, 3000))
         const alerts = this.alerts.splice(0)
         if (!alerts.length) {
             return
@@ -1129,10 +1171,9 @@ class Menu extends EventEmitter {
             lines.push(msgs.join(chlk[level].message(' ')))
 
             for (var line of lines) {
-                this.emit('screenStart', {indent})
-                await this.term.right(indent)
+                this.term.right(indent)
                 this.alerter[alevel](line)
-                this.emit('screenRender', {indent, width: stringWidth(line), height: 1})
+                this.sstatus.emit('line', {indent, width: stringWidth(line)})
             }
         }
     }
@@ -1198,13 +1239,9 @@ class Menu extends EventEmitter {
         if (this.term.enabled != this.settings.termEnabled) {
             this.term.enabled = this.settings.termEnabled
             if (this.settings.termEnabled) {
-                if (this.hasClearedScreen) {
-                    await this.eraseScreen()
-                } else {
-                    await this.clearScreen()
-                }
+                await this.eraseScreen()
             } else {
-                this.hasClearedScreen = false
+                await this.clearScreen()
             }
         }
     }

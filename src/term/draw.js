@@ -849,6 +849,13 @@ class TermHelper {
         return this
     }
 
+    erase(...args) {
+        if (this.enabled) {
+            this.term.erase(...args)
+        }
+        return this
+    }
+
     eraseArea(...args) {
         if (this.enabled) {
             this.term.eraseArea(...args)
@@ -964,6 +971,10 @@ class AnsiHelper {
 
     column(x) {
         return this.write(ansiEscapes.cursorTo(x))
+    }
+
+    clearLine(len) {
+        return this.write(ansiEscapes.eraseLines(len))
     }
 
     write(str) {
