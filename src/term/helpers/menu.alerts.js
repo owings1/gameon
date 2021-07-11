@@ -22,11 +22,13 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-const Util = require('../../lib/util')
+const Errors = require('../../lib/errors')
+const Util   = require('../../lib/util')
 
+const {ProgrammerError} = Errors
 const {update} = Util
 
-const {ProgrammerError} = require('../../lib/errors')
+const {EventEmitter} = require('events')
 
 const LevelsMap = {
     success : {
@@ -51,9 +53,10 @@ const LevelsMap = {
 
 const DefaultLevel = 'warn'
 
-class Alerts {
+class Alerts extends EventEmitter {
 
     constructor(menu) {
+        super()
         this.menu = menu
         this.alerts = []
     }
@@ -75,7 +78,13 @@ class Alerts {
     }
 
     level(level, ...args) {
-        this.alerts.push(this.buildObject(level, args))
+        const obj = this.buildObject(level, args)
+        if (obj.error) {
+            this.lastError = obj.error
+        }
+        this.alerts.push(obj)
+        this.emit('log', level, obj)
+        this.emit('log.' + level, obj)
         return this
     }
 

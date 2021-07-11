@@ -617,7 +617,6 @@ class Menu extends EventEmitter {
             }
         }
 
-        const chlk = this.theme.alert
         this.alerts.success('Login success to', credentials.serverUrl)
 
         credentials.needsConfirm = false

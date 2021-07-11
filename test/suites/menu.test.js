@@ -82,6 +82,7 @@ describe('-', () => {
         menu = new Menu(configDir)
         menu.logger.loglevel = 1
         menu.alerter.loglevel = menu.logger.loglevel
+        menu.eraseScreen = noop
     })
 
     afterEach(async () => {
@@ -205,13 +206,13 @@ describe('-', () => {
                     {matchId: '12345678'},
                     {choice: 'quit'}
                 ])
-                var wmsg
-                menu.alerter.warn = msg => wmsg = msg
-                var emsg
-                menu.alerter.error = msg => emsg = msg
+                var logObj
+                menu.alerts.on('log.warn', obj => logObj = obj)
+                menu.alerter.loglevel = -1
                 await menu.playMenu()
-                expect(emsg).to.contain('BadCredentialsError')
-                expect(!!wmsg).to.equal(true)
+                const err = menu.alerts.lastError
+                expect(err.isBadCredentialsError).to.equal(true)
+                expect(logObj.message.toLowerCase()).to.contain('authentication')
             })
 
             // TODO refactor since joinMenu is obsolete
@@ -492,9 +493,7 @@ describe('-', () => {
             })
 
             it('should alert BadCredentialsError and done when password entered and login fails', async () => {
-                var emsg
-                menu.alerter.loglevel = 0
-                menu.alerter.error = msg => emsg = msg
+                menu.alerter.loglevel = -1
                 menu.credentials.username = 'nobody2@nowhere.example'
                 const password = 'JUzrDc5k'
                 menu.prompt = MockPrompter([
@@ -503,12 +502,11 @@ describe('-', () => {
                     {choice: 'done'}
                 ])
                 await menu.accountMenu()
-                expect(emsg).to.contain('BadCredentialsError')
+                expect(menu.alerts.lastError.isBadCredentialsError).to.equal(true)
             })
 
             it('should alert BadCredentialsError then done on incorrect password for change-password', async () => {
-                var emsg
-                menu.alerter.error = msg => emsg = msg
+                menu.alerter.loglevel = -1
                 const username = 'nobody@nowhere.example'
                 const oldPassword = 'C7pUaA3c'
                 const badPassword = 'etzF4Y8L'
@@ -522,7 +520,7 @@ describe('-', () => {
                     {choice: 'done'}
                 ])
                 await menu.accountMenu()
-                expect(emsg).to.contain('BadCredentialsError')
+                expect(menu.alerts.lastError.isBadCredentialsError).to.equal(true)
             })
         })
 
@@ -1311,7 +1309,7 @@ describe('-', () => {
     })
 
     describe('Alerts', () => {
-        it.only('should have alert with error', () => {
+        it('should have alert with error', () => {
             const exp = new Error('test')
             menu.alerts.error(exp)
             const res = menu.alerts.getErrors()[0]
