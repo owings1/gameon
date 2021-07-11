@@ -1192,26 +1192,29 @@ describe('Server', () => {
 
 describe('NetPlayer', () => {
 
+    var server
     var serverUrl
+
     var client1
     var client2
+
     var client // alias for client1
 
-    var server
-
     beforeEach(async () => {
+
         server = new Server
         server.logger.loglevel = 1
         // hack so no req logging
         server.getLoggingMiddleware = () => (req, res, next) => next()
         server.app = server.createApp()
         await server.listen()
-        serverUrl = 'ws://localhost:' + server.port
+        serverUrl = 'http://localhost:' + server.port
         client1 = new Client(serverUrl)
-        client = client1
         client2 = new Client(serverUrl)
         client1.logger.loglevel = 1
         client2.logger.loglevel = 1
+
+        client = client1
     })
 
     afterEach(async () => {
@@ -1311,10 +1314,6 @@ describe('NetPlayer', () => {
             await Util.destroyAll(east.players)
             await Util.destroyAll(west.players)
         }
-    })
-
-    describe('timing experiments', () => {
-        it('')
     })
 })
 
