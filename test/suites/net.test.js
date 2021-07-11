@@ -72,40 +72,46 @@ function getParams(obj) {
 
 describe('Client', () => {
 
+    var server
     var serverUrl
-    var client
+
+    var client1
     var client2
 
-    var server
+    // alias for client1
+    var client
 
-    async function createMatch() {
-        const p = client.createMatch({total: 1})
-        var id
-        await new Promise(resolve => setTimeout(() => {
-            id = Object.keys(server.matches)[0]
-            client2.joinMatch(id).then(resolve)
-        }, 10))
-        const match = await p
-        match.id = id
-        return match
+    function createMatch() {
+        client1.once('matchCreated', id => client2.joinMatch(id))
+        return new Promise(resolve => {
+            client2.once('matchJoined', resolve)
+            client1.createMatch({total: 1})
+        })
     }
 
     beforeEach(async () => {
+
         server = new Server
+
         server.logger.loglevel = 1
         // hack so no req logging
         server.getLoggingMiddleware = () => (req, res, next) => next()
         server.app = server.createApp()
+
         await server.listen()
-        serverUrl = 'ws://localhost:' + server.port
-        client = new Client(serverUrl)
+
+        serverUrl = 'http://localhost:' + server.port
+
+        client1 = new Client(serverUrl)
         client2 = new Client(serverUrl)
-        client.logger.loglevel = 1
+        client1.logger.loglevel = 1
         client2.logger.loglevel = 1
+
+        client = client1
     })
 
     afterEach(async () => {
-        await client.close()
+        await client1.close()
         await client2.close()
         server.close()
     })
@@ -184,7 +190,7 @@ describe('Client', () => {
         it('should pass for nextGame', async () => {
             const match = await createMatch()
             client2.matchRequest('nextGame')
-            await client.matchRequest('nextGame')
+            await client1.matchRequest('nextGame')
         })
     })
 
@@ -192,7 +198,7 @@ describe('Client', () => {
 
         it('should return match', async () => {
             const match = await createMatch()
-            expect(client.matchId).to.equal(match.id)
+            expect(client.match.uuid).to.have.length(36).and.to.equal(match.uuid)
         })
     })
 

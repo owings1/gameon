@@ -151,18 +151,20 @@ class Client extends EventEmitter {
         const {total} = opts
         const req = {action: 'createMatch', total, opts}
         const {id, match} = await this.sendAndWaitForResponse(req, 'matchCreated')
+
         this.matchId = id
+        this.match = Match.unserialize(match)
+        this.color = White
+
         this.logger.info('Created new match', id)
         this.emit('matchCreated', id)
 
         this.logger.info('Waiting for opponent to join')        
         await this.waitForResponse('opponentJoined')
+
         this.logger.info('Opponent joined', id)
-
-        this.match = Match.unserialize(match)
-        this.color = White
-
         this.emit('opponentJoined', this.match)
+
         return this.match
     }
 
@@ -172,15 +174,15 @@ class Client extends EventEmitter {
 
         this.logger.info('Joining match', id)
         const req = {action: 'joinMatch', id}
-        const res = await this.sendAndWaitForResponse(req, 'matchJoined')
-        this.matchId = res.id
-        const {total, opts} = res
-        this.logger.info('Joined match', res.id, 'to', total, 'points')
+        const {match} = await this.sendAndWaitForResponse(req, 'matchJoined')
 
-        this.match = new Match(total, opts)
+        this.matchId = id
+        this.match = Match.unserialize(match)
         this.color = Red
 
+        this.logger.info('Joined match', id, 'to', this.match.total, 'points')
         this.emit('matchJoined', this.match)
+
         return this.match
     }
 
