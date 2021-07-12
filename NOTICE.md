@@ -28,13 +28,15 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 ### Inquirer.js
 
-Code adapted and modified.
+**MIT License**
 
 - https://www.npmjs.com/package/inquirer
 
 - https://github.com/SBoudrias/Inquirer.js
 
-**See files:**
+Code adapted and modified.
+
+#### Files
 
 - [src/lib/term/inquirer.js](src/lib/term/inquirer.js)
 - [src/lib/term/prompts.js](src/lib/term/prompts.js)
@@ -42,8 +44,13 @@ Code adapted and modified.
 - [src/lib/term/helpers/prompt.features.js](src/lib/term/helpers/prompt.features.js)
 - [src/lib/term/helpers/prompt.methods.js](src/lib/term/helpers/prompt.methods.js)
 
+#### Copyright
 
-**MIT License**
+```
+Copyright (c) 2012 Simon Boudrias
+```
+
+#### License
 
 ```
 Copyright (c) 2012 Simon Boudrias
