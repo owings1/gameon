@@ -226,7 +226,7 @@ class DrawHelper {
 
         const {chars} = this
 
-        const afterStr = this.afterPieceRowString(depth, cubePart, owner)
+        const afterStr = this.afterPieceRowString(depth, cubePart, owner).toString()
         const pad = this.AfterWidth - strlen(afterStr)
 
         const b = new StringBuilder
@@ -301,7 +301,7 @@ class DrawHelper {
 
         b.add(cubeStr)
 
-        const pad = this.AfterWidth - strlen(cubeStr)
+        const pad = this.AfterWidth - strlen(cubeStr.toString())
 
         b.add(this.sideLog(pad))
         b.add(Chars.br)
@@ -321,7 +321,7 @@ class DrawHelper {
             var cubeStr = Chars.empty
         }
 
-        const pad = this.AfterWidth - strlen(cubeStr)
+        const pad = this.AfterWidth - strlen(cubeStr.toString())
 
         return new StringBuilder(
             chlk.border(chars.pipe)

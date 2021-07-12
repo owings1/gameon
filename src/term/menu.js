@@ -103,7 +103,7 @@ const InterruptCancelEvent = {
   , key: {name: 'c', ctrl: true}
 }
 
-const InterruptCancelAnsers = {
+const InterruptCancelAnswers = {
     _cancelEvent: InterruptCancelEvent
 }
 
@@ -257,7 +257,7 @@ class Menu extends EventEmitter {
                     return true
                 }
 
-                const {answer, isCancel, isChange} = await ask()
+                let {answer, isCancel, isChange} = await ask()
 
                 if (isCancel || !isChange) {
                     return true
@@ -576,7 +576,7 @@ class Menu extends EventEmitter {
 
     async promptMatchAdvancedOpts(defaults) {
         const questions = this.q.matchAdvanced(defaults)
-        const answers = await this.prompt(questions)
+        const answers = await this.prompt(questions, null, {cancelOnInterrupt: true})
         if (answers._cancelEvent) {
             return {...defaults}
         }
@@ -710,7 +710,7 @@ class Menu extends EventEmitter {
         try {
             const coordinator = this.newCoordinator()
             this.captureInterrupt = () => {
-                this.alerts.push(['warn', 'Canceling match'])
+                this.alerts.warn('Canceling match')
                 coordinator.cancelMatch(match, players, new MatchCanceledError('Keyboard interrupt'))
                 return true
             }
@@ -1047,14 +1047,13 @@ class Menu extends EventEmitter {
 
         const {maxWidth, indent} = this.getPromptOpts()
 
-        this.alerts.splice(0).map(({logLevel, formatted}) =>
-            forceLineReturn(formatted.string, maxWidth).split('\n').map(line =>
-                [logLevel, line]
-            )
-        ).flat().forEach(([logLevel, line]) => {
-            this.term.right(indent)
-            this.alerter[logLevel](line)
-            this.sstatus.emit('line', {indent, width: stringWidth(line)})
+        this.alerts.consume(({logLevel, error, formatted}) => {
+            forceLineReturn(formatted.string, maxWidth).split('\n').flat().forEach(line => {
+                const param = {indent, width: stringWidth(line)}
+                this.term.right(indent)
+                this.alerter[logLevel](line)
+                this.sstatus.emit('line', param)
+            })
         })
     }
 
@@ -1082,7 +1081,7 @@ class Menu extends EventEmitter {
         if (this.settings.isCustomRobot && isEmptyObject(this.settings.robots)) {
             // populate for legacy format
             this.settings.robots = Menu.robotsDefaults()
-            this.alerts.push(['info', 'Migrating legacy robot config'])
+            this.alerts.info('Migrating legacy robot config')
             await this.saveSettings()
         }
 

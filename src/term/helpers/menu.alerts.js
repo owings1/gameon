@@ -88,6 +88,30 @@ class Alerts extends EventEmitter {
         return this
     }
 
+    async consume(cb) {
+        const alerts = this.splice(0)
+        const ret = []
+        try {
+            for (var alert = alerts.shift(); alert || alerts.length; alert = alerts.shift()) {
+                if (!alert) {
+                    continue
+                }
+                if (!alert.isLogObj) {
+                    alert = this.buildObject(null, alert)
+                }
+                if (cb) {
+                    await cb(alert)
+                }
+                ret.push(alert)
+            }
+        } finally {
+            if (alerts.length) {
+                this.alerts = alerts
+            }
+        }
+        return ret
+    }
+
     getErrors() {
         return this.alerts.map(it => it.errors).flat()
     }
@@ -139,6 +163,7 @@ class Alerts extends EventEmitter {
               , message : fmt.messages.join(joiner)
               , string  : fmt.parts.join(joiner)
             }
+          , isLogObj : true
         }
     }
 
