@@ -367,7 +367,8 @@ class Questions {
               , name  : 'Done'
               , enter : EnterChars.back
             }
-          , this.hr()
+        ]).concat(this.formatChoices([
+            this.hr()
           , {
                 value : 'serverUrl'
               , name  : 'Server'
@@ -392,7 +393,8 @@ class Questions {
               , question : this.password()
             }
           , this.hr()
-          , {
+        ])).concat(this.formatChoices([
+            {
                 value : 'createAccount'
               , name  : 'Create Account'
               , when  : !isFilled
@@ -429,7 +431,7 @@ class Questions {
               , when  : hasCredential
             }
           , this.br()
-        ])
+        ]))
     }
 
     username() {
