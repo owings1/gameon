@@ -114,26 +114,6 @@ class TermBox {
         this.status.reset()
     }
 
-    fillHeightMaxWidth(height, getLine) {
-        const {left, top, maxHeight, maxWidth} = this.getParams()
-        const {isBorder, pad} = this.opts
-        const bw = +isBorder * 2
-        const bh = +isBorder * 2
-        const p = pad * 2
-        height = Math.min(height, maxHeight) + bh + p
-        this.term.writeArea(left - isBorder - pad, top - isBorder - pad, 1, height, getLine(maxWidth + bw + p))
-    }
-
-    fillHeightMinWidth(height, getLine) {
-        const {left, top, maxHeight, minWidth} = this.getParams()
-        const {isBorder, pad} = this.opts
-        const bw = +isBorder * 2
-        const bh = +isBorder * 2
-        const p = pad * 2
-        height = Math.min(height, maxHeight) + bh + p
-        this.term.writeArea(left - isBorder - pad, top - isBorder - pad, 1, height, getLine(minWidth + bw + p))
-    }
-
     drawBorder() {
         const {term} = this
         const {pad, isBorder} = this.opts
