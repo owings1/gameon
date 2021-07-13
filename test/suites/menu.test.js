@@ -47,6 +47,7 @@ describe('-', () => {
     const Errors      = requireSrc('lib/errors')
     const Menu        = requireSrc('term/menu')
     const Robot       = requireSrc('robot/player')
+    const ScreenStatus= requireSrc('term/helpers/menu.screen')
     const Server      = requireSrc('net/server')
     const ThemeHelper = requireSrc('term/themes')
 
@@ -255,7 +256,6 @@ describe('-', () => {
                 ])
                 await menu.matchMenu('playHumans')
                 expect(menu.settings.matchOpts.isCrawford).to.equal(false)
-
             })
 
             it('should quit', async () => {
@@ -445,8 +445,7 @@ describe('-', () => {
 
             it('should alert error and done when promptForgotPassword throws', async () => {
                 const err = new Error('testMessage')
-                var emsg
-                menu.alerter.error = msg => emsg = msg
+                menu.loglevel = -1
                 menu.promptForgotPassword = () => { throw err }
                 const username = 'nobody@nowhere.example'
                 const password = 'd4PUxRs2'
@@ -456,7 +455,7 @@ describe('-', () => {
                     {choice: 'done'}
                 ])
                 await menu.accountMenu()
-                expect(emsg).to.contain('testMessage')
+                expect(menu.alerts.lastError).to.equal(err)
             })
 
             it('should alert BadCredentialsError and done when password entered and login fails', async () => {
@@ -929,7 +928,8 @@ describe('-', () => {
             })
         })
 
-        describe('#newClient', () => {
+        // refactored api
+        describe.skip('#newClient', () => {
 
             it('should return new client', () => {
                 const client = menu.newClient('mockUrl', '', '')
@@ -970,11 +970,10 @@ describe('-', () => {
             it('should alert warn match canceled but not throw for mock coodinator', async () => {
                 const err = new MatchCanceledError
                 menu.newCoordinator = () => newThrowingCoordinator(err)
-                var emsg
-                menu.alerter.warn = msg => emsg = msg
+                menu.loglevel = 0
                 await menu.playHumans(menu.settings.matchOpts)
                 await menu.consumeAlerts()
-                expect(emsg).to.contain('MatchCanceledError')
+                expect(menu.alerts.lastError).to.equal(err)
             })
 
             it('should throw on non-match-canceled for mock coodinator', async () => {
@@ -1004,7 +1003,7 @@ describe('-', () => {
                         player.drawBoard = noop
                     })
                     // prevent logging to screen
-                    players.White._inquirer = {
+                    players.White.inquirer = {
                         prompt: () => new Promise(resolve => {})
                     }
                     setTimeout(() => menu.captureInterrupt())
@@ -1152,14 +1151,16 @@ describe('-', () => {
 
             describe('server', () => {
 
+                var menu1
                 var menu2
 
                 beforeEach(async () => {
+                    menu1 = menu
                     await server.listen()
                     const username = 'nobody@nowhere.example'
                     const password = '9YWS8b8F'
                     const user = await server.auth.createUser(username, password, true)
-                    menu.credentials = {
+                    menu1.credentials = {
                         username
                       , password : menu.encryptPassword(user.passwordEncrypted)
                       , serverUrl : 'http://localhost:' + server.port
@@ -1188,16 +1189,14 @@ describe('-', () => {
 
                 it('should let menu2 join then cancel on interrupt', done => {
 
-                    const menu1 = menu
-
                     const finish = () => {
                         menu1.captureInterrupt()
                         menu2.captureInterrupt()
                         done()
                     }
 
-                    menu1.logger.loglevel = -1
-                    menu2.logger.loglevel = -1
+                    menu1.loglevel = -1
+                    menu2.loglevel = -1
 
                     const isDebug = false
 
@@ -1223,7 +1222,7 @@ describe('-', () => {
 
                     const prep = player => {
                         player.logger.loglevel = 0
-                        player._inquirer = fakeInquirer
+                        player.inquirer = fakeInquirer
                         player.drawBoard = noop
                         player.on('firstRoll', () => {
                             if (++count == 2) {
@@ -1281,6 +1280,24 @@ describe('-', () => {
             const res = menu.alerts.getErrors()[0]
             expect(res).to.equal(exp)
             
+        })
+    })
+
+    describe('ScreenStatus', () => {
+
+        var stat
+
+        beforeEach(() => {
+            stat = new ScreenStatus
+        })
+
+        it('should track line height plus render height after answered with less height', () => {
+            stat.emit('render', {width: 1, indent: 0, height: 10})
+            stat.emit('line', {width: 1, indent: 0})
+            stat.emit('answered', {width: 1, indent: 0, height: 2})
+            stat.emit('render', {width: 1, indent: 0, height: 10})
+            stat.emit('answered', {width: 1, indent: 0, height: 2})
+            expect(stat.height).to.equal(13)
         })
     })
 })

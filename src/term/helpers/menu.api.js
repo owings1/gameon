@@ -42,6 +42,11 @@ class MenuApiHelper {
         this.client.loglevel = n
     }
 
+    authenticate({serverUrl, username, password}) {
+        const data = {username, password}
+        return this._handleRequest(serverUrl, 'authenticate', data)
+    }
+
     signup(serverUrl, username, password) {
         const data = {username, password}
         return this._handleRequest(serverUrl, 'signup', data)

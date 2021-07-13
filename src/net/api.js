@@ -33,6 +33,7 @@ const express    = require('express')
 const Messages = {
     accountConfirmed : 'Account confirmed.'
   , accountCreated   : 'Account created, check your email to confirm.'
+  , authenticated    : 'User authenticated.'
   , confirmKeySent   : 'A confirm key has been sent if the account exists and is unconfirmed, check your email.'
   , passwordChanged  : 'Password changed.'
   , passwordReset    : 'Password reset.'
@@ -42,9 +43,7 @@ const Messages = {
 class Api {
 
     static defaults(env) {
-        return {
-
-        }
+        return {}
     }
 
     constructor(opts) {
@@ -70,127 +69,140 @@ class Api {
         const app = express()
         const jsonParser = bodyParser.json()
 
+        app.use((req, res, next) => {
+            res.errorHandler = err => this.handleError(err, res)
+            next()
+        })
+
+        app.post('/authenticate', jsonParser, (req, res) => {
+
+            const message = Messages.authenticated
+            const {username, password} = req.body
+
+            this.auth.authenticate(username, password).then(user => {
+
+                const status = 200
+                const {passwordEncrypted} = user
+                const body = {status, message, passwordEncrypted}
+
+                res.status(status).send(body)
+
+            }).catch(res.errorHandler)
+        })
 
         app.post('/signup', jsonParser, (req, res) => {
 
             const message = Messages.accountCreated
-
             const {username, password} = req.body
 
             this.auth.createUser(username, password).then(user => {
 
+                const status = 201
                 const {passwordEncrypted} = user
-                const body = {status: 201, message, passwordEncrypted}
+                const body = {status, message, passwordEncrypted}
 
-                this.auth.sendConfirmEmail(username).then(() => {
-                    
-                    res.status(201).send(body)
+                this.auth.sendConfirmEmail(username).then(() =>
+                    res.status(status).send(body)
+                ).catch(res.errorHandler)
 
-                }).catch(err => this.handleInternalError(err, res))
-
-            }).catch(err => this.handleError(err, res))
+            }).catch(res.errorHandler)
         })
-
 
         app.post('/send-confirm-email', jsonParser, (req, res) => {
 
             const message = Messages.confirmKeySent
-            const body = {status: 200, message}
+            const {username} = req.body
 
-            const {username} = req.body            
+            const status = 200
+            const body = {status, message}
 
-            this.auth.sendConfirmEmail(username).then(() => {
-
-                res.status(200).send(body)
-
-            }).catch(err => {
-                if (err.name == 'UserNotFoundError' || err.name == 'UserConfirmedError') {
+            this.auth.sendConfirmEmail(username).then(() => 
+                res.status(status).send(body)
+            ).catch(err => {
+                // Do not reveal non-existence of user.
+                if (err.isUserNotFoundError || err.isUserConfirmedError) {
                     this.logger.warn('Invalid send-confirm-email request', {username}, err)
-                    res.status(200).send(body)
+                    res.status(status).send(body)
                     return
                 }
-                this.handleError(err, res)
+                res.errorHandler(err)
             })            
         })
 
-
         app.post('/forgot-password', jsonParser, (req, res) => {
 
+            const message = Messages.resetKeySent
             const {username} = req.body
 
-            const message = Messages.resetKeySent
-            const body = {status: 200, message}
+            const status = 200
+            const body = {status, message}
 
-            this.auth.sendResetEmail(username).then(() => {
-
-                res.status(200).send(body)
-
-            }).catch(err => {
-                if (err.name == 'UserNotFoundError' || err.name == 'UserNotConfirmedError') {
+            this.auth.sendResetEmail(username).then(() =>
+                res.status(status).send(body)
+            ).catch(err => {
+                // Do not reveal non-existence of user.
+                if (err.isUserNotFoundError || err.isUserNotConfirmedError) {
                     this.logger.warn('Invalid forgot-password request', {username}, err)
-                    res.status(200).send(body)
+                    res.status(status).send(body)
                     return
                 }
-                this.handleError(err, res)
+                res.errorHandler(err)
             })
         })
-
 
         app.post('/confirm-account', jsonParser, (req, res) => {
 
             const message = Messages.accountConfirmed
-            const body = {status: 200, message}
-
             const {username, confirmKey} = req.body
 
-            this.auth.confirmUser(username, confirmKey).then(() => {
+            const status = 200
+            const body = {status, message}
 
-                res.status(200).send(body)
-
-            }).catch(err => this.handleError(err, res))
+            this.auth.confirmUser(username, confirmKey).then(() =>
+                res.status(status).send(body)
+            ).catch(res.errorHandler)
         })
-
 
         app.post('/change-password', jsonParser, (req, res) => {
 
             const message = Messages.passwordChanged
-
             const {username, oldPassword, newPassword} = req.body
 
             this.auth.changePassword(username, oldPassword, newPassword).then(user => {
 
+                const status = 200
                 const {passwordEncrypted} = user
-                const body = {status: 200, message, passwordEncrypted}
+                const body = {status, message, passwordEncrypted}
 
-                res.status(200).send(body)
+                res.status(status).send(body)
 
-            }).catch(err => this.handleError(err, res))
+            }).catch(res.errorHandler)
         })
-
 
         app.post('/reset-password', jsonParser, (req, res) => {
 
             const message = Messages.passwordReset
-
             const {username, password, resetKey} = req.body
 
             this.auth.resetPassword(username, password, resetKey).then(user => {
-                
+
+                const status = 200
                 const {passwordEncrypted} = user
-                const body = {status: 200, message, passwordEncrypted}
+                const body = {status, message, passwordEncrypted}
 
-                res.status(200).send(body)
+                res.status(status).send(body)
 
-            }).catch(err => this.handleError(err, res))
+            }).catch(res.errorHandler)
         })
 
         return app
     }
 
     handleInternalError(err, res) {
+        const status = 500
         const error = {name: 'InternalError', message: 'Internal Error'}
-        const body = {status: 500, message: 'Internal Error', error}
-        res.status(500).send(body)
+        const body = {status, message: 'Internal Error', error}
+        res.status(status).send(body)
         this.logger.error(err)
     }
 
@@ -199,9 +211,10 @@ class Api {
             this.handleInternalError(err, res)
             return
         }
+        const status = 400
         const error = {name: err.name, message: err.message}
-        const body = {status: 400, message: 'Bad Request', error}
-        res.status(400).send(body)
+        const body = {status, message: 'Bad Request', error}
+        res.status(status).send(body)
     }
 }
 

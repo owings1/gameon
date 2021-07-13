@@ -62,7 +62,7 @@ const AlertThemeMessage = {
 class Logger {
 
     static defaults() {
-        return {server: false, named: false, alerter: false, theme: null/*, maxWidth: Infinity*/}
+        return {server: false, named: false, raw: false, theme: null/*, maxWidth: Infinity*/}
     }
 
     constructor(name, opts) {

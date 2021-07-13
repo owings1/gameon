@@ -98,6 +98,7 @@ const {
 } = Constants.Menu
 
 const MenuWidth = 50
+const ResizeTimoutMs = 100
 
 const InterruptCancelEvent = {
     interrupt: true
@@ -149,6 +150,9 @@ class Menu extends EventEmitter {
         this.logger.loglevel = n
         this.alerter.loglevel = n
         this.api.loglevel = n
+        if (this.thisClient) {
+            this.thisClient.loglevel = n
+        }
     }
 
     mainMenu() {
@@ -612,7 +616,8 @@ class Menu extends EventEmitter {
 
         try {
 
-            const {passwordEncrypted} = await this.testCredentials(credentials, true)
+            const password = this.decryptPassword(credentials.password)
+            const {passwordEncrypted} = await this.api.authenticate({...credentials, password})
 
             credentials.password = this.encryptPassword(passwordEncrypted)
 
@@ -732,7 +737,8 @@ class Menu extends EventEmitter {
             const {coordinator} = this
             this.captureInterrupt = () => {
                 this.alerts.warn('Canceling match')
-                coordinator.cancelMatch(match, players, new MatchCanceledError('Keyboard interrupt'))
+                const err = new MatchCanceledError('Keyboard interrupt')
+                coordinator.cancelMatch(match, players, err)
                 return true
             }
             this.emit('beforeMatchStart', match, players)
@@ -819,20 +825,16 @@ class Menu extends EventEmitter {
         return RobotDelegator.forDefaults(...args)
     }
 
-    async testCredentials(credentials, isDecrypt) {
-        const client = this.newClient(credentials, isDecrypt)
-        try {
-            return await client.connect()
-        } finally {
-            await client.close()
-        }
-    }
-
     newCoordinator() {
         return new Coordinator(this.settings)
     }
 
-    newClient(...args) {
+    newClient(credentials) {
+        credentials = {
+            ...credentials
+          , password: this.decryptPassword(credentials.password)
+        }
+        /*
         if (typeof args[0] == 'object') {
             var credentials = {...args[0]}
             const isDecrypt = !!args[1]
@@ -843,7 +845,9 @@ class Menu extends EventEmitter {
             var [serverUrl, username, password] = args
             var credentials = {serverUrl, username, password}
         }
+        */
         const client = new Client(credentials)
+        this.thisClient = client
         client.loglevel = this.loglevel
         return client
     }
@@ -889,6 +893,32 @@ class Menu extends EventEmitter {
         }
     }
 
+    handleResize() {
+        this.hasMenuBackground = false
+        if (this.players) {
+            Object.values(this.players).forEach(player => player.emit('resize'))
+        }
+        if (!this.settings.termEnabled) {
+            return
+        }
+        clearTimeout(this.resizeTimeout)
+        this.resizeTime = setTimeout(() => {
+            const {prompter} = this
+            if (!prompter || !prompter.ui) {
+                return
+            }
+            const {ui} = prompter
+            if (typeof ui.onResize != 'function') {
+                return
+            }
+            const opts = this.getPromptOpts()
+            this.writeMenuBackground()
+            this.term.moveTo(1, this.sstatus.top)
+            this.renderAlerts(this.currentAlerts)
+            ui.onResize(opts, true)
+        }, ResizeTimoutMs)
+    }
+
     async runMenu(title, run) {
         this.bread.push(title)
         try {
@@ -904,7 +934,8 @@ class Menu extends EventEmitter {
                     while (true) {
                         await this.ensureMenuBackground()
                         await this.eraseMenu()
-                        await this.consumeAlerts()
+                        this.currentAlerts = await this.consumeAlerts()
+                        await this.renderAlerts(this.currentAlerts)
                         res = await loop()
                         if (res !== true) {
                             break
@@ -916,6 +947,32 @@ class Menu extends EventEmitter {
         } finally {
             this.bread.pop()
         }
+    }
+
+    consumeAlerts(isSkipRender) {
+        const alerts = this.alerts.consume()
+        if (!isSkipRender) {
+            this.renderAlerts(alerts)
+        }
+        return alerts
+    }
+
+    renderAlerts(alerts) {
+
+        if (!alerts || !alerts.length) {
+            return
+        }
+
+        const {maxWidth, indent} = this.getPromptOpts()
+
+        alerts.forEach(({logLevel, error, formatted}) => {
+            forceLineReturn(formatted.string, maxWidth).split('\n').flat().forEach(line => {
+                const param = {indent, width: stringWidth(line)}
+                this.term.right(indent)
+                this.alerter[logLevel](line)
+                this.sstatus.emit('line', param)
+            })
+        })
     }
 
     async menuChoice(question, opts) {
@@ -993,15 +1050,15 @@ class Menu extends EventEmitter {
     }
 
     eraseMenu() {
-        const {left, top, width, lastHeight} = this.sstatus
+        const {left, top, width, height} = this.sstatus
         this.sstatus.reset()
         if (!this.settings.termEnabled) {
             return
         }
         if (width) {
             const chlk = this.theme.menu
-            const str = chlk.screen(nchars(width, ' '))
-            this.term.writeArea(left, top, width, lastHeight, str)
+            const str = chlk.screen(nchars(width, 'y'))
+            this.term.writeArea(left, top, 1, height, str)
         }
         this.term.moveTo(1, top)
     }
@@ -1012,7 +1069,7 @@ class Menu extends EventEmitter {
             return
         }
         const chlk = this.theme.menu
-        const str = chlk.screen(nchars(this.term.width, ' '))
+        const str = chlk.screen(nchars(this.term.width, 'x'))
         this.term.writeArea(1, 1, 1, this.term.height, str)
         this.term.moveTo(1, 1)
         this.hasMenuBackground = true
@@ -1023,43 +1080,6 @@ class Menu extends EventEmitter {
             return
         }
         this.writeMenuBackground()
-    }
-
-    consumeAlerts() {
-
-        if (!this.alerts.length) {
-            return
-        }
-
-        const {maxWidth, indent} = this.getPromptOpts()
-
-        this.alerts.consume(({logLevel, error, formatted}) => {
-            forceLineReturn(formatted.string, maxWidth).split('\n').flat().forEach(line => {
-                const param = {indent, width: stringWidth(line)}
-                this.term.right(indent)
-                this.alerter[logLevel](line)
-                this.sstatus.emit('line', param)
-            })
-        })
-    }
-
-    handleResize() {
-        this.hasMenuBackground = false
-        if (!this.settings.termEnabled) {
-            return
-        }
-        const {prompter} = this
-        if (!prompter || !prompter.ui) {
-            return
-        }
-        const {ui} = prompter
-        if (typeof ui.onResize != 'function') {
-            return
-        }
-        const opts = this.getPromptOpts()
-        this.writeMenuBackground()
-        this.term.moveTo(1, this.sstatus.top)
-        ui.onResize(opts, true)
     }
 
     async ensureLoaded(isQuiet) {

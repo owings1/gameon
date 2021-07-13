@@ -89,28 +89,20 @@ const DefaultTerm = new TermHelper(DefaultTermEnabled)
 function createPromptModule(opt) {
     
     const self = (questions, answers, opts) => {
-        opts = {
-            emitter  : NullEmitter
-          , ...opts
-          , readline : {
-              ...opt
-            , ...opts.readline
-          }
-        }
-        questions = castToArray(questions).map(question => ({
-            ...question
-          , opts: {
-                ...opts
-              , ...question.opts
-            }
-        }))
+
+        opts = {emitter: NullEmitter, ...opts}
+        opts.readline = {...opt, ...opts.readline}
+
+        questions = castToArray(questions).map(question => (
+            {...question, opts: {...opts, ...question.opts}}
+        ))
 
         /**
          * Copied and adapted from inquirer/lib/inquirer.js
          */
         let ui
         try {
-            ui = new self.ui.Prompt(self.prompts, {...opt, ...opts.readline}, self)
+            ui = new self.ui.Prompt(self.prompts, opts.readline, self)
         } catch (error) {
             return Promise.reject(error)
         }
@@ -121,7 +113,7 @@ function createPromptModule(opt) {
         return update(promise, {ui, opts})
     }
 
-    return ensure(self, {
+    ensure(self, {
 
         createPromptModule
 
@@ -143,14 +135,16 @@ function createPromptModule(opt) {
             self.prompts = {...boudrias, ...Prompts}
             return self
         }
-    }).restoreDefaultPrompts()
+    })
+
+    return self.restoreDefaultPrompts()
 }
 
 class ScreenManager extends ScreenBase {
 
     constructor(rl, opts) {
         super(rl)
-        opts = {
+        this.opts = {
             indent       : 0
           , maxWidth     : Infinity
           , defaultWidth : 80
@@ -158,12 +152,13 @@ class ScreenManager extends ScreenBase {
           , term         : DefaultTerm
           , ...opts
         }
-        this.opts = opts
         this.cur = new AnsiHelper(this)
+        update(this, {
+            width     : 0
+          , height    : 0
+          , heightMax : 0
+        })
         this.isFirstRender = true
-        this.width = 0
-        this.height = 0
-        this.heightMax = 0
     }
 
    /**
@@ -174,7 +169,9 @@ class ScreenManager extends ScreenBase {
     * See https://github.com/SBoudrias/Inquirer.js/blob/master/packages/inquirer/lib/utils/screen-manager.js
     */
     render(body, foot, spinning = false) {
-        
+
+        this._lastRender = [body, foot, spinning]
+
         const {opts, cur, rl} = this
         const {emitter, term, indent} = opts
 
@@ -188,22 +185,21 @@ class ScreenManager extends ScreenBase {
          * Write message to screen and setPrompt to control backspace.
          */
 
-        const cliWidth = this.normalizedCliWidth()
-
         // Limit maxWidth to cli width.
+        const cliWidth = this.normalizedCliWidth()
         const maxWidth = Math.min(cliWidth - indent, opts.maxWidth)
         // The remaining unused cli width, if any.
         const freeWidth = Math.max(0, cliWidth - maxWidth)
 
         // The last line of regular body content is where the prompt is.
         const promptLine = body.split('\n').pop()
-        const promptRaw = stripAnsi(promptLine)
+        const promptClean = stripAnsi(promptLine)
 
         // Whether we are at the end of a line.
-        const isEndOfLine = promptRaw.length % maxWidth === 0
+        const isEndOfLine = promptClean.length % maxWidth === 0
 
         // How many additional lines (> 1) for the prompt.
-        const extraPromptHeight = Math.floor(promptRaw.length / maxWidth)
+        const promptBreaks = Math.floor(promptClean.length / maxWidth)
 
         // Ensure non-empty contents end with line break.
         body = this.forceLineReturn(body, maxWidth)
@@ -223,13 +219,13 @@ class ScreenManager extends ScreenBase {
         this.clean(this.footHeight)
 
         // Correct for input longer than width when width is less than available.
-        const promptPad = nchars(extraPromptHeight * freeWidth, ' ')
+        const promptPad = nchars(promptBreaks * freeWidth, ' ')
 
         // Remove the rl.line from our prompt. We can't rely on the content of
-        // rl.line (mainly because of the password prompt), so just rely on it's
+        // rl.line (mainly because of the password prompt), so just rely on its
         // length. Finally, pad the prompt with spaces if necessary, to get the
         // correct length.
-        const prompt = promptRaw.slice(0, - rl.line.length || undefined) + promptPad
+        const prompt = promptClean.slice(0, - rl.line.length || undefined) + promptPad
 
         // setPrompt will change cursor position, now we can get correct value.
         rl.setPrompt(prompt)
@@ -238,7 +234,7 @@ class ScreenManager extends ScreenBase {
         // We need to consider parts of the prompt under the cursor as part of the bottom
         // content in order to correctly cleanup and re-render.
         const footLineCount = foot ? foot.split('\n').length : 0
-        const footHeight = extraPromptHeight - rows + footLineCount
+        const footHeight = promptBreaks - rows + footLineCount
 
         // Write content lines.
         cur.column(0)
@@ -283,7 +279,6 @@ class ScreenManager extends ScreenBase {
         emitter.emit('render', {indent, width: this.width, height: this.height})
 
         this.isFirstRender = false
-        this._lastRender = [body, foot, spinning]
     }
 
     /**
@@ -314,7 +309,7 @@ class ScreenManager extends ScreenBase {
     }
 
     /**
-     * @override for defaultWidth option.
+     * @override Support defaultWidth option.
      */
     normalizedCliWidth() {
         const {defaultWidth} = this.opts
@@ -322,6 +317,9 @@ class ScreenManager extends ScreenBase {
         return cliWidth({defaultWidth, output})
     }
 
+    /**
+     * @override Emit answered event, and clear lastRender
+     */
     done() {
         this.opts.emitter.emit('answered', {height: this.height})
         this._lastRender = null
@@ -329,10 +327,7 @@ class ScreenManager extends ScreenBase {
     }
 
     onResize(opts, isResetFirstRender) {
-        this.opts = {
-            ...this.opts
-          , ...opts
-        }
+        this.opts = {...this.opts, ...opts}
         if (isResetFirstRender) {
             this.isFirstRender = true
         }
@@ -347,6 +342,7 @@ class Prompt extends Inquirer.ui.Prompt {
     constructor(prompts, opt, prompter) {
         super(prompts, opt)
         this.prompter = prompter
+        this.ScreenClass = (prompter && prompter.ScreenManager) || ScreenManager
     }
 
     newScreenManager(...args) {
@@ -362,6 +358,7 @@ class Prompt extends Inquirer.ui.Prompt {
             }
         }
     }
+
     /**
      * @override To store reference to UI and Prompt module in Prompt instances.
      *
@@ -372,12 +369,18 @@ class Prompt extends Inquirer.ui.Prompt {
     fetchAnswer(question) {
 
         const PromptClass = this.prompts[question.type]
-        this.activePrompt = new PromptClass(question, this.rl, this.answers)
-        update(this.activePrompt, {screen: this.newScreenManager(this.rl, question.opts)})
+        const ScreenClass = this.ScreenClass
 
-        const {prompter} = this
-        const ui = this
-        ensure(this.activePrompt, {prompter, ui})
+        this.activePrompt = new PromptClass(question, this.rl, this.answers)
+
+        update(this.activePrompt, {
+            screen: new ScreenClass(this.rl, question.opts)
+        })
+
+        ensure(this.activePrompt, {
+            ui       : this.ui
+          , prompter : this.prompter
+        })
 
         return defer(() =>
             from(

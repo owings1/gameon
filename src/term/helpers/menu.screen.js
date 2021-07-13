@@ -39,6 +39,8 @@ class ScreenStatus extends EventEmitter {
         this.reset()
 
         this.on('render', ({indent, width, height}) => {
+            this.thisHeight = Math.max(this.thisHeight, height)
+            this.maxHeight = Math.max(this.height, this.maxHeight)
             if (!width) {
                 return
             }
@@ -46,10 +48,11 @@ class ScreenStatus extends EventEmitter {
                 this.left = indent + 1
             }
             this.right = Math.max(this.right, indent + width + 1)
-            this.thisHeight = Math.max(this.thisHeight, height)
         })
 
         this.on('line', ({indent, width}) => {
+            this.lineHeight += 1
+            this.maxHeight = Math.max(this.height, this.maxHeight)
             if (!width) {
                 return
             }
@@ -57,33 +60,51 @@ class ScreenStatus extends EventEmitter {
                 this.left = indent + 1
             }
             this.right = Math.max(this.right, indent + width + 1)
-            this.thisHeight += 1
         })
 
         this.on('answered', ({height}) => {
             if (!height) {
                 return
             }
-            this.trackBottom += height
-            this.lastHeight = this.thisHeight
+            this.lastHeight = this.thisHeight + this.lineHeight
+            this.lineHeight += height
             this.thisHeight = 0
+            this.maxHeight = Math.max(this.height, this.maxHeight)
         })
     }
 
     reset() {
         update(this, this.defaults)
-        this.trackBottom = this.top
-        this.right = this.left
+        update(this, {
+            right      : this.left
+          , maxHeight  : 0
+          , thisHeight : 0
+          , lastHeight : 0
+          , lineHeight : 0
+        })
         return this
     }
 
     get defaults() {
-        return defaults({
-            thisHeight  : 0
-          , lastHeight  : 0
-          , top         : 1
-          , left        : 1
-        }, this._defaults)
+        return defaults({top: 1, left: 1}, this._defaults)
+    }
+
+    get info() {
+        return Object.fromEntries(
+            [
+                'left'
+              , 'right'
+              , 'bottom'
+              , 'top'
+              , 'height'
+              , 'maxHeight'
+              , 'thisHeight'
+              , 'lastHeight'
+              , 'lineHeight'
+            ].map(key =>
+                [key, this[key]]
+            )
+        )
     }
 
     get width() {
@@ -91,11 +112,11 @@ class ScreenStatus extends EventEmitter {
     }
 
     get height() {
-        return this.bottom - this.top
+        return Math.max(this.thisHeight + this.lineHeight, this.lastHeight, this.maxHeight)
     }
 
     get bottom() {
-        return this.trackBottom + this.thisHeight
+        return this.top + this.height
     }
 }
 

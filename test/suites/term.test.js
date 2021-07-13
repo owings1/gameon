@@ -337,7 +337,7 @@ describe('TermPlayer', () => {
 
         it('should call inquirer.prompt with array and set player._prompt', () => {
             var q
-            player._inquirer = {
+            player.inquirer = {
                 prompt : questions => {
                     q = questions
                     return new Promise(() => {})

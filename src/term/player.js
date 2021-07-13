@@ -41,6 +41,7 @@ const {RobotDelegator} = Robot
 const {
     Colors
   , DefaultThemeName
+  , DefaultTermEnabled
   , Opponent
   , OriginPoints
   , PointOrigins
@@ -56,7 +57,7 @@ class TermPlayer extends Base {
         return {
             fastForced  : false
           , theme       : DefaultThemeName
-          , termEnabled : false
+          , termEnabled : DefaultTermEnabled
             // for suggesting
           , isCustomRobot : false
           , robots        : null
@@ -79,7 +80,7 @@ class TermPlayer extends Base {
         this.persp = color
 
         this.loadHandlers()
-        this._inquirer = inquirer
+        this.inquirer = inquirer.createPromptModule()
     }
 
     loadHandlers() {
@@ -155,14 +156,8 @@ class TermPlayer extends Base {
 
         this.on('doubleOffered', (turn, game) => {
             this.report('doubleOffered', turn.color)
-            if (turn.color == this.color) {
-                this.logger.info('Offering double to', game.cubeValue * 2, 'points')
-            }
             if (!this.isDualTerm || turn.color != this.color) {
                 this.drawBoard()
-            }
-            if (turn.color != this.color) {
-                this.logger.info(this.ccolor(turn.color), 'wants to double to', game.cubeValue * 2, 'points')
             }
             if (this.opponent.isNet && turn.color == this.color) {
                 this.logger.info('Waiting for opponent to respond')
@@ -199,6 +194,12 @@ class TermPlayer extends Base {
 
         this.on('matchCanceled', (err, match) => {
             this.cancelPrompt(err)
+        })
+
+        this.on('resize', () => {
+            if (!this.isDualTerm || this.color == Colors.White) {
+                this.handleResize()
+            }
         })
     }
 
@@ -237,15 +238,16 @@ class TermPlayer extends Base {
 
             this.drawBoard()
 
+            let prefix = null
             if (!this.isRobot) {
-                this.logger.info(
+                prefix = sp(
                     this.ccolor(this.color)
                   , 'rolled'
                   , turn.diceSorted.join()
                   , 'with'
                   , turn.remainingFaces.join()
                   , 'remaining'
-                )
+                ) + '\n'
             }
 
             var moves = turn.getNextAvailableMoves()
@@ -253,7 +255,7 @@ class TermPlayer extends Base {
 
             var canUndo = turn.moves.length > 0
 
-            var origin = await this.promptOrigin(turn, origins, canUndo)
+            var origin = await this.promptOrigin(turn, origins, canUndo, prefix)
 
             if (origin == 'undo') {
                 turn.unmove()
@@ -322,18 +324,20 @@ class TermPlayer extends Base {
         // TODO: make new theme category, e.g. console.* etc.
         const chlk = this.theme.text
         const choices = ['y', 'n']
+        const prefix = sp(this.ccolor(this.opponent.color), 'wants to double to', this.thisGame.cubeValue * 2, 'points') + '\n'
         const message = sp('Does', this.ccolor(this.color), 'accept the double?', chlk.dim('(y/n)'))
         const answers = await this.prompt({
             name     : 'accept'
           , type     : 'input'
           , message
+          , prefix
           , validate : this.choicesValidator(choices)
         })
         return answers.accept.toLowerCase() == 'y'
     }
 
-    async promptOrigin(turn, origins, canUndo) {
-        const question = this.getOriginQuestion(origins, canUndo)
+    async promptOrigin(turn, origins, canUndo, prefix) {
+        const question = this.getOriginQuestion(origins, canUndo, prefix)
         while (true) {
             var {origin} = await this.prompt(question)
             if (origin == 'q') {
@@ -464,7 +468,7 @@ class TermPlayer extends Base {
         return RobotDelegator.forSettings(this.opts.robots, ...args)
     }
 
-    getOriginQuestion(origins, canUndo) {
+    getOriginQuestion(origins, canUndo, prefix) {
 
         const points = uniqueInts(origins).map(origin => this.originPoint(origin))
         points.sort(Util.sortNumericAsc)
@@ -489,6 +493,7 @@ class TermPlayer extends Base {
             name     : 'origin'
           , type     : 'input'
           , message
+          , prefix
           , validate : this.choicesValidator(choices, true)
         }
 
@@ -519,14 +524,16 @@ class TermPlayer extends Base {
     }
 
     prompt(questions) {
-        this._prompt = this._inquirer.prompt(Util.castToArray(questions), null, {theme: this.theme})
+        this.prompter = this.inquirer.prompt(Util.castToArray(questions), null, {theme: this.theme})
         return new Promise((resolve, reject) => {
             this.promptReject = reject
-            this._prompt.then(answers => {
+            this.prompter.then(answers => {
                 this.promptReject = null
+                this.prompter = null
                 resolve(answers)
             }).catch(err => {
                 this.promptReject = null
+                this.prompter = null
                 reject(err)
             })
         })
@@ -541,9 +548,25 @@ class TermPlayer extends Base {
             this.promptReject(err)
             this.promptReject = null
         }
-        if (this._prompt && this._prompt.ui) {
-            this._prompt.ui.close()
+        if (this.prompter && this.prompter.ui) {
+            this.prompter.ui.close()
         }
+    }
+
+    handleResize() {
+        if (!this.term.enabled) {
+            return
+        }
+        const {prompter} = this
+        if (!prompter || !prompter.ui) {
+            return
+        }
+        const {ui} = prompter
+        if (typeof ui.onResize != 'function') {
+            return
+        }
+        this.drawBoard()
+        ui.onResize()
     }
 
     cchalk(color, ...args) {

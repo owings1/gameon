@@ -884,7 +884,6 @@ class TermHelper {
                     this.moveTo(left + j, top + i)
                     this.write(chr)
                 }
-                //this.logger.writeStdout(chlk.screen(nchars(this.term.width, 'x')))
             }
         }
         return this
@@ -960,14 +959,6 @@ class TermHelper {
     set stdout(strm) {
         this.term.stdout = strm
     }
-    /*
-    async getCursorLocation(...args) {
-        if (!this.enabled) {
-            return {x: 1, y: 1}
-        }
-        return this.term.getCursorLocation(...args)
-    }
-    */
 }
 
 class AnsiHelper {
