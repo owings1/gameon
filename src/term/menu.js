@@ -1035,27 +1035,13 @@ class Menu extends EventEmitter {
         this.sstatus.reset()
     }
 
-    eraseMenu() {
-        const {left, top, width, height} = this.sstatus
-        this.sstatus.reset()
-        if (!this.settings.termEnabled) {
-            return
-        }
-        if (width) {
-            const chlk = this.theme.menu
-            const str = chlk.screen(nchars(width, 'y'))
-            this.term.writeArea(left, top, 1, height, str)
-        }
-        this.term.moveTo(1, top)
-    }
-
     writeMenuBackground() {
         this.sstatus.reset()
         if (!this.settings.termEnabled) {
             return
         }
         const chlk = this.theme.menu
-        const str = chlk.screen(nchars(this.term.width, 'x'))
+        const str = chlk.screen(nchars(this.term.width, ' '))
         this.term.writeArea(1, 1, 1, this.term.height, str)
         this.term.moveTo(1, 1)
         this.hasMenuBackground = true
@@ -1066,6 +1052,24 @@ class Menu extends EventEmitter {
             return
         }
         this.writeMenuBackground()
+    }
+
+    eraseMenu() {
+        this._eraseScreenSection(this.sstatus, 'menu')
+    }
+
+    _eraseScreenSection(status, category) {
+        const {left, top, width, height} = status
+        status.reset()
+        if (!this.settings.termEnabled) {
+            return
+        }
+        if (width) {
+            const chlk = this.theme[category]
+            const str = chlk.screen(nchars(width, ' '))
+            this.term.writeArea(left, top, 1, height, str)
+        }
+        this.term.moveTo(1, top)
     }
 
     async ensureLoaded(isQuiet) {
