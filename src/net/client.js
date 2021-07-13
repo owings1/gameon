@@ -63,13 +63,12 @@ class Client extends EventEmitter {
             var [serverUrl, username, password] = args
         }
 
-        this.serverSocketUrl = httpToWs(serverUrl)
-        this.serverHttpUrl = stripTrailingSlash(wsToHttp(serverUrl))
+        this.setServerUrl(serverUrl)
 
         this.username = username
         this.password = password
 
-        this.logger = new Logger('Client', {named: true})
+        this.logger = new Logger(this.constructor.name, {named: true})
         this.socketClient = new WsClient
         this.secret = Client.generateSecret()
 
@@ -78,6 +77,20 @@ class Client extends EventEmitter {
         this.isHandshake = null
         this.match = null
         this.matchId = null
+    }
+
+    setServerUrl(serverUrl) {
+        this.serverSocketUrl = httpToWs(serverUrl)
+        this.serverHttpUrl = stripTrailingSlash(wsToHttp(serverUrl))
+        return this
+    }
+
+    get loglevel() {
+        return this.logger.loglevel
+    }
+
+    set loglevel(n) {
+        this.logger.loglevel = n
     }
 
     async connect() {
@@ -195,20 +208,6 @@ class Client extends EventEmitter {
         const promise = this.waitForResponse(action)
         this.sendMessage(req)
         return promise
-        /*
-        try {
-            var promise = this.waitForResponse(action)
-        } catch (err) {
-            throw err
-        }
-        try {
-            this.sendMessage(req)
-        } catch (err) {
-            this.logger.debug(['catch sendMessage', 'throwing'])
-            throw err
-        }
-        return promise
-        */
     }
 
     async waitForResponse(action) {

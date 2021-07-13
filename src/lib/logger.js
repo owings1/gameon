@@ -90,14 +90,18 @@ class Logger {
         return [err.name || err.constructor.name, err.message].join(': ')
     }
 
+    success(...args) {
+        return this.info(...args)
+    }
+
     static logify(obj, opts) {
         opts = {...opts}
         if (opts.server) {
             var format = Logger.getFormatServer(opts.name)
         } else if (opts.named) {
             var format = Logger.getFormatNamed(obj)
-        } else if (opts.alerter) {
-            var format = Logger.getFormatAlerter(obj)
+        } else if (opts.raw) {
+            var format = Logger.getFormatRaw(obj)
         } else {
             var format = Logger.format
         }
@@ -161,7 +165,7 @@ class Logger {
         }
     }
 
-    static getFormatAlerter(obj) {
+    static getFormatRaw(obj) {
         return ctx => {
             obj.lastMessage = ctx.msg
             return ctx.msg

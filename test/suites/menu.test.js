@@ -69,19 +69,12 @@ describe('-', () => {
             authType: 'directory',
             authDir
         })
-        // hack so no logging
-        server.getLoggingMiddleware = () => (req, res, next) => next()
-        server.app = server.createApp()
-        //console.log({authDir})
-        server.logger.loglevel = 0
-        server.auth.logger.loglevel = 0
-        server.api.auth.logger.loglevel = 0
-        settingsFile = configDir + '/settings.json'
-        credentialsFile = configDir + '/credentials.json'
+        server.loglevel = 0
+        settingsFile = resolve(configDir, 'settings.json')
+        credentialsFile = resolve(configDir, 'credentials.json')
         labConfigFile = resolve(configDir, 'lab.json')
         menu = new Menu(configDir)
-        menu.logger.loglevel = 1
-        menu.alerter.loglevel = menu.logger.loglevel
+        menu.loglevel = 1
         menu.eraseScreen = noop
     })
 
@@ -152,30 +145,6 @@ describe('-', () => {
             })
         })
 
-        // obsolete method
-        describe.skip('#joinMenu', () => {
-
-            it('should go to joinOnlineMatch for matchId with mock method', async () => {
-                var isCalled = false
-                menu.prompt = MockPrompter([
-                    {matchId: '12345678'}
-                ])
-                menu.joinOnlineMatch = () => isCalled = true
-                await menu.joinMenu()
-                expect(isCalled).to.equal(true)
-            })
-
-            it('should not go to joinOnlineMatch without matchId with mock method', async () => {
-                var isCalled = false
-                menu.prompt = MockPrompter([
-                    {matchId: ''}
-                ])
-                menu.joinOnlineMatch = () => isCalled = true
-                await menu.joinMenu()
-                expect(isCalled).to.equal(false)
-            })
-        })
-
         describe('#playMenu', () => {
 
             beforeEach(async () => {
@@ -208,27 +177,25 @@ describe('-', () => {
                 ])
                 var logObj
                 menu.alerts.on('log.warn', obj => logObj = obj)
-                menu.alerter.loglevel = -1
+                menu.loglevel = -1
                 await menu.playMenu()
                 const err = menu.alerts.lastError
                 expect(err.isBadCredentialsError).to.equal(true)
                 expect(logObj.message.toLowerCase()).to.contain('authentication')
             })
 
-            // TODO refactor since joinMenu is obsolete
-            it.skip('should alert error then done when joinMenu throws MatchCanceledError', async () => {
+            it('should alert error then done for joinOnline when matchMenu throws MatchCanceledError', async () => {
                 const exp = new MatchCanceledError
-                menu.joinMenu = () => {
+                menu.matchMenu = () => {
                     throw exp
                 }
                 menu.prompt = MockPrompter([
                     {choice: 'joinOnline'},
                     {choice: 'quit'}
                 ])
-                var err
-                menu.alerter.error = e => err = e
+                menu.loglevel = -1
                 await menu.playMenu()
-                expect(err).to.equal(exp)
+                expect(menu.alerts.lastError).to.equal(exp)
             })
 
             it('should return true for choice back', async () => {
@@ -493,7 +460,7 @@ describe('-', () => {
             })
 
             it('should alert BadCredentialsError and done when password entered and login fails', async () => {
-                menu.alerter.loglevel = -1
+                menu.loglevel = -1
                 menu.credentials.username = 'nobody2@nowhere.example'
                 const password = 'JUzrDc5k'
                 menu.prompt = MockPrompter([
@@ -506,7 +473,7 @@ describe('-', () => {
             })
 
             it('should alert BadCredentialsError then done on incorrect password for change-password', async () => {
-                menu.alerter.loglevel = -1
+                menu.loglevel = -1
                 const username = 'nobody@nowhere.example'
                 const oldPassword = 'C7pUaA3c'
                 const badPassword = 'etzF4Y8L'
@@ -608,7 +575,6 @@ describe('-', () => {
                     expect(res).to.contain('Default')
                 })
             })
-        
         })
 
         describe('#robotMenu', () => {
@@ -726,7 +692,7 @@ describe('-', () => {
             })
 
             it('should throw cause BadCredentialsError for bad confirmKey', async () => {
-                menu.logger.loglevel = 0
+                menu.loglevel = 0
                 const username = 'nobody@nowhere.example'
                 const password = 'r2tW5aUn'
                 const confirmKey = 'bad-confirm-key'
@@ -1031,7 +997,7 @@ describe('-', () => {
             it('should cancel match on interrupt', async () => {
                 menu.logger.console.log = noop
                 menu.once('beforeMatchStart', (match, players) => {
-                    menu.logger.loglevel = 0
+                    menu.loglevel = 0
                     match.opts.roller = () => [6, 1]
                     Object.values(players).forEach(player => {
                         player.logger.loglevel = 0
@@ -1071,9 +1037,9 @@ describe('-', () => {
 
         describe('#promptChangePassword', () => {
 
-            it('should throw when sendChangePassword throws and clear password', async () => {
+            it('should throw when api.changePassword throws and clear password', async () => {
                 const exp = new Error
-                menu.sendChangePassword = () => {throw exp}
+                menu.api.changePassword = () => {throw exp}
                 const newPassword = 'asdf,k(8khDJJ)'
                 menu.prompt = MockPrompter([
                     {oldPassword: 'asdf(8dflLL)', newPassword, passwordConfirm: newPassword}

@@ -70,6 +70,15 @@ class Web {
         this.app = this.createExpressApp()
     }
 
+    get loglevel() {
+        return this.logger.loglevel
+    }
+
+    set loglevel(n) {
+        this.logger.loglevel = n
+        this.auth.loglevel = n
+    }
+
     createExpressApp() {
 
         if (this.opts.sessionSecret == DefaultSessionSecret) {

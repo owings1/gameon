@@ -52,21 +52,15 @@ class UserCommand extends AppCommand {
     async finally(...args) {
         clearInterval(this._hackInterval)
         try {
-            await this.menu.clearScreen()
+            if (this.menu.alerts.length) {
+                await this.menu.consumeAlerts()
+            } else {
+                await this.menu.eraseScreen()
+            }
         } catch (err) {
             this.logger.error(err)
         }
-        try {
-            await this.menu.consumeAlerts()
-        } catch (err) {
-            this.logger.error(err)
-        }
-        
         return super.finally(...args)
-    }
-
-    clearScreen() {
-        this.menu.term.clear()
     }
 
     async _loadConfigs() {

@@ -70,6 +70,15 @@ class Email {
         this.logger = new Logger(loggerName, {server: true})
     }
 
+    get loglevel() {
+        return this.logger.loglevel
+    }
+
+    set loglevel(n) {
+        this.logger.loglevel = n
+        this.impl.loglevel = n
+    }
+
     // standard is SES sendEmail structure
     // see https://docs.aws.amazon.com/AWSJavaScriptSDK/latest/AWS/SES.html#sendEmail-property
     async send(params) {

@@ -141,6 +141,10 @@ class DrawHelper {
         this.logIndex = 20
     }
 
+    getLines() {
+        return this.getString().split('\n')
+    }
+
     getString() {
 
         this.reload()
@@ -849,6 +853,8 @@ class TermHelper {
         return this
     }
 
+    // \x1B[1X
+    // JSON.parse('"\\u001b[1X"')
     erase(...args) {
         if (this.enabled) {
             this.term.erase(...args)
@@ -925,6 +931,12 @@ class TermHelper {
         }
         return 80
     }
+
+    requestCursorLocation() {
+        if (this.enabled) {
+            return this.term.requestCursorLocation()
+        }
+    }
     /*
     async getCursorLocation(...args) {
         if (!this.enabled) {
@@ -932,10 +944,6 @@ class TermHelper {
         }
         return this.term.getCursorLocation(...args)
     }
-
-
-
-    
     */
 }
 

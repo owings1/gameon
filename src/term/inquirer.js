@@ -143,7 +143,7 @@ function createPromptModule(opt) {
             self.prompts = {...boudrias, ...Prompts}
             return self
         }
-    })
+    }).restoreDefaultPrompts()
 }
 
 class ScreenManager extends ScreenBase {
@@ -216,12 +216,11 @@ class ScreenManager extends ScreenBase {
         // The width required for this render, i.e. the longest line.
         const thisWidth = Math.max(...lines.map(stringWidth))
 
-        if (this.isFirstRender) {
-            emitter.emit('beforeFirstRender', this)
-        } else {
-            // Clean previous render.
-            this.clean(this.footHeight)
-        }
+        // Set the width before we clean, so it will clear a box.
+        this.width = Math.max(this.width, thisWidth)
+
+        // Clean previous render.
+        this.clean(this.footHeight)
 
         // Correct for input longer than width when width is less than available.
         const promptPad = nchars(extraPromptHeight * freeWidth, ' ')
@@ -277,8 +276,6 @@ class ScreenManager extends ScreenBase {
         rl.output.mute()
 
         // Set state for next rendering.
-
-        this.width = Math.max(this.width, thisWidth)
         this.height = lines.length
         this.heightMax = Math.max(this.height, this.heightMax)
         this.footHeight = footHeight
@@ -293,25 +290,26 @@ class ScreenManager extends ScreenBase {
      */
     clean() {
 
+        const {width, height, footHeight} = this
         const {term, indent} = this.opts
 
         if (!term.enabled) {
-            return super.clean(this.footHeight)
+            return super.clean(footHeight)
         }
         
-        if (this.isFirstRender || !this.width || !this.height) {
+        if (this.isFirstRender || !width || !height) {
             return
         }
 
         const down = () => term.down(1).column(indent + 1)
 
-        ntimes(this.footHeight, () => down().erase(this.width))
+        ntimes(footHeight, () => down().erase(width))
 
-        term.up(this.height)
+        term.up(height)
 
-        ntimes(this.height, () => down().erase(this.width))
+        ntimes(height, () => down().erase(width))
 
-        ntimes(this.height > 1, () => term.up(this.height - 1))
+        ntimes(height > 1, () => term.up(height - 1))
     }
 
     /**
@@ -321,6 +319,11 @@ class ScreenManager extends ScreenBase {
         const {defaultWidth} = this.opts
         const {output} = this.rl
         return cliWidth({defaultWidth, output})
+    }
+
+    done() {
+        this.opts.emitter.emit('answered', {height: this.height})
+        super.done()
     }
 }
 
@@ -354,7 +357,11 @@ class Prompt extends Inquirer.ui.Prompt {
         ensure(this.activePrompt, {prompter, ui})
 
         return defer(() =>
-            from(this.activePrompt.run().then((answer) => ({ name: question.name, answer })))
+            from(
+                this.activePrompt.run().then((answer) => {
+                    return { name: question.name, answer }
+                })
+            )
         )
     }
 }

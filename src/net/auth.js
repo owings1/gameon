@@ -125,6 +125,15 @@ class Auth {
         hash(this.opts.hash)
     }
 
+    get loglevel() {
+        return this.logger.loglevel
+    }
+
+    set loglevel(n) {
+        this.logger.loglevel = n
+        this.email.loglevel = n
+    }
+
     async authenticate(username, password) {
         if (this.impl.isAnonymous) {
             return {

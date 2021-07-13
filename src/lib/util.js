@@ -90,6 +90,10 @@ class Util {
     * OTHER DEALINGS IN THE SOFTWARE.
     */
     static breakLines(lines, width) {
+        if (!Number.isInteger(width) || width < 1) {
+            // Allow for width Infinity, protect againt NaN or < 1, still make a copy.
+            return lines.slice(0)
+        }
         // Break lines who're longer than the width so we can normalize the natural line
         // returns behavior across terminals.
         const regex = new RegExp('(?:(?:\\033[[0-9;]*m)*.?){1,' + width + '}', 'g')
@@ -291,6 +295,9 @@ class Util {
     }
 
     static httpToWs(str) {
+        if (!str) {
+            return str
+        }
         return str.replace(/^(http)/, 'ws')
     }
 
@@ -585,6 +592,9 @@ class Util {
     }
 
     static wsToHttp(str) {
+        if (!str) {
+            return str
+        }
         return str.replace(/^(ws)/, 'http')
     }
 }

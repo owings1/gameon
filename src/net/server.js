@@ -33,10 +33,8 @@ const Web       = require('./web')
 const WsServer  = require('websocket').server
 
 const bodyParser = require('body-parser')
-const chalk      = require('chalk')
-const crypto     = require('crypto')
 const express    = require('express')
-const morgan     = require('morgan')
+const onFinished = require('on-finished')
 const prom       = require('prom-client')
 
 const {
@@ -47,7 +45,7 @@ const {
 
 const {Match, Dice} = Core
 
-const {castToArray, makeErrorObject} = Util
+const {castToArray, hash, makeErrorObject} = Util
 
 prom.collectDefaultMetrics()
 
@@ -72,6 +70,24 @@ const metrics = {
         name: 'messages_sent',
         help: 'Messages sent'
     })
+}
+
+function httpCodeLogMethod(code) {
+    if (code >= 500) {
+        return 'error'
+    }
+    if (code >= 400) {
+        return 'warn'
+    }
+    return 'info'
+}
+
+function httpVersion(req) {
+    return req.httpVersionMajor + '.' + req.httpVersionMinor
+}
+
+function httpVersionString(req) {
+    return 'HTTP/' + httpVersion(req)
 }
 
 class Server {
@@ -101,6 +117,17 @@ class Server {
         this.httpServer = null
         this.port = null
         this.socketServer = null
+    }
+
+    get loglevel() {
+        return this.logger.loglevel
+    }
+
+    set loglevel(n) {
+        this.logger.loglevel = n
+        this.auth.loglevel = n
+        this.api.loglevel = n
+        this.web.loglevel = n
     }
 
     listen(port, metricsPort) {
@@ -182,14 +209,19 @@ class Server {
     }
 
     getLoggingMiddleware() {
-        const parts = [
-          , ':date[iso] '
-          , chalk.grey('[INFO]')
-          , ' [Server] '
-          , ':status ":method :url HTTP/:http-version"'
-          , ' :res[content-length] :remote-addr - :remote-user'
-        ]
-        return morgan(parts.join(''))
+        const fmt = (req, res) => [
+            res.statusCode
+          , req.method
+          , req.url
+          , httpVersionString(req)
+          , res.get('Content-Length')
+          , req.ip
+        ].join(' ')
+        return (req, res, next) => {
+            const logMethod = httpCodeLogMethod(res.statusCode)
+            onFinished(res, () => this.logger[logMethod](fmt(req, res)))
+            next()
+        }
     }
 
     createSocketServer(httpServer) {
@@ -557,7 +589,7 @@ class Server {
 
     newConnectionId() {
         this.connTicker += 1
-        return crypto.createHash('md5').update('' + this.connTicker).digest('hex')
+        return hash('md5', this.connTicker.toString(), 'hex')
     }
 
     getMatchForRequest(req) {
@@ -592,7 +624,7 @@ class Server {
     }
 
     static matchIdFromSecret(str) {
-        return crypto.createHash('sha256').update(str).digest('hex').substring(0, 8)
+        return hash('sha256', str, 'hex').substring(0, 8)
     }
 }
 

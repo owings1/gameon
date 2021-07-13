@@ -55,6 +55,7 @@ const path       = require('path')
 const {EventEmitter} = require('events')
 
 const Alerts       = require('./helpers/menu.alerts')
+const ApiHelper    = require('./helpers/menu.api')
 const Questions    = require('./helpers/menu.questions')
 const ScreenStatus = require('./helpers/menu.screen')
 
@@ -113,27 +114,28 @@ class Menu extends EventEmitter {
 
         super()
 
-        this.logger = new Logger('Menu', {named: true})
-        this.alerts = new Alerts(this)
-        this.alerter = new Logger('Alerter', {alerter: true})
         this.configDir = configDir
 
         this.settings = Menu.settingsDefaults()
         this.credentials = Menu.credentialDefaults()
-
-        this.isCredentialsLoaded = false
-        this.isSettingsLoaded = false
-        this.isThemesLoaded = false
 
         this.chash = CHash
         this.bread = []
 
         this.theme = Themes.getDefaultInstance()
         this.term  = new TermHelper(this.settings.termEnabled)
+        this.inquirer = inquirer.createPromptModule()
 
-        this.inquirer = inquirer
+        this.isCredentialsLoaded = false
+        this.isSettingsLoaded = false
+        this.isThemesLoaded = false
+
+        this.logger = new Logger('Menu', {named: true})
+        this.alerter = new Logger('Alerter', {raw: true})
+
+        this.alerts = new Alerts(this)
+        this.api = new ApiHelper(this)
         this.q = new Questions(this)
-
         this.sstatus = new ScreenStatus({top: 10})
     }
 
@@ -378,6 +380,11 @@ class Menu extends EventEmitter {
                     return true
                 }
 
+                if (choice == 'theme' || choice == 'termEnabled') {
+                    // erase the screen because the background may change.
+                    await this.eraseScreen()
+                }
+
                 return true
             })
 
@@ -468,7 +475,7 @@ class Menu extends EventEmitter {
             return false
         }
 
-        const {passwordEncrypted} = await this.sendSignup(
+        const {passwordEncrypted} = await this.api.signup(
             credentials.serverUrl
           , answers.username
           , answers.password
@@ -492,7 +499,7 @@ class Menu extends EventEmitter {
             return false
         }
 
-        await this.sendForgotPassword(credentials.serverUrl, answer)
+        await this.api.forgotPassword(credentials.serverUrl, answer)
         credentials.username = answer
 
         this.alerts.info('Reset key requested, check your email.')
@@ -504,7 +511,7 @@ class Menu extends EventEmitter {
             return false
         }
 
-        const {passwordEncrypted} = await this.sendResetPassword(credentials, answers)
+        const {passwordEncrypted} = await this.api.resetPassword(credentials, answers)
         credentials.password = this.encryptPassword(passwordEncrypted)
 
         return true
@@ -522,7 +529,7 @@ class Menu extends EventEmitter {
             return false
         }
 
-        const {passwordEncrypted} = await this.sendChangePassword(credentials, answers)
+        const {passwordEncrypted} = await this.api.changePassword(credentials, answers)
         credentials.password = this.encryptPassword(passwordEncrypted)
 
         return true
@@ -540,7 +547,7 @@ class Menu extends EventEmitter {
 
         const {credentials} = this
         try {
-            await this.sendConfirmKey(credentials, answer)
+            await this.api.confirmKey(credentials, answer)
         } catch (err) {
             if (err.isUserConfirmedError) {
                 this.alerts.warn('Account already confirmed')
@@ -569,7 +576,7 @@ class Menu extends EventEmitter {
             credentials.username = answer
         }
 
-        await this.sendRequestConfirmKey(credentials)
+        await this.api.requestConfirmKey(credentials)
 
         return true
     }
@@ -715,7 +722,8 @@ class Menu extends EventEmitter {
                 return true
             }
             this.emit('beforeMatchStart', match, players)
-            await this.clearAndConsume()
+            await this.eraseScreen()
+            await this.consumeAlerts()
             await coordinator.runMatch(match, players)
         } catch (err) {
             if (err.isMatchCanceledError) {
@@ -804,52 +812,6 @@ class Menu extends EventEmitter {
         }
     }
 
-    sendSignup(serverUrl, username, password) {
-        const client = this.newClient(serverUrl)
-        const data = {username, password}
-        return this.handleRequest(client, '/api/v1/signup', data)
-    }
-
-    sendConfirmKey({serverUrl, username}, confirmKey) {
-        const client = this.newClient(serverUrl)
-        const data = {username, confirmKey}
-        return this.handleRequest(client, '/api/v1/confirm-account', data)
-    }
-
-    sendRequestConfirmKey({serverUrl, username}) {
-        const client = this.newClient(serverUrl)
-        const data = {username}
-        return this.handleRequest(client, '/api/v1/send-confirm-email', data)
-    }
-
-    sendForgotPassword(serverUrl, username) {
-        const client = this.newClient(serverUrl)
-        const data = {username}
-        return this.handleRequest(client, '/api/v1/forgot-password', data)
-    }
-
-    sendResetPassword({serverUrl, username}, {password, resetKey}) {
-        const client = this.newClient(serverUrl)
-        const data = {username, password, resetKey}
-        return this.handleRequest(client, '/api/v1/reset-password', data)
-    }
-
-    sendChangePassword({serverUrl, username}, {oldPassword, newPassword}) {
-        const client = this.newClient(serverUrl)
-        const data = {username, oldPassword, newPassword}
-        return this.handleRequest(client, '/api/v1/change-password', data)
-    }
-
-    async handleRequest(client, uri, data) {
-        const res = await client.postJson(uri, data)
-        const body = await res.json()
-        if (!res.ok) {
-            this.logger.debug(body)
-            throw RequestError.forResponse(res, body, uri.split('/').pop() + ' failed')
-        }
-        return body
-    }
-
     newCoordinator() {
         return new Coordinator(this.settings)
     }
@@ -866,7 +828,7 @@ class Menu extends EventEmitter {
             var credentials = {serverUrl, username, password}
         }
         const client = new Client(credentials)
-        client.logger.loglevel = this.logger.loglevel
+        client.loglevel = this.loglevel
         return client
     }
 
@@ -894,10 +856,11 @@ class Menu extends EventEmitter {
     }
 
     getPromptOpts(opts) {
+        const {termEnabled} = this.settings
         const available = Math.min(this.term.width, 1024)
-        const maxWidth = Math.min(available, MenuWidth)
+        const maxWidth = termEnabled ? Math.min(available, MenuWidth) : Infinity
         const surplus = available - maxWidth
-        const indent = Math.max(0, Math.floor(surplus / 2))
+        const indent = termEnabled ? Math.max(0, Math.floor(surplus / 2)) : 0
         return {
             theme    : this.theme
           , emitter  : this.sstatus
@@ -913,6 +876,7 @@ class Menu extends EventEmitter {
         try {
             await this.ensureClearScreen()
             await this.ensureLoaded(true)
+            await this.ensureMenuBackground()
             this.lastMenuChoice = null
             this.lastToggleChoice = null
             return await run(
@@ -920,7 +884,8 @@ class Menu extends EventEmitter {
               , async loop => {
                     let res
                     while (true) {
-                        await this.clearAndConsume()
+                        await this.eraseMenu()
+                        await this.consumeAlerts()
                         res = await loop()
                         if (res !== true) {
                             break
@@ -989,46 +954,10 @@ class Menu extends EventEmitter {
         return 1
     }
 
-    clearAndConsume() {
-        this.clearMenu()
-        this.consumeAlerts()
-    }
-
-    clearMenu() {
-        const {left, top, width, height} = this.sstatus
-        if (width) {
-            this.term.eraseArea(left, top, width, height)
-        }
-        this.term.moveTo(1, top)
-        this.sstatus.reset()
-    }
-
-    writeBg() {
-        if (!this.settings.termEnabled) {
-            return
-        }
-        this.term.moveTo(1, 1)
-        for (var i = 0; i < this.term.height; ++i) {
-            if (i > 0) {
-                this.logger.writeStdout('\n')
-            }
-            this.logger.writeStdout(chalk.bgGreen.green(nchars(this.term.width, 'x')))
-        }
-        this.term.moveTo(1, 1)
-    }
-
     clearScreen() {
         this.term.clear()
-        this.eraseScreen()
-    }
-
-    eraseScreen() {
-        this.term.moveTo(1, 1).eraseDisplayBelow()
-        this.writeBg()
-        this.sstatus.reset()
-        if (!this.settings.termEnabled) {
-            ntimes(this.term.height, () => this.logger.console.log())
-        }
+        this.hasClearedScreen = true
+        this.hasMenuBackground = false
     }
 
     ensureClearScreen() {
@@ -1036,7 +965,47 @@ class Menu extends EventEmitter {
             return
         }
         this.clearScreen()
-        this.hasClearedScreen = true
+    }
+
+    eraseScreen() {
+        this.term.moveTo(1, 1).eraseDisplayBelow()
+        this.hasMenuBackground = false
+        //this.writeMenuBackground()
+        this.sstatus.reset()
+    }
+
+    eraseMenu() {
+        const {left, top, width, lastHeight} = this.sstatus
+        const chlk = this.theme.menu
+        if (this.settings.termEnabled && width) {
+            for (var i = 0; i < lastHeight; ++i) {
+                this.term.moveTo(left, top + i)
+                this.logger.writeStdout(chlk.screen(nchars(width, 'y')))
+            }
+            //this.term.eraseArea(left, top, width, height)
+        }
+        this.term.moveTo(1, top)
+        this.sstatus.reset()
+    }
+
+    writeMenuBackground() {
+        if (!this.settings.termEnabled) {
+            return
+        }
+        const chlk = this.theme.menu
+        for (var i = 0; i < this.term.height; ++i) {
+            this.term.moveTo(1, 1 + i)
+            this.logger.writeStdout(chlk.screen(nchars(this.term.width, 'x')))
+        }
+        this.term.moveTo(1, 1)
+        this.hasMenuBackground = true
+    }
+
+    ensureMenuBackground() {
+        if (this.hasMenuBackground) {
+            return
+        }
+        this.writeMenuBackground()
     }
 
     consumeAlerts() {
@@ -1112,16 +1081,13 @@ class Menu extends EventEmitter {
             await fse.writeJson(settingsFile, settings, {spaces: 2})
         }
         // Load current theme
-        this.theme = Themes.getInstance(this.settings.theme)
-        this.alerter.theme = this.theme
+        if (this.settings.theme != this.theme.name) {
+            this.theme = Themes.getInstance(this.settings.theme)
+            this.alerter.theme = this.theme
+        }
         // Set term enabled
         if (this.term.enabled != this.settings.termEnabled) {
             this.term.enabled = this.settings.termEnabled
-            if (this.settings.termEnabled) {
-                await this.eraseScreen()
-            } else {
-                await this.clearScreen()
-            }
         }
     }
 
@@ -1273,6 +1239,16 @@ class Menu extends EventEmitter {
 
     robotMinimalConfig(name) {
         return Menu.robotMinimalConfig(name)
+    }
+
+    get loglevel() {
+        return this.logger.loglevel
+    }
+
+    set loglevel(n) {
+        this.logger.loglevel = n
+        this.alerter.loglevel = n
+        this.api.loglevel = n
     }
 
     static settingsDefaults() {

@@ -56,6 +56,15 @@ class Api {
         this.v1 = this.create_v1()
     }
 
+    get loglevel() {
+        return this.logger.loglevel
+    }
+
+    set loglevel(n) {
+        this.logger.loglevel = n
+        this.auth.loglevel = n
+    }
+
     create_v1() {
 
         const app = express()

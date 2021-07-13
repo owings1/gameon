@@ -48,6 +48,8 @@ const BuiltIn = {
           , 'alert.error.level.color'      : 'red'
           , 'alert.warn.level.color'       : 'yellow'
 
+          , 'menu.screen.background' : 'grey dim'
+
           , 'prompt.answer.color'                 : 'cyan'
           , 'prompt.check.pass.color'             : 'green'
           , 'prompt.choice.selected.color'        : 'cyan'
@@ -70,6 +72,8 @@ const BuiltIn = {
           , 'board.cube.active.color'     : 'white'
 
           , 'alert.error.message.color' : 'pink'
+
+          , 'menu.screen.background' : 'green'
 
           , 'prompt.answer.color'               : 'blue'
           , 'prompt.input.color'                : 'green'
@@ -145,6 +149,8 @@ const Categories = [
   , 'prompt.message.help'
   , 'prompt.separator'
 
+  , 'menu.screen'
+
   , 'text'
 ]
 
@@ -180,6 +186,8 @@ const CategoryAliases = {
   , 'alert.warn.level'      : 'text'
   , 'alert.error.message'   : 'text'
   , 'alert.error.level'     : 'text'
+
+  , 'menu.screen' : 'text'
 
   , 'prompt.answer'                 : 'text'
   , 'prompt.check.pass'             : 'alert.success.message'

@@ -38,11 +38,6 @@ class ScreenStatus extends EventEmitter {
 
         this.reset()
 
-        this.on('beforeFirstRender', () => {
-            this.trackBottom += this.thisHeight
-            this.thisHeight = 0
-        })
-
         this.on('render', ({indent, width, height}) => {
             if (!width) {
                 return
@@ -64,6 +59,15 @@ class ScreenStatus extends EventEmitter {
             this.right = Math.max(this.right, indent + width + 1)
             this.thisHeight += 1
         })
+
+        this.on('answered', ({height}) => {
+            if (!height) {
+                return
+            }
+            this.trackBottom += height
+            this.lastHeight = this.thisHeight
+            this.thisHeight = 0
+        })
     }
 
     reset() {
@@ -76,6 +80,7 @@ class ScreenStatus extends EventEmitter {
     get defaults() {
         return defaults({
             thisHeight  : 0
+          , lastHeight  : 0
           , top         : 1
           , left        : 1
         }, this._defaults)
