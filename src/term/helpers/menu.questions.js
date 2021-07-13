@@ -47,6 +47,7 @@ const {
   , padEnd
   , padStart
   , sp
+  , stringWidth
   , tildeHome
 } = Util
 
@@ -773,10 +774,9 @@ class Questions {
     }
 
     formatChoices(choices) {
-        return Questions.formatChoices(choices)
-    }
 
-    static formatChoices(choices) {
+        const menu = this._menu
+
         choices = choices.filter(choice => {
             if (!('when' in choice)) {
                 return true
@@ -786,28 +786,59 @@ class Questions {
             }
             return !!choice.when
         })
-        const maxLength = Math.max(...choices.map(choice => choice.name ? choice.name.length : 0))
-        var p = 1
-        var i = 0
+
+        const maxNameLength = Math.max(...choices.map(choice => choice.name ? stringWidth(choice.name) : 0))
+
+
+        let p = 1
+        let n = 0
+
         choices.forEach(choice => {
+            
             if (choice.type == 'separator') {
                 return
             }
-            if (i == 9) {
+
+            n += 1
+            if (n == 10) {
                 p = 0
             }
-            const {question} = choice
-            if (question) {
-                if (!('short' in choice)) {
-                    choice.short = choice.name
-                }
-                if (question.display || question.default) {
-                    const display = question.display ? question.display() : question.default()
-                    choice.name = sp(choice.name.padEnd(maxLength + p, ' '), ':', display)
-                }
+
+            if ('name' in choice) {
+                choice._originalName = choice.name
             }
-            i += 1
+
+            if (!('short' in choice)) {
+                choice.short = choice.name
+            }
+
+            const {question} = choice
+
+            if (!question) {
+                return
+            }
+
+            if (!question.display && !question.default) {
+                return
+            }
+
+            // the thisMaxWidth is just to avoid extra spaces by padding.
+            // it doesn't break lines or truncate.
+            // subtract pointer, paren, 2 spaces, and number string.
+            const thisMaxWidth = menu.menuBoxWidth - 4 - n.toString().length
+
+            const display = question.display ? question.display() : question.default()
+
+            const bareText = sp(choice.name, ':', display)
+
+            if (stringWidth(bareText) >= thisMaxWidth) {
+                choice.name = bareText
+            } else {
+                choice.name = padEnd(choice.name, maxNameLength + p, ' ')
+                choice.name = sp(choice.name, ':', display)
+            }
         })
+
         return choices
     }
 }

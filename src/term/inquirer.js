@@ -68,6 +68,7 @@ const {
     castToArray
   , cliWidth
   , ensure
+  , forceLineReturn
   , nchars
   , ntimes
   , stringWidth
@@ -144,15 +145,16 @@ class ScreenManager extends ScreenBase {
 
     constructor(rl, opts) {
         super(rl)
+        this.cur = new AnsiHelper(this)
         this.opts = {
             indent       : 0
           , maxWidth     : Infinity
           , defaultWidth : 80
           , emitter      : NullEmitter
+            , clearMaxWidth: false
           , term         : DefaultTerm
           , ...opts
         }
-        this.cur = new AnsiHelper(this)
         update(this, {
             width     : 0
           , height    : 0
@@ -202,8 +204,8 @@ class ScreenManager extends ScreenBase {
         const promptBreaks = Math.floor(promptClean.length / maxWidth)
 
         // Ensure non-empty contents end with line break.
-        body = this.forceLineReturn(body, maxWidth)
-        foot = foot && this.forceLineReturn(foot, maxWidth)
+        body = forceLineReturn(body, maxWidth)
+        foot = forceLineReturn(foot, maxWidth)
 
         const content  = body + (foot ? '\n' + foot : '')
         const lines    = content.split('\n')
@@ -231,11 +233,12 @@ class ScreenManager extends ScreenBase {
         rl.setPrompt(prompt)
         const {cols, rows} = rl._getCursorPos()
 
-        // We need to consider parts of the prompt under the cursor as part of the bottom
-        // content in order to correctly cleanup and re-render.
+        // We need to consider parts of the prompt under the cursor as part of
+        // the bottom content in order to correctly cleanup and re-render.
         const footLineCount = foot ? foot.split('\n').length : 0
         const footHeight = promptBreaks - rows + footLineCount
 
+        const clearWidth = this.opts.clearMaxWidth ? this.opts.maxWidth : thisWidth
         // Write content lines.
         cur.column(0)
         lines.forEach((line, i) => {
@@ -246,7 +249,7 @@ class ScreenManager extends ScreenBase {
                 cur.right(indent)
             }
             if (this.isFirstRender || i >= this.height) {
-                term.erase(thisWidth)
+                term.erase(clearWidth)
             }
             rl.output.write(line)
         })
@@ -286,13 +289,15 @@ class ScreenManager extends ScreenBase {
      */
     clean() {
 
-        const {width, height, footHeight} = this
-        const {term, indent} = this.opts
+        const {height, footHeight} = this
+        const {term, indent, clearMaxWidth, maxWidth} = this.opts
 
         if (!term.enabled) {
             return super.clean(footHeight)
         }
-        
+
+        const width = clearMaxWidth ? maxWidth : this.width
+
         if (this.isFirstRender || !width || !height) {
             return
         }

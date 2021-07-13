@@ -74,6 +74,16 @@ class BaseMethods {
         this._keyHandlers = {}
     }
 
+    getMaxWidth() {
+        if (this.opt.maxWidth) {
+            return this.opt.maxWidth
+        }
+        if (this.opt.opts && this.opt.opts.maxWidth) {
+            return this.opt.opts.maxWidth
+        }
+        return Infinity
+    }
+
     addKeypressIndex(type, index, handler) {
         Object.entries(index).forEach(([chr, value]) => {
             if (chr in this._keypressIndex) {
@@ -327,7 +337,9 @@ class ListMethods {
 
         let separatorOffset = 0
 
-        const lineLength = this.choicesLineLength(choices)
+        let lineLength = this.choicesLineLength(choices)
+
+        lineLength = Math.min(lineLength, this.getMaxWidth())
 
         return choices.choices.map((choice, i) => {
 
@@ -382,8 +394,13 @@ class ListMethods {
                 output += chlk.choice.number(numstr)
                 output += chlk.choice.paren(parenstr)
             }
-            lineLength -= numlength
         }
+
+        if (lineLength >= this.getMaxWidth()) {
+            lineLength -= 1
+        }
+
+        lineLength -= stringWidth(output)
 
         const text = this._renderChoiceText(choice, isSeparator, isDisabled, lineLength)
 

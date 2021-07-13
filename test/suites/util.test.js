@@ -226,6 +226,15 @@ describe('Util', () => {
         })
     })
 
+    describe('#forceLineReturn', () => {
+
+        it('should return empty string for empty string', () => {
+            const exp = ''
+            const res = Util.forceLineReturn(exp)
+            expect(res).to.equal(exp)
+        })
+    })
+
     describe('#homeTilde', () => {
 
         it('should return null for null', () => {

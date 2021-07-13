@@ -168,9 +168,19 @@ class Alerts extends EventEmitter {
     }
 
     buildStringForArg(arg) {
-        return arg instanceof Error
-            ? [arg.name || arg.constructor.name, arg.message].join(': ')
-            : arg.toString()
+        if (arg instanceof Error) {
+            return [arg.name || arg.constructor.name, arg.message].join(': ')
+        }
+        if (typeof arg == 'object') {
+            if (arg.constructor == Object) {
+                try {
+                    return JSON.stringify(arg)
+                } catch (err) {
+                    
+                }
+            }
+        }
+        return String(arg)
     }
 
     get chlk() {

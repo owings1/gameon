@@ -131,6 +131,7 @@ const Categories = [
   , 'alert.error.message'
 
   , 'menu.screen'
+  , 'menu.box'
 
   , 'prompt.answer'
   , 'prompt.caret.error'
@@ -190,6 +191,7 @@ const CategoryAliases = {
   , 'alert.error.level'     : 'text'
 
   , 'menu.screen' : 'text'
+  , 'menu.box'    : 'text'
 
   , 'prompt.answer'                 : 'text'
   , 'prompt.check.pass'             : 'alert.success.message'

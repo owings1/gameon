@@ -169,26 +169,6 @@ class Logger {
         return ctx => {
             obj.lastMessage = ctx.msg
             return ctx.msg
-            /*
-            const type = stripAnsi(ctx.type)
-            const levelKey = AlertThemeLevels[type]
-            const msgKey = AlertThemeMessage[type]
-            const chlk = obj.theme.alert
-            const parts = []
-            let msgWidth = 0
-            if (levelKey) {
-                parts.push(chlk[levelKey].level(type.toUpperCase()))
-                msgWidth += type.length + 1
-            }
-            msgWidth += stringWidth(ctx.msg)
-            if (msgWidth > obj.opts.maxWidth) {
-                ctx.msg = stripAnsi(ctx.msg).substring(0, obj.opts.maxWidth)
-            }
-            parts.push(chlk[msgKey].message(ctx.msg))
-            const msg = parts.join(chlk[msgKey].message(' '))
-            obj.lastMessage = msg
-            return msg
-            */
         }
     }
 }

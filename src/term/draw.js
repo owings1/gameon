@@ -967,8 +967,8 @@ class AnsiHelper {
         this.inst = inst
     }
 
-    get rl() {
-        return this.inst.rl
+    get output() {
+        return this.inst.rl.output
     }
 
     left(x) {
@@ -1000,7 +1000,7 @@ class AnsiHelper {
     }
 
     write(str) {
-        this.rl.output.write(str)
+        this.output.write(str)
         return this
     }
 }
