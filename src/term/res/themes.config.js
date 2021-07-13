@@ -49,6 +49,7 @@ const BuiltIn = {
           , 'alert.warn.level.color'       : 'yellow'
 
           , 'menu.screen.background' : 'grey dim'
+          , 'menu.box.border.color'  : 'cyan dim'
 
           , 'prompt.answer.color'                 : 'cyan'
           , 'prompt.check.pass.color'             : 'green'
@@ -73,7 +74,8 @@ const BuiltIn = {
 
           , 'alert.error.message.color' : 'pink'
 
-          , 'menu.screen.background' : 'green'
+          //, 'menu.screen.background' : 'green'
+          , 'menu.box.border.color' : 'magenta bold'
 
           , 'prompt.answer.color'               : 'blue'
           , 'prompt.input.color'                : 'green'
@@ -132,6 +134,7 @@ const Categories = [
 
   , 'menu.screen'
   , 'menu.box'
+  , 'menu.box.border'
 
   , 'prompt.answer'
   , 'prompt.caret.error'
@@ -190,8 +193,9 @@ const CategoryAliases = {
   , 'alert.error.message'   : 'text'
   , 'alert.error.level'     : 'text'
 
-  , 'menu.screen' : 'text'
-  , 'menu.box'    : 'text'
+  , 'menu.screen'     : 'text'
+  , 'menu.box'        : 'text'
+  , 'menu.box.border' : 'menu.box'
 
   , 'prompt.answer'                 : 'text'
   , 'prompt.check.pass'             : 'alert.success.message'
@@ -254,6 +258,8 @@ const KeyAliases = {
 
   , 'prompt.choice.paren.selected.color'       : 'prompt.choice.paren.color'
   , 'prompt.choice.paren.selected.background'  : 'prompt.choice.number.selected.background'
+
+  //, 'menu.box.border.background' : 'menu.screen.background'
 }
 
 const Aliases = {}

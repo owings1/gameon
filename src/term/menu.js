@@ -142,19 +142,25 @@ class Menu extends EventEmitter {
         this.on('resize', this.handleResize.bind(this))
 
         this.boxes = {
-            menu   : new TermBox(this.term, {
+            menu   : new TermBox({
                 top       : 10
               , hcenter   : true
               , maxWidth  : 50
               , minWidth  : 50
               , maxHeight : 20
+              //, pad       : 1
+              , term      : this.term
+              , isBorder  : true
+              , borderFormat : chr => this.theme.menu.box.border(chr)
             })
-          , alerts : new TermBox(this.term, {
+          , alerts : new TermBox({
                 top       : 1
               , hcenter   : true
               , maxWidth  : 80
               , minWidth  : 80
               , maxHeight : 5
+              , term      : this.term
+              , isBorder  : true
           })
         }
     }
@@ -884,7 +890,10 @@ class Menu extends EventEmitter {
     getPromptOpts(opts) {
         const box = this.boxes.menu
         const {maxWidth, left} = box.getParams()
-        const indent = left - 1
+        let indent = left - 1
+        if (!this.settings.termEnabled) {
+            indent = 0
+        }
         return {
             theme         : this.theme
           , emitter       : box.status
@@ -986,6 +995,7 @@ class Menu extends EventEmitter {
             this.alerter[logLevel](line)
             box.status.emit('line', param)
         })
+        box.drawBorder()
     }
 
     async menuChoice(question, opts) {
@@ -1084,7 +1094,7 @@ class Menu extends EventEmitter {
     eraseMenu() {
         const chlk = this.theme.menu
         const box = this.boxes.menu
-        box.erase(width => chlk.box(nchars(width, ' ')))
+        box.erase(width => chlk.screen(nchars(width, ' ')))
         this.term.moveTo(1, box.getParams().top)
     }
 

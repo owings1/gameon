@@ -220,6 +220,9 @@ class ScreenManager extends ScreenBase {
         // Clean previous render.
         this.clean(this.footHeight)
 
+        this.height = lines.length
+        emitter.emit('render', {indent, width: this.width, height: this.height})
+
         // Correct for input longer than width when width is less than available.
         const promptPad = nchars(promptBreaks * freeWidth, ' ')
 
@@ -275,11 +278,11 @@ class ScreenManager extends ScreenBase {
         rl.output.mute()
 
         // Set state for next rendering.
-        this.height = lines.length
+        //this.height = lines.length
         this.heightMax = Math.max(this.height, this.heightMax)
         this.footHeight = footHeight
 
-        emitter.emit('render', {indent, width: this.width, height: this.height})
+        //emitter.emit('render', {indent, width: this.width, height: this.height})
 
         this.isFirstRender = false
     }
