@@ -44,6 +44,7 @@ const BuiltIn = {
           , 'board.log.gameStatus.color' : 'cyan'
           , 'board.log.notice.color'     : 'yellow bold'
 
+          , 'alert.box.border.color'       : 'grey'
           , 'alert.success.message.color'  : 'green'
           , 'alert.error.level.color'      : 'red'
           , 'alert.warn.level.color'       : 'yellow'
@@ -125,6 +126,8 @@ const Categories = [
   , 'board.log.piece.white'
 
   , 'alert.screen'
+  , 'alert.box'
+  , 'alert.box.border'
   , 'alert.info.message'
   , 'alert.success.message'
   , 'alert.warn.level'
@@ -186,6 +189,8 @@ const CategoryAliases = {
   , 'hr' : 'text'
 
   , 'alert.screen'          : 'text'
+  , 'alert.box'             : 'text'
+  , 'alert.box.border'      : 'alert.box'
   , 'alert.info.message'    : 'text'
   , 'alert.success.message' : 'text'
   , 'alert.warn.message'    : 'text'

@@ -787,22 +787,16 @@ class Questions {
             return !!choice.when
         })
 
-        const maxNameLength = Math.max(...choices.map(choice => choice.name ? stringWidth(choice.name) : 0))
+        const available = choices.filter(choice => choice.type != 'separator')
+        const maxNameLength = Math.max(...available.map(choice => stringWidth(choice.name)))
 
+        const menuBoxMaxWidth = menu.boxes.menu.getParams().maxWidth
 
-        let p = 1
-        let n = 0
+        available.forEach((choice, i) => {
 
-        choices.forEach(choice => {
-            
-            if (choice.type == 'separator') {
-                return
-            }
+            const n = i + 1
 
-            n += 1
-            if (n == 10) {
-                p = 0
-            }
+            const numPad = available.length.toString().length - n.toString().length
 
             if ('name' in choice) {
                 choice._originalName = choice.name
@@ -822,10 +816,11 @@ class Questions {
                 return
             }
 
-            // the thisMaxWidth is just to avoid extra spaces by padding.
-            // it doesn't break lines or truncate.
+            // The thisMaxWidth is just to avoid extra spaces by padding.
+            // It doesn't break lines or truncate.
+
             // subtract pointer, paren, 2 spaces, and number string.
-            const thisMaxWidth = menu.menuBoxWidth - 4 - n.toString().length
+            const thisMaxWidth = menuBoxMaxWidth - 4 - n.toString().length
 
             const display = question.display ? question.display() : question.default()
 
@@ -834,7 +829,7 @@ class Questions {
             if (stringWidth(bareText) >= thisMaxWidth) {
                 choice.name = bareText
             } else {
-                choice.name = padEnd(choice.name, maxNameLength + p, ' ')
+                choice.name = padEnd(choice.name, maxNameLength + numPad, ' ')
                 choice.name = sp(choice.name, ':', display)
             }
         })

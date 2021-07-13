@@ -396,11 +396,8 @@ class ListMethods {
             }
         }
 
-        if (lineLength >= this.getMaxWidth()) {
-            lineLength -= 1
-        }
-
-        lineLength -= stringWidth(output)
+        let maxWidth = this.getMaxWidth() - stringWidth(output) - 1
+        lineLength = Math.min(lineLength, maxWidth)
 
         const text = this._renderChoiceText(choice, isSeparator, isDisabled, lineLength)
 

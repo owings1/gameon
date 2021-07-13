@@ -49,6 +49,7 @@ class TermBox {
           , term      : DefaultTerm
           , isBorder  : false
           , borderFormat : chr => chr
+          , padFormat    : chr => chr
         }
     }
 
@@ -141,23 +142,38 @@ class TermBox {
         const {pad} = this.opts
         const chars = Chars.table
         const fmt = this.opts.borderFormat
+        const pfmt = this.opts.padFormat
         let {left, top, minWidth, minHeight} = this.getParams()
         let {width, height} = this.status
+        const p = pad * 2
         left -= 1
         top -= 1
         left -= pad
         top -= pad
         width = Math.max(width, minWidth)
-        height = Math.max(height, minHeight) + 1 + pad
+        height = Math.max(height, minHeight) + 1 + p
         const borders = {
-            top: fmt(chars.top.left + nchars(width + pad, chars.dash) + chars.top.right)
-          , bottom: fmt(chars.foot.left + nchars(width + pad, chars.dash) + chars.foot.right)
+            top: fmt(chars.top.left + nchars(width + p, chars.dash) + chars.top.right)
+          , bottom: fmt(chars.foot.left + nchars(width + p, chars.dash) + chars.foot.right)
           , pipe: fmt(chars.pipe)
         }
         term.moveTo(left, top).write(borders.top)
         for (var i = 0; i < height; ++i) {
-            term.moveTo(left, top + i + 1 + pad).write(borders.pipe)
-            term.right(width + pad).write(borders.pipe)
+            term.moveTo(left, top + i + 1).write(borders.pipe)
+            let isFullPad = pad && (i < pad || height - i - 1 <= pad)
+            if (pad) {
+                if (isFullPad) {
+                    term.write(pfmt(nchars(width + p, ' ')))
+                } else {
+                    term.write(pfmt(nchars(pad, ' '))).right(width)
+                }
+            } else {
+                term.right(width)
+            }
+            if (pad && !isFullPad) {
+                term.write(pfmt(nchars(pad, ' ')))
+            }
+            term.write(borders.pipe)
         }
         term.moveTo(left, top + height).write(borders.bottom)
         term.moveTo(left + 1 + pad, top + 1 + pad)

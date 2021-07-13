@@ -148,10 +148,11 @@ class Menu extends EventEmitter {
               , maxWidth  : 50
               , minWidth  : 50
               , maxHeight : 20
-              //, pad       : 1
+              , pad       : 1
               , term      : this.term
               , isBorder  : true
               , borderFormat : chr => this.theme.menu.box.border(chr)
+              , padFormat    : chr => this.theme.menu.box(chr)
             })
           , alerts : new TermBox({
                 top       : 1
@@ -161,6 +162,7 @@ class Menu extends EventEmitter {
               , maxHeight : 5
               , term      : this.term
               , isBorder  : true
+              , borderFormat : chr => this.theme.alert.box.border(chr)
           })
         }
     }
