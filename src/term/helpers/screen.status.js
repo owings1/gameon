@@ -1,5 +1,5 @@
 /**
- * gameon - Menu screen status tracker helper class
+ * gameon - Screen status tracker helper class
  *
  * Copyright (C) 2020-2021 Doug Owings
  *

@@ -57,7 +57,7 @@ const {EventEmitter} = require('events')
 const Alerts       = require('./helpers/menu.alerts')
 const ApiHelper    = require('./helpers/menu.api')
 const Questions    = require('./helpers/menu.questions')
-const ScreenStatus = require('./helpers/menu.screen')
+const ScreenStatus = require('./helpers/screen.status')
 
 const {
     castToArray
@@ -187,7 +187,7 @@ class Menu extends EventEmitter {
 
         return this.runMenu('Play', async (choose, loop) => {
 
-            var isContinue = true
+            let isContinue = true
 
             await loop(async () => {
 
@@ -231,8 +231,8 @@ class Menu extends EventEmitter {
 
             const {message, method, isAdvanced, isJoin} = PlayChoiceMap[playChoice]
 
-            var isContinue
-            var advancedOpts = {}
+            let isContinue = true
+            let advancedOpts = {}
 
             await loop(async () => {
 
@@ -269,7 +269,7 @@ class Menu extends EventEmitter {
                         }
                         args.push(join.answer)
                     } else {
-                        var {matchOpts} = this.settings
+                        let {matchOpts} = this.settings
                         if (isAdvanced) {
                             matchOpts = await this.getMatchOpts(matchOpts, advancedOpts)
                         }
