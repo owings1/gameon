@@ -61,6 +61,7 @@ const ScreenStatus = require('./helpers/menu.screen')
 
 const {
     castToArray
+  , destroyAll
   , forceLineReturn
   , isCredentialsFilled
   , isEmptyObject
@@ -127,17 +128,18 @@ class Menu extends EventEmitter {
         this.term  = new TermHelper(this.settings.termEnabled)
         this.inquirer = inquirer.createPromptModule()
 
+        this.logger = new Logger('Menu', {named: true})
+        this.alerter = new Logger('Alerter', {raw: true})
+        this.sstatus = new ScreenStatus({top: 10})
+        this.astatus = new ScreenStatus({top: 1})
+
         this.isCredentialsLoaded = false
         this.isSettingsLoaded = false
         this.isThemesLoaded = false
 
-        this.logger = new Logger('Menu', {named: true})
-        this.alerter = new Logger('Alerter', {raw: true})
-
         this.alerts = new Alerts(this)
         this.api = new ApiHelper(this)
         this.q = new Questions(this)
-        this.sstatus = new ScreenStatus({top: 10})
 
         this.on('resize', this.handleResize.bind(this))
     }
@@ -518,9 +520,6 @@ class Menu extends EventEmitter {
         await this.api.forgotPassword(credentials.serverUrl, answer)
         credentials.username = answer
 
-        this.alerts.info('Reset key requested, check your email.')
-        await this.consumeAlerts()
-
         const answers = await this.prompt(this.q.forgotPassword(), null, {cancelOnInterrupt: true})
 
         if (answers._cancelEvent || !answers.resetKey) {
@@ -627,9 +626,6 @@ class Menu extends EventEmitter {
 
             if (err.isUserNotConfirmedError) {
 
-                this.alerts.info('You must confirm your account. Check your email for a confirmation key.')
-                await this.consumeAlerts()
-
                 credentials.needsConfirm = true
 
                 isSuccess = await this.promptConfirmAccount()            
@@ -658,8 +654,7 @@ class Menu extends EventEmitter {
     }
 
     async playRobot(matchOpts) {
-        await this.ensureSettingsLoaded()
-        await this.ensureThemesLoaded()
+        await this.ensureLoaded()
         const match = new Match(matchOpts.total, matchOpts)
         const players = {
             White : new TermPlayer(White, this.settings)
@@ -669,8 +664,7 @@ class Menu extends EventEmitter {
     }
 
     async playRobots(matchOpts) {
-        await this.ensureSettingsLoaded()
-        await this.ensureThemesLoaded()
+        await this.ensureLoaded()
         const match = new Match(matchOpts.total, matchOpts)
         const players = {
             White : new TermPlayer.Robot(this.newRobot(White), this.settings)
@@ -680,8 +674,7 @@ class Menu extends EventEmitter {
     }
 
     async playHumans(matchOpts) {
-        await this.ensureSettingsLoaded()
-        await this.ensureThemesLoaded()
+        await this.ensureLoaded()
         const match = new Match(matchOpts.total, matchOpts)
         const players = {
             White : new TermPlayer(White, this.settings)
@@ -732,19 +725,22 @@ class Menu extends EventEmitter {
 
     async runMatch(match, players) {
         try {
-            this.coordinator = this.newCoordinator()
+            const coordinator = this.newCoordinator()
+            this.coordinator = coordinator
             this.players = players
-            const {coordinator} = this
             this.captureInterrupt = () => {
                 this.alerts.warn('Canceling match')
                 const err = new MatchCanceledError('Keyboard interrupt')
                 coordinator.cancelMatch(match, players, err)
                 return true
             }
+
             this.emit('beforeMatchStart', match, players)
-            await this.eraseScreen()
-            await this.consumeAlerts()
+
+            this.eraseScreen()
+            this.consumeAlerts()
             await coordinator.runMatch(match, players)
+
         } catch (err) {
             if (err.isMatchCanceledError) {
                 this.alerts.warn(err)
@@ -752,11 +748,13 @@ class Menu extends EventEmitter {
             }
             throw err
         } finally {
+
             this.captureInterrupt = null
             this.coordinator = null
-            await Util.destroyAll(players)
             this.players = null
-            await this.clearScreen()
+
+            await destroyAll(players)
+            this.clearScreen()
         }
     }
 
@@ -834,18 +832,6 @@ class Menu extends EventEmitter {
             ...credentials
           , password: this.decryptPassword(credentials.password)
         }
-        /*
-        if (typeof args[0] == 'object') {
-            var credentials = {...args[0]}
-            const isDecrypt = !!args[1]
-            if (isDecrypt) {
-                credentials.password = this.decryptPassword(credentials.password)
-            }
-        } else {
-            var [serverUrl, username, password] = args
-            var credentials = {serverUrl, username, password}
-        }
-        */
         const client = new Client(credentials)
         this.thisClient = client
         client.loglevel = this.loglevel
@@ -922,9 +908,9 @@ class Menu extends EventEmitter {
     async runMenu(title, run) {
         this.bread.push(title)
         try {
-            await this.ensureClearScreen()
+            this.ensureClearScreen()
             await this.ensureLoaded(true)
-            await this.ensureMenuBackground()
+            this.ensureMenuBackground()
             this.lastMenuChoice = null
             this.lastToggleChoice = null
             return await run(

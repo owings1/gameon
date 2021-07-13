@@ -122,12 +122,15 @@ const Categories = [
   , 'board.log.piece.red'
   , 'board.log.piece.white'
 
+  , 'alert.screen'
   , 'alert.info.message'
   , 'alert.success.message'
   , 'alert.warn.level'
   , 'alert.warn.message'
   , 'alert.error.level'
   , 'alert.error.message'
+
+  , 'menu.screen'
 
   , 'prompt.answer'
   , 'prompt.caret.error'
@@ -148,8 +151,6 @@ const Categories = [
   , 'prompt.message.error'
   , 'prompt.message.help'
   , 'prompt.separator'
-
-  , 'menu.screen'
 
   , 'text'
 ]
@@ -180,6 +181,7 @@ const CategoryAliases = {
 
   , 'hr' : 'text'
 
+  , 'alert.screen'          : 'text'
   , 'alert.info.message'    : 'text'
   , 'alert.success.message' : 'text'
   , 'alert.warn.message'    : 'text'

@@ -502,6 +502,7 @@ class Questions {
                 name    : 'resetKey'
               , type    : 'input'
               , message : 'Enter reset key'
+              , prefix  : 'Reset key requested, check your email.\n'
               , cancel  : CancelChars.input
             }
           , {
@@ -529,6 +530,7 @@ class Questions {
             name    : 'key'
           , type    : 'input'
           , message : 'Enter confirm key'
+          , prefix  : 'You must confirm your account.\nCheck your email for a confirmation key.\n'
           , cancel  : CancelChars.input
         }
     }
