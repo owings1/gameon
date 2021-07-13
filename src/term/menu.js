@@ -98,6 +98,8 @@ const {
   , PlayChoiceMap
 } = Constants.Menu
 
+const AlertsWidth = 80
+//const MaxAlertsPrint = 9
 const MenuWidth = 50
 const ResizeTimoutMs = 100
 
@@ -622,7 +624,7 @@ class Menu extends EventEmitter {
 
         } catch (err) {
 
-            var isSuccess = false
+            let isSuccess = false
 
             if (err.isUserNotConfirmedError) {
 
@@ -738,7 +740,7 @@ class Menu extends EventEmitter {
             this.emit('beforeMatchStart', match, players)
 
             this.eraseScreen()
-            this.consumeAlerts()
+            await this.consumeAlerts()
             await coordinator.runMatch(match, players)
 
         } catch (err) {
@@ -863,19 +865,21 @@ class Menu extends EventEmitter {
         })
     }
 
-    getPromptOpts(opts) {
+    getScreenParams(widthLimit) {
         const {termEnabled} = this.settings
         const available = Math.min(this.term.width, 1024)
-        const maxWidth = termEnabled ? Math.min(available, MenuWidth) : Infinity
+        const maxWidth = termEnabled ? Math.min(available, widthLimit) : Infinity
         const surplus = available - maxWidth
         const indent = termEnabled ? Math.max(0, Math.floor(surplus / 2)) : 0
+        return {maxWidth, indent}
+    }
+
+    getPromptOpts(opts) {
         return {
             theme    : this.theme
           , emitter  : this.sstatus
           , term     : this.term
-          , maxWidth
-          , indent
-          , ...opts
+          , ...this.getScreenParams(MenuWidth)
         }
     }
 
@@ -918,10 +922,9 @@ class Menu extends EventEmitter {
               , async loop => {
                     let res
                     while (true) {
-                        await this.ensureMenuBackground()
-                        await this.eraseMenu()
+                        this.ensureMenuBackground()
                         this.currentAlerts = await this.consumeAlerts()
-                        await this.renderAlerts(this.currentAlerts)
+                        this.eraseMenu()
                         res = await loop()
                         if (res !== true) {
                             break
@@ -935,8 +938,8 @@ class Menu extends EventEmitter {
         }
     }
 
-    consumeAlerts(isSkipRender) {
-        const alerts = this.alerts.consume()
+    async consumeAlerts(isSkipRender) {
+        const alerts = await this.alerts.consume()
         if (!isSkipRender) {
             this.renderAlerts(alerts)
         }
@@ -945,18 +948,20 @@ class Menu extends EventEmitter {
 
     renderAlerts(alerts) {
 
+        this.eraseAlerts()
+
         if (!alerts || !alerts.length) {
             return
         }
 
-        const {maxWidth, indent} = this.getPromptOpts()
+        const {maxWidth, indent} = this.getScreenParams(AlertsWidth)
 
         alerts.forEach(({logLevel, error, formatted}) => {
             forceLineReturn(formatted.string, maxWidth).split('\n').flat().forEach(line => {
                 const param = {indent, width: stringWidth(line)}
                 this.term.right(indent)
                 this.alerter[logLevel](line)
-                this.sstatus.emit('line', param)
+                this.astatus.emit('line', param)
             })
         })
     }
@@ -1056,6 +1061,11 @@ class Menu extends EventEmitter {
 
     eraseMenu() {
         this._eraseScreenSection(this.sstatus, 'menu')
+    }
+
+    eraseAlerts() {
+        // write with menu background
+        this._eraseScreenSection(this.astatus, 'menu')
     }
 
     _eraseScreenSection(status, category) {
