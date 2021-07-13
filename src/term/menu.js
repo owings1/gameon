@@ -54,10 +54,10 @@ const path       = require('path')
 
 const {EventEmitter} = require('events')
 
-const Alerts       = require('./helpers/menu.alerts')
-const ApiHelper    = require('./helpers/menu.api')
-const Questions    = require('./helpers/menu.questions')
-const TermBox      = require('./helpers/term.box')
+const Alerts    = require('./helpers/alerts')
+const ApiHelper = require('./helpers/menu.api')
+const Questions = require('./helpers/menu.questions')
+const TermBox   = require('./helpers/term.box')
 
 const {
     castToArray
@@ -135,8 +135,8 @@ class Menu extends EventEmitter {
         this.isSettingsLoaded = false
         this.isThemesLoaded = false
 
-        this.alerts = new Alerts(this)
-        this.api = new ApiHelper(this)
+        this.alerts = new Alerts
+        this.api = new ApiHelper
         this.q = new Questions(this)
 
         this.on('resize', this.handleResize.bind(this))
@@ -983,11 +983,12 @@ class Menu extends EventEmitter {
 
         const {maxWidth, minWidth, left} = box.getParams()
         const indent = left - 1
-        const levelsLines = alerts.map(({logLevel, error, formatted}) =>
-            forceLineReturn(formatted.string, maxWidth).split('\n').flat().map(line =>
-                [logLevel, padEnd(line, minWidth, chlk.screen(' '))]
+        const levelsLines = alerts.map(alert => {
+            const formatted = this.alerts.getFormatted(alert, chlk)
+            return forceLineReturn(formatted.string, maxWidth).split('\n').flat().map(line =>
+                [alert.level, padEnd(line, minWidth, chlk.screen(' '))]
             )
-        ).flat()
+        }).flat()
         
         levelsLines.forEach(([logLevel, line]) => {
             if (indent) {
@@ -997,6 +998,7 @@ class Menu extends EventEmitter {
             this.alerter[logLevel](line)
             box.status.emit('line', param)
         })
+
         box.drawBorder()
     }
 

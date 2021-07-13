@@ -1,5 +1,5 @@
 /**
- * gameon - Menu alerts helper
+ * gameon - Alerts helper
  *
  * Copyright (C) 2020-2021 Doug Owings
  *
@@ -23,6 +23,7 @@
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 const Errors = require('../../lib/errors')
+const Themes = require('../themes')
 const Util   = require('../../lib/util')
 
 const {ProgrammerError} = Errors
@@ -32,22 +33,18 @@ const {EventEmitter} = require('events')
 
 const LevelsMap = {
     success : {
-        logLevel     : 'info'
-      , isPrintLevel : false
+        isPrintLevel : false
     }
   , info    : {
-        logLevel     : 'info'
-      , isPrintLevel : false
+        isPrintLevel : false
     }
   , warn    : {
-        logLevel     : 'warn'
+        isPrintLevel : true
       , levelString  : '[WARN]'
-      , isPrintLevel : true
     }
   , error   : {
-        logLevel     : 'error'
+        isPrintLevel : true
       , levelString  : '[ERROR]'
-      , isPrintLevel : true
     }
 }
 
@@ -55,9 +52,8 @@ const DefaultLevel = 'warn'
 
 class Alerts extends EventEmitter {
 
-    constructor(menu) {
+    constructor() {
         super()
-        this.menu = menu
         this.alerts = []
     }
 
@@ -120,51 +116,50 @@ class Alerts extends EventEmitter {
 
         level = (level in LevelsMap) ? level : DefaultLevel
 
-        const chlk = this.chlk[level]
         const {logLevel, isPrintLevel} = LevelsMap[level]
         let {levelString} = LevelsMap[level]
 
         const messages = args.map(arg => this.buildStringForArg(arg))
 
         const parts = messages.slice(0)
-
-        const fmt = {
-            messages: messages.map(msg => chlk.message(msg))
-        }
-        fmt.parts = fmt.messages.slice(0)
         
         if (isPrintLevel) {
-            update(fmt, {
-                level       : chlk.level(level)
-              , levelString : chlk.level(levelString)
-            })
             parts.unshift(levelString)
-            fmt.parts.unshift(fmt.levelString)
-        } else {
-            levelString = null
         }
 
         const errors = args.filter(arg => arg instanceof Error)
 
-        const joiner = chlk.message(' ')
         return {
             level
           , levelString
-          , logLevel
           , errors
           , messages
           , parts
-          , message : messages.join(' ')
-          , string  : parts.join(' ')
-          , error   : errors[0]
-          , formatted : {
-                ...fmt
-              , joiner
-              , message : fmt.messages.join(joiner)
-              , string  : fmt.parts.join(joiner)
-            }
+          , message  : messages.join(' ')
+          , string   : parts.join(' ')
+          , error    : errors[0]
           , isLogObj : true
         }
+    }
+
+    getFormatted(alert, themish) {
+        themeish = themeis || Themes.getDefaultInstance()
+        const {level, levelString} = alert
+        const {isPrintLevel} = LevelsMap[level]
+        const chlk = themish[level] || themish.alert[level]
+        const fmt = {
+            level       : isPrintLevel ? chlk.level(alert.level) : null
+          , levelString : isPrintLevel ? chlk.level(alert.levelString) : null
+          , message     : chlk.message(alert.message)
+          , messages    : alert.messages.map(msg => chlk.message(msg))
+        }
+        let str = ''
+        if (isPrintLevel) {
+            str += fmt.levelString + chlk.message(' ')
+        }
+        str += fmt.message
+        fmt.string = str
+        return fmt
     }
 
     buildStringForArg(arg) {
@@ -181,10 +176,6 @@ class Alerts extends EventEmitter {
             }
         }
         return String(arg)
-    }
-
-    get chlk() {
-        return this.menu.theme.alert
     }
 
     get length() {

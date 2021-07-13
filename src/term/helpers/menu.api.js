@@ -24,21 +24,23 @@
  */
 const Client = require('../../net/client')
 const Errors = require('../../lib/errors')
+const Logger = require('../../lib/logger')
 
 const {RequestError} = Errors
 
 class MenuApiHelper {
 
-    constructor(menu) {
-        this.menu = menu
+    constructor() {
         this.client = new Client
+        this.logger = new Logger(this.constructor.name)
     }
 
     get loglevel() {
-        return this.client.loglevel
+        return this.logger.loglevel
     }
 
     set loglevel(n) {
+        this.logger.loglevel = n
         this.client.loglevel = n
     }
 
@@ -82,7 +84,7 @@ class MenuApiHelper {
         const res = await this.client.setServerUrl(serverUrl).postJson(uri, data)
         const body = await res.json()
         if (!res.ok) {
-            this.menu.logger.debug(body)
+            this.logger.debug(body)
             throw RequestError.forResponse(res, body, uri.split('/').pop() + ' failed')
         }
         return body

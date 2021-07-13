@@ -47,18 +47,6 @@ const TypeColor = {
  , '[line]'  : 'grey'
 }
 
-const AlertThemeLevels= {
-   '[warn]'  : 'warn'
- , '[error]' : 'error'
-}
-const AlertThemeMessage = {
-   '[warn]'  : 'warn'
- , '[error]' : 'error'
- , '[debug]' : 'info'
- , '[log]'   : 'info'
- , '[info]'  : 'info'
- , '[line]'  : 'info'
-}
 class Logger {
 
     static defaults() {
