@@ -137,6 +137,18 @@ class Menu extends EventEmitter {
         this.api = new ApiHelper(this)
         this.q = new Questions(this)
         this.sstatus = new ScreenStatus({top: 10})
+
+        this.on('resize', this.handleResize.bind(this))
+    }
+
+    get loglevel() {
+        return this.logger.loglevel
+    }
+
+    set loglevel(n) {
+        this.logger.loglevel = n
+        this.alerter.loglevel = n
+        this.api.loglevel = n
     }
 
     mainMenu() {
@@ -715,7 +727,9 @@ class Menu extends EventEmitter {
 
     async runMatch(match, players) {
         try {
-            const coordinator = this.newCoordinator()
+            this.coordinator = this.newCoordinator()
+            this.players = players
+            const {coordinator} = this
             this.captureInterrupt = () => {
                 this.alerts.warn('Canceling match')
                 coordinator.cancelMatch(match, players, new MatchCanceledError('Keyboard interrupt'))
@@ -733,7 +747,9 @@ class Menu extends EventEmitter {
             throw err
         } finally {
             this.captureInterrupt = null
+            this.coordinator = null
             await Util.destroyAll(players)
+            this.players = null
             await this.clearScreen()
         }
     }
@@ -848,9 +864,11 @@ class Menu extends EventEmitter {
             this.prompter.then(answers => {
                 this.captureInterrupt = null
                 resolve(answers)
+                this.prompter = null
             }).catch(err => {
                 this.captureInterrupt = null
                 reject(err)
+                this.prompter = null
             })
         })
     }
@@ -884,6 +902,7 @@ class Menu extends EventEmitter {
               , async loop => {
                     let res
                     while (true) {
+                        await this.ensureMenuBackground()
                         await this.eraseMenu()
                         await this.consumeAlerts()
                         res = await loop()
@@ -970,33 +989,31 @@ class Menu extends EventEmitter {
     eraseScreen() {
         this.term.moveTo(1, 1).eraseDisplayBelow()
         this.hasMenuBackground = false
-        //this.writeMenuBackground()
         this.sstatus.reset()
     }
 
     eraseMenu() {
         const {left, top, width, lastHeight} = this.sstatus
-        const chlk = this.theme.menu
-        if (this.settings.termEnabled && width) {
-            for (var i = 0; i < lastHeight; ++i) {
-                this.term.moveTo(left, top + i)
-                this.logger.writeStdout(chlk.screen(nchars(width, 'y')))
-            }
-            //this.term.eraseArea(left, top, width, height)
+        this.sstatus.reset()
+        if (!this.settings.termEnabled) {
+            return
+        }
+        if (width) {
+            const chlk = this.theme.menu
+            const str = chlk.screen(nchars(width, ' '))
+            this.term.writeArea(left, top, width, lastHeight, str)
         }
         this.term.moveTo(1, top)
-        this.sstatus.reset()
     }
 
     writeMenuBackground() {
+        this.sstatus.reset()
         if (!this.settings.termEnabled) {
             return
         }
         const chlk = this.theme.menu
-        for (var i = 0; i < this.term.height; ++i) {
-            this.term.moveTo(1, 1 + i)
-            this.logger.writeStdout(chlk.screen(nchars(this.term.width, 'x')))
-        }
+        const str = chlk.screen(nchars(this.term.width, ' '))
+        this.term.writeArea(1, 1, 1, this.term.height, str)
         this.term.moveTo(1, 1)
         this.hasMenuBackground = true
     }
@@ -1024,6 +1041,25 @@ class Menu extends EventEmitter {
                 this.sstatus.emit('line', param)
             })
         })
+    }
+
+    handleResize() {
+        this.hasMenuBackground = false
+        if (!this.settings.termEnabled) {
+            return
+        }
+        const {prompter} = this
+        if (!prompter || !prompter.ui) {
+            return
+        }
+        const {ui} = prompter
+        if (typeof ui.onResize != 'function') {
+            return
+        }
+        const opts = this.getPromptOpts()
+        this.writeMenuBackground()
+        this.term.moveTo(1, this.sstatus.top)
+        ui.onResize(opts, true)
     }
 
     async ensureLoaded(isQuiet) {
@@ -1239,16 +1275,6 @@ class Menu extends EventEmitter {
 
     robotMinimalConfig(name) {
         return Menu.robotMinimalConfig(name)
-    }
-
-    get loglevel() {
-        return this.logger.loglevel
-    }
-
-    set loglevel(n) {
-        this.logger.loglevel = n
-        this.alerter.loglevel = n
-        this.api.loglevel = n
     }
 
     static settingsDefaults() {

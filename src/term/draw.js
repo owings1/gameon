@@ -876,6 +876,27 @@ class TermHelper {
         return this
     }
 
+    writeArea(left, top, width, height, chr) {
+        if (this.enabled) {
+            for (var i = 0; i < height; ++i) {
+                this.moveTo(left, top + i)
+                for (var j = 0; j < width; ++j) {
+                    this.moveTo(left + j, top + i)
+                    this.write(chr)
+                }
+                //this.logger.writeStdout(chlk.screen(nchars(this.term.width, 'x')))
+            }
+        }
+        return this
+    }
+
+    write(str) {
+        if (this.enabled) {
+            this.term.stdout.write(str)
+        }
+        return this
+    }
+
     moveTo(...args) {
         if (this.enabled) {
             this.term.moveTo(...args)
@@ -932,10 +953,12 @@ class TermHelper {
         return 80
     }
 
-    requestCursorLocation() {
-        if (this.enabled) {
-            return this.term.requestCursorLocation()
-        }
+    get stdout() {
+        return this.term.stdout
+    }
+
+    set stdout(strm) {
+        this.term.stdout = strm
     }
     /*
     async getCursorLocation(...args) {

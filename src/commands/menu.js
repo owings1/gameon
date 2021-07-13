@@ -28,6 +28,9 @@ const Base    = require('../lib/command').UserCommand
 class MenuCommand extends Base {
 
     async run() {
+        //process.stdout.on('resize', () => console.log('resize'))
+        //await new Promise(resolve => setTimeout(resolve, 10000))
+        //return
         await this.menu.mainMenu()
     }
 }

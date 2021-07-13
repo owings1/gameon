@@ -283,6 +283,7 @@ class ScreenManager extends ScreenBase {
         emitter.emit('render', {indent, width: this.width, height: this.height})
 
         this.isFirstRender = false
+        this._lastRender = [body, foot, spinning]
     }
 
     /**
@@ -323,7 +324,21 @@ class ScreenManager extends ScreenBase {
 
     done() {
         this.opts.emitter.emit('answered', {height: this.height})
+        this._lastRender = null
         super.done()
+    }
+
+    onResize(opts, isResetFirstRender) {
+        this.opts = {
+            ...this.opts
+          , ...opts
+        }
+        if (isResetFirstRender) {
+            this.isFirstRender = true
+        }
+        if (this._lastRender) {
+            this.render(...this._lastRender)
+        }
     }
 }
 
@@ -339,6 +354,14 @@ class Prompt extends Inquirer.ui.Prompt {
         return new ScreenClass(...args)
     }
 
+    onResize(...args) {
+        if (this.activePrompt && this.activePrompt.screen) {
+            const {screen} = this.activePrompt
+            if (typeof screen.onResize == 'function') {
+                screen.onResize(...args)
+            }
+        }
+    }
     /**
      * @override To store reference to UI and Prompt module in Prompt instances.
      *

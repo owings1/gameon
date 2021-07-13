@@ -46,7 +46,7 @@ class UserCommand extends AppCommand {
     async init(...args) {
         await super.init(...args)
         await this._loadConfigs()
-        this._loadInterruptHandlers()
+        this._loadProcHandlers()
     }
 
     async finally(...args) {
@@ -70,7 +70,7 @@ class UserCommand extends AppCommand {
         this.Settings = this.menu.settings
     }
 
-    _loadInterruptHandlers() {
+    _loadProcHandlers() {
         // For some reason we need an interval otherwise somebody else is
         // exiting first. So we set it to 30mins
         this._hackInterval = setInterval(() => {}, 1800 * 1000)
@@ -85,6 +85,9 @@ class UserCommand extends AppCommand {
                 clearInterval(this._hackInterval)
                 this.proc.exit(code)
             }
+        })
+        this.proc.stdout.on('resize', () => {
+            this.menu.emit('resize')
         })
     }
 
