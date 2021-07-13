@@ -942,14 +942,14 @@ class TermHelper {
         if (this.enabled) {
             return this.term.height
         }
-        return 40
+        return 512
     }
 
     get width() {
         if (this.enabled) {
             return this.term.width
         }
-        return 80
+        return 1024
     }
 
     get stdout() {

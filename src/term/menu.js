@@ -57,6 +57,7 @@ const {EventEmitter} = require('events')
 const Alerts       = require('./helpers/menu.alerts')
 const ApiHelper    = require('./helpers/menu.api')
 const Questions    = require('./helpers/menu.questions')
+const TermBox      = require('./helpers/term.box')
 const ScreenStatus = require('./helpers/screen.status')
 
 const {
@@ -67,6 +68,7 @@ const {
   , isEmptyObject
   , nchars
   , ntimes
+  , padEnd
   , stringWidth
   , stripAnsi
   , sumArray
@@ -129,8 +131,6 @@ class Menu extends EventEmitter {
 
         this.logger = new Logger('Menu', {named: true})
         this.alerter = new Logger('Alerter', {raw: true})
-        this.sstatus = new ScreenStatus({top: 10})
-        this.astatus = new ScreenStatus({top: 1})
 
         this.isCredentialsLoaded = false
         this.isSettingsLoaded = false
@@ -142,15 +142,32 @@ class Menu extends EventEmitter {
 
         this.on('resize', this.handleResize.bind(this))
 
-        this.alertsBoxWidth = 80
-        this.alertsBoxHeight = 5
-        this.isForceFullAlertsBoxHeight = false
-        this.isForceFullAlertsBoxWidth = true
+        //this.alertsBoxWidth = 80
+        //this.alertsBoxHeight = 5
+        //this.isForceFullAlertsBoxHeight = false
+        //this.isForceFullAlertsBoxWidth = true
 
-        this.menuBoxWidth = 50
-        this.menuBoxHeight = 20
-        this.isForceFullMenuBoxHeight = false
-        this.isForceFullMenuBoxWidth = true
+        //this.menuBoxWidth = 50
+        //this.menuBoxHeight = 20
+        //this.isForceFullMenuBoxHeight = false
+        //this.isForceFullMenuBoxWidth = true
+
+        this.boxes = {
+            menu   : new TermBox(this.term, {
+                top       : 10
+              , hcenter   : true
+              , maxWidth  : 50
+              , minWidth  : 50
+              , maxHeight : 20
+            })
+          , alerts : new TermBox(this.term, {
+                top       : 1
+              , hcenter   : true
+              , maxWidth  : 80
+              , minWidth  : 80
+              , maxHeight : 5
+          })
+        }
     }
 
     get loglevel() {
@@ -875,6 +892,8 @@ class Menu extends EventEmitter {
         })
     }
 
+
+    /*
     getScreenParams(widthLimit) {
         const {termEnabled} = this.settings
         const available = Math.min(this.term.width, 1024)
@@ -883,14 +902,20 @@ class Menu extends EventEmitter {
         const indent = termEnabled ? Math.max(0, Math.floor(surplus / 2)) : 0
         return {maxWidth, indent}
     }
+    */
 
     getPromptOpts(opts) {
+        const box = this.boxes.menu
+        const {maxWidth, left} = box.getParams()
+        const indent = left - 1
         return {
             theme         : this.theme
-          , emitter       : this.sstatus
+          , emitter       : box.status
           , term          : this.term
-          , clearMaxWidth : this.isForceFullMenuBoxWidth
-          , ...this.getScreenParams(this.menuBoxWidth)
+          , clearMaxWidth : true
+          , maxWidth
+          , indent
+          //, ...this.getScreenParams(this.menuBoxWidth)
         }
     }
 
@@ -915,7 +940,7 @@ class Menu extends EventEmitter {
             const opts = this.getPromptOpts()
             this.writeMenuBackground()
             this.renderAlerts(this.currentAlerts)
-            this.term.moveTo(1, this.sstatus.top)
+            this.term.moveTo(1, this.boxes.menu.getParams().top)
             ui.onResize(opts, true)
         }, ResizeTimoutMs)
     }
@@ -966,29 +991,39 @@ class Menu extends EventEmitter {
             return
         }
 
-        const {maxWidth, indent} = this.getScreenParams(this.alertsBoxWidth)
-        
+        const chlk = this.theme.alert
+        const box = this.boxes.alerts
+
+        const {maxWidth, minWidth, left} = box.getParams()
+        const indent = left - 1
         const levelsLines = alerts.map(({logLevel, error, formatted}) =>
             forceLineReturn(formatted.string, maxWidth).split('\n').flat().map(line =>
-                [logLevel, line]
+                [logLevel, padEnd(line, minWidth, chlk.screen(' '))]
             )
         ).flat()
 
-        if (this.isForceFullAlertsBoxWidth && this.settings.termEnabled) {
-            const {top} = this.astatus
-            const coords = {left: indent, top, height: levelsLines.length}
-            const chlk = this.theme.alert
-            const blankLine = chlk.screen(nchars(maxWidth, ' '))
-            this._eraseScreenSection(coords, blankLine)
-        }
-
+        //box.fillHeightMaxWidth(levelsLines.length, width => chlk.screen(nchars(width, 'x')))
+        //const chlk = this.theme.alert
+        //const blankLine = chlk.screen(nchars(box.opts.minWidth, ' '))
+        //box.fillHeight(levelsLines.length, blankLine)
+        //this.term.moveTo(1, box.getParams().top)
+        //if (this.isForceFullAlertsBoxWidth && this.settings.termEnabled) {
+        //    const {top} = box.status//this.astatus
+        //    const coords = {left: indent + 1, top, height: levelsLines.length}
+        //    const chlk = this.theme.alert
+        //    const blankLine = chlk.screen(nchars(maxWidth, ' '))
+        //    this._eraseScreenSection(coords, blankLine)
+        //}
+        //
+        
         levelsLines.forEach(([logLevel, line]) => {
             if (indent) {
                 this.term.right(indent)
             }
             const param = {indent, width: stringWidth(line)}
             this.alerter[logLevel](line)
-            this.astatus.emit('line', param)
+            box.status.emit('line', param)
+            //this.astatus.emit('line', param)
         })
     }
 
@@ -1063,11 +1098,13 @@ class Menu extends EventEmitter {
     eraseScreen() {
         this.term.moveTo(1, 1).eraseDisplayBelow()
         this.hasMenuBackground = false
-        this.sstatus.reset()
+        Object.values(this.boxes).forEach(box => box.status.reset())
+        //this.sstatus.reset()
     }
 
     writeMenuBackground() {
-        this.sstatus.reset()
+        Object.values(this.boxes).forEach(box => box.status.reset())
+        //this.sstatus.reset()
         if (!this.settings.termEnabled) {
             return
         }
@@ -1086,6 +1123,11 @@ class Menu extends EventEmitter {
     }
 
     eraseMenu() {
+        const chlk = this.theme.menu
+        const box = this.boxes.menu
+        box.erase(width => chlk.box(nchars(width, ' ')))
+        this.term.moveTo(1, box.getParams().top)
+        /*
         const chlk = this.theme.menu
         const {indent, maxWidth} = this.getScreenParams(this.menuBoxWidth)
         let {left, top, width, height} = this.sstatus
@@ -1108,9 +1150,15 @@ class Menu extends EventEmitter {
         //this.alerts.info(coords)
         this._eraseScreenSection(coords, str)
         this.sstatus.reset()
+        */
     }
 
     eraseAlerts() {
+        const chlk = this.theme.menu
+        const box = this.boxes.alerts
+        box.erase(width => chlk.screen(nchars(width, ' ')))
+        this.term.moveTo(1, box.getParams().top)
+        /*
         // write with menu background
         const chlk = this.theme.menu
         const {indent, maxWidth} = this.getScreenParams(this.alertsBoxWidth)
@@ -1133,8 +1181,10 @@ class Menu extends EventEmitter {
         const coords = {left, top, width, height}
         this._eraseScreenSection(coords, str)
         this.astatus.reset()
+        */
     }
 
+    /*
     _eraseScreenSection(coords, str) {
         const {left, top, height} = coords
         if (!this.settings.termEnabled) {
@@ -1145,6 +1195,7 @@ class Menu extends EventEmitter {
         }
         this.term.moveTo(1, top)
     }
+    */
 
     async ensureLoaded(isQuiet) {
         await this.ensureThemesLoaded(isQuiet)
