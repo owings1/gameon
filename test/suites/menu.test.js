@@ -43,13 +43,13 @@ const {resolve} = path
 
 describe('-', () => {
 
-    const Coordinator  = requireSrc('lib/coordinator')
-    const Errors       = requireSrc('lib/errors')
-    const Menu         = requireSrc('term/menu')
-    const Robot        = requireSrc('robot/player')
-    const ScreenStatus = requireSrc('term/helpers/screen.status')
-    const Server       = requireSrc('net/server')
-    const ThemeHelper  = requireSrc('term/themes')
+    const Coordinator = requireSrc('lib/coordinator')
+    const Errors      = requireSrc('lib/errors')
+    const Menu        = requireSrc('term/menu')
+    const Robot       = requireSrc('robot/player')
+    const BoxStatus   = requireSrc('term/helpers/box.status')
+    const Server      = requireSrc('net/server')
+    const ThemeHelper = requireSrc('term/themes')
 
     const {RequestError, MatchCanceledError} = Errors
 
@@ -1283,12 +1283,12 @@ describe('-', () => {
         })
     })
 
-    describe('ScreenStatus', () => {
+    describe('BoxStatus', () => {
 
         var stat
 
         beforeEach(() => {
-            stat = new ScreenStatus
+            stat = new BoxStatus
         })
 
         it('should track line height plus render height after answered with less height', () => {

@@ -24,7 +24,7 @@
  */
 const Util = require('../../lib/util')
 
-const BoxStatus = require('./screen.status')
+const BoxStatus = require('./box.status')
 
 class TermBox {
 

@@ -1,5 +1,5 @@
 /**
- * gameon - Screen status tracker helper class
+ * gameon - Box status tracker helper class
  *
  * Copyright (C) 2020-2021 Doug Owings
  *
@@ -28,7 +28,7 @@ const {defaults, update} = Util
 
 const {EventEmitter} = require('events')
 
-class ScreenStatus extends EventEmitter {
+class BoxStatus extends EventEmitter {
 
     constructor(defaults) {
 
@@ -120,4 +120,4 @@ class ScreenStatus extends EventEmitter {
     }
 }
 
-module.exports = ScreenStatus
+module.exports = BoxStatus
