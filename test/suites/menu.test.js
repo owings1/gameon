@@ -47,7 +47,7 @@ describe('-', () => {
     const Errors      = requireSrc('lib/errors')
     const Menu        = requireSrc('term/menu')
     const Robot       = requireSrc('robot/player')
-    const BoxStatus   = requireSrc('term/helpers/box.status')
+    const {BoxStatus} = requireSrc('term/helpers/term.box')
     const Server      = requireSrc('net/server')
     const ThemeHelper = requireSrc('term/themes')
 

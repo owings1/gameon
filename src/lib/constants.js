@@ -137,6 +137,7 @@ const Chars = {
   , hr    : '\u2501'
   , check : '\u2713'
   , pointer : '\u276f'
+  , bullet  : '\u2022'
     //https://unicode-table.com/en/sets/arrow-symbols/#down-arrows
   , arrow : {
         left  : '\u2190'
@@ -148,6 +149,8 @@ const Chars = {
   , table: {
         dash    : '\u2501'
       , pipe    : '\u2503'
+      , vdash   : '|'
+      , dot     : '\u2022'
       , dblPipe : '\u2503\u2503'
       , top     : {
             left   : '\u250f'

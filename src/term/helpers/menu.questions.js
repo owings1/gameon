@@ -790,7 +790,7 @@ class Questions {
         const available = choices.filter(choice => choice.type != 'separator')
         const maxNameLength = Math.max(...available.map(choice => stringWidth(choice.name)))
 
-        const menuBoxMaxWidth = menu.boxes.menu.getParams().maxWidth
+        const menuBoxMaxWidth = menu.boxes.menu.params.maxWidth
 
         available.forEach((choice, i) => {
 

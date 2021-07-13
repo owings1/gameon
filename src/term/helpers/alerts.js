@@ -142,11 +142,11 @@ class Alerts extends EventEmitter {
         }
     }
 
-    getFormatted(alert, themish) {
-        themeish = themeis || Themes.getDefaultInstance()
+    getFormatted(alert, themeish) {
+        themeish = themeish || Themes.getDefaultInstance()
         const {level, levelString} = alert
         const {isPrintLevel} = LevelsMap[level]
-        const chlk = themish[level] || themish.alert[level]
+        const chlk = themeish[level] || themeish.alert[level]
         const fmt = {
             level       : isPrintLevel ? chlk.level(alert.level) : null
           , levelString : isPrintLevel ? chlk.level(alert.levelString) : null

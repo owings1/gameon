@@ -26,10 +26,10 @@ const Constants    = require('../../lib/constants')
 const {TermHelper} = require('../draw')
 const Util         = require('../../lib/util')
 
-const {Chars, DefaultTermEnabled} = Constants
-const {nchars} = Util
+const {EventEmitter} = require('events')
 
-const BoxStatus = require('./box.status')
+const {Chars, DefaultTermEnabled} = Constants
+const {nchars, update} = Util
 
 const DefaultTerm = new TermHelper(DefaultTermEnabled)
 
@@ -37,24 +37,30 @@ class TermBox {
 
     static defaults() {
         return {
-            top       : 1
-          , left      : 1
-          , minWidth  : 0
-          , maxWidth  : 1024
-          , minHeight : 0
-          , maxHeight : 512
-          , pad       : 0
-          , vcenter   : false
-          , hcenter   : false
-          , term      : DefaultTerm
-          , isBorder  : false
-          , borderFormat : chr => chr
-          , padFormat    : chr => chr
+            top         : 1
+          , left        : 1
+          , minWidth    : 0
+          , maxWidth    : 1024
+          , minHeight   : 0
+          , maxHeight   : 512
+          , pad         : 0
+          , vcenter     : false
+          , hcenter     : false
+          , term        : DefaultTerm
+          , isBorder    : false
+          , borderStyle : 'solid'
+          , format : {
+                border : str => str
+              , pad    : str => str
+              , erase  : str => str
+            }
         }
     }
 
     constructor(opts) {
-        this.opts = Util.defaults(TermBox.defaults(), opts)
+        const defaults = TermBox.defaults()
+        this.opts = Util.defaults(defaults, opts)
+        this.opts.format = Util.defaults(defaults.format, this.opts.format)
         this.status = new BoxStatus
         this.status.on('render', () => this.drawBorder())
     }
@@ -67,103 +73,257 @@ class TermBox {
         this.opts.term = term
     }
 
-    getParams() {
+    get params() {
 
-        const {term} = this
-        
-        let {left, top, isBorder, pad} = this.opts
+        const {term, opts} = this
+        const {isBorder, pad} = opts
+        const pad2 = pad * 2
+        const b2 = +isBorder * 2
 
-        let bw = +isBorder * 2
-        let bh = +isBorder * 2
-        let p = pad * 2
+        let {top, left} = opts
 
-        if (this.opts.hcenter) {
-            const widthSurplus = term.width - this.opts.maxWidth - bw - pad
-            left = Math.max(0, Math.floor(widthSurplus / 2)) + 1
-            bw = 0
-        }
-
-        left += isBorder
-        top += isBorder
-
-        if (this.opts.vcenter) {
-            const heightSurplus = term.height - this.opts.maxHeight - bh - pad
+        if (opts.vcenter) {
+            const heightSurplus = term.height - opts.maxHeight
             top = Math.max(0, Math.floor(heightSurplus / 2)) + 1
-            bh = 0
         }
 
-        const maxWidth  = Math.min(term.width - bw - p - (left - 1), this.opts.maxWidth)
-        const maxHeight = Math.min(term.height - bh - p - (top - 1), this.opts.maxHeight)
-        const minWidth  = Math.min(term.width - bw - p -(left - 1), this.opts.minWidth)
-        const minHeight = Math.min(term.height - bh - p -(top - 1), this.opts.minHeight)
+        if (opts.hcenter) {
+            const widthSurplus = term.width - opts.maxWidth
+            left = Math.max(0, Math.floor(widthSurplus / 2)) + 1
+        }
+
+        top  += isBorder + pad
+        left += isBorder + pad
+
+        const termHeightAdj = term.height - b2 - pad2 - (top - 1)
+        const termWidthAdj = term.width - b2 - pad2 - (left - 1)
+
+        const minHeight = Math.min(termHeightAdj, opts.minHeight)
+        const maxHeight = Math.min(termHeightAdj, opts.maxHeight)
+
+        const minWidth  = Math.min(termWidthAdj, opts.minWidth)
+        const maxWidth  = Math.min(termWidthAdj, opts.maxWidth)
 
         return {top, left, minWidth, maxWidth, minHeight, maxHeight}
     }
 
-    erase(getLine) {
-        const {left, top, minWidth, maxWidth, minHeight, maxHeight} = this.getParams()
-        let {width, height} = this.status
-        const {isBorder, pad} = this.opts
-        const bw = +isBorder * 2
-        const bh = +isBorder * 2
-        const p = pad * 2
-        width  = Math.max(width, minWidth) + bw + p
-        height = Math.max(height, minHeight) + bh + p
-        const line = getLine(width)
-        this.term.writeArea(left - isBorder - pad, top - isBorder - pad, 1, height, line)
+    erase() {
+
+        const {pad, isBorder} = this.opts
+        const pad2 = pad * 2
+        const b2 = +isBorder * 2
+
+        const {left, top, minWidth, minHeight} = this.params
+        const width = Math.max(this.status.width, minWidth)
+        const height = Math.max(this.status.height, minHeight)
+
+        const outerLeft = left - isBorder - pad
+        const outerTop = top - isBorder - pad
+        const outerWidth = width + b2 + pad2
+        const outerHeight = height + b2 + pad2
+
+        const {format} = this.opts
+        const line = format.erase(nchars(outerWidth, ' '))
+
+        this.term.writeArea(outerLeft, outerTop, 1, outerHeight, line)
+        this.term.moveTo(left, top)
         this.status.reset()
     }
 
     drawBorder() {
+
         const {term} = this
         const {pad, isBorder} = this.opts
-        const chars = Chars.table
-        const bfmt = this.opts.borderFormat
-        const pfmt = this.opts.padFormat
-        let {left, top, minWidth, minHeight} = this.getParams()
-        let {width, height} = this.status
-        const p = pad * 2
-        left -= isBorder
-        top -= isBorder
-        left -= pad
-        top -= pad
-        width = Math.max(width, minWidth)
-        height = Math.max(height, minHeight) + isBorder + p
-        const borders = {
-            top: bfmt(chars.top.left + nchars(width + p, chars.dash) + chars.top.right)
-          , bottom: bfmt(chars.foot.left + nchars(width + p, chars.dash) + chars.foot.right)
-          , pipe: bfmt(chars.pipe)
-        }
+        const pad2 = pad * 2
+        //??const b2 = +isBorder * 2
+
+        const {left, top, minWidth, minHeight} = this.params
+        const width = Math.max(this.status.width, minWidth)
+        const height = Math.max(this.status.height, minHeight)
+
+        const outerLeft = left - isBorder - pad
+        const outerTop = top - isBorder - pad
+        const outerHeight = height + isBorder + pad2
+
+        const borders = this.getBorders(width)
+        const pads = this.getPadStrings(width)
+
         if (isBorder) {
-            term.moveTo(left, top).write(borders.top)
+            term.moveTo(outerLeft, outerTop).write(borders.top)
         }
-        for (var i = 0; i < height; ++i) {
-            term.moveTo(left, top + i + isBorder)
+        for (let i = 0; i < outerHeight; ++i) {
+            term.moveTo(outerLeft, outerTop + i + isBorder)
             if (isBorder) {
-                term.write(borders.pipe)
+                term.write(borders.side)
             }
-            let isFullPad = pad && (i < pad || height - i - 1 <= pad)
+            let isFullPad = pad && (i < pad || outerHeight - i - 1 <= pad)
             if (pad) {
                 if (isFullPad) {
-                    term.write(pfmt(nchars(width + p, ' ')))
+                    term.write(pads.full)
                 } else {
-                    term.write(pfmt(nchars(pad, ' '))).right(width)
+                    term.write(pads.side).right(width)
                 }
             } else {
                 term.right(width)
             }
             if (pad && !isFullPad) {
-                term.write(pfmt(nchars(pad, ' ')))
+                term.write(pads.side)
             }
             if (isBorder) {
-                term.write(borders.pipe)
+                term.write(borders.side)
             }
         }
         if (isBorder) {
-            term.moveTo(left, top + height).write(borders.bottom)
+            term.moveTo(outerLeft, outerTop + outerHeight).write(borders.foot)
         }
-        term.moveTo(left + isBorder + pad, top + isBorder + pad)
+        term.moveTo(left, top)
+    }
+
+    getBorders(width) {
+        const pad2 = this.opts.pad * 2
+        const {format, borderStyle} = this.opts
+        const chars = this.getBorderChars(borderStyle)
+        const dashes = nchars(width + pad2, chars.dash)
+        return {
+            top  : format.border(chars.top.left + dashes + chars.top.right)
+          , foot : format.border(chars.foot.left + dashes + chars.foot.right)
+          , side : format.border(chars.pipe)
+        }
+    }
+
+    getPadStrings(width) {
+        const {pad} = this.opts
+        const pad2 = pad * 2
+        const {format} = this.opts
+        return {
+            full : format.pad(nchars(width + pad2, ' '))
+          , side : format.pad(nchars(pad, ' '))
+        }
+    }
+
+    getBorderChars(style) {
+        const chars = {
+            top  : {...Chars.table.top}
+          , foot : {...Chars.table.foot}
+          , pipe : Chars.table.pipe
+          , dash : Chars.table.dash
+        }
+        const dot = Chars.table.dot
+
+        switch (style) {
+
+            case 'dashed':
+                update(chars, {dash : ' -', pipe : Chars.table.vdash})
+                break
+
+            case 'dotted':
+                update(chars.top, {left: dot, right: dot})
+                update(chars.foot, {left: dot, right: dot})
+                update(chars, {pipe: dot, dash:' ' + dot})
+                break
+
+            case 'solid':
+            default:
+                break
+        }
+
+        return chars
     }
 }
 
-module.exports = TermBox
+/**
+ * Box status tracker helper class
+ */
+class BoxStatus extends EventEmitter {
+
+    constructor(defaults) {
+
+        super()
+
+        this._defaults = defaults
+
+        this.reset()
+
+        this.on('render', ({indent, width, height}) => {
+            this.thisHeight = Math.max(this.thisHeight, height)
+            this.maxHeight = Math.max(this.height, this.maxHeight)
+            if (!width) {
+                return
+            }
+            if (!this.width) {
+                this.left = indent + 1
+            }
+            this.right = Math.max(this.right, indent + width + 1)
+        })
+
+        this.on('line', ({indent, width}) => {
+            this.lineHeight += 1
+            this.maxHeight = Math.max(this.height, this.maxHeight)
+            if (!width) {
+                return
+            }
+            if (!this.width) {
+                this.left = indent + 1
+            }
+            this.right = Math.max(this.right, indent + width + 1)
+        })
+
+        this.on('answered', ({height}) => {
+            if (!height) {
+                return
+            }
+            this.lastHeight = this.thisHeight + this.lineHeight
+            this.lineHeight += height
+            this.thisHeight = 0
+            this.maxHeight = Math.max(this.height, this.maxHeight)
+        })
+    }
+
+    reset() {
+        update(this, this.defaults)
+        update(this, {
+            right      : this.left
+          , maxHeight  : 0
+          , thisHeight : 0
+          , lastHeight : 0
+          , lineHeight : 0
+        })
+        return this
+    }
+
+    get defaults() {
+        return Util.defaults({top: 1, left: 1}, this._defaults)
+    }
+
+    get info() {
+        return Object.fromEntries(
+            [
+                'left'
+              , 'right'
+              , 'bottom'
+              , 'top'
+              , 'height'
+              , 'maxHeight'
+              , 'thisHeight'
+              , 'lastHeight'
+              , 'lineHeight'
+            ].map(key =>
+                [key, this[key]]
+            )
+        )
+    }
+
+    get width() {
+        return this.right - this.left
+    }
+
+    get height() {
+        return Math.max(this.thisHeight + this.lineHeight, this.lastHeight, this.maxHeight)
+    }
+
+    get bottom() {
+        return this.top + this.height
+    }
+}
+
+module.exports = update(TermBox, {BoxStatus})

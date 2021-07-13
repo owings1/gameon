@@ -188,7 +188,11 @@ const CategoryAliases = {
 
   , 'hr' : 'text'
 
-  , 'alert.screen'          : 'text'
+  , 'menu.screen'     : 'text'
+  , 'menu.box'        : 'text'
+  , 'menu.box.border' : 'menu.box'
+
+  , 'alert.screen'          : 'menu.screen'
   , 'alert.box'             : 'text'
   , 'alert.box.border'      : 'alert.box'
   , 'alert.info.message'    : 'text'
@@ -198,9 +202,6 @@ const CategoryAliases = {
   , 'alert.error.message'   : 'text'
   , 'alert.error.level'     : 'text'
 
-  , 'menu.screen'     : 'text'
-  , 'menu.box'        : 'text'
-  , 'menu.box.border' : 'menu.box'
 
   , 'prompt.answer'                 : 'text'
   , 'prompt.check.pass'             : 'alert.success.message'

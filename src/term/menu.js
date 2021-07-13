@@ -130,39 +130,49 @@ class Menu extends EventEmitter {
 
         this.logger = new Logger('Menu', {named: true})
         this.alerter = new Logger('Alerter', {raw: true})
+        this.alerts = new Alerts
+        this.api = new ApiHelper
 
         this.isCredentialsLoaded = false
         this.isSettingsLoaded = false
         this.isThemesLoaded = false
 
-        this.alerts = new Alerts
-        this.api = new ApiHelper
         this.q = new Questions(this)
 
         this.on('resize', this.handleResize.bind(this))
 
         this.boxes = {
             menu   : new TermBox({
-                top       : 10
-              , hcenter   : true
-              , maxWidth  : 50
-              , minWidth  : 50
-              , maxHeight : 20
-              , pad       : 1
-              , term      : this.term
-              , isBorder  : true
-              , borderFormat : chr => this.theme.menu.box.border(chr)
-              , padFormat    : chr => this.theme.menu.box(chr)
+                top         : 10
+              , hcenter     : true
+              , maxWidth    : 50
+              , minWidth    : 50
+              , maxHeight   : 20
+              , pad         : 1
+              , term        : this.term
+              , isBorder    : true
+              , borderStyle : 'solid'
+              , format : {
+                    border : str => this.theme.menu.box.border(str)
+                  , pad    : str => this.theme.menu.box(str)
+                  , erase  : str => this.theme.menu.screen(str)
+                }
             })
           , alerts : new TermBox({
-                top       : 1
-              , hcenter   : true
-              , maxWidth  : 80
-              , minWidth  : 80
-              , maxHeight : 5
-              , term      : this.term
-              , isBorder  : true
-              , borderFormat : chr => this.theme.alert.box.border(chr)
+                top         : 1
+              , hcenter     : true
+              , maxWidth    : 79
+              , minWidth    : 79
+              , maxHeight   : 5
+              , term        : this.term
+              , isBorder    : true
+              , borderStyle : 'dotted'
+              , pad         : 1
+              , format : {
+                    border : str => this.theme.alert.box.border(str)
+                  , pad    : str => this.theme.alert.box(str)
+                  , erase  : str => this.theme.alert.screen(str)
+                }
           })
         }
     }
@@ -891,11 +901,8 @@ class Menu extends EventEmitter {
 
     getPromptOpts(opts) {
         const box = this.boxes.menu
-        const {maxWidth, left} = box.getParams()
-        let indent = left - 1
-        if (!this.settings.termEnabled) {
-            indent = 0
-        }
+        const {maxWidth, left} = box.params
+        const indent = (left - 1) * this.settings.termEnabled
         return {
             theme         : this.theme
           , emitter       : box.status
@@ -927,7 +934,7 @@ class Menu extends EventEmitter {
             const opts = this.getPromptOpts()
             this.writeMenuBackground()
             this.renderAlerts(this.currentAlerts)
-            this.term.moveTo(1, this.boxes.menu.getParams().top)
+            this.term.moveTo(1, this.boxes.menu.params.top)
             ui.onResize(opts, true)
         }, ResizeTimoutMs)
     }
@@ -978,22 +985,20 @@ class Menu extends EventEmitter {
             return
         }
 
-        const chlk = this.theme.alert
         const box = this.boxes.alerts
+        const {maxWidth, minWidth, left, top} = box.params
+        const {format} = box.opts
 
-        const {maxWidth, minWidth, left} = box.getParams()
-        const indent = left - 1
         const levelsLines = alerts.map(alert => {
-            const formatted = this.alerts.getFormatted(alert, chlk)
+            const formatted = this.alerts.getFormatted(alert, this.theme.alert)
             return forceLineReturn(formatted.string, maxWidth).split('\n').flat().map(line =>
-                [alert.level, padEnd(line, minWidth, chlk.screen(' '))]
+                [alert.level, padEnd(line, minWidth, format.pad(' '))]
             )
         }).flat()
-        
-        levelsLines.forEach(([logLevel, line]) => {
-            if (indent) {
-                this.term.right(indent)
-            }
+
+        const indent = left - 1
+        levelsLines.forEach(([logLevel, line], i) => {
+            this.term.moveTo(left, top + i)
             const param = {indent, width: stringWidth(line)}
             this.alerter[logLevel](line)
             box.status.emit('line', param)
@@ -1096,17 +1101,11 @@ class Menu extends EventEmitter {
     }
 
     eraseMenu() {
-        const chlk = this.theme.menu
-        const box = this.boxes.menu
-        box.erase(width => chlk.screen(nchars(width, ' ')))
-        this.term.moveTo(1, box.getParams().top)
+        this.boxes.menu.erase()
     }
 
     eraseAlerts() {
-        const chlk = this.theme.menu
-        const box = this.boxes.alerts
-        box.erase(width => chlk.screen(nchars(width, ' ')))
-        this.term.moveTo(1, box.getParams().top)
+        this.boxes.alerts.erase()
     }
 
     async ensureLoaded(isQuiet) {
