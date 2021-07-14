@@ -132,11 +132,12 @@ class MissingDependencyError    extends DependencyError {}
 class UnresolvedDependencyError extends DependencyError {}
 
 // GameError
-class IllegalStateError   extends GameError {}
-class IllegalMoveError    extends GameError {}
-class InvalidRollError    extends GameError {}
-class MatchCanceledError  extends GameError {}
-class NotImplementedError extends GameError {}
+class IllegalStateError    extends GameError {}
+class IllegalMoveError     extends GameError {}
+class InvalidRollError     extends GameError {}
+class MatchCanceledError   extends GameError {}
+class NotImplementedError  extends GameError {}
+class WaitingFinishedError extends GameError {}
 
 // GameError > IllegalMoveError
 class IllegalBareoffError   extends IllegalMoveError {}
@@ -270,6 +271,7 @@ const Errors = {
   , UserNotFoundError
   , ValidateError
   , WaitingAbortedError
+  , WaitingFinishedError
 }
 
 module.exports = Errors

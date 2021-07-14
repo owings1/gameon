@@ -198,6 +198,10 @@ class TextMethods {
             // See https://github.com/owings1/Inquirer.js/commit/21ea73a3
             this.status = 'touched'
         }
+        if (this.opt.mute) {
+            this.clear()
+            //return
+        }
         this.render()
     }
 

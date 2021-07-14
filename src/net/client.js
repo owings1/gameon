@@ -199,9 +199,12 @@ class Client extends EventEmitter {
         return this.match
     }
 
-    matchRequest(action, params) {
+    async matchRequest(action, params) {
         const req = {...this.matchParams(action), ...params}
-        return this.sendAndWaitForResponse(req, action)
+        this.emit('matchRequest', req)
+        const res = await this.sendAndWaitForResponse(req, action)
+        this.emit('matchResponse', req, res)
+        return res
     }
 
     sendAndWaitForResponse(req, action) {
@@ -218,7 +221,11 @@ class Client extends EventEmitter {
         if (action && res.action != action) {
             if (res.action == 'matchCanceled') {
                 this.logger.warn('Received matchCanceled message from server:', res.reason)
-                throw new MatchCanceledError(res.reason)
+                const err = new MatchCanceledError(res.reason)
+                if (this.emit('matchCanceled', err)) {
+                    return
+                }
+                throw err
             }
             throw new ClientError('Expecting response ' + action + ', but got ' + res.action + ' instead')
         }

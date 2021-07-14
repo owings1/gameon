@@ -134,7 +134,9 @@ class InputPrompt extends Inquirer.prompt.prompts.input {
             if (isFinal) {
                 message += chlk.answer(value)
             } else {
-                message += chlk.input(value)
+                if (!this.opt.mute) {
+                    message += chlk.input(value)
+                }
             }
         }
 

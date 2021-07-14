@@ -47,9 +47,9 @@ const {
   , PointOrigins
 } = Constants
 
-const {MatchCanceledError} = Errors
+const {MatchCanceledError, WaitingFinishedError} = Errors
 
-const {nchars, sp, uniqueInts} = Util
+const {castToArray, nchars, sp, uniqueInts} = Util
 
 class TermPlayer extends Base {
 
@@ -83,12 +83,28 @@ class TermPlayer extends Base {
         this.inquirer = inquirer.createPromptModule()
     }
 
+    get loglevel() {
+        return this.logger.loglevel
+    }
+
+    set loglevel(n) {
+        this.logger.loglevel = n
+    }
+
     loadHandlers() {
 
         this.on('matchStart', match => {
             if (this.opponent.isNet) {
                 this.opponent.on('matchCanceled', err => {
                     this.cancelPrompt(err)
+                })
+                this.opponent.on('matchResponse', (req, res) => {
+                    if (this.isWaitingPrompt) {
+                        const isMyDouble = req.action == 'turnOption' && req.isDouble && req.color == this.color
+                        if (!isMyDouble) {
+                            this.cancelPrompt(new WaitingFinishedError)
+                        }
+                    }
                 })
             }
         })
@@ -121,7 +137,7 @@ class TermPlayer extends Base {
                     this.drawBoard()
                 }
                 if (this.opponent.isNet) {
-                    this.logger.info('Waiting for opponent to play', turn.diceSorted.join())
+                    this.promptWaitingForOpponent('Waiting for opponent to play')
                 }
             }
         })
@@ -135,7 +151,8 @@ class TermPlayer extends Base {
 
         this.on('beforeOption', turn => {
             if (this.opponent.isNet && turn.color != this.color) {
-                this.logger.info('Waiting for opponent option')
+                this.promptWaitingForOpponent('Waiting for opponent option')
+                //this.logger.info('Waiting for opponent option')
             }
         })
 
@@ -160,7 +177,8 @@ class TermPlayer extends Base {
                 this.drawBoard()
             }
             if (this.opponent.isNet && turn.color == this.color) {
-                this.logger.info('Waiting for opponent to respond')
+                this.promptWaitingForOpponent('Waiting for opponent to respond')
+                //this.logger.info('Waiting for opponent to respond')
             }
         })
 
@@ -250,12 +268,12 @@ class TermPlayer extends Base {
                 ) + '\n'
             }
 
-            var moves = turn.getNextAvailableMoves()
-            var origins = moves.map(move => move.origin)
+            let moves = turn.getNextAvailableMoves()
+            let origins = moves.map(move => move.origin)
 
-            var canUndo = turn.moves.length > 0
+            let canUndo = turn.moves.length > 0
 
-            var origin = await this.promptOrigin(turn, origins, canUndo, prefix)
+            let origin = await this.promptOrigin(turn, origins, canUndo, prefix)
 
             if (origin == 'undo') {
                 turn.unmove()
@@ -263,10 +281,10 @@ class TermPlayer extends Base {
                 continue
             }
 
-            var faces = moves.filter(move => move.origin == origin).map(move => move.face)
-            var face = await this.promptFace(turn, faces)
+            let faces = moves.filter(move => move.origin == origin).map(move => move.face)
+            let face = await this.promptFace(turn, faces)
 
-            var move = turn.move(origin, face)
+            let move = turn.move(origin, face)
 
             this.report('move', move)
 
@@ -276,7 +294,7 @@ class TermPlayer extends Base {
                     this.drawBoard()
                 }
 
-                var isFinish = await this.promptFinish()
+                let isFinish = await this.promptFinish()
 
                 if (isFinish) {
                     break
@@ -523,19 +541,30 @@ class TermPlayer extends Base {
         return PointOrigins[color][point]
     }
 
-    prompt(questions) {
-        this.prompter = this.inquirer.prompt(Util.castToArray(questions), null, {theme: this.theme})
+    prompt(questions, answers, opts) {
+        opts = {
+            theme: this.theme
+          , ...opts
+        }
         return new Promise((resolve, reject) => {
-            this.promptReject = reject
+            this.prompter = this.inquirer.prompt(questions, answers, opts)
+            this.promptReject = err => {
+                if (this.prompter) {
+                    try {
+                        this.prompter.ui.close()
+                    } catch (e) {
+                        this.logger.error('Failed to close UI', e)
+                    }
+                }
+                this.promptReject = null
+                this.prompter = null
+                reject(err)
+            }
             this.prompter.then(answers => {
                 this.promptReject = null
                 this.prompter = null
                 resolve(answers)
-            }).catch(err => {
-                this.promptReject = null
-                this.prompter = null
-                reject(err)
-            })
+            }).catch(err => this.promptReject(err))
         })
     }
 
@@ -546,10 +575,31 @@ class TermPlayer extends Base {
                 this.logger.console.log()
             }
             this.promptReject(err)
-            this.promptReject = null
         }
-        if (this.prompter && this.prompter.ui) {
-            this.prompter.ui.close()
+    }
+
+    async promptWaitingForOpponent(message) {
+        if (this.prompter) {
+            return
+        }
+        const question = {
+            name: 'waiter'
+          , type: 'input'
+          , prefix : ''
+          , validate: () => ''
+          , mute : true
+          , message
+        }
+        this.isWaitingPrompt = true
+        try {
+            let answers = await this.prompt(question)
+        } catch (err) {
+            if (err.isWaitingFinishedError) {
+                return
+            }
+            this.cancelPrompt(err)
+        } finally {
+            this.isWaitingPrompt = false
         }
     }
 

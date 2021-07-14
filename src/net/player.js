@@ -94,7 +94,13 @@ class NetPlayer extends Base {
         })
 
         this.client.on('matchCanceled', err => {
+            //console.log('netPlayer.client.matchCanceled')
             this.emit('matchCanceled', err)
+        })
+
+        this.client.on('matchResponse', (req, res) => {
+            //console.log('netPlayer.client.matchResponse')
+            this.emit('matchResponse', req, res)
         })
 
         this.on('gameCanceled', err => {
@@ -102,6 +108,7 @@ class NetPlayer extends Base {
         })
 
         this.on('matchCanceled', (err, match) => {
+            //console.log('netPlayer.matchCanceled')
             this.client.cancelWaiting(err)
         })
     }

@@ -938,6 +938,13 @@ class TermHelper {
         return this
     }
 
+    hideCursor(...args) {
+        if (this.enabled) {
+            this.term.hideCursor(...args)
+        }
+        return this
+    }
+
     get height() {
         if (this.enabled) {
             return this.term.height

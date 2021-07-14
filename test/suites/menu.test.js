@@ -999,8 +999,9 @@ describe('-', () => {
                     menu.loglevel = 0
                     match.opts.roller = () => [6, 1]
                     Object.values(players).forEach(player => {
-                        player.logger.loglevel = 0
+                        player.loglevel = -1
                         player.drawBoard = noop
+                        player.promptWaitingForOpponent = () => {}
                     })
                     // prevent logging to screen
                     players.White.inquirer = {
@@ -1181,7 +1182,7 @@ describe('-', () => {
                         isCalled = true
                         setTimeout(() => menu.captureInterrupt())
                     })
-                    menu.logger.loglevel = 0
+                    menu.loglevel = -1
                     await menu.startOnlineMatch({total: 1})
                     expect(isCalled).to.equal(true)
                     expect(!!menu.captureInterrupt).to.equal(false)
@@ -1221,7 +1222,7 @@ describe('-', () => {
                     var count = 0
 
                     const prep = player => {
-                        player.logger.loglevel = 0
+                        player.loglevel = -1
                         player.inquirer = fakeInquirer
                         player.drawBoard = noop
                         player.on('firstRoll', () => {

@@ -335,7 +335,8 @@ describe('TermPlayer', () => {
 
         // coverage tricks
 
-        it('should call inquirer.prompt with array and set player._prompt', () => {
+        it('should call inquirer.prompt with array and set player.prompt', () => {
+            const exp = []
             var q
             player.inquirer = {
                 prompt : questions => {
@@ -343,8 +344,8 @@ describe('TermPlayer', () => {
                     return new Promise(() => {})
                 }
             }
-            player.prompt()
-            expect(Array.isArray(q)).to.equal(true)
+            player.prompt(exp)
+            expect(q).to.equal(exp)
         })
     })
 
@@ -590,46 +591,44 @@ describe('TermPlayer', () => {
                 player.emit('afterRoll', turn)
             })
 
-            it('should log waiting for opponent turn if opponent isNet', () => {
-                var logStr = ''
+            it('should start waiting for opponent prompt if opponent isNet', () => {
                 player.emit('gameStart', game, null, players)
                 const turn = game.nextTurn()
                 turn.roll()
-                player.logger.info = (...args) => logStr += args.join(' ')
                 // hack opponent property
                 player.opponent.isNet = true
+                var isCalled = false
+                player.promptWaitingForOpponent = () => new Promise(r => isCalled = true)
                 player.emit('afterRoll', turn)
-                expect(logStr.toLowerCase()).to.contain('waiting')
+                expect(isCalled).to.equal(true)
             })
         })
 
         describe('beforeOption', () => {
 
-            it('should log waiting for opponent turn if opponent isNet', () => {
-                var logStr = ''
+            it('should start waiting for opponent turn if opponent isNet', () => {
                 player.emit('gameStart', game, null, players)
                 const turn = game.nextTurn()
-                player.logger.info = (...args) => logStr += args.join(' ')
-                // hack opponent property
                 player.opponent.isNet = true
+                var isCalled = false
+                player.promptWaitingForOpponent = () => new Promise(r => isCalled = true)
                 player.emit('beforeOption', turn)
-                expect(logStr.toLowerCase()).to.contain('waiting')
+                expect(isCalled).to.equal(true)
             })
         })
 
         describe('doubleOffered', () => {
 
-            it('should log waiting for self turn if opponent isNet', () => {
-                var logStr = ''
+            it('should start waiting for self turn if opponent isNet', () => {
                 player.emit('gameStart', game, null, players)
                 makeRandomMoves(game.nextTurn().roll(), true)
                 const turn = game.nextTurn()
                 turn.setDoubleOffered()
-                player.logger.info = (...args) => logStr += args.join(' ')
-                // hack opponent property
                 player.opponent.isNet = true
+                var isCalled = false
+                player.promptWaitingForOpponent = () => new Promise(r => isCalled = true)
                 player.emit('doubleOffered', turn, game)
-                expect(logStr.toLowerCase()).to.contain('waiting')
+                expect(isCalled).to.equal(true)
             })
         })
 
