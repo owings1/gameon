@@ -16,12 +16,6 @@
 * * * *    ┃                 ┃  runMatch() or runGame(). NB that if match.cancel() is        ┃
 * * * *    ┃                 ┃  called independently, this event will not be propagated      ┃
 * * * *    ┃                 ┃                                                               ┃
-* * * *    ┣━━━━━━━━━━━━━━━━━╋━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┫
-* * * *    ┃                 ┃                                                               ┃
-* * * *    ┃ gameCanceled    ┃  Emitted when cancelGame() is called on the coordinator,      ┃
-* * * *    ┃                 ┃  similar to matchCanceled. NB that calling cancelMatch()      ┃
-* * * *    ┃                 ┃  will not emit gameCanceled, and vice versa.                  ┃
-* * * *    ┃                 ┃                                                               ┃
 * * * *    ┣━━━━━━━━━━━━━━━━━┻━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┫
 * * * *    ┃                                                                                 ┃
 * * * *    ┃      ┏ * ━ * ━ * ━ * ━ * ━ * ━ *   N. B.   * ━ * ━ * ━ * ━ * ━ * ━ * ━ * ┓      ┃

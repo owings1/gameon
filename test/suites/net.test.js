@@ -40,7 +40,6 @@ const Client      = requireSrc('net/client')
 const Constants   = requireSrc('lib/constants')
 const Coordinator = requireSrc('lib/coordinator')
 const Core        = requireSrc('lib/core')
-const Errors      = requireSrc('lib/errors')
 const NetPlayer   = requireSrc('net/player')
 const Robot       = requireSrc('robot/player')
 const Server      = requireSrc('net/server')
@@ -55,222 +54,15 @@ const fs    = require('fs')
 const fse   = require('fs-extra')
 const tmp   = require('tmp')
 
-const {URLSearchParams} = require('url')
+const {destroyAll} = Util
 
 function newRando(...args) {
     return Robot.ConfidenceRobot.getDefaultInstance('RandomRobot', ...args)
 }
 
-function getParams(obj) {
-    obj = obj || {}
-    const params = new URLSearchParams
-    for (var k in obj) {
-        params.append(k, obj[k])
-    }
-    return params
-}
-
-describe('Client', () => {
-
-    var server
-    var serverUrl
-
-    var client1
-    var client2
-
-    // alias for client1
-    var client
-
-    function createMatch() {
-        client1.once('matchCreated', id => client2.joinMatch(id))
-        return new Promise(resolve => {
-            client2.once('matchJoined', resolve)
-            client1.createMatch({total: 1})
-        })
-    }
-
-    beforeEach(async () => {
-
-        server = new Server
-
-        server.logger.loglevel = 1
-        // hack so no req logging
-        server.getLoggingMiddleware = () => (req, res, next) => next()
-        server.app = server.createApp()
-
-        await server.listen()
-
-        serverUrl = 'http://localhost:' + server.port
-
-        client1 = new Client(serverUrl)
-        client2 = new Client(serverUrl)
-        client1.logger.loglevel = 1
-        client2.logger.loglevel = 1
-
-        client = client1
-    })
-
-    afterEach(async () => {
-        await client1.close()
-        await client2.close()
-        server.close()
-    })
-
-    describe('#buildError', function () {
-
-        this.timeout(5000)
-
-        it('should return ClientError', () => {
-            const result = Client.buildError({error: 'test'})
-            expect(result.name).to.equal('ClientError')
-        })
-
-        it('should set message to fallbackMessage', () => {
-            const result = Client.buildError({}, 'fallback')
-            expect(result.message).to.equal('fallback')
-        })
-
-        it('should set message with no fallback', () => {
-            const result = Client.buildError({})
-            expect(result.message).to.have.length.greaterThan(0)
-        })
-
-        it('should set name property of error', () => {
-            const result = Client.buildError({name: 'testName'})
-            expect(result.name).to.equal('testName')
-        })
-    })
-
-    describe('#connect', () => {
-
-        it('should connect and set isHandshake=true', async () => {
-            await client.connect()
-            expect(client.isHandshake).to.equal(true)
-        })
-
-        it('should pass on second call', async () => {
-            await client.connect()
-            await client.connect()
-        })
-
-        it('should log error on conn error', async () => {
-            client.logger.loglevel = -1
-            await client.connect()
-            client.conn.emit('error', 'testError')
-        })
-
-        it('should reject when server is down', async () => {
-            server.close()
-            const err = await getErrorAsync(() => client.connect())
-            expect(!!err).to.equal(true)
-        })
-
-        it('should reject when socketClient.connect throws', async () => {
-            server.close()
-            client.socketClient.connect = () => { throw new Error }
-            const err = await getErrorAsync(() => client.connect())
-            expect(!!err).to.equal(true)
-        })
-    })
-
-    describe('#matchParams', () => {
-
-        it('should return action for string', () => {
-            const result = client.matchParams('testAction')
-            expect(result.action).to.equal('testAction')
-        })
-
-        it('should return action for action', () => {
-            const result = client.matchParams({action: 'testAction'})
-            expect(result.action).to.equal('testAction')
-        })
-    })
-
-    describe('#matchRequest', () => {
-        it('should pass for nextGame', async () => {
-            const match = await createMatch()
-            client2.matchRequest('nextGame')
-            await client1.matchRequest('nextGame')
-        })
-    })
-
-    describe('#createMatch', () => {
-
-        it('should return match', async () => {
-            const match = await createMatch()
-            expect(client.match.uuid).to.have.length(36).and.to.equal(match.uuid)
-        })
-    })
-
-    describe('#sendAndWaitForResponse', () => {
-
-        it('should throw when waitForResponse throws (coverage)', async () => {
-            const e = new Error
-            client.waitForResponse = () => {throw e}
-            const err = await getErrorAsync(() => client.sendAndWaitForResponse())
-            expect(err).to.equal(e)
-        })
-
-        it('should throw when sendMessage throws (coverage)', async () => {
-            const e = new Error
-            client.waitForResponse = () => {}
-            client.sendMessage = () => {throw e}
-            const err = await getErrorAsync(() => client.sendAndWaitForResponse())
-            expect(err).to.equal(e)
-        })
-    })
-
-    describe('#waitForMessage', () => {
-        it('should reject with ConnectionClosedError when conn is lost', async () => {
-            const conn = client.conn
-            client.conn = null
-            try {
-                const err = await getErrorAsync(() => client.waitForMessage())
-                expect(err.name).to.equal('ConnectionClosedError')
-            } finally {
-                client.conn = conn
-            }
-        })
-    })
-
-    describe('#waitForResponse', () => {
-
-        it('should throw error when response has isError=true', async () => {
-            await client.connect()
-            const p = getErrorAsync(() => client.waitForResponse('test'))
-            const conns = Object.values(server.socketServer.conns)
-            server.sendMessage(conns, {isError: true, error: 'testErrorMessage'})
-            const err = await p
-            expect(err.message).to.equal('testErrorMessage')
-        })
-
-        it('should throw error when response has mismatched action', async () => {
-            await client.connect()
-            client.loglevel = 0
-            const p = getErrorAsync(() => client.waitForResponse('test'))
-            const conns = Object.values(server.socketServer.conns)
-            server.sendMessage(conns, {action: 'testErrorMessage'})
-            const err = await p
-            expect(err.isUnexpectedResponseError).to.equal(true)
-        })
-
-        it('should throw MatchCanceledError for response action=matchCanceled with reason as message', async () => {
-            await client.connect()
-            client.logger.loglevel = -1
-            const p = getErrorAsync(() => client.waitForResponse('test'))
-            const conns = Object.values(server.socketServer.conns)
-            server.sendMessage(conns, {action: 'matchCanceled', reason: 'testReason'})
-            const err = await p
-            expect(err.name).to.equal('MatchCanceledError')
-            expect(err.message).to.equal('testReason')
-        })
-    })
-})
-
 describe('NetPlayer', () => {
 
     var server
-    var serverUrl
 
     var client1
     var client2
@@ -280,16 +72,17 @@ describe('NetPlayer', () => {
     beforeEach(async () => {
 
         server = new Server
-        server.logger.loglevel = 1
-        // hack so no req logging
-        server.getLoggingMiddleware = () => (req, res, next) => next()
-        server.app = server.createApp()
+        server.loglevel = 1
+
         await server.listen()
-        serverUrl = 'http://localhost:' + server.port
+
+        const serverUrl = 'http://localhost:' + server.port
+
         client1 = new Client(serverUrl)
         client2 = new Client(serverUrl)
-        client1.logger.loglevel = 1
-        client2.logger.loglevel = 1
+
+        client1.loglevel = 1
+        client2.loglevel = 1
 
         client = client1
     })
@@ -301,9 +94,12 @@ describe('NetPlayer', () => {
     })
 
     async function eastAndWest(opts) {
+
         opts = {total: 1, ...opts}
+
         await client1.connect()
         await client2.connect()
+
         const playersWest = {
             White : newRando(White)
           , Red   : new NetPlayer(client1, Red)
@@ -312,12 +108,17 @@ describe('NetPlayer', () => {
             White : new NetPlayer(client2, White)
           , Red   : newRando(Red)
         }
+
         const coordWest = new Coordinator
         const coordEast = new Coordinator
-        const p = client1.createMatch(opts)
-        await new Promise(resolve => setTimeout(resolve, 10))
-        const matchEast = await client2.joinMatch(client1.matchId)
-        const matchWest = await p
+
+        let promise
+        client1.on('matchCreated', id => {
+            promise = client2.joinMatch(id)
+        })
+        const matchWest = await client1.createMatch(opts)
+        const matchEast = await promise
+
         return {
             east : {players: playersEast, coord: coordEast, match: matchEast},
             west : {players: playersWest, coord: coordWest, match: matchWest}
@@ -336,14 +137,14 @@ describe('NetPlayer', () => {
                 west.coord.runMatch(west.match, west.players.White, west.players.Red)
             ])
         } finally {
-            await Util.destroyAll(east.players)
-            await Util.destroyAll(west.players)
+            await destroyAll(east.players)
+            await destroyAll(west.players)
         }
     })
 
     it('should play robot v robot over net with double accept, decline', async function() {
         this.timeout(2000)
-        //server.logger.loglevel = 4
+        //server.loglevel = 4
 
         const {east, west} = await eastAndWest({total: 2, isCrawford: false})
 
@@ -358,14 +159,14 @@ describe('NetPlayer', () => {
             await p1
             await p2
         } finally {
-            await Util.destroyAll(east.players)
-            await Util.destroyAll(west.players)
+            await destroyAll(east.players)
+            await destroyAll(west.players)
         }
     })
 
     it('should play robot v robot over net with double after 3 moves accept, decline', async function() {
         this.timeout(2000)
-        //server.logger.loglevel = 4
+        //server.loglevel = 4
 
         const {east, west} = await eastAndWest({total: 2, isCrawford: false})
 
@@ -388,8 +189,8 @@ describe('NetPlayer', () => {
             await p1
             await p2
         } finally {
-            await Util.destroyAll(east.players)
-            await Util.destroyAll(west.players)
+            await destroyAll(east.players)
+            await destroyAll(west.players)
         }
     })
 })

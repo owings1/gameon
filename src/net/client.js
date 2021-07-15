@@ -29,7 +29,7 @@ const Logger    = require('../lib/logger')
 const Util      = require('../lib/util')
 const WsClient  = require('websocket').client
 
-const fetch  = require('node-fetch')
+const fetch = require('node-fetch')
 
 const {EventEmitter} = require('events')
 
@@ -49,6 +49,7 @@ const {
   , ConnectionClosedError
   , ConnectionFailedError
   , MatchCanceledError
+  , ParallelRequestError
   , UnexpectedResponseError
   , UnhandledMessageError
 } = Errors
@@ -78,15 +79,14 @@ const {
  *
  *  The responseError should only be used for testing since it will
  *  break a lot of code expecting a response, e.g. handshake, createMatch, etc.
- *
  */
-
-
 class Client extends EventEmitter {
 
     constructor(...args) {
 
         super()
+
+        this.logger = new Logger(this.constructor.name, {named: true})
 
         if (typeof args[0] == 'object') {
             var {serverUrl, username, password} = args[0]
@@ -99,7 +99,6 @@ class Client extends EventEmitter {
         this.username = username
         this.password = password
 
-        this.logger = new Logger(this.constructor.name, {named: true})
         this.socketClient = new WsClient
         this.secret = Client.generateSecret()
 
@@ -110,20 +109,13 @@ class Client extends EventEmitter {
         this.matchId = null
     }
 
-    setServerUrl(serverUrl) {
-        this.serverSocketUrl = httpToWs(serverUrl)
-        this.serverHttpUrl = stripTrailingSlash(wsToHttp(serverUrl))
-        return this
-    }
-
-    get loglevel() {
-        return this.logger.loglevel
-    }
-
-    set loglevel(n) {
-        this.logger.loglevel = n
-    }
-
+    /**
+     * @async
+     *
+     * @throws ClientError
+     *
+     * @returns Object
+     */
     async connect() {
 
         if (this.conn && this.conn.connected) {
@@ -131,12 +123,14 @@ class Client extends EventEmitter {
         }
 
         await new Promise((resolve, reject) => {
-            // TODO make sure these do not leak (recreate socketClient?)
+
+            this.socketClient.removeAllListeners()
+
             this.socketClient.on('connectFailed', err => {
                 // WebSocketClient throws generic Error
-                //this.logger.debug('connectFailed', err)
                 reject(ClientError.forConnectFailedError(err))
             })
+
             this.socketClient.on('connect', conn => {
                 this.conn = conn
                 conn.on('error', err => {
@@ -147,10 +141,20 @@ class Client extends EventEmitter {
                     this.isHandshake = false
                 })
                 conn.on('message', msg => {
-                    this.handleMessage(JSON.parse(msg.utf8Data))
+                    let data
+                    try {
+                        data = JSON.parse(msg.utf8Data)
+                    } catch (err) {
+                        if (!this.emit('responseError', err)) {
+                            this.logger.error(err)
+                        }
+                        return
+                    }
+                    this.handleMessage(data)
                 })
                 resolve()
             })
+
             try {
                 this.socketClient.connect(this.serverSocketUrl)
             } catch (err) {
@@ -161,7 +165,11 @@ class Client extends EventEmitter {
         return await this.handshake()
     }
 
-    async close() {
+    /**
+     * @throws ClientError.ConnectionClosedError
+     *         ❯ If there is pending response expected.
+     */
+    close() {
         if (this.isWaiting) {
             // NB: this can throw an unhandled promise rejection if a caller of
             //     waitForMessage does not handle the error.
@@ -173,6 +181,13 @@ class Client extends EventEmitter {
         this.removeAllListeners()
     }
 
+    /**
+     * @async
+     *
+     * @throws ClientError
+     *
+     * @returns Object
+     */
     async handshake() {
         const {username, password, token} = this
         const req = {action: 'establishSecret', username, password, token}
@@ -182,12 +197,25 @@ class Client extends EventEmitter {
         return res
     }
 
+    /**
+     *
+     */
     cancelWaiting(err) {
         if (this.messageReject) {
             this.messageReject(err)
         }
     }
 
+    /**
+     * @async
+     *
+     * @emits matchCreated
+     * @emits opponentJoined
+     *
+     * @throws ClientError
+     *
+     * @returns Match
+     */
     async createMatch(opts) {
 
         await this.connect()
@@ -212,6 +240,24 @@ class Client extends EventEmitter {
         return this.match
     }
 
+    /**
+     * @returns self
+     */
+    setServerUrl(serverUrl) {
+        this.serverSocketUrl = httpToWs(serverUrl)
+        this.serverHttpUrl = stripTrailingSlash(wsToHttp(serverUrl))
+        return this
+    }
+
+    /**
+     * @async
+     *
+     * @emits matchJoined
+     *
+     * @throws ClientError
+     *
+     * @returns Match
+     */
     async joinMatch(id) {
 
         await this.connect()
@@ -230,6 +276,23 @@ class Client extends EventEmitter {
         return this.match
     }
 
+   /**
+    * Make a match play request.
+    *
+    * See {@method waitForResponse}
+    *
+    * @async
+    *
+    * @emits response
+    * @emits matchCanceled
+    * @emits responseError
+    *
+    * @throws ClientError
+    * @throws GameError.MatchCanceledError
+    * @throws MenuError.WaitingAbortedError
+    *
+    * @returns Object|Error|null
+    */
     async matchRequest(action, params) {
         const req = {...this.matchParams(action), ...params}
         this.emit('matchRequest', req)
@@ -238,13 +301,74 @@ class Client extends EventEmitter {
         return res
     }
 
-    sendAndWaitForResponse(req, action) {
+    /**
+     * Send a message, then wait for a response, optionally of a specific action.
+     *
+     * See {@method waitForResponse}
+     *
+     * @async
+     *
+     * @emits response
+     * @emits matchCanceled
+     * @emits responseError
+     *
+     * @throws ClientError
+     * @throws GameError.MatchCanceledError
+     * @throws MenuError.WaitingAbortedError
+     *
+     * @returns Object|Error|null
+     */
+    sendAndWaitForResponse(req, action = null) {
         const promise = this.waitForResponse(action)
         this.sendMessage(req)
         return promise
     }
 
-    async waitForResponse(action) {
+    /**
+     * Wait for a non-error response, optionally of a specific action.
+     *
+     * The return/emit behavior is as follows:
+     *
+     *  ❯ Any error response is wrapped in a ClientError and thrown.
+     *
+     *  ❯ If no action is specified, then any non-error response is returned.
+     *
+     *  ❯ If an action is specified, and the response action matches, the
+     *    response is returned.
+     *
+     *  ❯ Otherwise an error is created, which is either an UnexpectedResponseError,
+     *    or, if the response action is matchCanceled, a MatchCanceledError.
+     *
+     *  ❯ For a MatchCanceledError, the matchCanceled event is emitted. If there
+     *    is an attached listener, the error is returned.
+     *
+     *  ❯ Otherwise, the responseError event is emitted. If there is an attached
+     *    listener, then null is returned.
+     *
+     *  ❯ Otherwise, the error is thrown.
+     *
+     *    ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+     *    ┃ NB: The responseError event is primarily for testing purposes. ┃
+     *    ┃     Attaching a listener on this event can cause unpredictable ┃
+     *    ┃     program behavior.                                          ┃
+     *    ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+     *
+     * @async
+     *
+     * @emits response
+     * @emits matchCanceled
+     * @emits responseError
+     *
+     * @throws ClientError.ConnectionClosedError
+     * @throws ClientError.ParallelRequestError
+     * @throws ClientError.UnexpectedResponseError
+     * @throws ClientError
+     * @throws GameError.MatchCanceledError
+     * @throws MenuError.WaitingAbortedError
+     *
+     * @returns Object|Error|null
+     */
+    async waitForResponse(action = null) {
 
         const data = await this.waitForMessage()
 
@@ -261,30 +385,49 @@ class Client extends EventEmitter {
         if (data.action == 'matchCanceled') {
             err = new MatchCanceledError(data.reason)
             if (this.emit('matchCanceled', err)) {
-                // It's not clear what to return here, but we should return at
-                // least something.
                 return err
             }
         }
 
         if (!err) {
-            this.logger.warn('Unexpected response from server', data.action)
-            err = new UnexpectedResponseError(`Expecting response ${action}, but got ${data.action} instead`)
+            err = new UnexpectedResponseError(
+                `Expecting response ${action}, but got ${data.action} instead`
+            )
         }
 
-        // this is for testing only, not recoverable in most cases.
+        // This is for testing only, not recoverable in most cases.
         if (this.emit('responseError', err, data)) {
             this.logger.error(err)
-            return
+            return null
         }
+
+        this.logger.warn(err)
 
         throw err
     }
 
+    /**
+     * Wait for any valid JSON message.
+     *
+     * @async
+     *
+     * @emits response
+     *
+     * @throws ClientError.ConnectionClosedError
+     * @throws ClientError.ParallelRequestError
+     * @throws GameError.MatchCanceledError
+     * @throws MenuError.WaitingAbortedError
+     *
+     * @returns Object
+     */
     waitForMessage() {
         return new Promise((resolve, reject) => {
             if (!this.conn) {
                 reject(new ConnectionClosedError('Connection lost'))
+                return
+            }
+            if (this.isWaiting) {
+                reject(new ParallelRequestError('A request is already pending'))
                 return
             }
             this.isWaiting = true
@@ -303,12 +446,19 @@ class Client extends EventEmitter {
         })
     }
 
-    // Event hanlder, so should not throw
+    /**
+     * Message event handler.
+     *
+     * @emits matchCanceled
+     * @emits unhandledMessage
+     * @emits error
+     */
     handleMessage(data) {
         if (this.messageResolve) {
             this.messageResolve(data)
             return
         }
+        // If there is no messageResolve, there is no messageReject.
         let err
         if (data.action == 'matchCanceled') {
             err = new MatchCanceledError(data.reason)
@@ -330,27 +480,6 @@ class Client extends EventEmitter {
         this.emit('error', err)
     }
 
-    postJson(uri, data) {
-        const url = [this.serverHttpUrl, stripLeadingSlash(uri)].join('/')
-        const params = {
-            method  : 'post'
-          , headers : {'content-type': 'application/json'}
-          , body    : JSON.stringify(data)
-        }
-        return this.fetch(url, params)
-    }
-
-    fetch(...args) {
-        return fetch(...args)
-    }
-
-    matchParams(params) {
-        if (typeof params == 'string') {
-            params = {action: params}
-        }
-        return {id: this.matchId, color: this.color, ...params}
-    }
-
     /**
      * @returns self
      */
@@ -361,17 +490,33 @@ class Client extends EventEmitter {
         return this
     }
 
-    static generateSecret() {
-        return secret1()
+    get loglevel() {
+        return this.logger.loglevel
     }
 
-    static buildError(data, fallbackMessage) {
-        const message = data.error || fallbackMessage || 'Unknown server error'
-        const err = new ClientError(message)
-        for (var k in data) {
-            err[k] = data[k]
+    set loglevel(n) {
+        this.logger.loglevel = n
+    }
+
+    postJson(uri, data) {
+        const url = [this.serverHttpUrl, stripLeadingSlash(uri)].join('/')
+        const params = {
+            method  : 'post'
+          , headers : {'content-type': 'application/json'}
+          , body    : JSON.stringify(data)
         }
-        return err
+        return fetch(url, params)
+    }
+
+    matchParams(params) {
+        if (typeof params == 'string') {
+            params = {action: params}
+        }
+        return {id: this.matchId, color: this.color, ...params}
+    }
+
+    static generateSecret() {
+        return secret1()
     }
 }
 

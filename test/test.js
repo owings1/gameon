@@ -29,6 +29,7 @@ const isPrintOnly = false
 const onlys = [
     null
     //, 'BoardAnalyzer'
+    //, 'Client'
     //, 'Coordinator'
     //, 'Core'
     //, 'Errors'
@@ -48,6 +49,7 @@ const onlys = [
 const skips = [
     null
     //, 'BoardAnalyzer'
+    //, 'Client'
     //, 'Coordinator'
     //, 'Core'
     //, 'Errors'
@@ -79,64 +81,3 @@ Object.entries(suites()).forEach(([file, title]) => {
         describe(title, suite)
     }
 })
-/*
-describe('BoardAnalyzer', () => {
-    require('./suites/board-analyzer.test')
-})
-
-describe('Coordinator', () => {
-    require('./suites/coordinator.test')
-})
-
-describe('Core', () => {
-    require('./suites/core.test')
-})
-
-describe('Lab', () => {
-    require('./suites/lab.test')
-})
-
-describe('Logger', () => {
-    require('./suites/logger.test')
-})
-
-describe('Menu', () => {
-    require('./suites/menu.test')
-})
-
-describe('Moves', () => {
-    require('./suites/move.test')
-})
-
-describe('Net', () => {
-    require('./suites/net.test')
-})
-
-describe('Player', () => {
-    require('./suites/player.test')
-})
-
-describe('Robot', () => {
-    require('./suites/robot.test')
-})
-
-describe('Tables', () => {
-    require('./suites/tables.test')
-})
-
-describe('Term', () => {
-    require('./suites/term.test')
-})
-
-describe('Themes', () => {
-    require('./suites/themes.test')
-})
-
-describe('Trees', () => {
-    require('./suites/trees.test')
-})
-
-describe('Util', () => {
-    require('./suites/util.test')
-})
-*/

@@ -206,10 +206,6 @@ class TermPlayer extends Base {
             }
         })
 
-        this.on('gameCanceled', (err, game) => {
-            this.cancelPrompt(err)
-        })
-
         this.on('matchCanceled', (err, match) => {
             this.cancelPrompt(err)
         })

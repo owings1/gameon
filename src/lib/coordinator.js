@@ -39,12 +39,6 @@
   ┃                 ┃  runMatch() or runGame(). NB that if match.cancel() is        ┃
   ┃                 ┃  called independently, this event will not be propagated      ┃
   ┃                 ┃                                                               ┃
-  ┣━━━━━━━━━━━━━━━━━╋━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┫
-  ┃                 ┃                                                               ┃
-  ┃ gameCanceled    ┃  Emitted when cancelGame() is called on the coordinator,      ┃
-  ┃                 ┃  similar to matchCanceled. NB that calling cancelMatch()      ┃
-  ┃                 ┃  will not emit gameCanceled, and vice versa.                  ┃
-  ┃                 ┃                                                               ┃
   ┣━━━━━━━━━━━━━━━━━┻━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┫
   ┃                                                                                 ┃
   ┃      ┏ * ━ * ━ * ━ * ━ * ━ * ━ *   N. B.   * ━ * ━ * ━ * ━ * ━ * ━ * ━ * ┓      ┃
@@ -292,11 +286,6 @@ class Coordinator {
                         err = match._coordinatorCancelError
                         delete match._coordinatorCancelError
                         delete match._cancelingCoordinator
-                    } else if (game._cancelingCoordinator === this) {
-                        this.logger.warn('The game has been canceled, throwing prior error')
-                        err = game._coordinatorCancelError
-                        delete game._coordinatorCancelError
-                        delete game._cancelingCoordinator
                     }
                 }
                 throw err
@@ -312,13 +301,6 @@ class Coordinator {
         } else {
             await this.emitAll(players, 'gameEnd', game, match)
         }
-    }
-
-    async cancelGame(game, players, err) {
-        game._cancelingCoordinator = this
-        game._coordinatorCancelError = err
-        game.cancel()
-        await this.emitAll(players, 'gameCanceled', err, game)
     }
 
     async cancelMatch(match, players, err) {

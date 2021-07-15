@@ -187,6 +187,7 @@ class UserNotFoundError     extends AuthError {}
 // ClientError
 class ConnectionClosedError   extends ClientError {}
 class ConnectionFailedError   extends ClientError {}
+class ParallelRequestError    extends ClientError {}
 class UnexpectedResponseError extends ClientError {}
 
 // DependencyError
@@ -312,6 +313,7 @@ const Errors = {
   , NoPieceOnSlotError
   , NotImplementedError
   , OccupiedSlotError
+  , ParallelRequestError
   , PieceOnBarError
   , ProgrammerError
   , RequestError

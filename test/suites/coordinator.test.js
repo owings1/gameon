@@ -133,20 +133,6 @@ describe('-', () => {
         })
     })
 
-    describe('#cancelGame', () => {
-
-        it('should emit gameCanceled on both players', async () => {
-            var isCalled1 = false
-            var isCalled2 = false
-            players.White.on('gameCanceled', () => isCalled1 = true)
-            players.Red.on('gameCanceled', () => isCalled2 = true)
-            const game = new Game
-            await coordinator.cancelGame(game, players, new Error)
-            expect(isCalled1).to.equal(true)
-            expect(isCalled2).to.equal(true)
-        })
-    })
-
     describe('#cancelMatch', () => {
 
         it('should emit matchCanceled on both players', async () => {
