@@ -26,9 +26,11 @@ const Dice   = require('./dice')
 const Errors = require('./errors')
 const Util   = require('./util')
 
-const {MaxDepthExceededError} = Errors
+const {MaxDepthExceededError, NotImplementedError} = Errors
 
 const Profiler = Util.Profiler.getDefaultInstance()
+
+const {sortNumericAsc, sortNumericDesc} = Util
 
 class TurnBuilder {
 
@@ -58,7 +60,7 @@ class TurnBuilder {
         this.leaves = []
         this.processTrees(trees)
         if (this.maxExample) {
-            this.result.allowedFaces = this.maxExample.map(move => move.face).sort(Util.sortNumericDesc)
+            this.result.allowedFaces = this.maxExample.map(move => move.face).sort(sortNumericDesc)
         }
         return this.getResult()
     }
@@ -553,7 +555,7 @@ class TreeNode extends AbstractNode {
             for (var parent = this.parent; parent; parent = parent.parent) {
                 origins.push(parent.move.origin)
             }
-            origins.sort(Util.sortNumericAsc)
+            origins.sort(sortNumericAsc)
 
             flagKey = '8/4-' + origins[0]
             for (var i = 1; i < 4; ++i) {
@@ -580,8 +582,6 @@ class TreeNode extends AbstractNode {
         }
     }
 }
-
-const {NotImplementedError} = Errors
 
 module.exports = {
     AbstractNode

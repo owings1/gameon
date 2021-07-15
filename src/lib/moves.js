@@ -35,6 +35,17 @@ const {
  ,  OriginPoints
 } = Constants
 
+const {
+    IllegalBareoffError
+  , MayNotBearoffError
+  , MoveOutOfRangeError
+  , NoPieceOnBarError
+  , NoPieceOnSlotError
+  , NotImplementedError
+  , OccupiedSlotError
+  , PieceOnBarError
+} = Errors
+
 const Profiler = Util.Profiler.getDefaultInstance()
 
 class Move {
@@ -272,17 +283,6 @@ class BearoffMove extends Move {
         this.board.pushOrigin(this.origin, this.board.popHome(this.color))
     }
 }
-
-const {
-    IllegalBareoffError
-  , MayNotBearoffError
-  , MoveOutOfRangeError
-  , NoPieceOnBarError
-  , NoPieceOnSlotError
-  , NotImplementedError
-  , OccupiedSlotError
-  , PieceOnBarError
-} = Errors
 
 module.exports = {
     Move

@@ -1,0 +1,216 @@
+{
+  "White": {
+    "6,1": {
+      "moveHashes": [
+        "11:6",
+        "16:1"
+      ],
+      "firstMoveEndState": "@@R@@@@E@C@@@TE@@@RRU@@@@B@@"
+    },
+    "5,1": {
+      "moveHashes": [
+        "11:5",
+        "0:1"
+      ],
+      "firstMoveEndState": "@@QQ@@@E@C@@@TE@@@T@U@@@@B@@"
+    },
+    "4,1": {
+      "moveHashes": [
+        "0:4",
+        "0:1"
+      ],
+      "firstMoveEndState": "@@@Q@@QE@C@@@UE@@@S@U@@@@B@@"
+    },
+    "3,1": {
+      "moveHashes": [
+        "16:3",
+        "18:1"
+      ],
+      "firstMoveEndState": "@@R@@@@E@C@@@UE@@@R@TR@@@B@@"
+    },
+    "2,1": {
+      "moveHashes": [
+        "11:2",
+        "0:1"
+      ],
+      "firstMoveEndState": "@@QQ@@@E@C@@@TEQ@@S@U@@@@B@@"
+    },
+    "6,2": {
+      "moveHashes": [
+        "0:6",
+        "11:2"
+      ],
+      "firstMoveEndState": "@@Q@@@@EQC@@@TEQ@@S@U@@@@B@@"
+    },
+    "5,2": {
+      "moveHashes": [
+        "11:5",
+        "0:2"
+      ],
+      "firstMoveEndState": "@@Q@Q@@E@C@@@TE@@@T@U@@@@B@@"
+    },
+    "4,2": {
+      "moveHashes": [
+        "16:4",
+        "18:2"
+      ],
+      "firstMoveEndState": "@@R@@@@E@C@@@UE@@@R@T@R@@B@@"
+    },
+    "3,2": {
+      "moveHashes": [
+        "0:3",
+        "11:2"
+      ],
+      "firstMoveEndState": "@@Q@@Q@E@C@@@TEQ@@S@U@@@@B@@"
+    },
+    "6,3": {
+      "moveHashes": [
+        "0:6",
+        "6:3"
+      ],
+      "firstMoveEndState": "@@Q@@@@E@C@Q@UE@@@S@U@@@@B@@"
+    },
+    "5,3": {
+      "moveHashes": [
+        "16:5",
+        "18:3"
+      ],
+      "firstMoveEndState": "@@R@@@@E@C@@@UE@@@R@T@@R@B@@"
+    },
+    "4,3": {
+      "moveHashes": [
+        "0:4",
+        "0:3"
+      ],
+      "firstMoveEndState": "@@@@@QQE@C@@@UE@@@S@U@@@@B@@"
+    },
+    "6,4": {
+      "moveHashes": [
+        "0:6",
+        "6:4"
+      ],
+      "firstMoveEndState": "@@Q@@@@E@C@@QUE@@@S@U@@@@B@@"
+    },
+    "5,4": {
+      "moveHashes": [
+        "0:4",
+        "4:5"
+      ],
+      "firstMoveEndState": "@@Q@@@@E@C@Q@UE@@@S@U@@@@B@@"
+    },
+    "6,5": {
+      "moveHashes": [
+        "0:6",
+        "6:5"
+      ],
+      "firstMoveEndState": "@@Q@@@@E@C@@@VE@@@S@U@@@@B@@"
+    }
+  },
+  "Red": {
+    "6,1": {
+      "moveHashes": [
+        "12:6",
+        "7:1"
+      ],
+      "firstMoveEndState": "@@R@@@@EBB@@@UD@@@S@U@@@@B@@"
+    },
+    "5,1": {
+      "moveHashes": [
+        "12:5",
+        "23:1"
+      ],
+      "firstMoveEndState": "@@R@@@@E@D@@@UD@@@S@U@@@AA@@"
+    },
+    "4,1": {
+      "moveHashes": [
+        "23:4",
+        "23:1"
+      ],
+      "firstMoveEndState": "@@R@@@@E@C@@@UE@@@S@UA@@A@@@"
+    },
+    "3,1": {
+      "moveHashes": [
+        "7:3",
+        "5:1"
+      ],
+      "firstMoveEndState": "@@R@@@BD@B@@@UE@@@S@U@@@@B@@"
+    },
+    "2,1": {
+      "moveHashes": [
+        "12:2",
+        "23:1"
+      ],
+      "firstMoveEndState": "@@R@@@@E@C@@AUD@@@S@U@@@AA@@"
+    },
+    "6,2": {
+      "moveHashes": [
+        "23:6",
+        "12:2"
+      ],
+      "firstMoveEndState": "@@R@@@@E@C@@AUD@@@SAU@@@@A@@"
+    },
+    "5,2": {
+      "moveHashes": [
+        "12:5",
+        "23:2"
+      ],
+      "firstMoveEndState": "@@R@@@@E@D@@@UD@@@S@U@@A@A@@"
+    },
+    "4,2": {
+      "moveHashes": [
+        "7:4",
+        "5:2"
+      ],
+      "firstMoveEndState": "@@R@@B@D@B@@@UE@@@S@U@@@@B@@"
+    },
+    "3,2": {
+      "moveHashes": [
+        "23:3",
+        "12:2"
+      ],
+      "firstMoveEndState": "@@R@@@@E@C@@AUD@@@S@U@A@@A@@"
+    },
+    "6,3": {
+      "moveHashes": [
+        "23:6",
+        "17:3"
+      ],
+      "firstMoveEndState": "@@R@@@@E@C@@@UE@A@S@U@@@@A@@"
+    },
+    "5,3": {
+      "moveHashes": [
+        "7:5",
+        "5:3"
+      ],
+      "firstMoveEndState": "@@R@B@@D@B@@@UE@@@S@U@@@@B@@"
+    },
+    "4,3": {
+      "moveHashes": [
+        "23:4",
+        "23:3"
+      ],
+      "firstMoveEndState": "@@R@@@@E@C@@@UE@@@S@UAA@@@@@"
+    },
+    "6,4": {
+      "moveHashes": [
+        "23:6",
+        "17:4"
+      ],
+      "firstMoveEndState": "@@R@@@@E@C@@@UEA@@S@U@@@@A@@"
+    },
+    "5,4": {
+      "moveHashes": [
+        "23:4",
+        "19:5"
+      ],
+      "firstMoveEndState": "@@R@@@@E@C@@@UE@A@S@U@@@@A@@"
+    },
+    "6,5": {
+      "moveHashes": [
+        "23:6",
+        "17:5"
+      ],
+      "firstMoveEndState": "@@R@@@@E@C@@@UF@@@S@U@@@@A@@"
+    }
+  }
+}
