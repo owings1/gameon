@@ -49,7 +49,38 @@ const {
   , ConnectionClosedError
   , ConnectionFailedError
   , MatchCanceledError
+  , UnexpectedResponseError
+  , UnhandledMessageError
 } = Errors
+
+/**
+ * Events:
+ *
+ *  Normal success events:
+ *
+ *   - matchCreated
+ *   - opponentJoined
+ *   - matchJoined
+ *   - matchRequest
+ *   - matchResponse
+ *   - response
+ *
+ *  Other events, if not handled, will throw unhandled promise.
+ *
+ *    - unhandledMessage
+ *    - matchCanceled
+ *    - responseError
+ *   
+ *  If you listen on matchCanceled, the code must be able to 
+ *  handle null return values from matchRequest.
+ *
+ *  The unhandledMessage event means there was nothing waiting a message.
+ *
+ *  The responseError should only be used for testing since it will
+ *  break a lot of code expecting a response, e.g. handshake, createMatch, etc.
+ *
+ */
+
 
 class Client extends EventEmitter {
 
@@ -214,67 +245,87 @@ class Client extends EventEmitter {
     }
 
     async waitForResponse(action) {
-        const res = await this.waitForMessage()
-        if (res.error) {
-            throw Client.buildError(res)
+
+        const data = await this.waitForMessage()
+
+        if (data.isError) {
+            throw ClientError.forData(data)
         }
-        if (action && res.action != action) {
-            if (res.action == 'matchCanceled') {
-                this.logger.warn('Received matchCanceled message from server:', res.reason)
-                const err = new MatchCanceledError(res.reason)
-                if (this.emit('matchCanceled', err)) {
-                    return
-                }
-                throw err
+
+        if (!action || data.action == action) {
+            return data
+        }
+
+        let err
+
+        if (data.action == 'matchCanceled') {
+            err = new MatchCanceledError(data.reason)
+            if (this.emit('matchCanceled', err)) {
+                return
             }
-            throw new ClientError('Expecting response ' + action + ', but got ' + res.action + ' instead')
         }
-        return res
+
+        if (!err) {
+            this.logger.warn('Unexpected response from server', data.action)
+            err = new UnexpectedResponseError(`Expecting response ${action}, but got ${data.action} instead`)
+        }
+
+        // this is for testing only, not recoverable in most cases.
+        if (this.emit('responseError', err, data)) {
+            this.logger.error(err)
+            return
+        }
+
+        throw err
     }
 
     waitForMessage() {
-
-        if (!this.conn) {
-            throw new ConnectionClosedError('Connection lost')
-        }
-
-        this.isWaiting = true
-
         return new Promise((resolve, reject) => {
+            if (!this.conn) {
+                reject(new ConnectionClosedError('Connection lost'))
+                return
+            }
+            this.isWaiting = true
+            this.messageResolve = data => {
+                this.emit('response', data)
+                resolve(data)
+            }
             this.messageReject = err => {
-                this.messageResolve = null
-                this.messageReject = null
-                this.isWaiting = false
                 this.logger.warn(err.name, err.message)
                 reject(err)
             }
-            this.messageResolve = res => {
-                this.messageResolve = null
-                this.messageReject = null
-                this.isWaiting = false
-                resolve(res)
-            }
+        }).finally(() => {
+            this.isWaiting = false
+            this.messageResolve = null
+            this.messageReject = null
         })
     }
 
     // Event hanlder, so should not throw
-    handleMessage(res) {
+    handleMessage(data) {
         if (this.messageResolve) {
-            this.messageResolve(res)
+            this.messageResolve(data)
             return
         }
-        if (res.action == 'matchCanceled') {
-            const err = new MatchCanceledError(res.reason)
-            if (!this.emit('matchCanceled', err)) {
-                this.logger.warn('Received matchCanceled message from server:', res.reason)
-                if (!this.emit('error', err)) {
-                    this.logger.error('Unhandled error', err)
-                    this.logger.console.error(err)
-                }
+        let err
+        if (data.action == 'matchCanceled') {
+            err = new MatchCanceledError(data.reason)
+            if (this.emit('matchCanceled', err)) {
+                return
             }
-        } else {
-            this.logger.warn('Unhandled message', {action: res.action})
         }
+        if (this.emit('unhandledMessage', data)) {
+            return
+        }
+        if (!err) {
+            err = ClientError.forData(data)
+        }
+        this.logger.warn('Unhandled message from server', err)
+        // Since this is recoverable, we emit an error instead of throwing.
+        // Very interesting: this exits the process even on tests, no matter
+        // whether we throw or emit.
+        //throw err
+        this.emit('error', err)
     }
 
     postJson(uri, data) {
@@ -298,10 +349,14 @@ class Client extends EventEmitter {
         return {id: this.matchId, color: this.color, ...params}
     }
 
+    /**
+     * @returns self
+     */
     sendMessage(req) {
         req = {secret: this.secret, ...req}
         this.logger.debug('sendMessage', req)
         this.conn.sendUTF(JSON.stringify(req))
+        return this
     }
 
     static generateSecret() {

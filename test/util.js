@@ -38,9 +38,13 @@ function requireSrc(p) {
     return require('../src/' + p)
 }
 
+
 const Util = requireSrc('lib/util')
 const Core = requireSrc('lib/core')
 
+const fs = require('fs')
+const globby = require('globby')
+const path = require('path')
 const tmp = require('tmp')
 
 const States = require('./states')
@@ -52,6 +56,29 @@ const States28 = {}
 for (var k in States) {
     States28[k] = Board.fromStateString(States[k]).state28()
 }
+
+function suites(dir, glob) {
+    dir = dir || path.resolve(__dirname, 'suites')
+    glob = dir + '/' + Util.stripLeadingSlash(glob || '*.test.js')
+    return Object.fromEntries(
+        globby.sync(glob)
+            .sort((a, b) =>
+                path.basename(a).toLowerCase().localeCompare(
+                    path.basename(b).toLowerCase()
+                )
+            )
+            .map(file => [
+                file
+              , path.basename(file)
+                    .split('.').slice(0, -2)
+                    .join('')
+                    .split('-')
+                    .map(Util.ucfirst)
+                    .join('')
+            ])
+    )
+}
+
 const Structures = {
     Initial : [0, 0, 2, 0, 0, 0, 0, -5, 0, -3, 0, 0, 0, 5, -5, 0, 0, 0, 3, 0, 5, 0, 0, 0, 0, -2, 0, 0]
 }
@@ -255,6 +282,7 @@ module.exports = {
   , States
   , States28
   , Structures
+  , suites
   , tmpDir
   , tmpFile
 }

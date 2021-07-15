@@ -351,17 +351,32 @@ class Util {
         return Object.fromEntries(Object.values(input).map(value => [value, true]))
     }
 
-    static makeErrorObject(err) {
+    static makeErrorObject(err, depth = 1) {
         const obj = {
             isError : true
           , error   : err.message || err.name
+          , name    : err.name || err.constructor.name
         }
-        for (var prop in err) {
-            if (err.hasOwnProperty(prop)) {
-                obj[prop] = err[prop]
+        for (let prop in err) {
+            if (!err.hasOwnProperty(prop)) {
+                continue
+            }
+            if (obj[prop] != null) {
+                continue
+            }
+            let value = err[prop]
+            if (value instanceof Error) {
+                if (depth < 2) {
+                    obj[prop] = Util.makeErrorObject(value, depth + 1)
+                } else {
+                    obj[prop] = {
+                        name: value.name || value.constructor.name
+                    }
+                }
+            } else {
+                obj[prop] = value
             }
         }
-        obj.name = err.name || err.constructor.name
         return obj
     }
 

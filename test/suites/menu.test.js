@@ -1168,6 +1168,16 @@ describe('-', () => {
                     }
                     menu2 = new Menu
                     menu2.credentials = {...menu.credentials}
+                    menu1.logger.name = 'Menu1'
+                    menu2.logger.name = 'Menu2'
+                    menu1.on('beforeMatchStart', (match, players, coordinator) =>
+                        coordinator.logger.name = 'Coordinator1'
+                    )
+                    menu2.on('beforeMatchStart', (match, players, coordinator) =>
+                        coordinator.logger.name = 'Coordinator2'
+                    )
+                    menu1.on('clientWaitStart', client => client.logger.name = 'Client1')
+                    menu2.on('clientWaitStart', client => client.logger.name = 'Client2')
                 })
 
                 afterEach(async () => {
@@ -1203,14 +1213,10 @@ describe('-', () => {
 
                     if (isDebug) {
                         // debug logger names, etc
-                        menu1.newCoordinator = opts => new Coordinator({...opts, name: 'Coordinator1'})
-                        menu2.newCoordinator = opts => new Coordinator({...opts, name: 'Coordinator2'})
-                        menu1.logger.name = 'Menu1'
-                        menu2.logger.name = 'Menu2'
-                        menu1.logger.loglevel = 3
-                        menu2.logger.loglevel = 3
-                        menu1.on('clientWaitStart', client => client.logger.name = 'Client1')
-                        menu2.on('clientWaitStart', client => client.logger.name = 'Client2')
+                        server.loglevel = 4
+                        menu1.loglevel = 4
+                        menu2.loglevel = 4
+
                     } else {
                         menu1.logger.console.log = noop
                         menu2.logger.console.log = noop

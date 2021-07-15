@@ -472,7 +472,7 @@ class Turn {
         }
     }
 
-    constructor(board, color, opts = {}) {
+    constructor(board, color, opts) {
 
         this.board      = board
         this.color      = color
@@ -505,6 +505,13 @@ class Turn {
         }
     }
 
+    /**
+     * @throws GameError.IllegalStateError.TurnAlreadyFinishedError
+     * @throws GameError.IllegalStateError.TurnCanceledError
+     * @throws GameError.IllegalStateError.AlreadyRolledError
+     *
+     * @returns self
+     */
     setDoubleOffered() {
 
         this.assertNotFinished()
@@ -517,6 +524,14 @@ class Turn {
         return this
     }
 
+    /**
+     * @throws GameError.IllegalStateError.TurnAlreadyFinishedError
+     * @throws GameError.IllegalStateError.TurnCanceledError
+     * @throws GameError.IllegalStateError.AlreadyRolledError
+     * @throws GameError.IllegalStateError.HasNotDoubledError
+     *
+     * @returns self
+     */
     setDoubleDeclined() {
 
         if (this.isDoubleDeclined) {
@@ -524,6 +539,7 @@ class Turn {
         }
 
         this.assertNotFinished()
+        this.assertNotRolled()
 
         if (!this.isDoubleOffered) {
             throw new HasNotDoubledError([this.color, 'has not doubled'])
@@ -538,6 +554,13 @@ class Turn {
         return this
     }
 
+    /**
+     * @throws GameError.IllegalStateError.TurnAlreadyFinishedError
+     * @throws GameError.IllegalStateError.TurnCanceledError
+     * @throws GameError.IllegalStateError.AlreadyRolledError
+     *
+     * @returns self
+     */
     setRoll(...args) {
 
         this.assertNotFinished()
@@ -553,6 +576,13 @@ class Turn {
         return this
     }
 
+    /**
+     * @throws GameError.IllegalStateError.TurnAlreadyFinishedError
+     * @throws GameError.IllegalStateError.TurnCanceledError
+     * @throws GameError.IllegalStateError.AlreadyRolledError
+     *
+     * @returns self
+     */
     roll() {
 
         this.assertNotFinished()
@@ -566,6 +596,13 @@ class Turn {
         return this
     }
 
+    /**
+     * @throws GameError.IllegalStateError.TurnAlreadyFinishedError
+     * @throws GameError.IllegalStateError.TurnCanceledError
+     * @throws GameError.IllegalStateError.HasNotRolledError
+     *
+     * @returns self
+     */
     afterRoll() {
 
         this.assertNotFinished()
@@ -601,9 +638,15 @@ class Turn {
         if (this.isCantMove) {
             this.finish()
         }
+
+        return this
     }
 
-    // Performance optimized
+    /**
+     * @throws GameError.IllegalStateError.HasNotRolledError
+     *
+     * @returns Array[Move]
+     */
     getNextAvailableMoves() {
 
         this.assertIsRolled()
@@ -624,6 +667,15 @@ class Turn {
         return moves
     }
 
+    /**
+     * @throws GameError.IllegalStateError.TurnAlreadyFinishedError
+     * @throws GameError.IllegalStateError.TurnCanceledError
+     * @throws GameError.IllegalStateError.HasNotRolledError
+     * @throws GameError.IllegalStateError.NoMovesRemainingError
+     * @throws GameError.IllegalMoveError
+     *
+     * @returns Move
+     */
     move(origin, face) {
 
         Profiler.start('Turn.move')
@@ -660,6 +712,13 @@ class Turn {
         return move
     }
 
+    /**
+     * @throws GameError.IllegalStateError.NoMovesMadeError
+     * @throws GameError.IllegalStateError.TurnAlreadyFinishedError
+     * @throws GameError.IllegalStateError.TurnCanceledError
+     *
+     * @returns Move
+     */
     unmove() {
 
         this.assertNotFinished()
@@ -678,9 +737,15 @@ class Turn {
         return move
     }
 
+    /**
+     * @throws GameError.IllegalStateError.HasNotRolledError
+     * @throws GameError.IllegalStateError.MovesRemainingError
+     *
+     * @returns self
+     */
     finish() {
         if (this.isFinished) {
-            return
+            return this
         }
         if (!this.isDoubleDeclined) {
             this.assertIsRolled()
@@ -701,9 +766,12 @@ class Turn {
         return this
     }
 
+    /**
+     * @returns self
+     */
     cancel() {
         if (this.isFinished) {
-            return
+            return this
         }
         this.endState = this.board.state28()
         this.isFinished = true
@@ -711,9 +779,15 @@ class Turn {
 
         this.boardCache = {}
         this.builder = null
+
+        return this
     }
 
-    // Fetch cached. Cache is cleared on turn finish.
+    /**
+     * Fetch cached. Cache is cleared on turn finish.
+     *
+     * @returns Board
+     */
     fetchBoard(state28) {
         if (!this.boardCache[state28]) {
             this.boardCache[state28] = Board.fromState28(state28)
@@ -721,6 +795,12 @@ class Turn {
         return this.boardCache[state28]
     }
 
+    /**
+     * @throws GameError.IllegalStateError.TurnAlreadyFinishedError
+     * @throws GameError.IllegalStateError.TurnCanceledError
+     *
+     * @returns self
+     */
     assertNotFinished() {
         if (this.isFinished) {
             if (this.isCanceled) {
@@ -728,20 +808,36 @@ class Turn {
             }
             throw new TurnAlreadyFinishedError(['turn is already finished for', this.color])
         }
+        return this
     }
 
+    /**
+     * @throws GameError.IllegalStateError.HasNotRolledError
+     *
+     * @returns self
+     */
     assertIsRolled() {
         if (!this.isRolled) {
             throw new HasNotRolledError([this.color, 'has not rolled'])
         }
+        return this
     }
 
+    /**
+     * @throws GameError.IllegalStateError.AlreadyRolledError
+     *
+     * @returns self
+     */
     assertNotRolled() {
         if (this.isRolled) {
             throw new AlreadyRolledError([this.color, 'has already rolled'])
         }
+        return this
     }
 
+    /**
+     * @returns Object
+     */
     meta() {
         return {
             color            : this.color
@@ -761,10 +857,16 @@ class Turn {
         }
     }
 
+    /**
+     * @returns Object
+     */
     serialize() {
         return Turn.serialize(this)
     }
 
+    /**
+     * @returns Object
+     */
     static serialize(turn) {
         return {
             ...turn.meta()
@@ -776,6 +878,9 @@ class Turn {
         }
     }
 
+    /**
+     * @returns Turn
+     */
     static unserialize(data, board) {
 
         board = board || Board.fromState28(data.startState)
@@ -1177,6 +1282,9 @@ class Dice {
         return faces
     }
 
+    /**
+     * @throws GameError.InvalidRollError
+     */
     static checkOne(face) {
         if (!Number.isInteger(face)) {
             throw new InvalidRollError('die face must be an integer')
@@ -1189,6 +1297,9 @@ class Dice {
         }
     }
 
+    /**
+     * @throws GameError.InvalidRollError
+     */
     static checkTwo(faces) {
         if (faces.length > 2) {
             throw new InvalidRollError('more than two dice not allowed')
@@ -1197,6 +1308,9 @@ class Dice {
         Dice.checkOne(faces[1])
     }
 
+    /**
+     * @throws GameError.InvalidRollError
+     */
     static checkFaces(faces)  {
         if (faces.length == 4) {
             Dice.checkOne(faces[0])
@@ -1242,6 +1356,9 @@ class Dice {
         }
     }
 
+    /**
+     * @throws ArgumentError.InvalidRollDataError
+     */
     static validateRollsData(data) {
         if (!Array.isArray(data.rolls)) {
             throw new InvalidRollDataError('Rolls key must be an array')

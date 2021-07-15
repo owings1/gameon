@@ -45,7 +45,18 @@ const {
 
 const {Match, Dice} = Core
 
-const {castToArray, hash, makeErrorObject} = Util
+const {castToArray, hash, makeErrorObject, update} = Util
+
+const {
+    // RequestErrors
+    HandshakeError
+  , InvalidActionError
+  , MatchAlreadyExistsError
+  , MatchAlreadyJoinedError
+  , MatchNotFoundError
+  , RequestError
+  , ValidateError
+} = Errors
 
 prom.collectDefaultMetrics()
 
@@ -69,6 +80,10 @@ const metrics = {
     messagesSent: new prom.Counter({
         name: 'messages_sent',
         help: 'Messages sent'
+    }),
+    errorsSending: new prom.Counter({
+        name: 'errors_sending',
+        help: 'Errors sending messages'
     })
 }
 
@@ -157,7 +172,8 @@ class Server {
     close() {
         Object.keys(this.matches).forEach(id => this.cancelMatchId(id, 'Server shutdown'))
         if (this.socketServer) {
-            Object.values(this.socketServer.conns).forEach(conn => conn.close())
+            this.closeConn(Object.values(this.socketServer.conns))
+            //Object.values(this.socketServer.conns).forEach(conn => conn.close())
         }
         if (this.httpServer) {
             this.httpServer.close()
@@ -229,12 +245,13 @@ class Server {
         const server = new WsServer({httpServer})
         server.conns = {}
 
-        server.on('request', req => {
+        server.on('request', request => {
 
             const {conns} = server
             const connId = this.newConnectionId()
 
-            conns[connId] = req.accept(null, req.origin)
+            // Being extra careful not to keep a reference to conn in this scope.
+            conns[connId] = request.accept(null, request.origin)
             conns[connId].connId = connId
 
             this.logger.info('Peer', connId, 'connected', conns[connId].remoteAddress)
@@ -242,23 +259,36 @@ class Server {
             metrics.connections.labels().set(Object.keys(conns).length)
 
             conns[connId].on('close', () => {
+                const conn = conns[connId]
+                clearTimeout(conn.handShakeTimeoutId)
                 this.logger.info('Peer', connId, 'disconnected')
-                this.cancelMatchId(conns[connId].matchId, 'Peer disconnected')
+                this.cancelMatchId(conn.matchId, 'Peer disconnected')
                 delete conns[connId]
                 metrics.connections.labels().set(Object.keys(conns).length)
                 this.logActive()
             })
 
             conns[connId].on('message', msg => {
+                const conn = conns[connId]
                 metrics.messagesReceived.labels().inc()
-                this.response(conns[connId], JSON.parse(msg.utf8Data))
+                let req
+                try {
+                    req = JSON.parse(msg.utf8Data)
+                } catch (err) {
+                    this.logger.warn('Invalid JSON from', conn.color, connId, err)
+                    return
+                }
+                this.logger.log('Received message from', conn.color, connId, req.action)
+                this.response(conn, req)
             })
 
-            setTimeout(() => {
-                if (conns[connId] && conns[connId].connected && !conns[connId].secret) {
-                    this.logger.warn('Peer', connId, 'handshake timeout', conns[connId].remoteAddress)
-                    this.sendMessage(conns[connId], makeErrorObject(new HandshakeError('Client handshake timeout')))
-                    conns[connId].close()
+            conns[connId].handShakeTimeoutId = setTimeout(() => {
+                const conn = conns[connId]
+                if (conn && conn.connected && !conn.secret) {
+                    this.logger.warn('Peer', connId, 'handshake timeout', conn.remoteAddress)
+                    const err = new HandshakeError('Client handshake timeout')
+                    this.sendMessage(conn, msg)
+                    this.closeConn(conn)
                 }
             }, this.opts.socketHsTimeout)
         })
@@ -270,13 +300,13 @@ class Server {
 
         try {
 
-            var {action} = req
+            const {action} = req
+
             if (action != 'establishSecret') {
                 if (!conn.secret) {
                     throw new HandshakeError('no secret')
                 }
-                var {secret} = conn
-                if (req.secret != secret) {
+                if (req.secret != conn.secret) {
                     throw new HandshakeError('bad secret')
                 }
             }
@@ -285,71 +315,85 @@ class Server {
 
                 case 'establishSecret':
 
+                    clearTimeout(conn.handShakeTimeoutId)
+
                     if (!req.secret || req.secret.length != 64) {
                         throw new HandshakeError('bad secret')
                     }
-                    if (!conn.secret || conn.secret == req.secret) {
-                        if (req.token) {
-                            var {username, password} = this.auth.parseToken(req.token)
-                        } else {
-                            var {username, password} = req
-                        }
-                        const user = await this.auth.authenticate(username, password)
-                        conn.username = username
-                        conn.secret = req.secret
-                        this.sendMessage(conn, {action: 'acknowledgeSecret', passwordEncrypted: user.passwordEncrypted})
-                        this.logger.log('Client connected', conn.secret)
-                    } else {
+
+                    if (conn.secret && conn.secret != req.secret) {
                         throw new HandshakeError('handshake disagreement')
                     }
+
+                    if (req.token) {
+                        var {username, password} = this.auth.parseToken(req.token)
+                    } else {
+                        var {username, password} = req
+                    }
+
+                    const {passwordEncrypted} = await this.auth.authenticate(username, password)
+
+                    conn.username = username
+                    conn.secret = req.secret
+
+                    this.sendMessage(conn, {action: 'acknowledgeSecret', passwordEncrypted})
+                    this.logger.log('Client connected', conn.secret)
 
                     break
 
                 case 'createMatch':
 
-                    var id = Server.matchIdFromSecret(secret)
+                    var id = Server.matchIdFromSecret(conn.secret)
                     var {total, opts} = req
                     var match = new Match(total, opts)
-                    match.id = id
-                    match.secrets = {
-                        White : secret
-                      , Red   : null
-                    }
-                    match.conns = {
-                        White : conn
-                      , Red   : null
-                    }
-                    match.sync = {
-                        White : null
-                      , Red   : null
-                    }
-                    conn.matchId = id
-                    conn.color = White
-                    this.matches[id] = match
-                    this.sendMessage(conn, {action: 'matchCreated', id, match: match.meta()})
+
                     this.logger.info('Match', id, 'created')
+
+                    update(match, {
+                        id
+                      , conns   : {White: conn   , Red: null}
+                      , sync    : {White: null   , Red: null}
+                    })
+                    update(conn, {
+                        matchId : id 
+                      , color   : White
+                    })
+
+                    this.matches[id] = match
+
+                    this.sendMessage(conn, {action: 'matchCreated', id, match: match.meta()})
+
                     this.logActive()
                     metrics.matchesInProgress.labels().set(Object.keys(this.matches).length)
+
                     break
 
                 case 'joinMatch':
 
                     var {id} = req
-                    if (!this.matches[id]) {
+                    var match = this.matches[id]
+
+                    if (!match) {
                         throw new MatchNotFoundError('match not found')
                     }
-                    var match = this.matches[id]
-                    if (match.secrets.Red) {
+ 
+                    if (match.conns.Red) {
                         throw new MatchAlreadyJoinedError('match already joined')
                     }
-                    match.secrets.Red = secret
+
                     match.conns.Red = conn
-                    conn.matchId = id
-                    conn.color = Red
+                    update(conn, {
+                        matchId : id
+                      , color   : Red
+                    })
+                    
                     var {total, opts} = match
+
+                    this.logger.info('Match', id, 'joined')
+
                     this.sendMessage(match.conns.White, {action: 'opponentJoined', id})
                     this.sendMessage(conn, {action: 'matchJoined', id, total, opts, match: match.meta()})
-                    this.logger.info('Match', id, 'started')
+                    
                     this.logActive()
 
                     break
@@ -364,13 +408,11 @@ class Server {
                 req.password = '***'
             }
             this.logger.warn('Peer', conn.connId, err.message, err, {req})
-            this.sendMessage(conn, makeErrorObject(err))
-            if (err.name == 'HandshakeError') {
-                conn.close()
+            this.sendMessage(conn, err)
+            if (err.isHandshakeError) {
+                this.closeConn(conn)
             }
         }
-
-        this.logger.debug('message received from', conn.color, conn.connId, req)
     }
 
     matchResponse(req) {
@@ -379,97 +421,179 @@ class Server {
 
         const {action, color} = req
         const opponent = Opponent[color]
+        const isFirst = !Object.keys(match.sync).length
         
         const {thisGame} = match
         const thisTurn = thisGame && thisGame.thisTurn
 
+        const resolve = res => {
+            this.sendMessage(Object.values(match.conns), {action, ...res})
+        }
+
+        const reject = err => {
+            // When one client sends a bad request, it doesn't make sense to
+            // send the same error to the other client. This is not ideal, since
+            // the offending client may not retry the request, and thus will
+            // leave the innocent one waiting.
+            //this.sendMessage(Object.values(match.conns), err)
+            this.sendMessage(match.conns[color], err)
+        }
+
         const sync = next => {
             match.sync[color] = action
             this.logger.debug({action, color, sync: match.sync})
-            Server.checkSync(match.sync, next)
+            if (match.sync.White == match.sync.Red) {
+                match.sync = {}
+                resolve(next())
+            }
         }
 
-        const refuse = msg => {
-            this.sendMessage(Object.values(match.conns), makeErrorObject(new RequestError(msg)))
-        }
-
-        const reply = res => {
-            this.sendMessage(Object.values(match.conns), {action, ...res})
+        const handle = (before, done) => {
+            let ret
+            try {
+                ret = before()
+            } catch (err) {
+                reject(err)
+                return
+            }
+            sync(() => done(ret))
         }
 
         switch (action) {
 
             case 'nextGame':
 
+                handle(
+                    () => {
+                        if (thisGame) {
+                            thisGame.checkFinished()
+                        }
+                    }
+                  , () => ({game: match.nextGame().meta()})
+                )
+                /*
                 if (thisGame) {
                     thisGame.checkFinished()
                 }
 
-                sync(() => {
-
-                    const game = match.nextGame()
-                    const res = {
-                        game: game.meta()
-                    }
-
-                    reply(res)
-                })
-
+                sync(() => ({game: match.nextGame().meta()}))
+                */
                 break
 
             case 'firstTurn':
 
+                handle(
+                    () => {
+                        if (color == White) {
+                            thisGame.firstTurn()
+                        }
+                    }
+                  , () => ({
+                        dice: thisGame.thisTurn.dice
+                      , turn: thisGame.thisTurn.serialize()
+                    })
+                )
+                /*
                 sync(() => {
 
                     const turn = thisGame.firstTurn()
-                    const res = {
+                    return {
                         dice: turn.dice
                       , turn: turn.serialize()
                     }
-
-                    reply(res)
                 })
+                */
 
                 break
 
             case 'nextTurn':
 
+                handle(
+                    () => {
+                        if (isFirst) {
+                            thisGame.nextTurn()
+                        }
+                    }                            
+                  , () => ({
+                        turn: thisGame.thisTurn.meta()
+                      , game: thisGame.meta()
+                    })
+                )
+
+                /*
                 sync(() => {
 
                     const turn = thisGame.nextTurn()
-                    const res = {
+                    return {
                         turn : turn.meta()
                       , game : thisGame.meta()
                     }
-
-                    reply(res)
                 })
+                */
 
                 break
 
             case 'turnOption':
 
+                handle(
+                    () => {
+                        if (thisTurn.color == color) {
+                            if (req.isDouble) {
+                                thisTurn.setDoubleOffered()
+                            }
+                        }
+                        return thisTurn
+                    }
+                  , turn => ({
+                        isDouble : turn.isDoubleOffered && !turn.isRolled
+                      , turn     : turn.meta()
+                      , game     : thisGame.meta()
+                    })
+                )
+
+                /*
                 if (thisTurn.color == color) {
                     if (req.isDouble) {
                         thisTurn.setDoubleOffered()
                     }
                 }
 
-                sync(() => {
-
-                    const res = {
-                        isDouble : thisTurn.isDoubleOffered && !thisTurn.isRolled
-                      , turn     : thisTurn.meta()
-                      , game     : thisGame.meta()
-                    }
-
-                    reply(res)
-                })
+                sync(() => ({
+                    isDouble : thisTurn.isDoubleOffered && !thisTurn.isRolled
+                  , turn     : thisTurn.meta()
+                  , game     : thisGame.meta()
+                }))
+                */
 
                 break
 
             case 'doubleResponse':
 
+                handle(
+                    () => {
+                        if (thisTurn.color == opponent) {
+                            if (req.isAccept) {
+                                thisGame.double()
+                            } else {
+                                thisTurn.setDoubleDeclined()
+                            }
+                        }
+                        return thisTurn
+                    }
+                  , turn => {
+
+                        this.checkMatchFinished(match)
+
+                        return {
+                            isAccept : !turn.isDoubleDeclined
+                          , turn     : turn.meta()
+                          , game     : thisGame.meta()
+                          , match    : match.meta()
+                        }
+                    }
+                )
+
+                /*
                 if (thisTurn.color == opponent) {
                     if (req.isAccept) {
                         thisGame.double()
@@ -482,38 +606,71 @@ class Server {
 
                     this.checkMatchFinished(match)
 
-                    const res = {
+                    return {
                         isAccept : !thisTurn.isDoubleDeclined
                       , turn     : thisTurn.meta()
                       , game     : thisGame.meta()
                       , match    : match.meta()
                     }
-
-                    reply(res)
                 })
+                */
 
                 break
 
             case 'rollTurn':
 
+                handle(
+                    () => {
+                        if (thisTurn.color == color) {
+                            thisTurn.setRoll(this.roll())
+                        }
+                        return thisTurn
+                    }
+                  , turn => ({
+                        dice : turn.dice
+                      , turn : turn.serialize()
+                    })
+                )
+
+                /*
                 if (thisTurn.color == color) {
                     thisTurn.setRoll(this.roll())
                 }
 
-                sync(() => {
-
-                    const res = {
-                        dice : thisTurn.dice
-                      , turn : thisTurn.serialize()
-                    }
-
-                    reply(res)
-                })
+                sync(() => ({
+                    dice : thisTurn.dice
+                  , turn : thisTurn.serialize()
+                }))
+                */
 
                 break
 
             case 'playRoll':
 
+                handle(
+                    () => {
+                        if (thisTurn.color == color) {
+                            if (!Array.isArray(req.moves)) {
+                                throw new ValidateError('moves missing or invalid format')
+                            }
+                            req.moves.forEach(move => thisTurn.move(move.origin, move.face))
+                            thisTurn.finish()
+                        }
+                        return thisTurn
+                    }
+                  , turn => {
+
+                        this.checkMatchFinished(match)
+
+                        return {
+                            moves : turn.moves.map(move => move.coords)
+                          , turn  : turn.meta()
+                          , game  : thisGame.meta()
+                          , match : match.meta()
+                        }  
+                    }
+                )
+                /*
                 if (thisTurn.color == color) {
                     if (!Array.isArray(req.moves)) {
                         refuse('moves missing or invalid format')
@@ -527,20 +684,19 @@ class Server {
 
                     this.checkMatchFinished(match)
 
-                    const res = {
+                    return {
                         moves : thisTurn.moves.map(move => move.coords)
                       , turn  : thisTurn.meta()
                       , game  : thisGame.meta()
                       , match : match.meta()
-                    }
-
-                    reply(res)     
+                    }  
                 })
+                */
 
                 break
 
             default:
-                this.logger.warn('Bad action', action)
+                reject(new InvalidActionError(`Bad action ${action}`))
                 break
         }
     }
@@ -566,25 +722,45 @@ class Server {
     }
 
     cancelMatchId(id, reason) {
-        if (id && this.matches[id]) {
-            this.logger.info('Canceling match', id)
-            const match = this.matches[id]
-            this.sendMessage(Object.values(match.conns), {action: 'matchCanceled', reason})
-            delete this.matches[id]
-            metrics.matchesInProgress.labels().set(Object.keys(this.matches).length)
+        const match = this.matches[id]
+        if (!match) {
+            return
         }
+        this.logger.info('Canceling match', id)
+        this.sendMessage(Object.values(match.conns), {action: 'matchCanceled', reason})
+        delete this.matches[id]
+        metrics.matchesInProgress.labels().set(Object.keys(this.matches).length)
     }
 
-    sendMessage(conns, msg) {
-        conns = castToArray(conns)
-        const str = JSON.stringify(msg)
-        for (var conn of conns) {
-            if (conn && conn.connected) {
-                this.logger.log('Sending message to', conn.color, msg)
-                conn.sendUTF(str)
-                metrics.messagesSent.labels().inc()
+    sendMessage(conns, data) {
+
+        data = data || {}
+
+        let title = data.action
+        if (data instanceof Error) {
+            if (!data.isRequestError) {
+                data = RequestError.forError(data)
             }
+            data = makeErrorObject(data)
+            title = data.namePath || data.name
         }
+
+        const body = JSON.stringify(data)
+
+        castToArray(conns).forEach(conn => {
+            try {
+                if (conn && conn.connected) {
+                    this.logger.log('Sending message to', conn.color, conn.connId, title)
+                    conn.sendUTF(body)
+                    metrics.messagesSent.labels().inc()
+                }
+            } catch (err) {
+                const id = (conn && conn.id) || null
+                this.logger.warn('Failed sending message', {id}, err)
+                metrics.errorsSending.labels().inc()
+                this.closeConn(conn)
+            }
+        })
     }
 
     newConnectionId() {
@@ -594,15 +770,32 @@ class Server {
 
     getMatchForRequest(req) {
         const {id, color, secret} = req
+        if (!secret || secret.length != 64) {
+            throw new HandshakeError('bad secret')
+        }
         Server.validateColor(color)
         if (!this.matches[id]) {
             throw new MatchNotFoundError('match not found')
         }
         const match = this.matches[id]
-        if (secret != match.secrets[color]) {
+        if (!match.conns[color] || secret != match.conns[color].secret) {
             throw new HandshakeError('bad secret')
         }
         return match
+    }
+
+    // close safely
+    closeConn(conns) {
+        castToArray(conns).forEach(conn => {
+            try {
+                if (conn && conn.connected) {
+                    conn.close()
+                }
+            } catch (err) {
+                const id = (conn && conn.id) || null
+                this.logger.warn('Failed to close connection', {id}, err)
+            }
+        })
     }
 
     roll() {
@@ -611,31 +804,22 @@ class Server {
 
     static validateColor(color) {
         if (color != White && color != Red) {
-            throw new RequestError('invalid color: ' + color)
+            throw new ValidateError(`invalid color: ${color}`)
         }
     }
 
+    /*
     static checkSync(sync, cb) {
         if (sync.White == sync.Red) {
             cb()
             delete sync.Red
             delete sync.White
         }
-    }
+    }*/
 
     static matchIdFromSecret(str) {
         return hash('sha256', str, 'hex').substring(0, 8)
     }
 }
-
-const {
-    HandshakeError
-  , MatchAlreadyExistsError
-  , MatchAlreadyJoinedError
-  , MatchNotFoundError
-  , NotYourTurnError
-  , RequestError
-  , ValidateError
-} = Errors
 
 module.exports = Server

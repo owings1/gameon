@@ -349,41 +349,6 @@ class RawListPrompt extends Inquirer.prompt.prompts.rawlist {
             this.clearLine(true)
         }
     }
-
-    /**
-     * @override for patch
-     *
-     * Patch submitted, see https://github.com/SBoudrias/Inquirer.js/pull/1026
-     *
-     * Adapted from inquirer/lib/prompts/rawlist
-     *
-     * See https://github.com/SBoudrias/Inquirer.js/blob/master/packages/inquirer/lib/prompts/rawlist.js
-     */
-    _run(cb) {
-        this.done = cb
-
-        // Once user confirm (enter key)
-        const events = observe(this.rl)
-        const submit = events.line.pipe(map(this.getCurrentValue.bind(this)))
-
-        const validation = this.handleSubmitEvents(submit)
-        validation.success.forEach(this.onEnd.bind(this))
-        validation.error.forEach(this.onError.bind(this))
-
-        events.normalizedUpKey
-            .pipe(takeUntil(validation.success))
-            .forEach(this.onUpKey.bind(this))
-        events.normalizedDownKey
-            .pipe(takeUntil(validation.success))
-            .forEach(this.onDownKey.bind(this))
-        events.keypress
-            .pipe(takeUntil(validation.success))
-            .forEach(this.onKeypress.bind(this))
-        // Init the prompt
-        this.render()
-
-        return this
-    }
 }
 
 class ConfirmPrompt extends Inquirer.prompt.prompts.confirm {

@@ -188,6 +188,9 @@ class Menu extends EventEmitter {
         if (this.thisClient) {
             this.thisClient.loglevel = n
         }
+        if (this.coordinator) {
+            this.coordinator.loglevel = n
+        }
     }
 
     mainMenu() {
@@ -244,7 +247,7 @@ class Menu extends EventEmitter {
                     isContinue = await this.matchMenu(choice)
                 } catch (err) {
                     this.alerts.error(err)
-                    if (err.isAuthError) {
+                    if (err.isAuthError || err.isValidateError) {
                         this.alerts.warn('Authentication failed. Go to Account to sign up or log in.')
                     }
                 }
@@ -448,7 +451,7 @@ class Menu extends EventEmitter {
         return this.runMenu('Robots', async (choose, loop) => {
 
             if (isEmptyObject(this.settings.robots)) {
-                this.logger.info('Loading robot defaults')
+                this.alerts.info('Loading robot defaults')
                 this.settings.robots = this.robotsDefaults()
                 await this.saveSettings()
             }
@@ -735,10 +738,24 @@ class Menu extends EventEmitter {
                 return true
             }
 
+            this.eraseScreen()
+
+            this.emit('beforeClientConnect', client)
             await client.connect()
+
             const promise = isStart ? client.createMatch(matchOpts) : client.joinMatch(matchId)
             this.emit('clientWaitStart', client)
-            const match = await promise
+
+            let match
+            try {
+                match = await promise
+            } catch (err) {
+                if (err.isWaitingAbortedError) {
+                    this.alerts.warn(err)
+                    return
+                }
+                throw err
+            }
 
             this.captureInterrupt = null
             
@@ -770,7 +787,7 @@ class Menu extends EventEmitter {
                 return true
             }
 
-            this.emit('beforeMatchStart', match, players)
+            this.emit('beforeMatchStart', match, players, coordinator)
 
             this.eraseScreen()
             await this.consumeAlerts()
@@ -860,7 +877,9 @@ class Menu extends EventEmitter {
     }
 
     newCoordinator() {
-        return new Coordinator(this.settings)
+        const coordinator = new Coordinator(this.settings)
+        coordinator.loglevel = this.loglevel
+        return coordinator
     }
 
     newClient(credentials) {
@@ -908,6 +927,7 @@ class Menu extends EventEmitter {
           , emitter       : box.status
           , term          : this.term
           , clearMaxWidth : true
+            , readline  : {escapeCodeTimeout: 100}
           , maxWidth
           , indent
         }

@@ -32,7 +32,7 @@
     "express-session": "^1.17.2",
     "fs-extra": "^9.0.1",
     "globby": "^10.0.2",
-    "inquirer": "^8.1.1",
+    "inquirer": "^8.1.2",
     "node-fetch": "^2.6.1",
     "on-finished": "^2.3.0",
     "prom-client": "^13.1.0",

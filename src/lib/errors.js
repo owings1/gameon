@@ -51,11 +51,28 @@ class BaseError extends Error {
         }
         super(message, ...args)
         this.name = this.constructor.name
-        this.cause = this.cause || args.find(it => it instanceof Error)
+        if (!this.cause) {
+            this.cause = args.find(it => it instanceof Error)
+        }
         if (!this.cause && (message instanceof Error)) {
             this.cause = message
         }
+        if (message instanceof Error) {
+            this.message = message.message
+        }
         addProps(this)
+        const names = [this.name]
+        if (this.cause instanceof Error) {
+            addProps(this.cause)
+            addProps(this, this.cause)
+            names.push(this.cause.name || this.cause.constructor.name)
+        }
+        if (!this.names) {
+            this.names = names
+        }
+        if (!this.namePath) {
+            this.namePath = this.names.join('.')
+        }
     }
 }
 
@@ -77,6 +94,14 @@ class RequestError extends BaseError {
         }
         return err
     }
+
+    static forError(cause, ...args) {
+        const err = new RequestError(cause, ...args)
+        if (cause && (cause.cause instanceof Error)) {
+            addProps(err, cause.cause)
+        }
+        return err
+    }
 }
 
 class ClientError extends BaseError {
@@ -89,7 +114,44 @@ class ClientError extends BaseError {
         error.responseHeaders = lines.slice(1)
         return error
     }
+
+    static forData(data, fallbackMessage) {
+        data = data || {}
+        const message = data.error || fallbackMessage || 'Unknown server error'
+        const args = [message]
+        let causeName
+        if (data.cause) {
+            let cause
+            if (data.cause.name in Errors) {
+                cause = new Errors[data.cause.name](data.cause.error)
+            } else {
+                cause = data.cause
+            }
+            args.push(cause)
+            causeName = cause.name
+        }
+        let err
+        if (data.name in Errors) {
+            err = new Errors[data.name](...args)
+            if (!err.isClientError) {
+                err = new ClientError(err)
+            }
+        } else {
+            err = new ClientError(...args)
+        }
+        for (var prop in data) {
+            if (data.hasOwnProperty(prop) && !(prop in err)) {
+                err[prop] = data[prop]
+            }
+        }
+        if (causeName) {
+            err.names.push(causeName)
+            err.namePath += '.' + causeName
+        }
+        return err
+    }
 }
+
 class ArgumentError   extends BaseError {}
 class AuthError       extends BaseError {}
 class DependencyError extends BaseError {}
@@ -123,8 +185,9 @@ class UserNotConfirmedError extends AuthError {}
 class UserNotFoundError     extends AuthError {}
 
 // ClientError
-class ConnectionClosedError extends ClientError {}
-class ConnectionFailedError extends ClientError {}
+class ConnectionClosedError   extends ClientError {}
+class ConnectionFailedError   extends ClientError {}
+class UnexpectedResponseError extends ClientError {}
 
 // DependencyError
 class CircularDependencyError   extends DependencyError {}
@@ -143,9 +206,6 @@ class WaitingFinishedError extends GameError {}
 class IllegalBareoffError   extends IllegalMoveError {}
 class MayNotBearoffError    extends IllegalMoveError {}
 class MoveOutOfRangeError   extends IllegalMoveError {}
-class MovesRemainingError   extends IllegalMoveError {}
-class NoMovesMadeError      extends IllegalMoveError {}
-class NoMovesRemainingError extends IllegalMoveError {}
 class NoPieceOnBarError     extends IllegalMoveError {}
 class NoPieceOnSlotError    extends IllegalMoveError {}
 class OccupiedSlotError     extends IllegalMoveError {}
@@ -161,6 +221,9 @@ class GameNotStartedError      extends IllegalStateError {}
 class HasNotDoubledError       extends IllegalStateError {}
 class HasNotRolledError        extends IllegalStateError {}
 class MatchFinishedError       extends IllegalStateError {}
+class MovesRemainingError      extends IllegalStateError {}
+class NoMovesMadeError         extends IllegalStateError {}
+class NoMovesRemainingError    extends IllegalStateError {}
 class TurnAlreadyFinishedError extends IllegalStateError {}
 class TurnCanceledError        extends IllegalStateError {}
 class TurnNotFinishedError     extends IllegalStateError {}
@@ -171,10 +234,10 @@ class WaitingAbortedError     extends MenuError {}
 
 // RequestError
 class HandshakeError          extends RequestError {}
+class InvalidActionError      extends RequestError {}
 class MatchAlreadyExistsError extends RequestError {}
 class MatchAlreadyJoinedError extends RequestError {}
 class MatchNotFoundError      extends RequestError {}
-class NotYourTurnError        extends RequestError {}
 class ValidateError           extends RequestError {}
 
 // RobotError
@@ -197,6 +260,7 @@ const Errors = {
   , ArgumentError
   , AuthError
   , BadCredentialsError
+  , BaseError
   , CircularDependencyError
   , ClientError
   , ConnectionClosedError
@@ -218,6 +282,7 @@ const Errors = {
   , IllegalStateError
   , IncompatibleKeysError
   , InternalError
+  , InvalidActionError
   , InvalidCharError
   , InvalidColorError
   , InvalidColumnError
@@ -246,7 +311,6 @@ const Errors = {
   , NoPieceOnBarError
   , NoPieceOnSlotError
   , NotImplementedError
-  , NotYourTurnError
   , OccupiedSlotError
   , PieceOnBarError
   , ProgrammerError
@@ -263,6 +327,7 @@ const Errors = {
   , TurnCanceledError
   , TurnNotFinishedError
   , UndecidedMoveError
+  , UnexpectedResponseError
   , UnresolvedDependencyError
   , UserConfirmedError
   , UserExistsError

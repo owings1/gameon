@@ -190,6 +190,14 @@ class Coordinator {
         }
     }
 
+    get loglevel() {
+        return this.logger.loglevel
+    }
+
+    set loglevel(n) {
+        this.logger.loglevel = n
+    }
+
     async runMatch(match, white, red) {
 
         const players = Coordinator.buildPlayers(white, red)
@@ -346,6 +354,8 @@ class Coordinator {
     }
 
     async emitAll(emitters, ...args) {
+        const event = args[0]
+        this.logger.debug('emitAll', event)
         try {
             const holds = []
             for (var it of Object.values(emitters)) {
@@ -356,7 +366,39 @@ class Coordinator {
                 await holds[i]
             }
         } catch (err) {
-            this.logger.error('Error on event', args[0], err)
+            this.logger.debug('emitAll.catch', event, err.name)
+            const emErrs = Object.values(emitters).map((emitter, i) => {
+                const name = emitter.name || emitter.constructor.name
+                const eminfo = ['emitter', i + 1, 'of', emitters.length]
+                if (err.isMatchCanceledError) {
+                    if (emitter.emit('matchCanceled', err)) {
+                        this.logger.debug('matchCanceled handled by', name, ...eminfo)
+                        return false
+                    }
+                    this.logger.debug('matchCanceled unhandled by', name, ...eminfo)
+                }
+                return [name, eminfo]
+            }).map(args => {
+                if (!args) {
+                    return
+                }
+                const [name, eminfo] = args
+                try {
+                    emitter.emit('error', err)
+                    this.logger.debug('generic error handled by', name, ...eminfo)
+                } catch (e) {
+                    this.logger.warn('generic error unhandled by', name, ...eminfo)
+                    return [name, eminfo, e]
+                }
+            }).filter(it => it)
+            if (!emErrs.length) {
+                return
+            }
+            emErrs.forEach(([name, eminfo, e]) => {
+                this.logger.error(
+                    `Error on event ${event} unhandled by ${name}`, ...eminfo, e
+                )
+            })
             throw err
         }
     }

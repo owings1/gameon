@@ -22,6 +22,64 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
+const {suites} = require('./util')
+
+const isPrintOnly = false
+
+const onlys = [
+    null
+    //, 'BoardAnalyzer'
+    //, 'Coordinator'
+    //, 'Core'
+    //, 'Errors'
+    //, 'Lab'
+    //, 'Logger'
+    //, 'Menu'
+    //, 'Move'
+    //, 'Net'
+    //, 'Player'
+    //, 'Robot'
+    //, 'Tables'
+    //, 'Term'
+    //, 'Themes'
+    //, 'Trees'
+    //, 'Util'
+]
+const skips = [
+    null
+    //, 'BoardAnalyzer'
+    //, 'Coordinator'
+    //, 'Core'
+    //, 'Errors'
+    //, 'Lab'
+    //, 'Logger'
+    //, 'Menu'
+    //, 'Move'
+    //, 'Net'
+    //, 'Player'
+    //, 'Robot'
+    //, 'Tables'
+    //, 'Term'
+    //, 'Themes'
+    //, 'Trees'
+    //, 'Util'
+]
+
+Object.entries(suites()).forEach(([file, title]) => {
+    if (isPrintOnly) {
+        console.log(title)
+        return
+    }
+    const suite = () => require(file)
+    if (onlys.indexOf(title) > -1) {
+        describe.only(title, suite)
+    } else if (skips.indexOf(title) > -1) {
+        describe.skip(title, suite)
+    } else {
+        describe(title, suite)
+    }
+})
+/*
 describe('BoardAnalyzer', () => {
     require('./suites/board-analyzer.test')
 })
@@ -81,3 +139,4 @@ describe('Trees', () => {
 describe('Util', () => {
     require('./suites/util.test')
 })
+*/
