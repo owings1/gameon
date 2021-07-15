@@ -34,7 +34,7 @@ class NetPlayer extends Base {
     
     constructor(client, ...args) {
         super(...args)
-        this.logger = new Logger
+
         this.client = client
         this.isNet = true
 
@@ -94,12 +94,10 @@ class NetPlayer extends Base {
         })
 
         this.client.on('matchCanceled', err => {
-            //console.log('netPlayer.client.matchCanceled')
             this.emit('matchCanceled', err)
         })
 
         this.client.on('matchResponse', (req, res) => {
-            //console.log('netPlayer.client.matchResponse')
             this.emit('matchResponse', req, res)
         })
 
@@ -108,34 +106,69 @@ class NetPlayer extends Base {
         })
 
         this.on('matchCanceled', (err, match) => {
-            //console.log('netPlayer.matchCanceled')
             this.client.cancelWaiting(err)
         })
     }
 
+    get loglevel() {
+        return super.loglevel
+    }
+
+    set loglevel(n) {
+        super.loglevel = n
+        this.client.loglevel = n
+    }
+
     async rollTurn(turn, game, match) {
-        const {dice} = await this.client.matchRequest('rollTurn')
-        this.dice = dice
+        const res = await this.client.matchRequest('rollTurn')
+        if (this._checkCanceled(turn, game, match)) {
+            return
+        }
+        this.dice = res.dice
         turn.roll()
     }
 
     async turnOption(turn, game, match) {
-        const {isDouble} = await this.client.matchRequest('turnOption')
-        if (isDouble) {
+        const res = await this.client.matchRequest('turnOption')
+        if (this._checkCanceled(turn, game, match)) {
+            return
+        }
+        if (res.isDouble) {
             turn.setDoubleOffered()
         }
     }
 
     async decideDouble(turn, game, match) {
-        const {isAccept} = await this.client.matchRequest('doubleResponse')
-        if (!isAccept) {
+        const res = await this.client.matchRequest('doubleResponse')
+        if (this._checkCanceled(turn, game, match)) {
+            return
+        }
+        if (!res.isAccept) {
             turn.setDoubleDeclined()
         }
     }
 
     async playRoll(turn, game, match) {
-        const {moves} = await this.client.matchRequest('playRoll')
-        moves.forEach(move => turn.move(move.origin, move.face))
+        const res = await this.client.matchRequest('playRoll')
+        if (this._checkCanceled(turn, game, match)) {
+            return
+        }
+        res.moves.forEach(move => turn.move(move.origin, move.face))
+    }
+
+    _checkCanceled(turn, game, match) {
+        let canceled = false
+        if (match && match.isCanceled) {
+            canceled = 'match'
+        } else if (game && game.isCanceled) {
+            canceled = 'game'
+        } else if (turn && turn.isCanceled) {
+            canceled = 'turn'
+        }
+        if (canceled) {
+            this.logger.warn('The', canceled, 'has been canceled, abandoning turn.')
+        }
+        return canceled
     }
 }
 

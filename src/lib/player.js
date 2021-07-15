@@ -25,6 +25,7 @@
 const Constants = require('./constants')
 const Core      = require('./core')
 const Errors    = require('./errors')
+const Logger    = require('./logger')
 
 const {EventEmitter} = require('events')
 
@@ -37,6 +38,8 @@ class Player extends EventEmitter {
     constructor(color) {
 
         super()
+
+        this.logger = new Logger(this.constructor.name, {named: true})
 
         this.isPlayer = true
 
@@ -52,6 +55,14 @@ class Player extends EventEmitter {
             this.thisGame = game
             this.opponent = players[Opponent[this.color]]
         })
+    }
+
+    get loglevel() {
+        return this.logger.loglevel
+    }
+
+    set loglevel(n) {
+        this.logger.loglevel = n
     }
 
     async destroy() {

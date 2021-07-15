@@ -87,7 +87,7 @@ const metrics = {
     })
 }
 
-function httpCodeLogMethod(code) {
+function statusLogLevel(code) {
     if (code >= 500) {
         return 'error'
     }
@@ -103,6 +103,17 @@ function httpVersion(req) {
 
 function httpVersionString(req) {
     return 'HTTP/' + httpVersion(req)
+}
+
+function formatLog(req, res) {
+    return [
+        res.statusCode
+      , req.method
+      , req.url
+      , httpVersionString(req)
+      , res.get('Content-Length')
+      , req.ip
+    ].join(' ')
 }
 
 class Server {
@@ -170,10 +181,11 @@ class Server {
     }
 
     close() {
-        Object.keys(this.matches).forEach(id => this.cancelMatchId(id, 'Server shutdown'))
+        Object.keys(this.matches).forEach(id =>
+            this.cancelMatchId(id, 'Server shutdown')
+        )
         if (this.socketServer) {
             this.closeConn(Object.values(this.socketServer.conns))
-            //Object.values(this.socketServer.conns).forEach(conn => conn.close())
         }
         if (this.httpServer) {
             this.httpServer.close()
@@ -187,7 +199,11 @@ class Server {
 
         const app = express()
 
-        app.use(this.getLoggingMiddleware())
+        app.use((req, res, next) => {
+            const level = statusLogLevel(res.statusCode)
+            onFinished(res, () => this.logger[level](formatLog(req, res)))
+            next()
+        })
 
         app.get('/health', (req, res) => {
             res.status(200).send('OK')
@@ -222,22 +238,6 @@ class Server {
 
     fetchMetrics() {
         return prom.register.metrics()
-    }
-
-    getLoggingMiddleware() {
-        const fmt = (req, res) => [
-            res.statusCode
-          , req.method
-          , req.url
-          , httpVersionString(req)
-          , res.get('Content-Length')
-          , req.ip
-        ].join(' ')
-        return (req, res, next) => {
-            const logMethod = httpCodeLogMethod(res.statusCode)
-            onFinished(res, () => this.logger[logMethod](fmt(req, res)))
-            next()
-        }
     }
 
     createSocketServer(httpServer) {
@@ -314,95 +314,22 @@ class Server {
             switch (action) {
 
                 case 'establishSecret':
-
-                    clearTimeout(conn.handShakeTimeoutId)
-
-                    if (!req.secret || req.secret.length != 64) {
-                        throw new HandshakeError('bad secret')
-                    }
-
-                    if (conn.secret && conn.secret != req.secret) {
-                        throw new HandshakeError('handshake disagreement')
-                    }
-
-                    if (req.token) {
-                        var {username, password} = this.auth.parseToken(req.token)
-                    } else {
-                        var {username, password} = req
-                    }
-
-                    const {passwordEncrypted} = await this.auth.authenticate(username, password)
-
-                    conn.username = username
-                    conn.secret = req.secret
-
-                    this.sendMessage(conn, {action: 'acknowledgeSecret', passwordEncrypted})
-                    this.logger.log('Client connected', conn.secret)
-
+                    await this.establishSecretResponse(conn, req)
                     break
 
                 case 'createMatch':
-
-                    var id = Server.matchIdFromSecret(conn.secret)
-                    var {total, opts} = req
-                    var match = new Match(total, opts)
-
-                    this.logger.info('Match', id, 'created')
-
-                    update(match, {
-                        id
-                      , conns   : {White: conn   , Red: null}
-                      , sync    : {White: null   , Red: null}
-                    })
-                    update(conn, {
-                        matchId : id 
-                      , color   : White
-                    })
-
-                    this.matches[id] = match
-
-                    this.sendMessage(conn, {action: 'matchCreated', id, match: match.meta()})
-
-                    this.logActive()
-                    metrics.matchesInProgress.labels().set(Object.keys(this.matches).length)
-
+                    await this.createMatchResponse(conn, req)
                     break
 
                 case 'joinMatch':
-
-                    var {id} = req
-                    var match = this.matches[id]
-
-                    if (!match) {
-                        throw new MatchNotFoundError('match not found')
-                    }
- 
-                    if (match.conns.Red) {
-                        throw new MatchAlreadyJoinedError('match already joined')
-                    }
-
-                    match.conns.Red = conn
-                    update(conn, {
-                        matchId : id
-                      , color   : Red
-                    })
-                    
-                    var {total, opts} = match
-
-                    this.logger.info('Match', id, 'joined')
-
-                    this.sendMessage(match.conns.White, {action: 'opponentJoined', id})
-                    this.sendMessage(conn, {action: 'matchJoined', id, total, opts, match: match.meta()})
-                    
-                    this.logActive()
-
+                    await this.joinMatchResponse(conn, req)
                     break
 
                 default:
-                    this.matchResponse(req)
+                    await this.matchResponse(req)
                     break
-
             }
+
         } catch (err) {
             if (req.password) {
                 req.password = '***'
@@ -415,6 +342,78 @@ class Server {
         }
     }
 
+    async establishSecretResponse(conn, req) {
+
+        clearTimeout(conn.handShakeTimeoutId)
+
+        if (!req.secret || req.secret.length != 64) {
+            throw new HandshakeError('bad secret')
+        }
+
+        if (conn.secret && conn.secret != req.secret) {
+            throw new HandshakeError('handshake disagreement')
+        }
+
+        if (req.token) {
+            var {username, password} = this.auth.parseToken(req.token)
+        } else {
+            var {username, password} = req
+        }
+
+        const {passwordEncrypted} = await this.auth.authenticate(username, password)
+
+        conn.username = username
+        conn.secret = req.secret
+
+        this.sendMessage(conn, {action: 'acknowledgeSecret', passwordEncrypted})
+        this.logger.log('Client connected', conn.connId)
+    }
+
+    createMatchResponse(conn, req) {
+
+        const id = Server.matchIdFromSecret(conn.secret)
+        const {total, opts} = req
+        const match = new Match(total, opts)
+
+        this.logger.info('Match', id, 'created')
+
+        update(match, {id, conns: {White: conn, Red: null}, sync: {}})
+        update(conn, {matchId: id, color: White})
+
+        this.matches[id] = match
+
+        this.sendMessage(conn, {action: 'matchCreated', id, match: match.meta()})
+
+        this.logActive()
+        metrics.matchesInProgress.labels().set(Object.keys(this.matches).length)
+    }
+
+    joinMatchResponse(conn, req) {
+
+        const {id} = req
+        const match = this.matches[id]
+
+        if (!match) {
+            throw new MatchNotFoundError('match not found')
+        }
+
+        if (match.conns.Red) {
+            throw new MatchAlreadyJoinedError('match already joined')
+        }
+
+        const {total, opts} = match
+
+        match.conns.Red = conn
+        update(conn, {matchId: id, color: Red})
+
+        this.logger.info('Match', id, 'joined')
+
+        this.sendMessage(match.conns.White, {action: 'opponentJoined', id})
+        this.sendMessage(conn, {action: 'matchJoined', id, total, opts, match: match.meta()})
+        
+        this.logActive()
+    }
+
     matchResponse(req) {
 
         const match = this.getMatchForRequest(req)
@@ -422,7 +421,6 @@ class Server {
         const {action, color} = req
         const opponent = Opponent[color]
         const isFirst = !Object.keys(match.sync).length
-        
         const {thisGame} = match
         const thisTurn = thisGame && thisGame.thisTurn
 
@@ -468,41 +466,25 @@ class Server {
                         if (thisGame) {
                             thisGame.checkFinished()
                         }
+                        if (isFirst) {
+                            return match.nextGame()
+                        }
+                        return thisGame
                     }
-                  , () => ({game: match.nextGame().meta()})
+                  , game => ({game: game.meta()})
                 )
-                /*
-                if (thisGame) {
-                    thisGame.checkFinished()
-                }
 
-                sync(() => ({game: match.nextGame().meta()}))
-                */
                 break
 
             case 'firstTurn':
 
                 handle(
-                    () => {
-                        if (color == White) {
-                            thisGame.firstTurn()
-                        }
-                    }
-                  , () => ({
-                        dice: thisGame.thisTurn.dice
-                      , turn: thisGame.thisTurn.serialize()
-                    })
-                )
-                /*
-                sync(() => {
-
-                    const turn = thisGame.firstTurn()
-                    return {
+                    () => isFirst ? thisGame.firstTurn() : thisTurn
+                  , turn => ({
                         dice: turn.dice
                       , turn: turn.serialize()
-                    }
-                })
-                */
+                    })
+                )
 
                 break
 
@@ -511,25 +493,15 @@ class Server {
                 handle(
                     () => {
                         if (isFirst) {
-                            thisGame.nextTurn()
+                            return thisGame.nextTurn()
                         }
+                        return thisTurn
                     }                            
-                  , () => ({
-                        turn: thisGame.thisTurn.meta()
+                  , turn => ({
+                        turn: turn.meta()
                       , game: thisGame.meta()
                     })
                 )
-
-                /*
-                sync(() => {
-
-                    const turn = thisGame.nextTurn()
-                    return {
-                        turn : turn.meta()
-                      , game : thisGame.meta()
-                    }
-                })
-                */
 
                 break
 
@@ -551,20 +523,6 @@ class Server {
                     })
                 )
 
-                /*
-                if (thisTurn.color == color) {
-                    if (req.isDouble) {
-                        thisTurn.setDoubleOffered()
-                    }
-                }
-
-                sync(() => ({
-                    isDouble : thisTurn.isDoubleOffered && !thisTurn.isRolled
-                  , turn     : thisTurn.meta()
-                  , game     : thisGame.meta()
-                }))
-                */
-
                 break
 
             case 'doubleResponse':
@@ -578,42 +536,18 @@ class Server {
                                 thisTurn.setDoubleDeclined()
                             }
                         }
+                        if (!isFirst) {
+                            this.checkMatchFinished(match)
+                        }
                         return thisTurn
                     }
-                  , turn => {
-
-                        this.checkMatchFinished(match)
-
-                        return {
-                            isAccept : !turn.isDoubleDeclined
-                          , turn     : turn.meta()
-                          , game     : thisGame.meta()
-                          , match    : match.meta()
-                        }
-                    }
-                )
-
-                /*
-                if (thisTurn.color == opponent) {
-                    if (req.isAccept) {
-                        thisGame.double()
-                    } else {
-                        thisTurn.setDoubleDeclined()
-                    }
-                }
-
-                sync(() => {
-
-                    this.checkMatchFinished(match)
-
-                    return {
-                        isAccept : !thisTurn.isDoubleDeclined
-                      , turn     : thisTurn.meta()
+                  , turn => ({
+                        isAccept : !turn.isDoubleDeclined
+                      , turn     : turn.meta()
                       , game     : thisGame.meta()
                       , match    : match.meta()
-                    }
-                })
-                */
+                    })
+                )
 
                 break
 
@@ -632,17 +566,6 @@ class Server {
                     })
                 )
 
-                /*
-                if (thisTurn.color == color) {
-                    thisTurn.setRoll(this.roll())
-                }
-
-                sync(() => ({
-                    dice : thisTurn.dice
-                  , turn : thisTurn.serialize()
-                }))
-                */
-
                 break
 
             case 'playRoll':
@@ -656,42 +579,18 @@ class Server {
                             req.moves.forEach(move => thisTurn.move(move.origin, move.face))
                             thisTurn.finish()
                         }
+                        if (!isFirst) {
+                            this.checkMatchFinished(match)
+                        }
                         return thisTurn
                     }
-                  , turn => {
-
-                        this.checkMatchFinished(match)
-
-                        return {
-                            moves : turn.moves.map(move => move.coords)
-                          , turn  : turn.meta()
-                          , game  : thisGame.meta()
-                          , match : match.meta()
-                        }  
-                    }
-                )
-                /*
-                if (thisTurn.color == color) {
-                    if (!Array.isArray(req.moves)) {
-                        refuse('moves missing or invalid format')
-                        break
-                    }
-                    req.moves.forEach(move => thisTurn.move(move.origin, move.face))
-                    thisTurn.finish()
-                }
-
-                sync(() => {
-
-                    this.checkMatchFinished(match)
-
-                    return {
-                        moves : thisTurn.moves.map(move => move.coords)
-                      , turn  : thisTurn.meta()
+                  , turn => ({
+                        moves : turn.moves.map(move => move.coords)
+                      , turn  : turn.meta()
                       , game  : thisGame.meta()
                       , match : match.meta()
-                    }  
-                })
-                */
+                    })
+                )
 
                 break
 
@@ -807,15 +706,6 @@ class Server {
             throw new ValidateError(`invalid color: ${color}`)
         }
     }
-
-    /*
-    static checkSync(sync, cb) {
-        if (sync.White == sync.Red) {
-            cb()
-            delete sync.Red
-            delete sync.White
-        }
-    }*/
 
     static matchIdFromSecret(str) {
         return hash('sha256', str, 'hex').substring(0, 8)

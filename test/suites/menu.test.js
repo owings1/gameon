@@ -1206,9 +1206,6 @@ describe('-', () => {
                         done()
                     }
 
-                    menu1.loglevel = -1
-                    menu2.loglevel = -1
-
                     const isDebug = false
 
                     if (isDebug) {
@@ -1216,8 +1213,9 @@ describe('-', () => {
                         server.loglevel = 4
                         menu1.loglevel = 4
                         menu2.loglevel = 4
-
                     } else {
+                        menu1.loglevel = -1
+                        menu2.loglevel = -1
                         menu1.logger.console.log = noop
                         menu2.logger.console.log = noop
                     }
@@ -1228,7 +1226,11 @@ describe('-', () => {
                     var count = 0
 
                     const prep = player => {
-                        player.loglevel = -1
+                        if (isDebug) {
+                            player.loglevel = 4
+                        } else {
+                            player.loglevel = -1
+                        }
                         player.inquirer = fakeInquirer
                         player.drawBoard = noop
                         player.on('firstRoll', () => {

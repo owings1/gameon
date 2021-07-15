@@ -261,7 +261,9 @@ class Client extends EventEmitter {
         if (data.action == 'matchCanceled') {
             err = new MatchCanceledError(data.reason)
             if (this.emit('matchCanceled', err)) {
-                return
+                // It's not clear what to return here, but we should return at
+                // least something.
+                return err
             }
         }
 
