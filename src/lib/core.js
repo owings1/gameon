@@ -22,10 +22,11 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
+const Analyzer  = require('./analyzer')
 const Constants = require('./constants')
 const Dice      = require('./dice')
 const Errors    = require('./errors')
-const Moves     = require('./move')
+const Moves     = require('./moves')
 const Trees     = require('./trees')
 const Util      = require('./util')
 
@@ -1079,7 +1080,7 @@ class Board {
 
     constructor(isSkipInit) {
         Profiler.inc('board.create')
-        this.analyzer = new BoardAnalyzer(this)
+        this.analyzer = new Analyzer(this)
         this.cache = {}
         // isSkipInit is for performance on copy
         if (!isSkipInit) {
@@ -1550,9 +1551,3 @@ module.exports = {
   , Board
   , Piece
 }
-
-const BoardAnalyzer = require('./analyzer')
-
-
-
-Board.BoardAnalyzer = BoardAnalyzer

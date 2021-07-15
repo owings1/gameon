@@ -23,7 +23,6 @@
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 const Constants = require('./constants')
-const Core      = require('./core')
 const Errors    = require('./errors')
 const Util      = require('./util')
 

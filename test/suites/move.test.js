@@ -41,7 +41,7 @@ const Constants = requireSrc('lib/constants')
 const Core = requireSrc('lib/core')
 const Util = requireSrc('lib/util')
 const {Board} = Core
-const {Move, BearoffMove, ComeInMove, RegularMove} = requireSrc('lib/move')
+const {Move, BearoffMove, ComeInMove, RegularMove} = requireSrc('lib/moves')
 const {White, Red} = Constants
 
 
