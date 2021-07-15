@@ -145,17 +145,6 @@ class Server {
         this.socketServer = null
     }
 
-    get loglevel() {
-        return this.logger.loglevel
-    }
-
-    set loglevel(n) {
-        this.logger.loglevel = n
-        this.auth.loglevel = n
-        this.api.loglevel = n
-        this.web.loglevel = n
-    }
-
     listen(port, metricsPort) {
 
         return new Promise((resolve, reject) => {
@@ -699,6 +688,17 @@ class Server {
 
     roll() {
         return Dice.rollTwo()
+    }
+
+    get loglevel() {
+        return this.logger.loglevel
+    }
+
+    set loglevel(n) {
+        this.logger.loglevel = n
+        this.auth.loglevel = n
+        this.api.loglevel = n
+        this.web.loglevel = n
     }
 
     static validateColor(color) {
