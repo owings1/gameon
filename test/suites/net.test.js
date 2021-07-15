@@ -40,13 +40,14 @@ const Client      = requireSrc('net/client')
 const Constants   = requireSrc('lib/constants')
 const Coordinator = requireSrc('lib/coordinator')
 const Core        = requireSrc('lib/core')
+const Dice        = requireSrc('lib/dice')
 const NetPlayer   = requireSrc('net/player')
 const Robot       = requireSrc('robot/player')
 const Server      = requireSrc('net/server')
 const Util        = requireSrc('lib/util')
 
 const {White, Red}  = Constants
-const {Match, Dice} = Core
+const {Match} = Core
 
 const AWS   = require('aws-sdk')
 const fetch = require('node-fetch')

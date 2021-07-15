@@ -22,50 +22,29 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-const Constants    = require('../lib/constants')
-const Coordinator  = require('../lib/coordinator')
-const Core         = require('../lib/core')
-const Draw         = require('./draw')
-const Logger       = require('../lib/logger')
-const Robot        = require('../robot/player')
-const Util         = require('../lib/util')
-const {Table}      = require('./tables')
-const Themes       = require('./themes')
+const Constants   = require('../lib/constants')
+const Coordinator = require('../lib/coordinator')
+const Core        = require('../lib/core')
+const Dice        = require('../lib/dice')
+const Logger      = require('../lib/logger')
+const Util        = require('../lib/util')
+const Robot       = require('../robot/player')
 
-const chalk        = require('chalk')
-const fs           = require('fs')
-const fse          = require('fs-extra')
-const path         = require('path')
+const Draw    = require('./draw')
+const {Table} = require('./tables')
+const Themes  = require('./themes')
+
+const chalk = require('chalk')
+const fs    = require('fs')
+const fse   = require('fs-extra')
+const path  = require('path')
+
+const {Board, Match, Turn} = Core
 
 const {DrawHelper, TermHelper} = Draw
 const {RobotDelegator} = Robot
-const {StringBuilder}  = Util
-
 
 const {inquirer} = require('./inquirer')
-
-const {
-    castToArray
-  , defaults
-  , destroyAll
-  , errMessage
-  , fileDateString
-  , homeTilde
-  , isEmptyObject
-  , nchars
-  , padEnd
-  , sp
-  , stripAnsi
-  , tildeHome
-  , ucfirst
-} = Util
-
-const {
-    Board
-  , Dice
-  , Match
-  , Turn
-} = Core
 
 const {
     BoardStrings
@@ -81,6 +60,23 @@ const {
   , Red
   , White
 } = Constants
+
+const {
+    castToArray
+  , defaults
+  , destroyAll
+  , errMessage
+  , fileDateString
+  , homeTilde
+  , isEmptyObject
+  , nchars
+  , padEnd
+  , sp
+  , StringBuilder
+  , stripAnsi
+  , tildeHome
+  , ucfirst
+} = Util
 
 function stringify(data, indent = 2) {
     return JSON.stringify(data, null, indent)

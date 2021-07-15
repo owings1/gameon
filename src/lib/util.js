@@ -688,8 +688,11 @@ class Timer {
     }
 }
 
-
 class Profiler {
+
+    static getDefaultInstance() {
+        return DefaultProfiler
+    }
 
     static createEnabled() {
         return new Profiler
@@ -766,6 +769,8 @@ class Profiler {
         return this
     }
 }
+
+const DefaultProfiler = Profiler.createDisabled()
 
 class StringBuilder {
 

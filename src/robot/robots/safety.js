@@ -23,9 +23,10 @@
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 const Base = require('../player').ConfidenceRobot
-const Core = require('../../lib/core')
+const Util = require('../../lib/util')
 
-const {Profiler} = Core
+const Profiler = Util.Profiler.getDefaultInstance()
+
 const {ZERO_SCORES} = Base
 const {intRange} = require('../../lib/util')
 

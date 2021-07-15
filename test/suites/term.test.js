@@ -48,13 +48,14 @@ const TermPlayer   = requireSrc('term/player')
 const Constants   = requireSrc('lib/constants')
 const Core        = requireSrc('lib/core')
 const Coordinator = requireSrc('lib/coordinator')
+const Dice        = requireSrc('lib/dice')
 const Errors      = requireSrc('lib/errors')
 const Robot       = requireSrc('robot/player')
 const Client      = requireSrc('net/client')
 const Server      = requireSrc('net/server')
 
 const {White, Red} = Constants
-const {Match, Game, Board, Turn, Dice} = Core
+const {Match, Game, Board, Turn} = Core
 
 const {RandomRobot} = Robot
 

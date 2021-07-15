@@ -25,6 +25,7 @@
 const Constants = require('./constants')
 const Core      = require('./core')
 const Errors    = require('./errors')
+const Util      = require('./util')
 
 const {
     Direction
@@ -37,7 +38,7 @@ const {
 const {Red, White} = Constants.Colors
 const {IllegalStateError} = Errors
 
-const {Profiler} = Core
+const Profiler = Util.Profiler.getDefaultInstance()
 
 const CacheKeys = {}
 

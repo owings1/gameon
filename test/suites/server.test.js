@@ -47,11 +47,12 @@ describe('-', () => {
     const Client      = requireSrc('net/client')
     const Core        = requireSrc('lib/core')
     const Constants   = requireSrc('lib/constants')
+    const Dice        = requireSrc('lib/dice')
     const Server      = requireSrc('net/server')
     const Util        = requireSrc('lib/util')
 
     const {White, Red}  = Constants
-    const {Match, Dice} = Core
+    const {Match} = Core
 
     var server
     var serverUrl

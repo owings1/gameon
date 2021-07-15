@@ -25,6 +25,7 @@
 const Constants   = require('../lib/constants')
 const Coordinator = require('../lib/coordinator')
 const Core        = require('../lib/core')
+const Dice        = require('../lib/dice')
 const Logger      = require('../lib/logger')
 const Robot       = require('../robot/player')
 const Themes      = require('./themes')
@@ -38,12 +39,7 @@ const {StringBuilder}  = Util
 
 const {nchars, sp, stripAnsi, strlen, ucfirst} = Util
 
-const {
-    Board
-  , Dice
-  , Match
-  , Turn
-} = Core
+const {Board, Match, Turn} = Core
 
 const {
     BoardStrings

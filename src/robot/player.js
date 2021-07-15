@@ -29,7 +29,8 @@ const Errors    = require('../lib/errors')
 const Logger    = require('../lib/logger')
 const Util      = require('../lib/util')
 
-const {Profiler} = Core
+const Profiler = Util.Profiler.getDefaultInstance()
+
 const {
     HasNotRolledError
   , InvalidRobotError

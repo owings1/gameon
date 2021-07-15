@@ -22,13 +22,15 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-const Api       = require('./api')
-const Auth      = require('./auth')
 const Constants = require('../lib/constants')
 const Core      = require('../lib/core')
+const Dice      = require('../lib/dice')
 const Errors    = require('../lib/errors')
 const Logger    = require('../lib/logger')
 const Util      = require('../lib/util')
+
+const Api       = require('./api')
+const Auth      = require('./auth')
 const Web       = require('./web')
 const WsServer  = require('websocket').server
 
@@ -43,7 +45,7 @@ const {
   , White
 } = Constants
 
-const {Match, Dice} = Core
+const {Match} = Core
 
 const {castToArray, hash, makeErrorObject, update} = Util
 

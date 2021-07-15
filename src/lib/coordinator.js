@@ -160,6 +160,9 @@ const {
 
 class Coordinator {
 
+    /**
+     * @returns Object
+     */
     static defaults() {
         return {
             isRecord  : false

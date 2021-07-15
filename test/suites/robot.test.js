@@ -42,13 +42,14 @@ const {resolve} = path
 const Constants   = requireSrc('lib/constants')
 const Coordinator = requireSrc('lib/coordinator')
 const Core  = requireSrc('lib/core')
+const Dice  = requireSrc('lib/dice')
 const Robot = requireSrc('robot/player')
 const Util  = requireSrc('lib/util')
 
 const {ConfidenceRobot} = Robot
 
 const {White, Red} = Constants
-const {Game, Match, Turn, Board, Dice} = Core
+const {Game, Match, Turn, Board} = Core
 
 var game
 var robot

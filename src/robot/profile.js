@@ -25,6 +25,7 @@
 const Constants   = require('../lib/constants')
 const Coordinator = require('../lib/coordinator')
 const Core        = require('../lib/core')
+const Dice        = require('../lib/dice')
 const Errors      = require('../lib/errors')
 const Logger      = require('../lib/logger')
 const Robot       = require('./player')
@@ -40,11 +41,13 @@ const {resolve} = path
 
 const {Colors, DefaultThemeName} = Constants
 
-const {Dice, Match, Profiler} = Core
+const {Match} = Core
 
 const {RobotDelegator} = Robot
 
 const {InvalidColumnError} = Errors
+
+const Profiler = Util.Profiler.getDefaultInstance()
 
 function f_round(value) {
     return Math.round(value).toLocaleString()

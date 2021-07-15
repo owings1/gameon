@@ -22,12 +22,13 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-const Core   = require('./core')
+const Dice   = require('./dice')
 const Errors = require('./errors')
 const Util   = require('./util')
 
-const {Dice, Profiler} = Core
 const {MaxDepthExceededError} = Errors
+
+const Profiler = Util.Profiler.getDefaultInstance()
 
 class TurnBuilder {
 
@@ -70,8 +71,8 @@ class TurnBuilder {
         const trees = []
         const {turn} = this
         const sequences = this.buildSequences(turn.faces)
-        for (var i = 0, ilen = sequences.length; i < ilen; ++i) {
-            var tree = this.buildTree(turn.board, turn.color, sequences[i])
+        for (let i = 0, ilen = sequences.length; i < ilen; ++i) {
+            let tree = this.buildTree(turn.board, turn.color, sequences[i])
             if (tree.maxDepth > this.maxDepth) {
                 this.maxDepth = tree.maxDepth
             }
@@ -91,13 +92,13 @@ class TurnBuilder {
 
         const {result, maxDepth, highestFace} = this
 
-        for (var i = 0, ilen = trees.length; i < ilen && maxDepth > 0; ++i) {
+        for (let i = 0, ilen = trees.length; i < ilen && maxDepth > 0; ++i) {
 
-            var tree = trees[i]
+            let tree = trees[i]
 
             tree.prune(maxDepth, highestFace, true)
 
-            var isEmpty = true
+            let isEmpty = true
             for (var hash in tree.index) {
                 result.allowedMoveIndex[hash] = tree.index[hash]
                 isEmpty = false
@@ -125,12 +126,12 @@ class TurnBuilder {
 
         const {result, flagKeys, turn, maxDepth, highestFace} = this
 
-        for (var j = 0, jlen = leaves.length; j < jlen; ++j) {
+        for (let j = 0, jlen = leaves.length; j < jlen; ++j) {
 
-            var node = leaves[j]
+            let node = leaves[j]
             this.leaves.push(node)
 
-            var flagKey = node.flagKey()
+            let flagKey = node.flagKey()
 
             if (flagKey) {
                 if (flagKeys[flagKey]) {
@@ -139,7 +140,7 @@ class TurnBuilder {
                 flagKeys[flagKey] = true
             }
 
-            var endState = node.move.board.state28()
+            let endState = node.move.board.state28()
             
             if (result.endStatesToSeries[endState]) {
                 continue
@@ -163,17 +164,17 @@ class TurnBuilder {
 
         const {result} = this
 
-        for (var j = 0, jlen = winners.length; j < jlen; ++j) {
+        for (let j = 0, jlen = winners.length; j < jlen; ++j) {
 
-            var node = winners[j]
+            let node = winners[j]
 
             if (node.depth == this.maxDepth) {
                 // already covered in leaves
                 continue
             }
 
-            var {board} = node.move
-            var endState = board.state28()
+            let {board} = node.move
+            let endState = board.state28()
 
             if (result.endStatesToSeries[endState]) {
                 // This condition is never met for legal rolls.

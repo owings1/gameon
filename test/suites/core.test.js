@@ -39,10 +39,11 @@ const {
 
 const Constants = requireSrc('lib/constants')
 const Core = requireSrc('lib/core')
+const Dice = requireSrc('lib/dice')
 const Util = requireSrc('lib/util')
 
 const {White, Red} = Constants
-const {Match, Game, Board, Turn, Piece, Dice} = Core
+const {Match, Game, Board, Turn, Piece} = Core
 
 
 describe('Match', () => {

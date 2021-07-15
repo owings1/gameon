@@ -24,6 +24,7 @@
  */
 const Constants = require('../../lib/constants')
 const Core      = require('../../lib/core')
+const Dice      = require('../../lib/dice')
 const Util      = require('../../lib/util')
 
 const Themes = require('../themes')
@@ -32,7 +33,7 @@ const Robot  = require('../../robot/player')
 const {ConfidenceRobot} = Robot
 const {RobotDelegator}  = Robot
 
-const {Board, Dice} = Core
+const {Board} = Core
 const {StringBuilder} = Util
 
 const chalk = require('chalk')

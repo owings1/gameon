@@ -23,8 +23,9 @@
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 const Constants = require('./constants')
-const Core      = require('./core')
+const Dice      = require('./dice')
 const Errors    = require('./errors')
+const Util      = require('./util')
 
 const {
     Direction
@@ -34,7 +35,7 @@ const {
  ,  OriginPoints
 } = Constants
 
-const {Dice, Profiler} = Core
+const Profiler = Util.Profiler.getDefaultInstance()
 
 class Move {
 

@@ -45,12 +45,13 @@ describe('-', () => {
     const Constants   = requireSrc('lib/constants')
     const Core        = requireSrc('lib/core')
     const Coordinator = requireSrc('lib/coordinator')
+    const Dice        = requireSrc('lib/dice')
     const Player      = requireSrc('lib/player')
     const Robot       = requireSrc('robot/player')
     const Util        = requireSrc('lib/util')
 
     const {White, Red, PointOrigins} = Constants
-    const {Match, Game, Dice} = Core
+    const {Match, Game} = Core
 
     const players = {}
 
