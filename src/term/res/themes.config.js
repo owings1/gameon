@@ -198,6 +198,8 @@ const CategoryAliases = {
   , 'board.outside.pipCount' : 'board.outside'
 
   , 'hr' : 'text'
+  , 'diff.plus'  : 'text'
+  , 'diff.minus' : 'text'
 
   , 'menu.screen'     : 'text'
   , 'menu.box'        : 'text'
