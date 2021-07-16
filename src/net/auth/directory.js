@@ -57,7 +57,7 @@ class DirectoryAuth extends Base {
     }
 
     async readUser(username) {
-        var user
+        let user
         try {
             user = await fse.readJson(this._userFile(username))
         } catch (err) {
@@ -81,7 +81,7 @@ class DirectoryAuth extends Base {
         return await fse.pathExists(this._userFile(username))
     }
 
-    async listAllUsers() {
+    listAllUsers() {
         return new Promise((resolve, reject) => {
             fs.readdir(this.opts.authDir, (err, files) => {
                 if (err) {

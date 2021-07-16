@@ -100,7 +100,9 @@ class TermPlayer extends Base {
                 })
                 this.opponent.on('matchResponse', (req, res) => {
                     if (this.isWaitingPrompt) {
-                        const isMyDouble = req.action == 'turnOption' && req.isDouble && req.color == this.color
+                        const isMyDouble = req.action == 'turnOption' &&
+                                           req.isDouble &&
+                                           req.color == this.color
                         if (!isMyDouble) {
                             this.cancelPrompt(new WaitingFinishedError)
                         }
@@ -111,9 +113,7 @@ class TermPlayer extends Base {
 
         this.on('gameStart', (game, match, players) => {
 
-            if (this.opts.termEnabled) {
-                this.logger.writeStdout(nchars(21, '\n'))
-            }
+            this.term.write(nchars(21, '\n'))
 
             this.isDualTerm = this.opponent.isTerm
             this.isDualRobot = this.isRobot && this.opponent.isRobot
@@ -193,13 +193,15 @@ class TermPlayer extends Base {
         this.on('gameEnd', game => {
             this.report('hr')
             this.report('gameEnd', game.getWinner(), game.finalValue)
+            this.term.write(nchars(21, '\n'))
         })
 
         this.on('matchEnd', match => {
             const winner = match.getWinner()
             const loser = match.getLoser()
+            const {scores} = match
             this.report('hr')
-            this.report('matchEnd', winner, match.scores[winner], match.scores[loser])
+            this.report('matchEnd', winner, scores[winner], scores[loser])
             this.report('hr')
             if (!this.isDualTerm || winner == this.color) {
                 this.drawBoard()
@@ -552,15 +554,14 @@ class TermPlayer extends Base {
                         this.logger.error('Failed to close UI', e)
                     }
                 }
-                this.promptReject = null
-                this.prompter = null
                 reject(err)
             }
-            this.prompter.then(answers => {
+            this.prompter.then(resolve).catch(err =>
+                this.promptReject(err)
+            ).finally(() => {
                 this.promptReject = null
                 this.prompter = null
-                resolve(answers)
-            }).catch(err => this.promptReject(err))
+            })
         })
     }
 

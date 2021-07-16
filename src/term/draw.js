@@ -934,9 +934,16 @@ class TermHelper {
         return this
     }
 
-    hideCursor(...args) {
+    hideCursor() {
         if (this.enabled) {
-            this.term.hideCursor(...args)
+            this.write('\u001b[?25l')
+        }
+        return this
+    }
+
+    showCursor() {
+        if (this.enabled) {
+            this.write('\u001b[?25h')
         }
         return this
     }

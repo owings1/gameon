@@ -74,6 +74,7 @@ const {
   , stringWidth
   , stripAnsi
   , sumArray
+  , update
 } = Util
 
 const {
@@ -162,15 +163,15 @@ class Menu extends EventEmitter {
                 }
             })
           , alerts : new TermBox({
-                top         : 1
+                top         : 2
               , hcenter     : true
               , maxWidth    : 79
               , minWidth    : 79
               , maxHeight   : 5
               , term        : this.term
               , isBorder    : true
-              , borderStyle : 'dotted'
-              , pad         : 1
+              , borderStyle : 'solid'
+              , pad         : 0
               , format : {
                     border : str => this.theme.alert.box.border(str)
                   , pad    : str => this.theme.alert.box(str)
@@ -413,6 +414,10 @@ class Menu extends EventEmitter {
                 if (toggle) {
                     this.settings[choice] = !this.settings[choice]
                     await this.saveSettings()
+                    if (choice == 'termEnabled' && this.settings[choice]) {
+                        // we have to repeat the logic below since we continue.
+                        this.eraseScreen()
+                    }
                     return true
                 }
 
@@ -439,7 +444,7 @@ class Menu extends EventEmitter {
 
                 if (choice == 'theme' || choice == 'termEnabled') {
                     // erase the screen because the background may change.
-                    await this.eraseScreen()
+                    this.eraseScreen()
                 }
 
                 return true
@@ -532,14 +537,19 @@ class Menu extends EventEmitter {
             return false
         }
 
-        const {passwordEncrypted} = await this.api.signup(
-            credentials.serverUrl
-          , answers.username
-          , answers.password
-        )
+        try {
+            this.term.hideCursor()
+            const {passwordEncrypted} = await this.api.signup(
+                credentials.serverUrl
+              , answers.username
+              , answers.password
+            )
 
-        credentials.username = answers.username
-        credentials.password = this.encryptPassword(passwordEncrypted)
+            credentials.username = answers.username
+            credentials.password = this.encryptPassword(passwordEncrypted)
+        } finally {
+            this.term.showCursor()
+        }
 
         return true
     }
@@ -556,16 +566,22 @@ class Menu extends EventEmitter {
             return false
         }
 
-        await this.api.forgotPassword(credentials.serverUrl, answer)
+        await this.noCursor(() =>
+            this.api.forgotPassword(credentials.serverUrl, answer)
+        )
         credentials.username = answer
 
-        const answers = await this.prompt(this.q.forgotPassword(), null, {cancelOnInterrupt: true})
+        const answers = await this.prompt(this.q.forgotPassword(), null, {
+            cancelOnInterrupt: true
+        })
 
         if (answers._cancelEvent || !answers.resetKey) {
             return false
         }
 
-        const {passwordEncrypted} = await this.api.resetPassword(credentials, answers)
+        const {passwordEncrypted} = await this.noCursor(() =>
+            this.api.resetPassword(credentials, answers)
+        )
         credentials.password = this.encryptPassword(passwordEncrypted)
 
         return true
@@ -577,13 +593,17 @@ class Menu extends EventEmitter {
 
         const {credentials} = this
 
-        const answers = await this.prompt(this.q.changePassword())
+        const answers = await this.prompt(this.q.changePassword(), null, {
+            cancelOnInterrupt: true
+        })
 
         if (answers._cancelEvent) {
             return false
         }
 
-        const {passwordEncrypted} = await this.api.changePassword(credentials, answers)
+        const {passwordEncrypted} = await this.noCursor(() =>
+            this.api.changePassword(credentials, answers)
+        )
         credentials.password = this.encryptPassword(passwordEncrypted)
 
         return true
@@ -601,13 +621,13 @@ class Menu extends EventEmitter {
 
         const {credentials} = this
         try {
-            await this.api.confirmKey(credentials, answer)
+            await this.noCursor(() => this.api.confirmKey(credentials, answer))
         } catch (err) {
             if (err.isUserConfirmedError) {
                 this.alerts.warn('Account already confirmed')
-            } else {
-                throw err
+                return
             }
+            throw err
         }
         
         credentials.needsConfirm = false
@@ -630,14 +650,15 @@ class Menu extends EventEmitter {
             credentials.username = answer
         }
 
-        await this.api.requestConfirmKey(credentials)
+        await this.noCursor(() => this.api.requestConfirmKey(credentials))
 
         return true
     }
 
     async promptMatchAdvancedOpts(defaults) {
-        const questions = this.q.matchAdvanced(defaults)
-        const answers = await this.prompt(questions, null, {cancelOnInterrupt: true})
+        const answers = await this.prompt(this.q.matchAdvanced(defaults), null, {
+            cancelOnInterrupt: true
+        })
         if (answers._cancelEvent) {
             return {...defaults}
         }
@@ -655,8 +676,9 @@ class Menu extends EventEmitter {
         try {
 
             const password = this.decryptPassword(credentials.password)
-            const {passwordEncrypted} = await this.api.authenticate({...credentials, password})
-
+            const {passwordEncrypted} = await this.noCursor(() =>
+                this.api.authenticate({...credentials, password})
+            )
             credentials.password = this.encryptPassword(passwordEncrypted)
 
         } catch (err) {
@@ -794,6 +816,15 @@ class Menu extends EventEmitter {
 
             this.eraseScreen()
             await this.consumeAlerts()
+
+            players.White.on('matchEnd', match => {
+                const winner = match.getWinner()
+                const loser = match.getLoser()
+                const {scores} = match
+                this.alerts.info(
+                    winner, 'won the match', scores[winner], 'to', scores[loser]
+                )
+            })
 
             await coordinator.runMatch(match, players)
 
@@ -1131,6 +1162,15 @@ class Menu extends EventEmitter {
         this.boxes.alerts.erase()
     }
 
+    async noCursor(cb) {
+        try {
+            this.term.hideCursor()
+            return await cb()
+        } finally {
+            this.term.showCursor()
+        }
+    }
+
     async ensureLoaded(isQuiet) {
         await this.ensureThemesLoaded(isQuiet)
         await this.ensureSettingsLoaded()
@@ -1149,12 +1189,12 @@ class Menu extends EventEmitter {
         const settings = await fse.readJson(settingsFile)
 
         const defaults = Menu.settingsDefaults()
-        this.settings = Util.defaults(defaults, this.settings, settings)
-        this.settings.matchOpts = Util.defaults(defaults.matchOpts, settings.matchOpts)
+        update(this.settings, Util.defaults(defaults, this.settings, settings))
+        update(this.settings.matchOpts, Util.defaults(defaults.matchOpts, settings.matchOpts))
 
         if (this.settings.isCustomRobot && isEmptyObject(this.settings.robots)) {
             // populate for legacy format
-            this.settings.robots = Menu.robotsDefaults()
+            update(this.settings.robots,  Menu.robotsDefaults())
             this.alerts.info('Migrating legacy robot config')
             await this.saveSettings()
         }
@@ -1209,7 +1249,7 @@ class Menu extends EventEmitter {
             credentials.serverUrl = Menu.getDefaultServerUrl()
         }
 
-        this.credentials = Util.defaults(Menu.credentialDefaults(), credentials)
+        update(this.credentials, Util.defaults(Menu.credentialDefaults(), credentials))
 
         this.isCredentialsLoaded = true
     }
@@ -1230,11 +1270,12 @@ class Menu extends EventEmitter {
     }
 
     clearCredentials() {
-        const {credentials} = this
-        credentials.username = ''
-        credentials.password = ''
-        credentials.needsConfirm = null
-        credentials.isTested = false
+        update(this.credentials, {
+            username     : ''
+          , password     : ''
+          , needsConfirm : null
+          , isTested     : false
+        })
     }
 
     async loadLabConfig() {

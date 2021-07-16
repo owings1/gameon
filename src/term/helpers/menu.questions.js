@@ -36,7 +36,6 @@ const {RobotDelegator}  = Robot
 const {Board} = Core
 const {StringBuilder} = Util
 
-const chalk = require('chalk')
 const fs    = require('fs')
 const fse   = require('fs-extra')
 const path  = require('path')
@@ -67,16 +66,17 @@ function isCredentialsFilled(credentials, isServer) {
     return !keys.find(key => !credentials[key])
 }
 
-function getDiffChalk(a, b) {
+function getDiffChalk(a, b, chlk) {
     if (a == b) {
         return sp
     }
     const isLess = typeof a == 'string' ? a.localeCompare(b) < 0 : a < b
-    return isLess ? chalk.bold.red : chalk.bold.green
+    //return isLess ? chalk.bold.red : chalk.bold.green
+    return isLess ? chlk.minus : chlk.plus
 }
 
-function chalkDiff(value, defaultValue) {
-    return getDiffChalk(value, defaultValue)(value.toString())
+function chalkDiff(value, defaultValue, chlk) {
+    return getDiffChalk(value, defaultValue, chlk)(value.toString())
 }
 
 function weightValidator(value) {
@@ -134,6 +134,7 @@ class Questions {
 
     menu(title, extra) {
         const menu = this._menu
+        const {settings} = menu
         const name = title.toLowerCase()
         switch (name) {
             case 'main':
@@ -145,7 +146,7 @@ class Questions {
                 return {
                     message : title
                   , choices : this.playChoices(extra)
-                  , default : () => menu.settings.lastPlayChoice
+                  , default : () => settings.lastPlayChoice
                 }
             case 'match':
                 return {
@@ -254,6 +255,8 @@ class Questions {
 
     matchInitialChoices(playChoice) {
         const menu = this._menu
+        const {matchOpts} = menu.settings
+        
         return [
             this.br()
           , {
@@ -271,7 +274,7 @@ class Questions {
                     name     : 'total'
                   , message  : 'Match Total'
                   , type     : 'input'
-                  , default  : () => menu.settings.matchOpts.total
+                  , default  : () => matchOpts.total
                   , validate : value => Number.isInteger(value) && value > 0 || 'Please enter a number > 0'
                   , filter   : value => +value
                   , cancel   : CancelChars.input
@@ -287,7 +290,7 @@ class Questions {
                     name    : 'cubeEnabled'
                   , message : 'Cube Enabled'
                   , type    : 'confirm'
-                  , default : () => menu.settings.matchOpts.cubeEnabled
+                  , default : () => matchOpts.cubeEnabled
                   , cancel  : CancelChars.bool
                   , toggle  : ToggleChars.bool
                 }
@@ -295,13 +298,13 @@ class Questions {
           , {
                 value  : 'isCrawford'
               , name   : 'Crawford Rule'
-              , when   : () => menu.settings.matchOpts.cubeEnabled
+              , when   : () => matchOpts.cubeEnabled
               , action : ['#toggle']
               , question : {
                     name    : 'isCrawford'
                   , message : 'Crawford Rule'
                   , type    : 'confirm'
-                  , default : () => menu.settings.matchOpts.isCrawford
+                  , default : () => matchOpts.isCrawford
                   , cancel  : CancelChars.bool
                   , toggle  : ToggleChars.bool
                 }
@@ -314,7 +317,7 @@ class Questions {
                     name    : 'isJacoby'
                   , message : 'Jacoby Rule'
                   , type    : 'confirm'
-                  , default : () => menu.settings.matchOpts.isJacoby
+                  , default : () => matchOpts.isJacoby
                   , cancel  : CancelChars.bool
                   , toggle  : ToggleChars.bool
                 }
@@ -359,9 +362,10 @@ class Questions {
 
     accountChoices() {
         const menu = this._menu
-        const isFilled = isCredentialsFilled(menu.credentials)
-        const {needsConfirm} = menu.credentials
-        const hasCredential = menu.credentials.username || menu.credentials.password
+        const {credentials} = menu
+        const isFilled = isCredentialsFilled(credentials)
+        const {needsConfirm} = credentials
+        const hasCredential = credentials.username || credentials.password
         return this.formatChoices([
             this.br()
           , {
@@ -378,7 +382,7 @@ class Questions {
                     name    : 'serverUrl'
                   , message : 'Server URL'
                   , type    : 'input'
-                  , default : () => menu.credentials.serverUrl
+                  , default : () => credentials.serverUrl
                   , cancel  : CancelChars.input
                   , restore : RestoreChars.input
                   , expand  : ExpandChars.input
@@ -438,14 +442,15 @@ class Questions {
 
     username() {
         const menu = this._menu
+        const {credentials} = menu
         const checkMark = menu.theme.prompt.check.pass(Chars.check)
-        const checkSuffix = menu.credentials.isTested ? ' ' + checkMark : ''
+        const checkSuffix = credentials.isTested ? ' ' + checkMark : ''
         return {
             name    : 'username'
           , message : 'Username'
           , type    : 'input'
-          , default : () => menu.credentials.username
-          , display : () => menu.credentials.username + checkSuffix
+          , default : () => credentials.username
+          , display : () => credentials.username + checkSuffix
           , cancel  : CancelChars.input
           , when    : answers => !answers._cancelEvent
           , restore : RestoreChars.input
@@ -454,13 +459,13 @@ class Questions {
     }
 
     password() {
-        const menu = this._menu
+        const {credentials} = this._menu
         return {
             name    : 'password'
           , message : 'Password'
           , type    : 'password'
-          , default : () => menu.credentials.password
-          , display : () => menu.credentials.password ? '******' : ''
+          , default : () => credentials.password
+          , display : () => credentials.password ? '******' : ''
           , mask    : '*'
           , cancel  : CancelChars.password
           , when    : answers => !answers._cancelEvent
@@ -469,11 +474,14 @@ class Questions {
     }
 
     passwordConfirm(checkKey = 'password') {
+        const validator = (value, answers) => {
+            return value == answers[checkKey] || 'Passwords do not match'
+        }
         return {
             name     : 'passwordConfirm'
           , message  : 'Confirm password'
           , type     : 'password'
-          , validate : (value, answers) => value == answers[checkKey] || 'Passwords do not match'
+          , validate : validator
           , mask     : '*'
           , cancel   : CancelChars.password
           , when     : answers => !answers._cancelEvent
@@ -532,13 +540,21 @@ class Questions {
             name    : 'key'
           , type    : 'input'
           , message : 'Enter confirm key'
-          , prefix  : 'You must confirm your account.\nCheck your email for a confirmation key.\n'
+          , prefix  : [
+                'You must confirm your account.'
+              , 'Check your email for a confirmation key.'
+              , ''
+            ].join('\n')
           , cancel  : CancelChars.input
         }
     }
 
     settingsChoices() {
         const menu = this._menu
+        const {settings} = menu
+        const delayValidator = value => {
+            return !isNaN(value) && value >= 0 || 'Please enter a number >= 0'
+        }
         return this.formatChoices([
             this.br()
           , {
@@ -555,7 +571,7 @@ class Questions {
                     name : 'theme'
                   , message : 'Choose a theme'
                   , type    : 'list'
-                  , default : () => menu.settings.theme
+                  , default : () => settings.theme
                   , choices : () => [this.br()].concat(Themes.list())
                   , cancel  : CancelChars.list
                   , prefix  : ''
@@ -569,7 +585,7 @@ class Questions {
                     name    : 'termEnabled'
                   , message : 'Enable term cursoring'
                   , type    : 'confirm'
-                  , default : () => menu.settings.termEnabled
+                  , default : () => settings.termEnabled
                   , cancel  : CancelChars.bool
                   , toggle  : ToggleChars.bool
                 }
@@ -583,7 +599,7 @@ class Questions {
                     name    : 'fastForced'
                   , message : 'Fast Forced Moves'
                   , type    : 'confirm'
-                  , default : () => menu.settings.fastForced
+                  , default : () => settings.fastForced
                   , cancel  : CancelChars.bool
                   , toggle  : ToggleChars.bool
                 }
@@ -595,8 +611,8 @@ class Questions {
                     name    : 'recordDir'
                   , message : 'Record Dir'
                   , type    : 'input'
-                  , default : () => homeTilde(menu.settings.recordDir)
-                  , filter  : value => value == null ? null : path.resolve(tildeHome(value))
+                  , default : () => homeTilde(settings.recordDir)
+                  , filter  : value => !value ? null : path.resolve(tildeHome(value))
                   , cancel  : CancelChars.input
                   , clear   : 'ctrl-delete'
                   , restore : RestoreChars.input
@@ -611,7 +627,7 @@ class Questions {
                     name    : 'isRecord'
                   , message : 'Record Matches'
                   , type    : 'confirm'
-                  , default : () => menu.settings.isRecord
+                  , default : () => settings.isRecord
                   , cancel  : CancelChars.bool
                   , toggle  : ToggleChars.bool
                 }
@@ -624,9 +640,9 @@ class Questions {
                     name     : 'delay'
                   , message  : 'Robot Delay (seconds)'
                   , type     : 'input'
-                  , default  : () => menu.settings.delay
+                  , default  : () => settings.delay
                   , filter   : value => +value
-                  , validate : value => !isNaN(value) && value >= 0 || 'Please enter a number >= 0'
+                  , validate : delayValidator
                   , cancel   : CancelChars.input
                   , restore  : RestoreChars.input
                   , expand   : ExpandChars.input
@@ -641,7 +657,7 @@ class Questions {
                     name    : 'isCustomRobot'
                   , message : 'Use Custom Robot'
                   , type    : 'confirm'
-                  , default : () => menu.settings.isCustomRobot
+                  , default : () => settings.isCustomRobot
                   , cancel  : CancelChars.bool
                   , toggle  : ToggleChars.bool
                 }
@@ -649,7 +665,7 @@ class Questions {
           , {
                 value : 'robotConfigs'
               , name  : 'Robot Configuration'
-              , when  : menu.settings.isCustomRobot
+              , when  : settings.isCustomRobot
             }
           , this.br()
         ])
@@ -657,6 +673,8 @@ class Questions {
 
     robotsChoices() {
         const menu = this._menu
+        const {settings} = menu
+        const chlk = menu.theme.diff
         const entries = Object.entries(menu.robotsDefaults())
         return this.formatChoices([
             this.br()
@@ -679,14 +697,14 @@ class Questions {
                   , name     : name
                   , question : {
                         display : () => {
-                            const config = menu.settings.robots[name] || menu.robotMinimalConfig(name)
+                            const config = settings.robots[name] || menu.robotMinimalConfig(name)
                             const b = new StringBuilder
                             b.sp(
-                                chalkDiff(config.version, defaults.version) + ','
+                                chalkDiff(config.version, defaults.version, chlk) + ','
                               , 'move:'
-                              , padEnd(chalkDiff(config.moveWeight, defaults.moveWeight), 4, ' ') + ','
+                              , padEnd(chalkDiff(config.moveWeight, defaults.moveWeight, chlk), 4, ' ') + ','
                               , 'double:'
-                              , chalkDiff(config.doubleWeight, defaults.doubleWeight)
+                              , chalkDiff(config.doubleWeight, defaults.doubleWeight, chlk)
                             )
                             return b.toString()
                         }
@@ -700,6 +718,7 @@ class Questions {
     robotChoices(name) {
         const menu = this._menu
         const {defaults, versions} = menu.robotMeta(name)
+        const chlk = menu.theme.diff
         const config = () => menu.settings.robots[name]
         return this.formatChoices([
             {
@@ -722,7 +741,7 @@ class Questions {
                   , message : 'Version'
                   , type    : 'list'
                   , default : () => config().version
-                  , display : () => chalkDiff(config().version, defaults.version)
+                  , display : () => chalkDiff(config().version, defaults.version, chlk)
                   , choices : () => Object.keys(versions)
                   , cancel  : CancelChars.list
                 }
@@ -736,7 +755,7 @@ class Questions {
                   , message  : 'Move Weight'
                   , type     : 'input'
                   , default  : () => config().moveWeight
-                  , display  : () => chalkDiff(config().moveWeight, defaults.moveWeight)
+                  , display  : () => chalkDiff(config().moveWeight, defaults.moveWeight, chlk)
                   , filter   : value => +value
                   , validate : weightValidator
                   , cancel   : CancelChars.input
@@ -754,7 +773,7 @@ class Questions {
                   , message  : 'Double Weight'
                   , type     : 'input'
                   , default  : () => config().doubleWeight
-                  , display  : () => chalkDiff(config().doubleWeight, defaults.doubleWeight)
+                  , display  : () => chalkDiff(config().doubleWeight, defaults.doubleWeight, chlk)
                   , filter   : value => +value
                   , validate : weightValidator
                   , cancel   : CancelChars.input

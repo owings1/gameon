@@ -34,6 +34,9 @@ const BuiltIn = {
 
           , 'hr.color' : 'grey dim'
 
+          , 'diff.plus.color'  : 'green bold'
+          , 'diff.minus.color' : 'red bold'
+
           , 'table.row.even.color' : '#66fffc'
           , 'table.title.color'    : '#ff6bb3 bold'
 
@@ -50,7 +53,8 @@ const BuiltIn = {
           , 'alert.warn.level.color'       : 'yellow'
 
           , 'menu.screen.background' : 'grey dim'
-          , 'menu.box.border.color'  : 'cyan dim'
+          , 'menu.box.border.background'  : 'cyan'
+          , 'menu.box.border.color'       : 'black'
 
           , 'prompt.answer.color'                 : 'cyan'
           , 'prompt.check.pass.color'             : 'green'
@@ -75,11 +79,12 @@ const BuiltIn = {
 
           , 'alert.error.message.color' : 'pink'
 
-          //, 'menu.screen.background' : 'green'
-          , 'menu.box.border.color' : 'magenta bold'
+          , 'menu.screen.background' : 'yellow'
+          , 'menu.box.border.background'  : 'red'
 
           , 'prompt.answer.color'               : 'blue'
           , 'prompt.input.color'                : 'green'
+          , 'prompt.choice.color'               : 'pink'
           , 'prompt.choice.selected.background' : 'grey dim'
           , 'prompt.choice.selected.color'      : 'orange'
 
@@ -159,12 +164,18 @@ const Categories = [
   , 'prompt.message.help'
   , 'prompt.separator'
 
+  , 'diff.plus'
+  , 'diff.minus'
+
   , 'text'
 ]
 
 const DefaultStyles = {
     'text.color'      : 'default'
   , 'text.background' : 'default'
+
+  , 'diff.plus.background'  : 'default'
+  , 'diff.minus.background' : 'default'
 
   , 'prompt.check.pass.background' : 'default'
 }
@@ -201,7 +212,6 @@ const CategoryAliases = {
   , 'alert.warn.level'      : 'text'
   , 'alert.error.message'   : 'text'
   , 'alert.error.level'     : 'text'
-
 
   , 'prompt.answer'                 : 'text'
   , 'prompt.check.pass'             : 'alert.success.message'
