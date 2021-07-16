@@ -31,7 +31,7 @@ class AppCommand extends Command {
 
     async init(..._args) {
         await super.init(..._args)
-        this.logger = this.logger || new Logger
+        this.logger = this.logger || new Logger(this.constructor.name)
         this.proc = this.proc || process
         this.env = this.env || this.proc.env
         const {flags, args, argv} = this.parse(this.constructor)

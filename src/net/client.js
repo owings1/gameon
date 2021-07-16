@@ -23,18 +23,17 @@
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 const Constants = require('../lib/constants')
-const Core      = require('../lib/core')
 const Errors    = require('../lib/errors')
 const Logger    = require('../lib/logger')
+const {Match}   = require('../lib/core')
 const Util      = require('../lib/util')
-const WsClient  = require('websocket').client
 
 const fetch = require('node-fetch')
 
 const {EventEmitter} = require('events')
+const WsClient       = require('websocket').client
 
 const {White, Red} = Constants
-const {Match} = Core
 
 const {
     httpToWs
@@ -82,20 +81,18 @@ const {
  */
 class Client extends EventEmitter {
 
-    constructor(...args) {
+    /**
+     * @param object (optional) The credentials, serverUrl, username, password.
+     */
+    constructor(credentials) {
 
         super()
 
         this.logger = new Logger(this.constructor.name, {named: true})
 
-        if (typeof args[0] == 'object') {
-            var {serverUrl, username, password} = args[0]
-        } else {
-            var [serverUrl, username, password] = args
-        }
+        const {serverUrl, username, password} = credentials || {}
 
         this.setServerUrl(serverUrl)
-
         this.username = username
         this.password = password
 
@@ -170,15 +167,19 @@ class Client extends EventEmitter {
      *         ❯ If there is pending response expected.
      */
     close() {
-        if (this.isWaiting) {
-            // NB: this can throw an unhandled promise rejection if a caller of
-            //     waitForMessage does not handle the error.
-            this.cancelWaiting(new ConnectionClosedError('Client closing'))
+        try {
+            if (this.isWaiting) {
+                // NB: this can throw an unhandled promise rejection if a caller of
+                //     waitForMessage does not handle the error.
+                this.cancelWaiting(new ConnectionClosedError('Client closing'))
+            }
+        } finally {
+            if (this.conn) {
+                this.conn.close()
+            }
+            this.socketClient.removeAllListeners()
+            this.removeAllListeners()
         }
-        if (this.conn) {
-            this.conn.close()
-        }
-        this.removeAllListeners()
     }
 
     /**
@@ -186,7 +187,7 @@ class Client extends EventEmitter {
      *
      * @throws ClientError
      *
-     * @returns Object
+     * @returns object
      */
     async handshake() {
         const {username, password, token} = this
@@ -199,6 +200,7 @@ class Client extends EventEmitter {
 
     /**
      *
+     * @param Error
      */
     cancelWaiting(err) {
         if (this.messageReject) {
@@ -208,6 +210,8 @@ class Client extends EventEmitter {
 
     /**
      * @async
+     *
+     * @param object The match options, which must include `total`.
      *
      * @emits matchCreated
      * @emits opponentJoined
@@ -241,6 +245,8 @@ class Client extends EventEmitter {
     }
 
     /**
+     * @param string|null The server URL.
+     *
      * @returns self
      */
     setServerUrl(serverUrl) {
@@ -251,6 +257,8 @@ class Client extends EventEmitter {
 
     /**
      * @async
+     *
+     * @param integer The match ID.
      *
      * @emits matchJoined
      *
@@ -276,23 +284,26 @@ class Client extends EventEmitter {
         return this.match
     }
 
-   /**
-    * Make a match play request.
-    *
-    * See {@method waitForResponse}
-    *
-    * @async
-    *
-    * @emits response
-    * @emits matchCanceled
-    * @emits responseError
-    *
-    * @throws ClientError
-    * @throws GameError.MatchCanceledError
-    * @throws MenuError.WaitingAbortedError
-    *
-    * @returns Object|Error|null
-    */
+    /**
+     * Make a match play request.
+     *
+     * See {@method waitForResponse}
+     *
+     * @async
+     *
+     * @param string The play action.
+     * @param object (optional) Additional request data.
+     *
+     * @emits response
+     * @emits matchCanceled
+     * @emits responseError
+     *
+     * @throws ClientError
+     * @throws GameError.MatchCanceledError
+     * @throws MenuError.WaitingAbortedError
+     *
+     * @returns object|Error|null
+     */
     async matchRequest(action, params) {
         const req = {...this.matchParams(action), ...params}
         this.emit('matchRequest', req)
@@ -308,6 +319,9 @@ class Client extends EventEmitter {
      *
      * @async
      *
+     * @param object The request data.
+     * @param string (optional) The expected action of the response.
+     *
      * @emits response
      * @emits matchCanceled
      * @emits responseError
@@ -316,7 +330,7 @@ class Client extends EventEmitter {
      * @throws GameError.MatchCanceledError
      * @throws MenuError.WaitingAbortedError
      *
-     * @returns Object|Error|null
+     * @returns object|Error|null
      */
     sendAndWaitForResponse(req, action = null) {
         const promise = this.waitForResponse(action)
@@ -355,6 +369,8 @@ class Client extends EventEmitter {
      *
      * @async
      *
+     * @param string (optional) The expected action of the response.
+     *
      * @emits response
      * @emits matchCanceled
      * @emits responseError
@@ -366,7 +382,7 @@ class Client extends EventEmitter {
      * @throws GameError.MatchCanceledError
      * @throws MenuError.WaitingAbortedError
      *
-     * @returns Object|Error|null
+     * @returns object|Error|null
      */
     async waitForResponse(action = null) {
 
@@ -418,7 +434,7 @@ class Client extends EventEmitter {
      * @throws GameError.MatchCanceledError
      * @throws MenuError.WaitingAbortedError
      *
-     * @returns Object
+     * @returns object
      */
     waitForMessage() {
         return new Promise((resolve, reject) => {
@@ -447,7 +463,21 @@ class Client extends EventEmitter {
     }
 
     /**
+     * @param object
+     *
+     * @returns self
+     */
+    sendMessage(req) {
+        req = {secret: this.secret, ...req}
+        this.logger.debug('sendMessage', req)
+        this.conn.sendUTF(JSON.stringify(req))
+        return this
+    }
+
+    /**
      * Message event handler.
+     *
+     * @param object
      *
      * @emits matchCanceled
      * @emits unhandledMessage
@@ -481,23 +511,13 @@ class Client extends EventEmitter {
     }
 
     /**
-     * @returns self
+     * @async
+     *
+     * @param string
+     * @param object
+     *
+     * @returns node-fetch.Response
      */
-    sendMessage(req) {
-        req = {secret: this.secret, ...req}
-        this.logger.debug('sendMessage', req)
-        this.conn.sendUTF(JSON.stringify(req))
-        return this
-    }
-
-    get loglevel() {
-        return this.logger.loglevel
-    }
-
-    set loglevel(n) {
-        this.logger.loglevel = n
-    }
-
     postJson(uri, data) {
         const url = [this.serverHttpUrl, stripLeadingSlash(uri)].join('/')
         const params = {
@@ -508,6 +528,12 @@ class Client extends EventEmitter {
         return fetch(url, params)
     }
 
+    /**
+     *
+     * @param object|string
+     *
+     * @returns object
+     */
     matchParams(params) {
         if (typeof params == 'string') {
             params = {action: params}
@@ -515,6 +541,24 @@ class Client extends EventEmitter {
         return {id: this.matchId, color: this.color, ...params}
     }
 
+    /**
+     * Getter for loglevel (integer).
+     */
+    get loglevel() {
+        return this.logger.loglevel
+    }
+
+    /**
+     * Setter for loglevel (integer).
+     */
+    set loglevel(n) {
+        this.logger.loglevel = n
+    }
+
+    /**
+     *
+     * @returns string
+     */
     static generateSecret() {
         return secret1()
     }

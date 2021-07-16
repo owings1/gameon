@@ -23,10 +23,11 @@
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 const Constants = require('../lib/constants')
-const Email     = require('./email')
 const Errors    = require('../lib/errors')
 const Logger    = require('../lib/logger')
 const Util      = require('../lib/util')
+
+const Email = require('./email')
 
 const path = require('path')
 
@@ -60,6 +61,7 @@ const {
   , hash
   , isValidEmail
   , tstamp
+  , update
   , uuid
 } = Util
 
@@ -69,10 +71,38 @@ const ImplClasses = {
   , s3        : require('./auth/s3')
 }
 
-const GenericMessage = 'Invalid username/password combination'
+const ErrorMessages = {
+    badConfirmKey     : 'Invalid username and confirm key combination'
+  , badResetKey       : 'Invalid username and reset key combination'
+  , confirmed         : 'User account is already confirmed'
+  , expiredConfirmKey : 'Confirm key expired'
+  , expiredResetKey   : 'Reset key expired'
+  , generic           : 'Invalid username/password combination'
+  , locked            : 'User account is locked'
+  , notFound          : 'User not found'
+  , unconfirmed       : 'User account is not confirmed'
+  , userExists        : 'User already exists'
+}
+
+const ValidateMessages = {
+    badCharUsername : badChar => `Bad character in username: ${badChar}`
+  , email           : 'Username is not a valid email address.'
+  , emptyPassword   : 'Password cannot be empty.'
+  , emptyUsername   : 'Username cannot be empty.'
+  , minPassword     : min => `Password must be at least ${min} characters.`
+  , prefixPassword  : prefix => `Password cannot begin with ${prefix}`
+  , regexPassword   : help => `Invalid password: ${help}`
+}
 
 class Auth {
 
+    /**
+     * Get the default options.
+     *
+     * @param object (optional) The environment variables.
+     *
+     * @returns object The default options.
+     */
     static defaults(env) {
         const opts = {
             salt          : env.AUTH_SALT || DefaultSalt
@@ -93,6 +123,17 @@ class Auth {
         return opts
     }
 
+    /**
+     * Create an Auth instance with the implementation instance.
+     *
+     * @param object (optional) The combined auth and impl options, with a key
+     *       `authType` specifying the implmentation (directory, s3, anonymous).
+     * @param object (optional) The environment variables.
+     *
+     * @throws TypeError
+     *
+     * @returns Auth The auth instance.
+     */
     static create(opts, env) {
         env = env || process.env
         const type = (opts && opts.authType) || env.AUTH_TYPE || DefaultAuthType
@@ -102,18 +143,31 @@ class Auth {
         return auth
     }
 
+    /**
+     * @param AuthImpl The implementation instance.
+     * @param object (optional) The options.
+     *
+     * @throws Error
+     */
     constructor(impl, opts) {
 
         this.impl = impl
 
         this.opts = Util.defaults(Auth.defaults(process.env), opts)
 
-        const loggerName = [this.opts.loggerPrefix, this.constructor.name].filter(it => it).join('.')
+        const loggerName = [
+            this.opts.loggerPrefix, this.constructor.name
+        ].filter(it => it).join('.')
+
         this.logger = new Logger(loggerName, {server: true})
 
-        this.email = Email.create({...opts, ...this.opts, connectTimeout: this.opts.emailTimeout})
+        this.email = Email.create({
+            ...opts
+          , ...this.opts
+          , connectTimeout: this.opts.emailTimeout
+        })
 
-        this.checkSecurity()
+        this._checkSecurity()
 
         this.saltHash = hash(this.opts.saltHash, this.opts.salt, 'base64')
 
@@ -125,73 +179,88 @@ class Auth {
         hash(this.opts.hash)
     }
 
-    get loglevel() {
-        return this.logger.loglevel
-    }
-
-    set loglevel(n) {
-        this.logger.loglevel = n
-        this.email.loglevel = n
-    }
-
+    /**
+     * Authenticate user credentials.
+     *
+     * @async
+     *
+     * @param string The username
+     * @param string The password
+     *
+     * @throws AuthError.BadCredentialsError
+     * @throws AuthError.UserLockedError
+     * @throws AuthError.UserNotConfirmedError
+     * @throws InternalError
+     * @throws ValidateError
+     *
+     * @returns object The user data with `passwordEncrypted` and `token` keys
+     */
     async authenticate(username, password) {
+
         if (this.impl.isAnonymous) {
-            return {
-                passwordEncrypted : password ? this.encryptPassword(password) : ''
-            }
+            const anonEnc = password ? this.encryptPassword(password) : ''
+            return {passwordEncrypted: anonEnc}
         }
-        this.validateUsername(username)
-        username = username.toLowerCase()
-        var user
+
+        let user
         try {
-            user = await this.impl.readUser(username)
+            user = await this.readUser(username)
+            username = user.username
         } catch (err) {
             this.logger.warn(err, {username})
-            if (err.name == 'UserNotFoundError') {
+            if (err.isUserNotFoundError) {
                 // Do not reveal non-existence of user
-                throw new BadCredentialsError(GenericMessage)
+                throw new BadCredentialsError(ErrorMessages.generic)
             }
-            throw new InternalError(err)
+            throw err
         }
+
         try {
             if (this.isEncryptedPassword(password)) {
                 password = this.decryptPassword(password)
             }
-            if (!password || !password.length || user.password != this.hashPassword(password)) {
-                throw new BadCredentialsError(GenericMessage)
+            if (!this.checkHashed(password, user.password)) {
+                throw new BadCredentialsError(ErrorMessages.generic)
             }
-            if (user.locked) {
-                throw new UserLockedError('The user account is locked')
-            }
-            if (!user.confirmed) {
-                throw new UserNotConfirmedError('The user account is not confirmed')
-            }
+            this.assertNotLocked(user)
+            this.assertConfirmed(user)
         } catch (err) {
             this.logger.warn(err, {username})
             throw err
         }
-        user.passwordEncrypted = this.encryptPassword(password)
-        user.token = this.getToken(username, password)
+
         this.logger.info('Authenticate', {username})
-        return user
+
+        return update(user, {
+            passwordEncrypted : this.encryptPassword(password)
+          , token             : this.getToken(username, password)
+        })
     }
 
-    getToken(username, password) {
-        return this.encryptPassword([username, password].join('\t'))
-    }
+    /**
+     * Create a new user.
+     *
+     * @async
+     *
+     * @param string The new username
+     * @param string The password
+     * @param boolean (optional) Whether to create the user as already confirmed
+     *
+     * @throws AuthError
+     * @throws InternalError
+     * @throws ValidateError
+     *
+     * @returns object The user data with `passwordEncrypted` and `token` keys
+     */
+    async createUser(username, password, confirmed = false) {
 
-    parseToken(token) {
-        const [username, password] = this.decryptPassword(token).split('\t')
-        return {username, password}
-    }
-
-    async createUser(username, password, confirmed) {
-        this.validateUsername(username)
-        username = username.toLowerCase()
-        if (await this.userExists(username)) {
-            throw new UserExistsError('User already exists.')
-        }
+        username = this.validateUsername(username)
         this.validatePassword(password)
+
+        if (await this.userExists(username)) {
+            throw new UserExistsError(ErrorMessages.userExists)
+        }
+
         const timestamp = tstamp()
         const user = {
             username
@@ -205,101 +274,178 @@ class Auth {
           , created           : timestamp
           , updated           : timestamp
         }
+
         await this.wrapInternalError(() => this.impl.createUser(username, user))
-        user.passwordEncrypted = this.encryptPassword(password)
+
         this.logger.info('CreateUser', {username})
-        return user
+
+        return update(user, {
+            passwordEncrypted : this.encryptPassword(password)
+          , token             : this.getToken(username, password)
+        })
     }
 
+    /**
+     * Fetch user data.
+     *
+     * @async
+     *
+     * @param string The username
+     *
+     * @throws AuthError
+     * @throws InternalError
+     * @throws ValidateError
+     *
+     * @returns object The user data
+     */
     async readUser(username) {
-        this.validateUsername(username)
-        username = username.toLowerCase()
+        username = this.validateUsername(username)
         return this.wrapInternalError(() => this.impl.readUser(username))
     }
 
+    /**
+     * Check whether a username exists.
+     *
+     * @async
+     *
+     * @param string The username
+     *
+     * @throws AuthError
+     * @throws InternalError
+     * @throws ValidateError
+     *
+     * @returns boolean Whether the user exists
+     */
     async userExists(username) {
-        this.validateUsername(username)
-        username = username.toLowerCase()
+        username = this.validateUsername(username)
         return this.wrapInternalError(() => this.impl.userExists(username))
     }
-
-    // TODO: this is scaffolding -- make scalable
+ 
+    /**
+     * TODO: this is scaffolding -- make scalable
+     *
+     * @async
+     *
+     * @throws AuthError
+     * @throws InternalError
+     *
+     * @returns array[string]
+     */
     async listAllUsers() {
-        return this.impl.listAllUsers()
+        return this.wrapInternalError(() => this.impl.listAllUsers())
     }
 
+    /**
+     * Delete a user.
+     *
+     * @async
+     *
+     * @param string The username
+     *
+     * @throws AuthError
+     * @throws InternalError
+     * @throws ValidateError
+     *
+     * @returns undefined
+     */
     async deleteUser(username) {
-        this.validateUsername(username)
-        username = username.toLowerCase()
         if (!(await this.userExists(username))) {
-            throw new UserNotFoundError('User not found.')
+            throw new UserNotFoundError(ErrorMessages.notFound)
         }
+        username = this.validateUsername(username)
         await this.wrapInternalError(() => this.impl.deleteUser(username))
         this.logger.info('DeleteUser', {username})
     }
 
-    // Update Operations
-
+    /**
+     * Send the user an email with a new key to confirm the account.
+     *
+     * @async
+     *
+     * @param string The username
+     *
+     * @throws AuthError
+     * @throws InternalError
+     * @throws ValidateError
+     *
+     * @returns object The user data
+     */
     async sendConfirmEmail(username) {
-        this.validateUsername(username)
-        username = username.toLowerCase()
-        var user = await this.readUser(username)
-        if (user.confirmed) {
-            throw new UserConfirmedError
-        }
+
+        const user = await this.readUser(username)
+        username = user.username
+
+        this.assertNotLocked(user)
+        this.assertNotConfirmed(user)
+
         const timestamp = tstamp()
         const confirmKey = this.generateConfirmKey()
-        user = {
-            ...user
-          , confirmed         : false
+
+        await this._updateUser(username, update(user, {
+            confirmed         : false
           , confirmKey        : this.hashPassword(confirmKey)
           , confirmKeyCreated : timestamp
           , updated           : timestamp
-        }
-        await this._updateUser(username, user)
-        const params = {
+        }))
+
+        await this.email.send({
             Destination: {
                 ToAddresses: [username]
             }
           , Message : {
                 Subject : {
                     Charset: 'UTF-8'
-                  , Data: 'confirm your gameon account'
+                  , Data: 'Confirm your gameon account'
                 }
               , Body : {
                     Text: {
                         Charset: 'UTF-8'
-                      , Data: 'Key: ' + confirmKey
+                      , Data: `Key: ${confirmKey}`
                     }
                   , Html: {
                         Charset: 'UTF-8'
-                      , Data: 'Key: ' + confirmKey
+                      , Data: `Key: ${confirmKey}`
                     }
                 }
             }
-        }
-        await this.email.send(params)
+        })
+
         this.logger.info('SendConfirmEmail', {username})
+
+        return user
     }
 
+    /**
+     * Send the user an email with a new key to reset the password.
+     *
+     * @async
+     *
+     * @param string The username
+     *
+     * @throws AuthError
+     * @throws InternalError
+     * @throws ValidateError
+     *
+     * @returns object The user data
+     */
     async sendResetEmail(username) {
-        // TODO: should this block locked accounts?
-        this.validateUsername(username)
-        username = username.toLowerCase()
-        var user = await this.readUser(username)
-        if (!user.confirmed) {
-            throw new UserNotConfirmedError
-        }
+
+        const user = await this.readUser(username)
+        username = user.username
+
+        this.assertNotLocked(user)
+        this.assertConfirmed(user)
+
         const timestamp = tstamp()
         const resetKey = this.generateConfirmKey()
-        user = {
-            ...user
-          , resetKey        : this.hashPassword(resetKey)
+
+        await this._updateUser(username, update(user, {
+            resetKey        : this.hashPassword(resetKey)
           , resetKeyCreated : timestamp
           , updated         : timestamp
-        }
-        await this._updateUser(username, user)
-        const params = {
+        }))
+
+        await this.email.send({
             Destination: {
                 ToAddresses: [username]
             }
@@ -319,177 +465,445 @@ class Auth {
                     }
                 }
             }
-        }
-        await this.email.send(params)
+        })
+
         this.logger.info('SendResetEmail', {username})
+
+        return user
     }
 
+    /**
+     * Confirm the user account with the valid confirm key.
+     *
+     * @async
+     *
+     * @param string The username
+     * @param string The confirm key
+     *
+     * @throws AuthError
+     * @throws InternalError
+     * @throws ValidateError
+     *
+     * @returns object The user data
+     */
     async confirmUser(username, confirmKey) {
-        this.validateUsername(username)
-        username = username.toLowerCase()
-        var user = await this.readUser(username)
+
+        const user = await this.readUser(username)
+        username = user.username
+
         if (!confirmKey || this.hashPassword(confirmKey) != user.confirmKey) {
-            throw new BadCredentialsError('Invalid username and confirm key combination')
+            throw new BadCredentialsError(ErrorMessages.badConfirmKey)
         }
+
         const timestamp = tstamp()
-        if (tstamp() > user.confirmKeyCreated + this.opts.confirmExpiry) {
-            throw new BadCredentialsError('Confirm key expired')
+        if (timestamp > user.confirmKeyCreated + this.opts.confirmExpiry) {
+            throw new BadCredentialsError(ErrorMessages.expiredConfirmKey)
         }
-        user = {
-            ...user
-          , confirmed         : true
+
+        this.assertNotLocked(user)
+
+        await this._updateUser(username, update(user, {
+            confirmed         : true
           , confirmKey        : null
           , confirmKeyCreated : null
           , updated           : timestamp
-        }
-        await this._updateUser(username, user)
+        }))
+
         this.logger.info('ConfirmUser', {username})
+
+        return user
     }
 
+    /**
+     * Reset the password with the valid reset key.
+     *
+     * @async
+     *
+     * @param string The username
+     * @param string The new password
+     * @param string The reset key
+     *
+     * @throws AuthError
+     * @throws InternalError
+     * @throws ValidateError
+     *
+     * @returns object The user data
+     */
     async resetPassword(username, password, resetKey) {
-        this.validateUsername(username)
-        username = username.toLowerCase()
-        var user = await this.readUser(username)
-        if (!resetKey || this.hashPassword(resetKey) != user.resetKey) {
-            throw new BadCredentialsError('Invalid username and reset key combination')
+
+        const user = await this.readUser(username)
+        username = user.username
+
+        if (!this.checkHashed(resetKey, user.resetKey)) {
+            throw new BadCredentialsError(ErrorMessages.badResetKey)
         }
+
         const timestamp = tstamp()
         if (tstamp() > user.resetKeyCreated + this.opts.resetExpiry) {
-            throw new BadCredentialsError('Reset key expired')
+            throw new BadCredentialsError(ErrorMessages.expiredResetKey)
         }
+
+        this.assertNotLocked(user)
         this.validatePassword(password)
-        user = {
-            ...user
-          , password        : this.hashPassword(password)
+        
+        await this._updateUser(username, update(user, {
+            password        : this.hashPassword(password)
           , resetKey        : null
           , resetKeyCreated : null
           , updated         : timestamp
-        }
-        await this._updateUser(username, user)
-        user.passwordEncrypted = this.encryptPassword(password)
+        }))
+
         this.logger.info('ResetPassword', {username})
-        return user
+
+        return update(user, {
+            passwordEncrypted : this.encryptPassword(password)
+          , token             : this.getToken(username, password)
+        })
     }
 
+    /**
+     * Change a user's password.
+     *
+     * @async
+     *
+     * @param string The username
+     * @param string The old password
+     * @param string The new password
+     *
+     * @throws AuthError
+     * @throws InternalError
+     * @throws ValidateError
+     *
+     * @returns object The user data
+     */
     async changePassword(username, oldPassword, newPassword) {
-        this.validateUsername(username)
-        username = username.toLowerCase()
-        var user = await this.readUser(username)
-        if (!oldPassword || this.hashPassword(oldPassword) != user.password) {
-            throw new BadCredentialsError(GenericMessage)
+
+        const user = await this.readUser(username)
+        username = user.username
+
+        if (!this.checkHashed(oldPassword, user.password)) {
+            throw new BadCredentialsError(ErrorMessages.generic)
         }
+
+        this.assertNotLocked(user)
         this.validatePassword(newPassword)
-        user = {
-            ...user
-          , password : this.hashPassword(newPassword)
+
+        await this._updateUser(username, update(user, {
+            password : this.hashPassword(newPassword)
           , updated  : tstamp()
-        }
-        await this._updateUser(username, user)
-        user.passwordEncrypted = this.encryptPassword(newPassword)
+        }))
+
         this.logger.info('ChangePassword', {username})
+
+        return update(user, {
+            passwordEncrypted : this.encryptPassword(newPassword)
+          , token             : this.getToken(username, newPassword)
+        })
         return user
     }
 
+    /**
+     * Lock a user.
+     *
+     * @async
+     *
+     * @param string The username
+     *
+     * @throws AuthError
+     * @throws InternalError
+     * @throws ValidateError
+     *
+     * @returns object The user data
+     */
     async lockUser(username) {
-        this.validateUsername(username)
-        username = username.toLowerCase()
-        var user = await this.impl.readUser(username)
-        user = {
-            ...user
-          , locked  : true
+
+        const user = await this.readUser(username)
+        username = user.username
+
+        await this._updateUser(username, update(user, {
+            locked  : true
           , updated : tstamp()
-        }
-        await this._updateUser(username, user)
+        }))
+
         this.logger.info('LockUser', {username})
+
+        return user
     }
 
+    /**
+     * Unlock a user.
+     *
+     * @async
+     *
+     * @param string The username
+     */
     async unlockUser(username) {
-        this.validateUsername(username)
-        username = username.toLowerCase()
-        var user = await this.impl.readUser(username)
-        user = {
-            ...user
-          , locked  : false
+
+        const user = await this.readUser(username)
+        username = user.username
+
+        await this._updateUser(username, update(user, {
+            locked  : false
           , updated : tstamp()
-        }
-        await this._updateUser(username, user)
+        }))
+
         this.logger.info('UnlockUser', {username})
+
+        return user
     }
 
     // Validation
 
+    /**
+     * @param string The username to test
+     *
+     * @throws RequestError.ValidateError
+     *
+     * @returns string The username lowercased
+     */
     validateUsername(str) {
+        const Msg = ValidateMessages
         if (!str || !str.length) {
-            throw new ValidateError('Username cannot be empty.')
+            throw new ValidateError(Msg.emptyUsername)
         }
         const badChar = InvalidUsernameChars.find(c => str.indexOf(c) > -1)
         if (badChar) {
-            throw new ValidateError('Bad character in username:' + badChar)
+            throw new ValidateError(Msg.badCharUsername(badChar))
         }
         if (!isValidEmail(str)) {
-            throw new ValidateError('Username is not a valid email address.')
+            throw new ValidateError(Msg.email)
         }
+        return str.toLowerCase()
     }
 
+    /**
+     * @param string The password to test
+     *
+     * @throws RequestError.ValidateError
+     *
+     * @returns string The input string
+     */
     validatePassword(str) {
+        const {opts} = this
+        const Msg = ValidateMessages
         if (!str || !str.length) {
-            throw new ValidateError('Password cannot be empty.')
+            throw new ValidateError(Msg.emptyPassword)
         }
-        if (str.length < this.opts.passwordMin) {
-            throw new ValidateError('Password must be at least ' + this.opts.passwordMin + ' characters.')
+        if (str.length < opts.passwordMin) {
+            throw new ValidateError(Msg.minPassword(opts.passwordMin))
         }
         if (str.indexOf(EncryptedFlagPrefix) == 0) {
-            throw new ValidateError('Password cannot begin with ' + EncryptedFlagPrefix)
+            throw new ValidateError(Msg.prefixPassword(EncryptedFlagPrefix))
         }
         if (!this.passwordRegex.test(str)) {
-            throw new ValidateError('Invalid password: ' + this.opts.passwordHelp)
+            throw new ValidateError(Msg.regexPassword(opts.passwordHelp))
         }
+        return str
+    }
+
+    /**
+     * Assert the user is confirmed.
+     *
+     * @param object The user data
+     *
+     * @throws AuthError.UserNotConfirmedError
+     *
+     * @returns self
+     */
+    assertConfirmed(user) {
+        if (!user.confirmed) {
+            throw new UserNotConfirmedError(ErrorMessages.unconfirmed)
+        }
+        return this
+    }
+
+    /**
+     * Assert the user is not confirmed.
+     *
+     * @param object The user data
+     *
+     * @throws AuthError.UserConfirmedError
+     *
+     * @returns self
+     */
+    assertNotConfirmed(user) {
+        if (user.confirmed) {
+            throw new UserConfirmedError(ErrorMessages.confirmed)
+        }
+        return this
+    }
+
+    /**
+     * Assert the user is not locked.
+     *
+     * @param object The user data
+     *
+     * @throws AuthError.UserLockedError
+     *
+     * @returns self
+     */
+    assertNotLocked(user) {
+        if (user.locked) {
+            throw new UserLockedError(ErrorMessages.locked)
+        }
+        return this
     }
 
     // Util
 
+    /**
+     * Hash a password.
+     *
+     * @param string The password to hash
+     *
+     * @returns string The hased password
+     */
     hashPassword(password) {
         return hash(this.opts.hash, password + this.opts.salt, 'base64')
     }
 
-    encryptPassword(password) {
-        return EncryptedFlagPrefix + encrypt1(password, this.saltMd5)
+    /**
+     * Compare a plain input to a stored hash.
+     *
+     * @param string The plain text input
+     * @param string The stored hashed string
+     *
+     * @returns boolean Whether they match
+     */
+    checkHashed(input, stored) {
+        return Boolean(
+            input && input.length && stored == this.hashPassword(input)
+        )
     }
 
-    decryptPassword(passwordEncrypted) {
-        return decrypt1(passwordEncrypted.substring(EncryptedFlagPrefix.length), this.saltMd5)
-    }
-
-    generateConfirmKey() {
-        return hash(this.opts.hash, uuid() + this.opts.salt, 'hex')
-    }
-
+    /**
+     * @param string The password string to test
+     *
+     * @returns boolean Whether it is an encrypted password string
+     */
     isEncryptedPassword(password) {
         return password && password.indexOf(EncryptedFlagPrefix) == 0
     }
 
-    async _updateUser(username, user) {
+    /**
+     * Encrypt a password.
+     *
+     * @param string The password to encrypt
+     *
+     * @throws ArgumentError
+     *
+     * @returns string The encrypted password
+     */
+    encryptPassword(password) {
+        return EncryptedFlagPrefix + encrypt1(password, this.saltMd5)
+    }
+
+    /**
+     * Decrypt an encrypted password string.
+     *
+     * @param string The encrypted string
+     *
+     * @throws ArgumentError
+     *
+     * @returns string The decrypted password
+     */
+    decryptPassword(passwordEncrypted) {
+        return decrypt1(passwordEncrypted.substring(EncryptedFlagPrefix.length), this.saltMd5)
+    }
+
+    /**
+     * Get an encrypted token string for credentials.
+     *
+     * @param string The username
+     * @param string The password
+     *
+     * @throws ArgumentError
+     *
+     * @returns string The encrypted token string
+     */
+    getToken(username, password) {
+        return this.encryptPassword([username, password].join('\t'))
+    }
+
+    /**
+     * Parse an encrypted token string into credentials.
+     *
+     * @param string Then encrypted token string
+     *
+     * @throws ArgumentError
+     *
+     * @returns object The credentials
+     */
+    parseToken(token) {
+        const [username, password] = this.decryptPassword(token).split('\t')
+        return {username, password}
+    }
+
+    /**
+     * Generate a new confirm key.
+     *
+     * @returns string The new confirm key
+     */
+    generateConfirmKey() {
+        return hash(this.opts.hash, uuid() + this.opts.salt, 'hex')
+    }
+
+    /**
+     * Internal method to update user data.
+     *
+     * @async
+     *
+     * @param string The username
+     * @param object The user data
+     *
+     * @throws AuthError
+     * @throws InternalError
+     * @throws ValidateError
+     *
+     * @returns undefined
+     */
+    _updateUser(username, user) {
+        username = this.validateUsername(username)
         return this.wrapInternalError(() => this.impl.updateUser(username, user))
     }
 
+    /**
+     * Wraps any error that is not an AuthError or an InternalError in an
+     * InternalError.
+     *
+     * @async
+     *
+     * @param function The callback to execute
+     *
+     * @throws AuthError
+     * @throws InternalError
+     *
+     * @returns The return value of the callback
+     */
     async wrapInternalError(cb) {
         try {
             return await cb()
         } catch (err) {
-            if (!err.isAuthError) {
+            if (!err.isAuthError && !err.isInternalError) {
                 throw new InternalError(err)
             }
             throw err
         }
     }
 
-    checkSecurity() {
+    /**
+     * Ensure the default salt is not used in production environments.
+     *
+     * @throws SecurityError
+     *
+     * @returns undefined
+     */
+    _checkSecurity() {
         if (this.opts.salt == DefaultSalt) {
             if (!process.env.GAMEON_TEST) {
                 this.logger.warn(
-                    'AUTH_SALT not set, using default.'
-                  , 'For security, AUTH_SALT must be set'
-                  , 'in production environemnts.'
+                    'AUTH_SALT not set, using default. For security, AUTH_SALT'
+                  , 'must be set in production environemnts.'
                 )
             }
             if (process.env.NODE_ENV == 'production') {
@@ -498,6 +912,21 @@ class Auth {
                 )
             }
         }
+    }
+
+    /**
+     * Getter for loglevel (integer).
+     */
+    get loglevel() {
+        return this.logger.loglevel
+    }
+
+    /**
+     * Setter for loglevel (integer).
+     */
+    set loglevel(n) {
+        this.logger.loglevel = n
+        this.email.loglevel = n
     }
 }
 

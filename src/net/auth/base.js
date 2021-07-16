@@ -1,5 +1,5 @@
 /**
- * gameon - AnonymousAuth class
+ * gameon - Base Auth implementation class
  *
  * Copyright (C) 2020-2021 Doug Owings
  *
@@ -22,14 +22,33 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-const Base = require('./base')
+const {NotImplementedError} = require('../../lib/errors')
 
-class AnonymousAuth extends Base {
+class AuthImpl {
 
-    constructor(opts) {
-        super()
-        this.isAnonymous = true
+    async createUser(username, user) {
+        throw new NotImplementedError
+    }
+
+    async readUser(username) {
+        throw new NotImplementedError
+    }
+
+    async updateUser(username, user) {
+        throw new NotImplementedError
+    }
+
+    async deleteUser(username) {
+        throw new NotImplementedError
+    }
+
+    async userExists(username) {
+        throw new NotImplementedError
+    }
+
+    async listAllUsers() {
+        throw new NotImplementedError
     }
 }
 
-module.exports = AnonymousAuth
+module.exports = AuthImpl

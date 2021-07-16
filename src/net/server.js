@@ -23,10 +23,10 @@
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 const Constants = require('../lib/constants')
-const Core      = require('../lib/core')
 const Dice      = require('../lib/dice')
 const Errors    = require('../lib/errors')
 const Logger    = require('../lib/logger')
+const {Match}   = require('../lib/core')
 const Util      = require('../lib/util')
 
 const Api       = require('./api')
@@ -44,8 +44,6 @@ const {
   , Red
   , White
 } = Constants
-
-const {Match} = Core
 
 const {castToArray, hash, makeErrorObject, update} = Util
 
@@ -120,6 +118,11 @@ function formatLog(req, res) {
 
 class Server {
 
+    /**
+     * @param object (optional)
+     *
+     * @return
+     */
     static defaults(env) {
         return {
             socketHsTimeout : +env.SOCKET_HSTIMEOUT || 5000
@@ -128,6 +131,9 @@ class Server {
         }
     }
 
+    /**
+     * @param object (optional)
+     */
     constructor(opts) {
 
         this.logger = new Logger(this.constructor.name, {server: true})
@@ -147,6 +153,13 @@ class Server {
         this.socketServer = null
     }
 
+    /**
+     * @async
+     *
+     * @param integer (optional)
+     * @param integer (optional)
+     *
+     */
     listen(port, metricsPort) {
 
         return new Promise((resolve, reject) => {
@@ -171,6 +184,9 @@ class Server {
         })
     }
 
+    /**
+     *
+     */
     close() {
         Object.keys(this.matches).forEach(id =>
             this.cancelMatchId(id, 'Server shutdown')
@@ -186,6 +202,10 @@ class Server {
         }
     }
 
+    /**
+     *
+     * @return Function
+     */
     createApp() {
 
         const app = express()
@@ -209,6 +229,10 @@ class Server {
         return app
     }
 
+    /**
+     *
+     * @return Function
+     */
     createMetricsApp() {
 
         const app = express()
@@ -227,10 +251,20 @@ class Server {
         return app
     }
 
+    /**
+     *
+     * @return object
+     */
     fetchMetrics() {
         return prom.register.metrics()
     }
 
+    /**
+     *
+     * @param http.Server
+     *
+     * @return WebSocketServer
+     */
     createSocketServer(httpServer) {
 
         const server = new WsServer({httpServer})
@@ -287,6 +321,12 @@ class Server {
         return server
     }
 
+    /**
+     * @async
+     *
+     * @param WebSocketConnection
+     * @param object
+     */
     async response(conn, req) {
 
         try {
@@ -333,6 +373,12 @@ class Server {
         }
     }
 
+    /**
+     * @async
+     *
+     * @param WebSocketConnection
+     * @param object
+     */
     async establishSecretResponse(conn, req) {
 
         clearTimeout(conn.handShakeTimeoutId)
@@ -360,6 +406,12 @@ class Server {
         this.logger.log('Client connected', conn.connId)
     }
 
+    /**
+     * @async
+     *
+     * @param WebSocketConnection
+     * @param object
+     */
     createMatchResponse(conn, req) {
 
         const id = Server.matchIdFromSecret(conn.secret)
@@ -379,6 +431,12 @@ class Server {
         metrics.matchesInProgress.labels().set(Object.keys(this.matches).length)
     }
 
+    /**
+     * @async
+     *
+     * @param WebSocketConnection
+     * @param object
+     */
     joinMatchResponse(conn, req) {
 
         const {id} = req
@@ -405,6 +463,11 @@ class Server {
         this.logActive()
     }
 
+    /**
+     * @async
+     *
+     * @param object
+     */
     matchResponse(req) {
 
         const match = this.getMatchForRequest(req)
@@ -591,6 +654,10 @@ class Server {
         }
     }
 
+    /**
+     *
+     * @param Match
+     */
     checkMatchFinished(match) {
         if (match.thisGame && match.thisGame.checkFinished()) {
             match.updateScore()
@@ -605,12 +672,20 @@ class Server {
         }
     }
 
+    /**
+     *
+     */
     logActive() {
         const numConns = this.socketServer ? Object.keys(this.socketServer.conns).length : 0
         const numMatches = Object.keys(this.matches).length
         this.logger.info('There are now', numMatches, 'active matches, and', numConns, 'active connections')
     }
 
+    /**
+     *
+     * @param
+     * @param
+     */
     cancelMatchId(id, reason) {
         const match = this.matches[id]
         if (!match) {
@@ -622,6 +697,11 @@ class Server {
         metrics.matchesInProgress.labels().set(Object.keys(this.matches).length)
     }
 
+    /**
+     *
+     * @param WebSocketConnection|array
+     * @param object
+     */
     sendMessage(conns, data) {
 
         data = data || {}
@@ -653,11 +733,21 @@ class Server {
         })
     }
 
+    /**
+     *
+     * @return string
+     */
     newConnectionId() {
         this.connTicker += 1
         return hash('md5', this.connTicker.toString(), 'hex')
     }
 
+    /**
+     *
+     * @param
+     *
+     * @return
+     */
     getMatchForRequest(req) {
         const {id, color, secret} = req
         if (!secret || secret.length != 64) {
@@ -674,6 +764,10 @@ class Server {
         return match
     }
 
+    /**
+     *
+     * @param WebSocketConnection|array
+     */
     // close safely
     closeConn(conns) {
         castToArray(conns).forEach(conn => {
@@ -688,14 +782,24 @@ class Server {
         })
     }
 
+    /**
+     *
+     * @return
+     */
     roll() {
         return Dice.rollTwo()
     }
 
+    /**
+     *
+     */
     get loglevel() {
         return this.logger.loglevel
     }
 
+    /**
+     *
+     */
     set loglevel(n) {
         this.logger.loglevel = n
         this.auth.loglevel = n
@@ -703,12 +807,22 @@ class Server {
         this.web.loglevel = n
     }
 
+    /**
+     *
+     * @param
+     */
     static validateColor(color) {
         if (color != White && color != Red) {
             throw new ValidateError(`invalid color: ${color}`)
         }
     }
 
+    /**
+     *
+     * @param
+     *
+     * @return
+     */
     static matchIdFromSecret(str) {
         return hash('sha256', str, 'hex').substring(0, 8)
     }

@@ -24,24 +24,24 @@
  */
 const Constants   = require('../lib/constants')
 const Coordinator = require('../lib/coordinator')
-const Core        = require('../lib/core')
 const Dice        = require('../lib/dice')
 const Errors      = require('../lib/errors')
 const Logger      = require('../lib/logger')
-const Robot       = require('./player')
-const Tables      = require('../term/tables')
+const {Match}     = require('../lib/core')
 const Util        = require('../lib/util')
 
-const fse   = require('fs-extra')
-const path  = require('path')
+const Tables = require('../term/tables')
+
+const Robot = require('./player')
+
+const fse  = require('fs-extra')
+const path = require('path')
 
 const {Table, TableHelper} = Tables
 const {Timer}   = Util
 const {resolve} = path
 
 const {Colors, DefaultThemeName} = Constants
-
-const {Match} = Core
 
 const {RobotDelegator} = Robot
 

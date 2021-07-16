@@ -25,16 +25,17 @@
 const Errors = require('../../lib/errors')
 const Util   = require('../../lib/util')
 
+const Base = require('./base')
+
 const AWS  = require('aws-sdk')
 const path = require('path')
 
 const {
     InternalError
-  , NotImplementedError
   , UserNotFoundError
 } = Errors
 
-class S3Auth {
+class S3Auth extends Base {
 
     static defaults(env) {
         return {
@@ -44,6 +45,7 @@ class S3Auth {
     }
 
     constructor(opts){
+        super()
         this.opts = Util.defaults(S3Auth.defaults(process.env), opts)
         this.s3 = new AWS.S3()
     }
@@ -102,10 +104,6 @@ class S3Auth {
             }
         }
         return true
-    }
-
-    async listAllUsers() {
-        throw new InternalError(new NotImplementedError)
     }
 
     _userKey(username) {

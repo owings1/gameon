@@ -28,7 +28,7 @@ const Util = require('../../lib/util')
 const Profiler = Util.Profiler.getDefaultInstance()
 
 const {ZERO_SCORES} = Base
-const {intRange} = require('../../lib/util')
+const {intRange} = Util
 
 function quadrantMultiplier(point) {
     const quadrant = Math.ceil(point / 6)

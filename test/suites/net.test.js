@@ -79,8 +79,8 @@ describe('NetPlayer', () => {
 
         const serverUrl = 'http://localhost:' + server.port
 
-        client1 = new Client(serverUrl)
-        client2 = new Client(serverUrl)
+        client1 = new Client({serverUrl})
+        client2 = new Client({serverUrl})
 
         client1.loglevel = 1
         client2.loglevel = 1

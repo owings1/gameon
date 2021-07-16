@@ -100,7 +100,7 @@ const Profiler = Util.Profiler.getDefaultInstance()
 class Match {
 
     /**
-     * @returns Object
+     * @returns object
      */
     static defaults() {
         return {
@@ -115,6 +115,9 @@ class Match {
     }
 
     /**
+     * @param integer
+     * @param object (optional)
+     *
      * @throws ArgumentError
      */
     constructor(total, opts) {
@@ -257,7 +260,7 @@ class Match {
     }
 
     /**
-     * @returns Object
+     * @returns object
      */
     meta() {
         return {
@@ -276,14 +279,16 @@ class Match {
     }
 
     /**
-     * @returns Object
+     * @returns object
      */
     serialize() {
         return Match.serialize(this)
     }
 
     /**
-     * @returns Object
+     * @param Match
+     *
+     * @returns object
      */
     static serialize(match) {
         const games = match.games.map(Game.serialize)
@@ -291,6 +296,8 @@ class Match {
     }
 
     /**
+     * @param object
+     *
      * @returns Match
      */
     static unserialize(data) {
@@ -319,7 +326,7 @@ class Match {
 class Game {
 
     /**
-     * @returns Object
+     * @returns object
      */
     static defaults() {
         return {
@@ -334,6 +341,8 @@ class Game {
     }
 
     /**
+     * @param object (optional)
+     *
      * @throws TypeError
      */
     constructor(opts) {
@@ -366,6 +375,8 @@ class Game {
     }
 
     /**
+     * @param string
+     *
      * @returns boolean
      */
     canDouble(color) {
@@ -557,7 +568,7 @@ class Game {
     }
 
     /**
-     * @returns Object
+     * @returns object
      */
     meta() {
         return {
@@ -578,14 +589,16 @@ class Game {
     }
 
     /**
-     * @returns Object
+     * @returns object
      */
     serialize() {
         return Game.serialize(this)
     }
 
     /**
-     * @returns Object
+     * @param Game
+     *
+     * @returns object
      */
     static serialize(game) {
         const data = game.meta()
@@ -597,6 +610,8 @@ class Game {
     }
 
     /**
+     * @param object
+     *
      * @returns Game
      */
     static unserialize(data) {
@@ -627,7 +642,7 @@ class Game {
 class Turn {
 
     /**
-     * @returns Object
+     * @returns object
      */
     static defaults() {
         return {
@@ -637,6 +652,10 @@ class Turn {
     }
 
     /**
+     * @param Board
+     * @param string
+     * @param object (optional)
+     *
      * @throws TypeError
      */
     constructor(board, color, opts) {
@@ -722,6 +741,9 @@ class Turn {
     }
 
     /**
+     * @param integer|array
+     * @param integer (optional)
+     *
      * @throws GameError.IllegalStateError.TurnAlreadyFinishedError
      * @throws GameError.IllegalStateError.TurnCanceledError
      * @throws GameError.IllegalStateError.AlreadyRolledError
@@ -835,6 +857,9 @@ class Turn {
     }
 
     /**
+     * @param integer
+     * @param integer
+     *
      * @throws GameError.IllegalMoveError
      * @throws GameError.IllegalStateError.HasNotRolledError
      * @throws GameError.IllegalStateError.NoMovesRemainingError
@@ -953,6 +978,10 @@ class Turn {
     /**
      * Fetch cached. Cache is cleared on turn finish.
      *
+     * @param string
+     *
+     * @throws TypeError
+     *
      * @returns Board
      */
     fetchBoard(state28) {
@@ -1003,7 +1032,7 @@ class Turn {
     }
 
     /**
-     * @returns Object
+     * @returns object
      */
     meta() {
         return {
@@ -1025,14 +1054,16 @@ class Turn {
     }
 
     /**
-     * @returns Object
+     * @returns object
      */
     serialize() {
         return Turn.serialize(this)
     }
 
     /**
-     * @returns Object
+     * @param Turn
+     *
+     * @returns object
      */
     static serialize(turn) {
         return {
@@ -1046,6 +1077,9 @@ class Turn {
     }
 
     /**
+     * @param object
+     * @param Board (optional)
+     *
      * @returns Turn
      */
     static unserialize(data, board) {
@@ -1078,6 +1112,9 @@ class Turn {
 //     afterward. Validated moves can use push/pop methods.
 class Board {
 
+    /**
+     * @param boolean (optional)
+     */
     constructor(isSkipInit) {
         Profiler.inc('board.create')
         this.analyzer = new Analyzer(this)
@@ -1089,6 +1126,10 @@ class Board {
     }
 
     /**
+     * @param string
+     * @param integer
+     * @param integer
+     *
      * @throws GameError.IllegalMoveError
      *
      * @returns Move
@@ -1100,6 +1141,10 @@ class Board {
     }
 
     /**
+     * @param string
+     * @param integer
+     * @param integer
+     *
      * @throws GameError.IllegalMoveError
      *
      * @returns Move
@@ -1113,7 +1158,10 @@ class Board {
     }
 
     /**
-     * @returns Array[Move]
+     * @param string
+     * @param integer
+     *
+     * @returns array[Move]
      */
     getPossibleMovesForFace(color, face) {
         Profiler.start('Board.getPossibleMovesForFace')
@@ -1305,6 +1353,8 @@ class Board {
     }
 
     /**
+     * @param string|array|Buffer
+     *
      * @throws TypeError
      *
      * @returns self
@@ -1352,6 +1402,8 @@ class Board {
     }
 
     /**
+     * @param string
+     *
      * @throws TypeError
      *
      * @returns self
@@ -1413,6 +1465,8 @@ class Board {
      */
 
     /**
+     * @param string
+     *
      * @returns Piece
      */
     popBar(color) {
@@ -1422,6 +1476,9 @@ class Board {
     }
 
     /**
+     * @param string
+     * @param Piece (optional)
+     *
      * @returns self
      */
     pushBar(color, piece) {
@@ -1432,6 +1489,8 @@ class Board {
     }
 
     /**
+     * @param string
+     *
      * @returns Piece
      */
     popHome(color) {
@@ -1441,6 +1500,9 @@ class Board {
     }
 
     /**
+     * @param string
+     * @param Piece (optional)
+     *
      * @returns self
      */
     pushHome(color, piece) {
@@ -1451,6 +1513,8 @@ class Board {
     }
 
     /**
+     * @param integer
+     *
      * @returns Piece
      */
     popOrigin(origin) {
@@ -1460,6 +1524,9 @@ class Board {
     }
 
     /**
+     * @param integer
+     * @param string|Piece
+     *
      * @returns self
      */
     pushOrigin(origin, piece) {
@@ -1497,6 +1564,8 @@ class Board {
     }
 
     /**
+     * @param string
+     *
      * @throws TypeError
      *
      * @returns Board
@@ -1508,6 +1577,8 @@ class Board {
     }
 
     /**
+     * @param string|array|Buffer
+     *
      * @throws TypeError
      *
      * @returns Board
@@ -1521,6 +1592,9 @@ class Board {
 
 class Piece {
 
+    /**
+     * @param string
+     */
     constructor(color) {
         if (color instanceof Piece) {
             color = color.color
@@ -1537,7 +1611,10 @@ class Piece {
     }
 
     /**
-     * @returns Array[Piece]
+     * @param integer
+     * @param string
+     *
+     * @returns array[Piece]
      */
     static make(n, color) {
         return nmap(+n, () => new Piece(color))

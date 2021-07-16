@@ -145,8 +145,8 @@ const Errors    = require('./errors')
 const Logger    = require('./logger')
 const Util      = require('./util')
 
-const fse   = require('fs-extra')
-const path  = require('path')
+const fse  = require('fs-extra')
+const path = require('path')
 
 const {InvalidDirError} = Errors
 

@@ -156,8 +156,17 @@ class Util {
 
     // from:  https://stackoverflow.com/questions/60369148/how-do-i-replace-deprecated-crypto-createcipher-in-nodejs
     static decrypt1(text, key) {
+        if (!text || text.length < 41) {
+            throw new ArgumentError('Invalid text argument')
+        }
+        if (!key || key.length != 32) {
+            throw new ArgumentError('Invalid key argument')
+        }
         const textParts = text.split(':')
         const iv = Buffer.from(textParts.shift(), 'hex')
+        if (iv.length != 16) {
+            throw new ArgumentError('Invalid IV length')
+        }
         const encryptedText = Buffer.from(textParts.join(':'), 'hex')
         const decipher = crypto.createDecipheriv('aes-256-ctr', Buffer.from(key), iv)
         const decrypted = Buffer.concat([decipher.update(encryptedText), decipher.final()])
@@ -176,6 +185,12 @@ class Util {
 
     // from:  https://stackoverflow.com/questions/60369148/how-do-i-replace-deprecated-crypto-createcipher-in-nodejs
     static encrypt1(text, key) {
+        if (!text || !text.length) {
+            throw new ArgumentError('Invalid text argument')
+        }
+        if (!key || key.length != 32) {
+            throw new ArgumentError('Invalid key argument')
+        }
         const iv = crypto.randomBytes(16)
         const cipher = crypto.createCipheriv('aes-256-ctr', Buffer.from(key), iv)
         const encrypted = Buffer.concat([cipher.update(text), cipher.final()])

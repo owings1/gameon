@@ -25,16 +25,15 @@
 const Errors = require('../../lib/errors')
 const Util   = require('../../lib/util')
 
+const Base = require('./base')
+
 const fs   = require('fs')
 const fse  = require('fs-extra')
 const path = require('path')
 
-const {
-    InternalError
-  , UserNotFoundError
-} = Errors
+const {ArgumentError, UserNotFoundError} = Errors
 
-class DirectoryAuth {
+class DirectoryAuth extends Base {
 
     static defaults(env) {
         return {
@@ -43,12 +42,13 @@ class DirectoryAuth {
     }
 
     constructor(opts){
+        super()
         this.opts = Util.defaults(DirectoryAuth.defaults(process.env), opts)
         if (!this.opts.authDir) {
-            throw new InternalError('Auth directory not set.')
+            throw new ArgumentError('Auth directory not set.')
         }
         if (!fs.existsSync(this.opts.authDir)) {
-            throw new InternalError('Auth directory not found: ' + this.opts.authDir)
+            throw new ArgumentError('Auth directory not found: ' + this.opts.authDir)
         }
     }
 
@@ -85,7 +85,7 @@ class DirectoryAuth {
         return new Promise((resolve, reject) => {
             fs.readdir(this.opts.authDir, (err, files) => {
                 if (err) {
-                    reject(new InternalError(err))
+                    reject(err)
                     return
                 }
                 resolve(files)

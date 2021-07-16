@@ -109,9 +109,9 @@ describe('-', () => {
         metricsUrl = 'http://localhost:' + server.metricsPort
         authServerUrl = 'http://localhost:' + authServer.port
 
-        client1 = new Client(serverUrl)
-        client2 = new Client(serverUrl)
-        authClient = new Client(authServerUrl)
+        client1 = new Client({serverUrl})
+        client2 = new Client({serverUrl})
+        authClient = new Client({serverUrl: authServerUrl})
 
         client1.logger.name = 'Client1'
         client2.logger.name = 'Client2'

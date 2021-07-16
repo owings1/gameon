@@ -141,7 +141,7 @@ class Api {
                 res.status(status).send(body)
             ).catch(err => {
                 // Do not reveal non-existence of user.
-                if (err.isUserNotFoundError || err.isUserNotConfirmedError) {
+                if (err.isUserNotFoundError || err.isUserNotConfirmedError || err.isUserLockedError) {
                     this.logger.warn('Invalid forgot-password request', {username}, err)
                     res.status(status).send(body)
                     return
