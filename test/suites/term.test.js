@@ -42,6 +42,7 @@ const fse  = require('fs-extra')
 const path = require('path')
 
 const {resolve} = path
+const {EventEmitter} = require('events')
 
 const {DrawHelper} = requireSrc('term/draw')
 const TermPlayer   = requireSrc('term/player')
@@ -167,7 +168,6 @@ describe('Reporter', () => {
 
 describe('TermPlayer', () => {
 
-
     beforeEach(function () {
 
         const rolls = []
@@ -186,8 +186,8 @@ describe('TermPlayer', () => {
         this.fixture = {players, player, game, rolls}
     })
 
-    afterEach(async function () {
-        await destroyAll(Object.values(this.fixture.players))
+    afterEach(function () {
+        destroyAll(this.fixture.players)
     })
 
     describe('#cchalk', () => {
@@ -678,6 +678,8 @@ describe('TermPlayer', () => {
     describe('listeners on opponent net player', () => {
 
         const loglevel = 1
+        const playerLoglevel = loglevel
+        const serverLoglevel = loglevel
 
         function eastAndWest(client1, client2) {
 
@@ -710,12 +712,14 @@ describe('TermPlayer', () => {
             coordEast.loglevel = loglevel
             Object.values(east.players).forEach(player => {
                 player.logger.name += 'East'
-                player.loglevel = loglevel
+                player.loglevel = playerLoglevel
             })
-            west.players.White.term.stdout = new NullOutput
+            update(west.players.White, {
+                output: new NullOutput
+            })
             Object.values(west.players).forEach(player => {
                 player.logger.name += 'West'
-                player.loglevel = loglevel
+                player.loglevel = playerLoglevel
             })
 
             return {east, west}
@@ -723,23 +727,23 @@ describe('TermPlayer', () => {
 
         beforeEach(async function() {
             const server = new Server
-            server.loglevel = loglevel
+            server.loglevel = serverLoglevel
             await server.listen()
             const serverUrl = `http://localhost:${server.port}`
             const client1 = new Client({serverUrl})
             const client2 = new Client({serverUrl})
+            const {east, west} = eastAndWest(client1, client2)
             client1.loglevel = loglevel
             client2.loglevel = loglevel
-            const {east, west} = eastAndWest(client1, client2)
             update(this.fixture, {client1, client2, server, east, west})
         })
 
-        afterEach(async function () {
+        afterEach(function () {
             const {client1, client2, server, east, west} = this.fixture
-            await destroyAll(east.players)
-            await destroyAll(west.players)
-            await client1.close()
-            await client2.close()
+            destroyAll(east.players)
+            destroyAll(west.players)
+            client1.close()
+            client2.close()
             server.close()
         })
 
@@ -790,7 +794,8 @@ describe('TermPlayer', () => {
             await west.client.connect()
             await east.client.connect()
 
-            for (let i = 0; i < 1; ++i) {
+            
+            for (let i = 0; i < 4; ++i) {
                 await runMatch()
             }
 
@@ -798,7 +803,7 @@ describe('TermPlayer', () => {
             
             expect(res.matchCanceled).to.equal(exp.matchCanceled)
             expect(res.matchResponse).to.equal(exp.matchResponse)
-
+            
         })
     })
 })

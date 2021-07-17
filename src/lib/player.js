@@ -36,6 +36,24 @@ const {NotImplementedError} = Errors
 
 const {uuid} = Util
 
+const Listeners = {
+    matchStart: function(match, players) {
+        this.logger.debug('event.matchStart')
+        this.thisMatch = match
+        this.opponent = players[Opponent[this.color]]
+    }
+  , gameStart: function(game, match, players) {
+        this.logger.debug('event.gameStart')
+        this.thisGame = game
+        this.opponent = players[Opponent[this.color]]
+    }
+  , matchCanceled: function(err) {
+        this.logger.debug('event.matchCanceled')
+        if (this.thisMatch) {
+            this.thisMatch.cancel()
+        }
+    }
+}
 class Player extends EventEmitter {
 
     constructor(color) {
@@ -51,21 +69,8 @@ class Player extends EventEmitter {
         this.color  = color
         this.holds  = []
 
-        this.on('matchStart', (match, players) => {
-            this.logger.debug('event.matchStart')
-            this.thisMatch = match
-            this.opponent = players[Opponent[this.color]]
-        })
-        this.on('gameStart', (game, match, players) => {
-            this.logger.debug('event.gameStart')
-            this.thisGame = game
-            this.opponent = players[Opponent[this.color]]
-        })
-        this.on('matchCanceled', err => {
-            this.logger.debug('event.matchCanceled')
-            if (this.thisMatch) {
-                this.thisMatch.cancel()
-            }
+        Object.entries(Listeners).forEach(([event, listener]) => {
+            this.on(event, listener)
         })
     }
 
@@ -78,7 +83,9 @@ class Player extends EventEmitter {
     }
 
     async destroy() {
-        this.removeAllListeners()
+        Object.entries(Listeners).forEach(([event, listener]) => {
+            this.removeListener(event, listener)
+        })
     }
 
     async rollTurn(turn, game, match) {

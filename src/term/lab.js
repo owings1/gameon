@@ -113,6 +113,8 @@ class LabHelper {
         this.theme = Themes.getInstance(this.opts.theme)
         this.drawer = DrawHelper.forBoard(this.board, this.persp, this.logs, this.opts.theme)
         this.term = new TermHelper(this.opts.termEnabled)
+
+        this.inquirer = inquirer.createPromptModule()
     }
 
     async interactive() {
@@ -937,8 +939,11 @@ class LabHelper {
     }
 
     prompt(questions) {
-        this._prompt = inquirer.prompt(castToArray(questions), null, {theme: this.theme})
-        return this._prompt
+        const opts = {
+            theme: this.theme
+        }
+        this.prompter = this.inquirer.prompt(questions, null, opts)
+        return this.prompter
     }
 
     ccolor(color) {

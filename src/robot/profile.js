@@ -160,7 +160,7 @@ class ProfileHelper {
 
     constructor(opts) {
         this.opts = Util.defaults(ProfileHelper.defaults(), opts)
-        this.logger = new Logger
+        this.logger = new Logger(this.constructor.name, {named: true})
     }
 
     async run() {
@@ -199,9 +199,9 @@ class ProfileHelper {
         const summaryTimer = new Timer
         const coordinator = new Coordinator
 
-        var matchCount = 0
-        var gameCount  = 0
-        var turnCount  = 0
+        let matchCount = 0
+        let gameCount  = 0
+        let turnCount  = 0
 
         const players = [
             RobotDelegator.forDefaults(Colors.White)
@@ -214,15 +214,15 @@ class ProfileHelper {
 
             summaryTimer.start()
 
-            for (var i = 0; i < numMatches; ++i) {
+            for (let i = 0; i < numMatches; ++i) {
 
-                var match = new Match(matchTotal, matchOpts)
+                let match = new Match(matchTotal, matchOpts)
 
                 await coordinator.runMatch(match, ...players)
 
                 matchCount += 1
                 gameCount += match.games.length
-                for (var j = 0, jlen = match.games.length; j < jlen; ++j) {
+                for (let j = 0, jlen = match.games.length; j < jlen; ++j) {
                     turnCount += match.games[j].getTurnCount()
                 }
             }
@@ -293,6 +293,14 @@ class ProfileHelper {
         const data = await fse.readJson(resolve(file))
         const {rolls} = Dice.validateRollsData(data)
         return Dice.createRoller(rolls)
+    }
+
+    get loglevel() {
+        return this.logger.loglevel
+    }
+
+    set loglevel(n) {
+        this.logger.loglevel = n
     }
 }
 

@@ -144,7 +144,12 @@ class InputPrompt extends Inquirer.prompt.prompts.input {
             bottomContent += this.getErrorString(error)
         }
 
-        this.screen.render(message, bottomContent)
+        if (true && this.opt.spin) {
+            this.screen.renderWithSpinner(message, bottomContent)
+        } else {
+            this.screen.render(message, bottomContent)
+        }
+        
     }
 }
 

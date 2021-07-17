@@ -140,7 +140,9 @@ class Client extends EventEmitter {
 
         await new Promise((resolve, reject) => {
 
-            this.socketClient.removeAllListeners()
+            this.socketClient
+                .removeAllListeners('connectFailed')
+                .removeAllListeners('connect')
 
             this.socketClient.on('connectFailed', err => {
                 // WebSocketClient throws generic Error
@@ -196,8 +198,9 @@ class Client extends EventEmitter {
             if (this.conn) {
                 this.conn.close()
             }
-            this.socketClient.removeAllListeners()
-            this.removeAllListeners()
+            this.socketClient
+                .removeAllListeners('connectFailed')
+                .removeAllListeners('connect')
         }
     }
 

@@ -721,17 +721,20 @@ class Questions {
         const chlk = menu.theme.diff
         const config = () => menu.settings.robots[name]
         return this.formatChoices([
-            {
+            this.br()
+          , {
                 value  : 'done'
               , name   : 'Done'
               , enter  : EnterChars.back
               , select : 'd'
             }
+          , this.hr()
           , {
                 value  : 'reset'
               , name   : 'Reset defaults'
               , select : 'r'
             }
+          , this.hr()
           , {
                 value : 'version'
               , name  : 'Version'
@@ -782,6 +785,7 @@ class Questions {
                   , writeInvalid : () => ''
                 }
             }
+          , this.br()
         ])
     }
 

@@ -31,6 +31,7 @@ const {
     requireSrc,
     MockPrompter,
     noop,
+    NullOutput,
     States28,
     tmpDir
 } = TestUtil
@@ -749,9 +750,9 @@ describe('-', () => {
 
         describe('#joinOnlineMatch', () => {
 
-            it('should get call runMatch with mock method and mock client', async () => {
+            it('should call runMatch with mock method and mock client', async () => {
                 var isCalled = false
-                menu.newClient = () => ({connect : noop, joinMatch: noop, close: noop, on: noop})
+                menu.newClient = () => ({connect : noop, joinMatch: noop, close: noop, on: noop, removeListener: noop})
                 menu.newCoordinator = () => ({runMatch: () => isCalled = true})
                 await menu.joinOnlineMatch('asdfasdf')
                 expect(isCalled).to.equal(true)
@@ -928,20 +929,6 @@ describe('-', () => {
             })
         })
 
-        // refactored api
-        describe.skip('#newClient', () => {
-
-            it('should return new client', () => {
-                const client = menu.newClient('mockUrl', '', '')
-                expect(client.constructor.name).to.equal('Client')
-            })
-
-            it('should not decrypt when isDecrypt = false', () => {
-                const client = menu.newClient({serverUrl: 'mockUrl', password: 'foo'}, false)
-                expect(client.password).to.equal('foo')
-            })
-        })
-
         describe('#newCoordinator', () => {
 
             it('should return new coordinator', () => {
@@ -1000,6 +987,7 @@ describe('-', () => {
                     match.opts.roller = () => [6, 1]
                     Object.values(players).forEach(player => {
                         player.loglevel = -1
+                        player.output = new NullOutput
                         player.drawBoard = noop
                         player.promptWaitingForOpponent = () => {}
                     })
@@ -1231,6 +1219,7 @@ describe('-', () => {
                         } else {
                             player.loglevel = -1
                         }
+                        player.output = new NullOutput
                         player.inquirer = fakeInquirer
                         player.drawBoard = noop
                         player.on('firstRoll', () => {
@@ -1253,9 +1242,9 @@ describe('-', () => {
                 })
             })
 
-            it('should get call runMatch with mock method and mock client', async () => {
+            it('should call runMatch with mock method and mock client', async () => {
                 var isCalled = false
-                menu.newClient = () => ({connect : noop, createMatch: noop, close: noop, on: noop})
+                menu.newClient = () => ({connect : noop, createMatch: noop, close: noop, on: noop, removeListener: noop})
                 menu.newCoordinator = () => ({runMatch: () => isCalled = true})
                 await menu.startOnlineMatch(menu.settings.matchOpts)
                 expect(isCalled).to.equal(true)

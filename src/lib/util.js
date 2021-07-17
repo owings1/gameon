@@ -180,7 +180,8 @@ class Util {
     }
 
     static destroyAll(obj) {
-        return Promise.all(Object.values(obj).map(it => it.destroy()))
+        Object.values(obj).forEach(it => it.destroy())
+        //return Promise.all(Object.values(obj).map(it => it.destroy()))
     }
 
     // from:  https://stackoverflow.com/questions/60369148/how-do-i-replace-deprecated-crypto-createcipher-in-nodejs
@@ -471,6 +472,23 @@ class Util {
     static randomElement(arr) {
         const i = Math.floor(Math.random() * arr.length)
         return arr[i]
+    }
+
+    static rejectDuplicatePrompter(prompter, reject = null) {
+        if (!prompter) {
+            return false
+        }
+        let activeName = null
+        if (prompter.ui && prompter.ui.activePrompt) {
+            const {activePrompt} = prompter.ui
+            activeName = activePrompt.opt.name
+        }
+        const err = new PromptActiveError(`A prompt is already active: ${activeName}`)
+        if (reject) {
+            reject(err)
+            return true
+        }
+        throw err
     }
 
     // from: https://stackoverflow.com/a/15762794
@@ -1044,6 +1062,7 @@ const {
   , InvalidCharError
   , MissingDependencyError
   , ProgrammerError
+  , PromptActiveError
   , StyleError
   , UnresolvedDependencyError
 } = Errors

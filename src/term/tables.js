@@ -25,13 +25,16 @@
 const Constants = require('../lib/constants')
 const Errors    = require('../lib/errors')
 const Logger    = require('../lib/logger')
-const Themes    = require('./themes')
 const Util      = require('../lib/util')
+
+const {TermHelper} = require('./draw')
+const Themes       = require('./themes')
 
 const {inquirer} = require('./inquirer')
 
 const {
     Chars
+  , DefaultTermEnabled
   , DefaultThemeName
 } = Constants
 
@@ -54,12 +57,15 @@ const {
 
 const Questions = require('./helpers/tables.questions')
 
+const DefaultTerm = new TermHelper(DefaultTermEnabled)
+
 class TableHelper {
 
     static defaults() {
         return {
             indent : 0
           , theme  : DefaultThemeName
+          , term   : DefaultTerm
         }
     }
 
@@ -67,7 +73,8 @@ class TableHelper {
         this.opts = Util.defaults(TableHelper.defaults(), opts)
         this.logger = new Logger
         this.theme = Themes.getInstance(this.opts.theme)
-        this._inquirer = inquirer
+        this.term = this.opts.term
+        this.inquirer = inquirer.createPromptModule()
     }
 
     async interactive(table) {
@@ -144,15 +151,26 @@ class TableHelper {
     }
 
     println(line) {
-        const {logger} = this
-        logger.writeStdout(''.padEnd(this.opts.indent, ' '))
-        logger.writeStdout(line)
-        logger.writeStdout('\n')
+        const {output} = this
+        output.write(''.padEnd(this.opts.indent, ' '))
+        output.write(line)
+        output.write('\n')
     }
 
     prompt(questions) {
-        this._prompt = this._inquirer.prompt(castToArray(questions), null, {theme: this.theme})
-        return this._prompt
+        const opts = {
+            theme: this.theme
+        }
+        this.prompter = this.inquirer.prompt(castToArray(questions), null, opts)
+        return this.prompter
+    }
+
+    get output() {
+        return this.term.stdout
+    }
+
+    set output(strm) {
+        this.term.stdout = strm
     }
 }
 

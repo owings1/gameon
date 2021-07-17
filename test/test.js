@@ -67,6 +67,13 @@ const skips = [
     //, 'Util'
 ]
 
+const oldEnv = process.env.GAMEON_TEST
+before(() => {
+    process.env.GAMEON_TEST = '1'
+})
+after(() => {
+    process.env.GAMEON_TEST = oldEnv
+})
 Object.entries(suites()).forEach(([file, title]) => {
     if (isPrintOnly) {
         console.log(title)

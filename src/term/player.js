@@ -33,7 +33,6 @@ const Themes    = require('./themes')
 const Util      = require('../lib/util')
 
 const {inquirer} = require('./inquirer')
-
 const {Board} = Core
 const {DrawHelper, TermHelper} = Draw
 const {RobotDelegator} = Robot
@@ -47,9 +46,161 @@ const {
   , PointOrigins
 } = Constants
 
-const {MatchCanceledError, PromptActiveError, WaitingFinishedError} = Errors
+const {MatchCanceledError, WaitingFinishedError} = Errors
 
-const {append, castToArray, nchars, sp, uniqueInts} = Util
+const {
+    castToArray
+  , nchars
+  , rejectDuplicatePrompter
+  , sp
+  , uniqueInts
+} = Util
+
+const {EventEmitter} = require('events')
+
+const Listeners = {
+
+    matchStart: function(match) {
+
+        this.isDualTerm = this.opponent.isTerm
+        this.isDualRobot = this.isRobot && this.opponent.isRobot
+
+        this.drawer.match = match
+        this.drawer.persp = this.persp
+
+        this.removeOpponentListeners(this.opponent)
+
+        const listenersMap = {
+            matchCanceled: [
+                this.cancelPrompt.bind(this)
+            ]
+          , matchResponse: []
+        }
+
+        if (this.opponent.isNet) {
+            listenersMap.matchResponse.push((req, res) => {
+                if (!this.isWaitingPrompt) {
+                    return
+                }
+                const isMyDouble = req.action == 'turnOption' &&
+                                   req.color == this.color &&
+                                   req.isDouble
+                if (!isMyDouble) {
+                    this.cancelPrompt(new WaitingFinishedError)
+                }
+            })
+        }
+
+        this.addOpponentListeners(this.opponent, listenersMap)
+    }
+
+  , gameStart: function(game, match, players) {
+
+        this.drawer.game = game
+        this.drawer.board = game.board
+
+        this.report('gameStart', match ? match.games.length : null)
+
+        if (!this.isDualTerm || this.color == Colors.White) {
+            this.output.write(nchars(21, '\n'))
+        }
+    }
+
+  , firstRoll: function(turn, game, match) {
+        this.report('firstRollWinner', turn.color, turn.dice)
+        this.report('turnStart', turn.color)
+    }
+
+  , afterRoll: function(turn) {
+        this.report('playerRoll', turn.color, turn.diceSorted)
+        if (turn.color != this.color) {
+            // Drawing for this player happens in playRoll
+            if (!this.isDualTerm) {
+                this.drawBoard()
+            }
+            if (this.opponent.isNet) {
+                this.promptWaitingForOpponent('Waiting for opponent to play')
+            }
+        }
+    }
+
+  , turnStart: function(turn) {
+        this.report('turnStart', turn.color)
+        if (!this.isDualTerm || turn.color == this.color) {
+            this.drawBoard()
+        }
+    }
+
+  , beforeOption: function(turn) {
+        if (this.opponent.isNet && turn.color != this.color) {
+            this.promptWaitingForOpponent('Waiting for opponent option')
+        }
+    }
+
+  , turnEnd: function(turn) {
+        if (turn.isCantMove) {
+            this.report('cantMove', turn.color)
+        }
+        if (turn.isRolled) {
+            if (turn.color != this.color) {
+                // Drawing for this color happens in playRoll
+                if (turn.isForceMove) {
+                    this.report('forceMove', turn.color, turn.diceSorted)
+                }
+                turn.moves.forEach(move => this.report('move', move))
+            }
+        }
+    }
+
+  , doubleOffered: function(turn, game) {
+        this.report('doubleOffered', turn.color)
+        if (!this.isDualTerm || turn.color != this.color) {
+            this.drawBoard()
+        }
+        if (this.opponent.isNet && turn.color == this.color) {
+            this.promptWaitingForOpponent('Waiting for opponent to respond')
+        }
+    }
+
+  , doubleDeclined: function(turn) {
+        this.report('doubleDeclined', turn.opponent)
+    }
+
+  , doubleAccepted: function(turn, game) {
+        this.report('gameDoubled', turn.opponent, game.cubeValue)
+    }
+
+  , gameEnd: function(game) {
+        const winner = game.getWinner()
+        this.report('hr')
+        this.report('gameEnd', winner, game.finalValue)
+        if (!this.isDualTerm || winner == this.color) {
+            this.term.clear()
+        }
+    }
+
+  , matchEnd: function(match) {
+        const winner = match.getWinner()
+        const loser = match.getLoser()
+        const {scores} = match
+        this.report('hr')
+        this.report('matchEnd', winner, scores[winner], scores[loser])
+        this.report('hr')
+        if (!this.isDualTerm || winner == this.color) {
+            this.drawBoard()
+        }
+    }
+
+  , matchCanceled: function(err) {
+        this.cancelPrompt(err)
+    }
+
+  , resize: function() {
+        if (!this.isDualTerm || this.color == Colors.White) {
+            this.handleResize()
+        }
+    }
+}
 
 class TermPlayer extends Base {
 
@@ -77,14 +228,18 @@ class TermPlayer extends Base {
 
         this.drawer = DrawHelper.forTermPlayer(this)
 
-        this.loadHandlers()
-        this.inquirer = inquirer.createPromptModule()
+        //this.loadHandlers()
+        this.inquirer = inquirer.createPromptModule({output: this.output})
 
         // Track which players we've loaded handlers on
         // {id: {event: [listener, ...]}}
         this.opponentListeners = {}
         // {id: player}
         this.opponentRegistry = {}
+
+        Object.entries(Listeners).forEach(([event, listener]) => {
+            this.on(event, listener)
+        })
     }
 
     get output() {
@@ -93,10 +248,12 @@ class TermPlayer extends Base {
 
     set output(strm) {
         this.term.stdout = strm
+        this.inquirer.opt.output = strm
     }
 
     loadHandlers() {
 
+        /*
         this.on('matchStart', match => {
 
             this.isDualTerm = this.opponent.isTerm
@@ -237,6 +394,7 @@ class TermPlayer extends Base {
                 this.handleResize()
             }
         })
+        */
     }
 
     // @override
@@ -559,20 +717,10 @@ class TermPlayer extends Base {
     }
 
     prompt(questions, answers, opts) {
-        opts = {
-            theme: this.theme
-          , ...opts
-        }
 
         return new Promise((resolve, reject) => {
 
-            if (this.prompter) {
-                let activeName = null
-                if (this.prompter.ui && this.prompter.ui.activePrompt) {
-                    const {activePrompt} = this.prompter.ui
-                    activeName = activePrompt.opt.name
-                }
-                reject(new PromptActiveError(`A prompt is already active: ${activeName}`))
+            if (rejectDuplicatePrompter(this.prompter, reject)) {
                 return
             }
 
@@ -582,6 +730,11 @@ class TermPlayer extends Base {
                 this.logger.debug('prompter.cleanup')
                 this.promptReject = null
                 this.prompter = null
+            }
+
+            opts = {
+                theme: this.theme
+              , ...opts
             }
 
             this.logger.debug('prompter.create')
@@ -597,6 +750,7 @@ class TermPlayer extends Base {
                         this.logger.debug('Failed to write an extra line', e)
                     }
                     try {
+                        this.logger.debug('promptReject.ui.close')
                         this.prompter.ui.close()
                     } catch (e) {
                         this.logger.error('Failed to close UI', e)
@@ -630,25 +784,33 @@ class TermPlayer extends Base {
 
     async promptWaitingForOpponent(message) {
         if (this.prompter) {
+            // Ignore if we have already started another prompt.
             return
         }
+        const emitter = new EventEmitter
+        emitter.on('afterRender', () => this.term.hideCursor())
         const question = {
-            name: 'waiter'
-          , type: 'input'
-          , prefix : ''
-          , validate: () => ''
-          , mute : true
+            name     : 'waiter'
+          , type     : 'input'
+          , prefix   : ''
+          , validate : () => ''
+          , mute     : true
+          , spin     : true
           , message
         }
+        const opts = {emitter}
         this.isWaitingPrompt = true
         try {
-            await this.prompt(question)//this.term.noCusor(() => this.prompt(question))
+            this.logger.debug('promptWaitingForOpponent.create')
+            await this.prompt(question, null, opts)
         } catch (err) {
             if (err.isWaitingFinishedError) {
                 return
             }
             this.cancelPrompt(err)
         } finally {
+            this.term.showCursor()
+            emitter.removeAllListeners()
             this.isWaitingPrompt = false
         }
     }
@@ -729,6 +891,7 @@ class TermPlayer extends Base {
     }
 
     destroy() {
+
         Object.values(this.opponentRegistry).forEach(player => {
             try {
                 this.removeOpponentListeners(player)
@@ -736,6 +899,10 @@ class TermPlayer extends Base {
                 const id = player ? player.id : null
                 this.logger.error('Failed to remove opponent listeners for player id', id, err)
             }
+        })
+
+        Object.entries(Listeners).forEach(([event, listener]) => {
+            this.removeListener(event, listener)
         })
 
         return super.destroy()
@@ -794,8 +961,9 @@ class TermRobot extends TermPlayer {
         }
     }
 
-    async destroy() {
-        await Promise.all([this.robot.destroy(), super.destroy()])
+    destroy() {
+        this.robot.destroy()
+        return super.destroy()
     }
 
     meta() {

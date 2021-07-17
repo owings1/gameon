@@ -43,7 +43,6 @@ Code adapted and modified.
 - [src/lib/util.js](src/lib/util.js) (`breakLines()` and `forceLineReturn()`)
 - [src/lib/term/helpers/prompt.features.js](src/lib/term/helpers/prompt.features.js)
 - [src/lib/term/helpers/prompt.methods.js](src/lib/term/helpers/prompt.methods.js)
-- [test/util.js](test/util.js) (`ReadlineStub`)
 
 #### Copyright
 

@@ -62,7 +62,11 @@ class TermBox {
         this.opts = Util.defaults(defaults, opts)
         this.opts.format = Util.defaults(defaults.format, this.opts.format)
         this.status = new BoxStatus
-        this.status.on('render', () => this.drawBorder())
+        this.status.on('render', () => {
+            this.term.saveCursor()
+            this.drawBorder()
+            this.term.restoreCursor()
+        })
     }
 
     get term() {
@@ -125,8 +129,11 @@ class TermBox {
         const {format} = this.opts
         const line = format.erase(nchars(outerWidth, ' '))
 
-        this.term.writeArea(outerLeft, outerTop, 1, outerHeight, line)
-        this.term.moveTo(left, top)
+        this.term
+            .saveCursor()
+            .writeArea(outerLeft, outerTop, 1, outerHeight, line)
+            .restoreCursor()
+
         this.status.reset()
     }
 
@@ -147,6 +154,8 @@ class TermBox {
 
         const borders = this.getBorders(width)
         const pads = this.getPadStrings(width)
+
+        term.saveCursor()
 
         if (isBorder) {
             term.moveTo(outerLeft, outerTop).write(borders.top)
@@ -176,7 +185,7 @@ class TermBox {
         if (isBorder) {
             term.moveTo(outerLeft, outerTop + outerHeight).write(borders.foot)
         }
-        term.moveTo(left, top)
+        term.restoreCursor()
     }
 
     getBorders(width) {
@@ -228,6 +237,10 @@ class TermBox {
         }
 
         return chars
+    }
+
+    destroy() {
+        this.status.removeAllListeners()
     }
 }
 

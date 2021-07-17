@@ -40,6 +40,7 @@ const {
 const Constants = requireSrc('lib/constants')
 const Core = requireSrc('lib/core')
 const Dice = requireSrc('lib/dice')
+const Player = requireSrc('lib/player')
 const Util = requireSrc('lib/util')
 
 const {White, Red} = Constants
@@ -1643,3 +1644,64 @@ describe('Dice', () => {
     })
 })
 
+describe('Player', () => {
+
+    describe('#constructor', () => {
+
+        it('should have 1 listener on matchStart', function() {
+            const player = new Player(Red)
+            expect(player.listenerCount('matchStart')).to.equal(1)
+        })
+
+        it('should have 1 listener on gameStart', function() {
+            const player = new Player(Red)
+            expect(player.listenerCount('gameStart')).to.equal(1)
+        })
+
+        it('should have 1 listener on matchCanceled', function() {
+            const player = new Player(Red)
+            expect(player.listenerCount('matchCanceled')).to.equal(1)
+        })
+    })
+
+    describe('#destroy', () => {
+
+        it('should have 0 listeners on matchStart', function() {
+            const player = new Player(Red)
+            player.destroy()
+            expect(player.listenerCount('matchStart')).to.equal(0)
+        })
+
+        it('should have 0 listeners on gameStart', function() {
+            const player = new Player(Red)
+            player.destroy()
+            expect(player.listenerCount('gameStart')).to.equal(0)
+        })
+
+        it('should have 0 listeners on matchCanceled', function() {
+            const player = new Player(Red)
+            player.destroy()
+            expect(player.listenerCount('matchCanceled')).to.equal(0)
+        })
+
+        it('should not remove matchStart listener added elsewhere', function () {
+            const player = new Player(Red)
+            player.on('matchStart', () => {})
+            expect(player.listenerCount('matchStart')).to.equal(2)
+            player.destroy()
+            expect(player.listenerCount('matchStart')).to.equal(1)
+        })
+
+        it('should have 0 listeners on matchCanceled after Util.destroyAll object', function() {
+            const player = new Player(Red)
+            Util.destroyAll({a: player})
+            expect(player.listenerCount('matchCanceled')).to.equal(0)
+        })
+
+        it('should have 0 listeners on matchCanceled after Util.destroyAll array', function() {
+            const player = new Player(Red)
+            Util.destroyAll([player])
+            expect(player.listenerCount('matchCanceled')).to.equal(0)
+        })
+    })
+})

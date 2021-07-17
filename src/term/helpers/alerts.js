@@ -84,7 +84,7 @@ class Alerts extends EventEmitter {
         return this
     }
 
-    async consume(cb) {
+    consume(cb) {
         const alerts = this.splice(0)
         const ret = []
         try {
@@ -96,7 +96,7 @@ class Alerts extends EventEmitter {
                     alert = this.buildObject(null, alert)
                 }
                 if (cb) {
-                    await cb(alert)
+                    cb(alert)
                 }
                 ret.push(alert)
             }
@@ -176,6 +176,11 @@ class Alerts extends EventEmitter {
             }
         }
         return String(arg)
+    }
+
+    destroy() {
+        this.alerts.splice(0)
+        this.removeAllListeners()
     }
 
     get length() {

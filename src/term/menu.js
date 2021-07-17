@@ -72,6 +72,7 @@ const {
   , nchars
   , ntimes
   , padEnd
+  , rejectDuplicatePrompter
   , stringWidth
   , stripAnsi
   , sumArray
@@ -132,7 +133,7 @@ class Menu extends EventEmitter {
 
         this.theme = Themes.getDefaultInstance()
         this.term  = new TermHelper(this.settings.termEnabled)
-        this.inquirer = inquirer.createPromptModule()
+        this.inquirer = inquirer.createPromptModule({escapeCodeTimeout: 100})
 
         this.logger = new Logger('Menu', {named: true})
         this.alerter = new Logger('Alerter', {raw: true})
@@ -196,6 +197,11 @@ class Menu extends EventEmitter {
         }
         if (this.coordinator) {
             this.coordinator.loglevel = n
+        }
+        if (this.players) {
+            Object.values(this.players).forEach(player => {
+                player.loglevel = n
+            })
         }
     }
 
@@ -308,7 +314,6 @@ class Menu extends EventEmitter {
                             return false
                         }
                         args.push(join.answer)
-                        isContinue = false
                     } else {
                         let {matchOpts} = this.settings
                         if (isAdvanced) {
@@ -317,10 +322,10 @@ class Menu extends EventEmitter {
                         args.push(matchOpts)
                     }
                     await this[method](...args)
-                    return isContinue
+                    return !isJoin
                 }
 
-                let {answer, isCancel, isChange} = await ask()
+                const {answer, isCancel, isChange} = await ask()
 
                 if (isCancel || !isChange) {
                     return true
@@ -385,10 +390,13 @@ class Menu extends EventEmitter {
                 }
 
                 try {
+
                     if (!isCredentialsFilled(this.credentials, true)) {
                         return true
                     }
+
                     await this.doLogin()
+
                 } catch (err) {
                     this.alerts.error(err)
                 } finally {
@@ -446,7 +454,7 @@ class Menu extends EventEmitter {
                 }
 
                 if (choice == 'theme' || choice == 'termEnabled') {
-                    // erase the screen because the background may change.
+                    // Erase the screen because the background may change.
                     this.eraseScreen()
                 }
 
@@ -704,12 +712,12 @@ class Menu extends EventEmitter {
         return true
     }
 
-    async startOnlineMatch(matchOpts) {
-        await this._runOnlineMatch(matchOpts, true, null)
+    startOnlineMatch(matchOpts) {
+        return this._runOnlineMatch(matchOpts, true, null)
     }
 
-    async joinOnlineMatch(matchId) {
-        await this._runOnlineMatch(null, false, matchId)
+    joinOnlineMatch(matchId) {
+        return this._runOnlineMatch(null, false, matchId)
     }
 
     async playRobot(matchOpts) {
@@ -719,7 +727,7 @@ class Menu extends EventEmitter {
             White : new TermPlayer(White, this.settings)
           , Red   : new TermPlayer.Robot(this.newRobot(Red), this.settings)
         }
-        await this.runMatch(match, players)
+        return this.runMatch(match, players)
     }
 
     async playRobots(matchOpts) {
@@ -729,7 +737,7 @@ class Menu extends EventEmitter {
             White : new TermPlayer.Robot(this.newRobot(White), this.settings)
           , Red   : new TermPlayer.Robot(this.newDefaultRobot(Red), this.settings)
         }
-        await this.runMatch(match, players)
+        return this.runMatch(match, players)
     }
 
     async playHumans(matchOpts) {
@@ -739,14 +747,14 @@ class Menu extends EventEmitter {
             White : new TermPlayer(White, this.settings)
           , Red   : new TermPlayer(Red, this.settings)
         }
-        await this.runMatch(match, players)
+        return this.runMatch(match, players)
     }
 
     async _runOnlineMatch(matchOpts, isStart, matchId) {
 
         await this.ensureLoaded()
 
-        const client = this.newClient(this.credentials, true)
+        const client = this.newClient()
 
         try {
             const termPlayer = new TermPlayer(isStart ? White : Red, this.settings)
@@ -756,7 +764,7 @@ class Menu extends EventEmitter {
               , Red   : isStart ? netPlayer  : termPlayer
             }
             this.captureInterrupt = () => {
-                this.logger.warn('Aborting')
+                this.alerts.warn('Aborting waiting')
                 client.cancelWaiting(new WaitingAbortedError('Keyboard interrupt'))
                 return true
             }
@@ -785,23 +793,28 @@ class Menu extends EventEmitter {
             await this.runMatch(match, players)
 
         } catch (err) {
+
             if (err.isWaitingAbortedError) {
                 this.alerts.warn(err)
                 return
             }
+
             throw err
+
         } finally {
             this.captureInterrupt = null
-            await client.close()
+            // This could throw
+            client.close()
         }
     }
 
     async runMatch(match, players) {
+
         try {
 
-            const coordinator = this.newCoordinator()
-            this.coordinator = coordinator
             this.players = players
+
+            const coordinator = this.newCoordinator()
 
             this.captureInterrupt = () => {
                 this.alerts.warn('Canceling match')
@@ -813,7 +826,7 @@ class Menu extends EventEmitter {
             this.emit('beforeMatchStart', match, players, coordinator)
 
             this.eraseScreen()
-            await this.consumeAlerts()
+            this.consumeAlerts()
 
             players.White.on('matchEnd', match => {
                 const winner = match.getWinner()
@@ -827,18 +840,22 @@ class Menu extends EventEmitter {
             await coordinator.runMatch(match, players)
 
         } catch (err) {
+
             if (err.isMatchCanceledError) {
                 this.alerts.warn(err)
                 return
             }
+
             throw err
+
         } finally {
+
+            destroyAll(players)
 
             this.captureInterrupt = null
             this.coordinator = null
             this.players = null
-
-            await destroyAll(players)
+            
             this.clearScreen()
         }
     }
@@ -911,15 +928,14 @@ class Menu extends EventEmitter {
     newCoordinator() {
         const coordinator = new Coordinator(this.settings)
         coordinator.loglevel = this.loglevel
+        this.coordinator = coordinator
         return coordinator
     }
 
-    newClient(credentials) {
-        credentials = {
-            ...credentials
-          , password: this.decryptPassword(credentials.password)
-        }
-        const client = new Client(credentials)
+    newClient() {
+        const client = new Client(update({...this.credentials}, {
+            password: this.decryptPassword(this.credentials.password)
+        }))
         this.thisClient = client
         client.loglevel = this.loglevel
         return client
@@ -929,13 +945,7 @@ class Menu extends EventEmitter {
 
         return new Promise((resolve, reject) => {
 
-            if (this.prompter) {
-                let activeName = null
-                if (this.prompter.ui && this.prompter.ui.activePrompt) {
-                    const {activePrompt} = this.prompter.ui
-                    activeName = activePrompt.opt.name
-                }
-                reject(new PromptActiveError(`A prompt is already active: ${activeName}`))
+            if (rejectDuplicatePrompter(this.prompter, reject)) {
                 return
             }
 
@@ -975,7 +985,6 @@ class Menu extends EventEmitter {
           , emitter       : box.status
           , term          : this.term
           , clearMaxWidth : true
-            , readline  : {escapeCodeTimeout: 100}
           , maxWidth
           , indent
         }
@@ -1002,6 +1011,8 @@ class Menu extends EventEmitter {
             const opts = this.getPromptOpts()
             this.writeMenuBackground()
             this.renderAlerts(this.currentAlerts)
+            // We don't know exactly where the cursor will end up after boxes
+            // resize so we have to render the current prompt only.
             this.term.moveTo(1, this.boxes.menu.params.top)
             ui.onResize(opts, true)
         }, ResizeTimoutMs)
@@ -1016,20 +1027,28 @@ class Menu extends EventEmitter {
             this.ensureMenuBackground()
             this.lastMenuChoice = null
             this.lastToggleChoice = null
+
+            const box = this.boxes.menu
+            this.term.moveTo(1, box.params.top)
+
             return await run(
-                hint => this.menuChoice(this.q.menu(title, hint))
+                (...hints) => this.menuChoice(this.q.menu(title, ...hints))
               , async loop => {
-                    let res
+                    let ret
                     while (true) {
                         this.ensureMenuBackground()
-                        this.currentAlerts = await this.consumeAlerts()
+                        // Save alerts to re-render on resize.
+                        this.currentAlerts = this.consumeAlerts()
                         this.eraseMenu()
-                        res = await loop()
-                        if (res !== true) {
+
+                        this.term.moveTo(1, box.params.top)
+
+                        ret = await loop()
+                        if (ret !== true) {
                             break
                         }
                     }
-                    return res
+                    return ret
                 }
             )
         } finally {
@@ -1037,8 +1056,8 @@ class Menu extends EventEmitter {
         }
     }
 
-    async consumeAlerts(isSkipRender) {
-        const alerts = await this.alerts.consume()
+    consumeAlerts(isSkipRender) {
+        const alerts = this.alerts.consume()
         if (!isSkipRender) {
             this.renderAlerts(alerts)
         }
@@ -1071,6 +1090,8 @@ class Menu extends EventEmitter {
             errors.forEach(error => console.error(error))
         }
 
+        this.term.saveCursor()
+
         const indent = left - 1
         levelsLines.forEach(([logLevel, line], i) => {
             this.term.moveTo(left, top + i)
@@ -1079,6 +1100,8 @@ class Menu extends EventEmitter {
             box.status.emit('line', param)
         })
 
+        this.term.restoreCursor()
+
         box.drawBorder()
     }
 
@@ -1086,7 +1109,7 @@ class Menu extends EventEmitter {
         question = {
             name     : 'choice'
           , type     : 'rawlist'
-          , pageSize : Infinity
+          , pageSize : this.boxes.menu.opts.maxHeight - 4
           , prefix   : this.getMenuPrefix()
           , ...question
         }
@@ -1158,13 +1181,13 @@ class Menu extends EventEmitter {
 
     writeMenuBackground() {
         Object.values(this.boxes).forEach(box => box.status.reset())
-        if (!this.settings.termEnabled) {
-            return
-        }
         const chlk = this.theme.menu
         const str = chlk.screen(nchars(this.term.width, ' '))
-        this.term.writeArea(1, 1, 1, this.term.height, str)
-        this.term.moveTo(1, 1)
+
+        this.term.saveCursor()
+            .writeArea(1, 1, 1, this.term.height, str)
+            .restoreCursor()
+
         this.hasMenuBackground = true
     }
 
@@ -1397,6 +1420,30 @@ class Menu extends EventEmitter {
 
     robotMinimalConfig(name) {
         return Menu.robotMinimalConfig(name)
+    }
+
+    destroy() {
+        if (this.prompter && this.prompter.ui) {
+            try {
+                this.prompter.ui.close()
+            } catch (err) {
+                this.logger.warn(err)
+            }
+            this.prompter = null
+        }
+        destroyAll(this.boxes)
+        if (this.players) {
+            destroyAll(this.players)
+        }
+        this.alerts.destroy()
+        if (this.thisClient) {
+            try {
+                this.thisClient.close()
+            } catch (err) {
+                this.logger.warn(err)
+            }
+        }
+        this.removeAllListeners()
     }
 
     static settingsDefaults() {

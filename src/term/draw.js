@@ -29,7 +29,7 @@ const Themes      = require('./themes')
 const Util        = require('../lib/util')
 
 const ansiEscapes = require('ansi-escapes')
-const term        = require('terminal-kit').terminal
+const TermKit     = require('terminal-kit')
 
 const {RobotDelegator} = Robot
 const {StringBuilder}  = Util
@@ -109,13 +109,13 @@ class DrawHelper {
         this.homeCounts  = {}
         this.matchScores = {}
 
-        for (var point = 1; point < 25; ++point) {
+        for (let point = 1; point < 25; ++point) {
             this.pointStats[point] = analyzer.statPoint(this.persp, point)
         }
 
         const {game, match} = this
 
-        for (var color in Colors) {
+        for (let color in Colors) {
             this.barCounts[color]  = analyzer.piecesOnBar(color)
             this.homeCounts[color] = analyzer.piecesHome(color)
             if (match) {
@@ -604,7 +604,10 @@ class Reporter {
 
     constructor(inst) {
         this.inst = inst
-        this.chlk = inst.theme.board.log
+    }
+
+    get chlk() {
+        return this.inst.theme.board.log
     }
 
     gameStart(num) {
@@ -839,7 +842,7 @@ class TermHelper {
 
     constructor(enabled) {
         this.enabled = enabled
-        this.term = term
+        this.term = TermKit.terminal//createTerminal()
     }
 
     clear(...args) {
@@ -874,9 +877,9 @@ class TermHelper {
 
     writeArea(left, top, width, height, chr) {
         if (this.enabled) {
-            for (var i = 0; i < height; ++i) {
+            for (let i = 0; i < height; ++i) {
                 this.moveTo(left, top + i)
-                for (var j = 0; j < width; ++j) {
+                for (let j = 0; j < width; ++j) {
                     this.moveTo(left + j, top + i)
                     this.write(chr)
                 }
@@ -930,6 +933,20 @@ class TermHelper {
     column(...args) {
         if (this.enabled) {
             this.term.column(...args)
+        }
+        return this
+    }
+
+    saveCursor() {
+        if (this.enabled) {
+            this.term.saveCursor()
+        }
+        return this
+    }
+
+    restoreCursor() {
+        if (this.enabled) {
+            this.term.restoreCursor()
         }
         return this
     }

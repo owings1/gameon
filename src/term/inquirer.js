@@ -88,10 +88,8 @@ const DefaultTerm = new TermHelper(DefaultTermEnabled)
  * the ScreenManager.
  */
 function createPromptModule(opt) {
-    
-    const self = (questions, answers, opts) => {
 
-        opts = {emitter: NullEmitter, ...opts}
+    const self = (questions, answers, opts) => {
 
         questions = castToArray(questions).map(question => (
             {...question, opts: {...opts, ...question.opts}}
@@ -102,20 +100,23 @@ function createPromptModule(opt) {
          */
         let ui
         try {
-            ui = new self.ui.Prompt(self.prompts, opt, self)
+            ui = new self.ui.Prompt(self.prompts, self.opt, self)
         } catch (error) {
             return Promise.reject(error)
         }
         const promise = ui.run(questions, answers)
 
-        // Monkey patch the UI and opts on the promise object so
+        // Monkey patch the UI on the promise object so
         // that it remains publicly accessible.
-        return update(promise, {ui, opts})
+        return update(promise, {ui})
     }
+
+    opt = opt || {}
 
     ensure(self, {
 
         createPromptModule
+      , opt
 
       , ScreenManager
       , Separator
@@ -140,6 +141,60 @@ function createPromptModule(opt) {
     return self.restoreDefaultPrompts()
 }
 
+class Prompt extends Inquirer.ui.Prompt {
+
+    constructor(prompts, opt, prompter) {
+        super(prompts, opt)
+        this.ScreenClass = (prompter && prompter.ScreenManager) || ScreenManager
+    }
+
+    onResize(...args) {
+        if (this.activePrompt && this.activePrompt.screen) {
+            const {screen} = this.activePrompt
+            if (typeof screen.onResize == 'function') {
+                screen.onResize(...args)
+            }
+        }
+    }
+
+    /**
+     * @override To instantiate screen class.
+     *
+     * Copied and adapted from inquirer/lib/ui/prompt
+     *
+     * See https://github.com/SBoudrias/Inquirer.js/blob/master/packages/inquirer/lib/ui/prompt.js
+     */
+    fetchAnswer(question) {
+
+        const PromptClass = this.prompts[question.type]
+        const ScreenClass = this.ScreenClass
+
+        this.activePrompt = new PromptClass(question, this.rl, this.answers)
+
+        update(this.activePrompt, {
+            screen: new ScreenClass(this.rl, question.opts)
+        })
+
+        return defer(() =>
+            from(
+                this.activePrompt.run().then((answer) => {
+                    return { name: question.name, answer }
+                })
+            )
+        )
+    }
+
+    close() {
+        super.close()
+        if (this.activePrompt && this.activePrompt.screen) {
+            const {screen} = this.activePrompt
+            if (typeof screen.done == 'function') {
+                screen.done()
+            }
+        }
+    }
+}
+
 class ScreenManager extends ScreenBase {
 
     constructor(rl, opts) {
@@ -160,6 +215,7 @@ class ScreenManager extends ScreenBase {
           , heightMax : 0
         })
         this.isFirstRender = true
+        this.isDone = false
     }
 
    /**
@@ -277,13 +333,12 @@ class ScreenManager extends ScreenBase {
         rl.output.mute()
 
         // Set state for next rendering.
-        //this.height = lines.length
         this.heightMax = Math.max(this.height, this.heightMax)
         this.footHeight = footHeight
 
-        //emitter.emit('render', {indent, width: this.width, height: this.height})
-
         this.isFirstRender = false
+
+        emitter.emit('afterRender')
     }
 
     /**
@@ -325,12 +380,18 @@ class ScreenManager extends ScreenBase {
     }
 
     /**
-     * @override Emit answered event, and clear lastRender
+     * @override Emit answered event, clear lastRender, clear spinnerId.
      */
     done() {
+        // prevent double call when closing on error
+        if (this.isDone) {
+            return
+        }
         this.opts.emitter.emit('answered', {height: this.height})
         this._lastRender = null
+        clearInterval(this.spinnerId)
         super.done()
+        this.isDone = true
     }
 
     onResize(opts, isResetFirstRender) {
@@ -344,60 +405,7 @@ class ScreenManager extends ScreenBase {
     }
 }
 
-class Prompt extends Inquirer.ui.Prompt {
 
-    constructor(prompts, opt, prompter) {
-        super(prompts, opt)
-        this.prompter = prompter
-        this.ScreenClass = (prompter && prompter.ScreenManager) || ScreenManager
-    }
-
-    newScreenManager(...args) {
-        const ScreenClass = (this.prompter && this.prompter.ScreenManager) || ScreenManager
-        return new ScreenClass(...args)
-    }
-
-    onResize(...args) {
-        if (this.activePrompt && this.activePrompt.screen) {
-            const {screen} = this.activePrompt
-            if (typeof screen.onResize == 'function') {
-                screen.onResize(...args)
-            }
-        }
-    }
-
-    /**
-     * @override To store reference to UI and Prompt module in Prompt instances.
-     *
-     * Copied and adapted from inquirer/lib/ui/prompt
-     *
-     * See https://github.com/SBoudrias/Inquirer.js/blob/master/packages/inquirer/lib/ui/prompt.js
-     */
-    fetchAnswer(question) {
-
-        const PromptClass = this.prompts[question.type]
-        const ScreenClass = this.ScreenClass
-
-        this.activePrompt = new PromptClass(question, this.rl, this.answers)
-
-        update(this.activePrompt, {
-            screen: new ScreenClass(this.rl, question.opts)
-        })
-
-        ensure(this.activePrompt, {
-            ui       : this
-          , prompter : this.prompter
-        })
-
-        return defer(() =>
-            from(
-                this.activePrompt.run().then((answer) => {
-                    return { name: question.name, answer }
-                })
-            )
-        )
-    }
-}
 
 class Separator extends Inquirer.Separator {
 

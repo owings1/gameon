@@ -388,13 +388,12 @@ class RobotDelegator extends Robot {
         return weightedSum / weightsSum
     }
 
-    async destroy() {
-        const promises = this.delegates.map(delegate =>
+    destroy() {
+        this.delegates.forEach(delegate =>
             delegate.robot.destroy()
         )
-        promises.push(super.destroy())
-        await Promise.all(promises)
         this.delegates.splice(0)
+        return super.destroy()
     }
 
     meta() {
