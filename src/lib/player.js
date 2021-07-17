@@ -37,16 +37,19 @@ const {NotImplementedError} = Errors
 const {uuid} = Util
 
 const Listeners = {
+
     matchStart: function(match, players) {
         this.logger.debug('event.matchStart')
         this.thisMatch = match
         this.opponent = players[Opponent[this.color]]
     }
+
   , gameStart: function(game, match, players) {
         this.logger.debug('event.gameStart')
         this.thisGame = game
         this.opponent = players[Opponent[this.color]]
     }
+
   , matchCanceled: function(err) {
         this.logger.debug('event.matchCanceled')
         if (this.thisMatch) {
@@ -54,6 +57,7 @@ const Listeners = {
         }
     }
 }
+
 class Player extends EventEmitter {
 
     constructor(color) {
@@ -71,20 +75,6 @@ class Player extends EventEmitter {
 
         Object.entries(Listeners).forEach(([event, listener]) => {
             this.on(event, listener)
-        })
-    }
-
-    get loglevel() {
-        return this.logger.loglevel
-    }
-
-    set loglevel(n) {
-        this.logger.loglevel = n
-    }
-
-    async destroy() {
-        Object.entries(Listeners).forEach(([event, listener]) => {
-            this.removeListener(event, listener)
         })
     }
 
@@ -106,6 +96,20 @@ class Player extends EventEmitter {
 
     meta() {
         return {name: this.name, color: this.color}
+    }
+
+    destroy() {
+        Object.entries(Listeners).forEach(([event, listener]) => {
+            this.removeListener(event, listener)
+        })
+    }
+
+    get loglevel() {
+        return this.logger.loglevel
+    }
+
+    set loglevel(n) {
+        this.logger.loglevel = n
     }
 }
 

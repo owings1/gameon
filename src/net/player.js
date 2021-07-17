@@ -44,18 +44,40 @@ const ClientListeners = {
 const Listeners = {
 
     gameStart: function(game, match, players) {
-        this.holds.push(new Promise((resolve, reject) => {
-            this.client.matchRequest('nextGame').then(() => {
-                game.opts.roller = () => this.dice
-                this.client.matchRequest('firstTurn').then(({dice}) => {
-                    this.dice = dice
-                    this.opponent.rollTurn = async (turn, game, match) => {
-                        await this.rollTurn(turn, game, match)
+
+        this.holds.push(
+
+            new Promise((resolve, reject) => {
+
+                this.client.matchRequest('nextGame').then(() => {
+
+                    if (this._checkCanceled(null, game, match)) {
+                        resolve()
+                        return
                     }
-                    resolve()
+
+                    game.opts.roller = () => this.dice
+
+                    this.client.matchRequest('firstTurn').then(res => {
+
+                        if (this._checkCanceled(null, game, match)) {
+                            resolve()
+                            return
+                        }
+
+                        this.dice = res.dice
+
+                        this.opponent.rollTurn = async (turn, game, match) => {
+                            await this.rollTurn(turn, game, match)
+                        }
+
+                        resolve()
+
+                    }).catch(reject)
+
                 }).catch(reject)
-            }).catch(reject)
-        }))
+            })
+        )
     }
 
   , turnEnd: function(turn, game, match) {
@@ -78,19 +100,25 @@ const Listeners = {
 
   , doubleOffered: function(turn, game, match) {
         if (turn.color == this.opponent.color) {
-            this.holds.push(this.client.matchRequest('turnOption', {isDouble: true}))
+            this.holds.push(
+                this.client.matchRequest('turnOption', {isDouble: true})
+            )
         }
     }
 
   , doubleAccepted: function(turn, game, match) {
         if (turn.color == this.color) {
-            this.holds.push(this.client.matchRequest('doubleResponse', {isAccept: true}))
+            this.holds.push(
+                this.client.matchRequest('doubleResponse', {isAccept: true})
+            )
         }
     }
 
   , doubleDeclined: function(turn, game, match) {
         if (turn.color == this.color) {
-            this.holds.push(this.client.matchRequest('doubleResponse', {isAccept: false}))
+            this.holds.push(
+                this.client.matchRequest('doubleResponse', {isAccept: false})
+            )
         }
     }
 
@@ -103,13 +131,13 @@ const Listeners = {
 class NetPlayer extends Base {
     
     constructor(client, ...args) {
+
         super(...args)
 
         this.client = client
         this.isNet = true
 
         this.dice = null
-        //this.loadHandlers()
 
         this.clientListeners = Object.fromEntries(
             Object.entries(ClientListeners).map(([event, listener]) =>
@@ -124,73 +152,6 @@ class NetPlayer extends Base {
         Object.entries(Listeners).forEach(([event, listener]) => {
             this.on(event, listener)
         })
-    }
-
-    loadHandlers() {
-        /*
-        this.on('gameStart', (game, match, players) => {
-            this.holds.push(new Promise((resolve, reject) => {
-                this.client.matchRequest('nextGame').then(() => {
-                    game.opts.roller = () => this.dice
-                    this.client.matchRequest('firstTurn').then(({dice}) => {
-                        this.dice = dice
-                        this.opponent.rollTurn = async (turn, game, match) => {
-                            await this.rollTurn(turn, game, match)
-                        }
-                        resolve()
-                    }).catch(reject)
-                }).catch(reject)
-            }))
-        })
-
-        this.on('turnEnd', (turn, game, match) => {
-            if (!turn.isDoubleDeclined && turn.color == this.opponent.color) {
-                const moves = turn.moves.map(move => move.coords)
-                this.holds.push(this.client.matchRequest('playRoll', {moves}))
-            }
-            game.checkFinished()
-        })
-
-        this.on('turnStart', (turn, game, match) => {
-            this.holds.push(this.client.matchRequest('nextTurn'))
-        })
-
-        this.on('afterOption', (turn, game, match) => {
-            if (turn.color != this.color && !turn.isDoubleOffered) {
-                this.holds.push(this.client.matchRequest('turnOption'))
-            }
-        })
-
-        this.on('doubleOffered', (turn, game, match) => {
-            if (turn.color == this.opponent.color) {
-                this.holds.push(this.client.matchRequest('turnOption', {isDouble: true}))
-            }
-        })
-
-        this.on('doubleAccepted', (turn, game, match) => {
-            if (turn.color == this.color) {
-                this.holds.push(this.client.matchRequest('doubleResponse', {isAccept: true}))
-            }
-        })
-
-        this.on('doubleDeclined', (turn, game, match) => {
-            if (turn.color == this.color) {
-                this.holds.push(this.client.matchRequest('doubleResponse', {isAccept: false}))
-            }
-        })
-
-        this.client.on('matchCanceled', err => {
-            this.emit('matchCanceled', err)
-        })
-
-        this.client.on('matchResponse', (req, res) => {
-            this.emit('matchResponse', req, res)
-        })
-
-        this.on('matchCanceled', err => {
-            this.client.cancelWaiting(err)
-        })
-        */
     }
 
     async rollTurn(turn, game, match) {
@@ -240,12 +201,12 @@ class NetPlayer extends Base {
     }
 
     destroy() {
-        Object.entries(Listeners).forEach(([event, listener]) => {
+        Object.entries(Listeners).forEach(([event, listener]) =>
             this.removeListener(event, listener)
-        })
-        Object.entries(this.clientListeners).forEach(([event, listener]) => {
+        )
+        Object.entries(this.clientListeners).forEach(([event, listener]) =>
             this.client.removeListener(event, listener)
-        })
+        )
         super.destroy()
     }
 
