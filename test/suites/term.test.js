@@ -28,6 +28,7 @@ const {
     getError,
     getErrorAsync,
     makeRandomMoves,
+    NullOutput,
     parseKey,
     requireSrc,
     MockPrompter,
@@ -50,9 +51,14 @@ const Core        = requireSrc('lib/core')
 const Coordinator = requireSrc('lib/coordinator')
 const Dice        = requireSrc('lib/dice')
 const Errors      = requireSrc('lib/errors')
+const Player      = requireSrc('lib/player')
 const Robot       = requireSrc('robot/player')
 const Client      = requireSrc('net/client')
 const Server      = requireSrc('net/server')
+const NetPlayer   = requireSrc('net/player')
+const Util        = requireSrc('lib/util')
+
+const {destroyAll, update} = Util
 
 const {White, Red} = Constants
 const {Match, Game, Board, Turn} = Core
@@ -161,37 +167,35 @@ describe('Reporter', () => {
 
 describe('TermPlayer', () => {
 
-    var player
-    var conslogs
-    var game
-    var rolls
-    var roller
-    var p2
 
-    beforeEach(() => {
-        conslogs = []
-        player = new TermPlayer(White)
-        p2 = Robot.RobotDelegator.forDefaults(Red)
-        player.logger.loglevel = 1
-        player.logger.stdout = {write: () => {}}
-        player.logger.console = {log: (...args) => args.forEach(it => conslogs.push(it))}
-        rolls = []
-        roller = () => rolls.shift() || Dice.rollTwo()
-        game = new Game({roller})
-        player.emit('gameStart', game, null, {White: player, Red: p2})
-        //player.thisGame = game
+    beforeEach(function () {
+
+        const rolls = []
+        const game = new Game({
+            roller: () => rolls.shift() || Dice.rollTwo()
+        })
+        const players = {
+            White : new TermPlayer(White)
+          , Red   : Robot.RobotDelegator.forDefaults(Red)
+        }
+        const player = players.White
+        player.loglevel = 1
+        player.output = new NullOutput
+
+        player.emit('gameStart', game, null, players)
+        this.fixture = {players, player, game, rolls}
     })
 
-    afterEach(async () => {
-        await p2.destroy()
-        await player.destroy()
+    afterEach(async function () {
+        await destroyAll(Object.values(this.fixture.players))
     })
 
     describe('#cchalk', () => {
 
         describe('coverage', () => {
 
-            it('drawer=null', () => {
+            it('drawer=null', function () {
+                const {player} = this.fixture
                 player.drawer = null
                 player.cchalk()
             })
@@ -200,21 +204,24 @@ describe('TermPlayer', () => {
 
     describe('#doHiddenAction', () => {
 
-        it('should log board states with _', async () => {
+        it('should log board states with _', async function () {
+            const {rolls, player, game} = this.fixture
             rolls.push([6, 1])
             const turn = game.firstTurn()
             await player.doHiddenAction('_', turn)
-            expect(conslogs[0].board.state28).to.equal(game.board.state28())
+            expect(player.output.lines[0]).to.contain(game.board.state28())
         })
 
-        it('should flip persp with _f', async () => {
+        it('should flip persp with _f', async function () {
+            const {rolls, player, game} = this.fixture
             rolls.push([6, 1])
             const turn = game.firstTurn()
             await player.doHiddenAction('_f', turn)
             expect(player.persp).to.equal(Red)
         })
 
-        it('should flip persp with _f when drawer null', async () => {
+        it('should flip persp with _f when drawer null', async function () {
+            const {rolls, player, game} = this.fixture
             rolls.push([6, 1])
             const turn = game.firstTurn()
             player.drawer = null
@@ -222,13 +229,15 @@ describe('TermPlayer', () => {
             expect(player.persp).to.equal(Red)
         })
 
-        it('should suggest with _r', async () => {
+        it('should suggest with _r', async function () {
+            const {rolls, player, game} = this.fixture
             rolls.push([6, 1])
             const turn = game.firstTurn()
             await player.doHiddenAction('_r', turn)
         })
 
-        it('should pass with _r when not rolled', async () => {
+        it('should pass with _r when not rolled', async function () {
+            const {rolls, player, game} = this.fixture
             rolls.push([6, 1])
             makeRandomMoves(game.firstTurn(), true)
             makeRandomMoves(game.nextTurn().roll(), true)
@@ -237,7 +246,8 @@ describe('TermPlayer', () => {
             await player.doHiddenAction('_r', turn)
         })
 
-        it('should pass with _r when no moves', async () => {
+        it('should pass with _r when no moves', async function () {
+            const {rolls, player, game} = this.fixture
             rolls.push([6, 1])
             makeRandomMoves(game.firstTurn(), true)
             makeRandomMoves(game.nextTurn().roll(), true)
@@ -247,7 +257,8 @@ describe('TermPlayer', () => {
             await player.doHiddenAction('_r', turn)
         })
 
-        it('should pass with _r when robot throws', async () => {
+        it('should pass with _r when robot throws', async function () {
+            const {rolls, player, game} = this.fixture
             rolls.push([6, 1])
             player.newRobot = {getMoves: () => {throw new Error}}
             const turn = game.firstTurn()
@@ -255,7 +266,8 @@ describe('TermPlayer', () => {
             await player.doHiddenAction('_r', turn)
         })
 
-        it('should pass with _unknown', async () => {
+        it('should pass with _unknown', async function () {
+            const {rolls, player, game} = this.fixture
             rolls.push([6, 1])
             const turn = game.firstTurn()
             player.logger.loglevel = -1
@@ -267,7 +279,8 @@ describe('TermPlayer', () => {
 
         const Menu = requireSrc('term/menu')
 
-        it('should return instance when isCustomRobot and robots are configs', () => {
+        it('should return instance when isCustomRobot and robots are configs', function () {
+            const {player} = this.fixture
             player.opts.isCustomRobot = true
             player.opts.robots = Menu.robotsDefaults()
             const res = player.newRobot(Red)
@@ -277,7 +290,8 @@ describe('TermPlayer', () => {
 
     describe('#playRoll', () => {
 
-        it('should return without prompting if turn.isCantMove', async () => {
+        it('should return without prompting if turn.isCantMove', async function () {
+            const {player, game} = this.fixture
             const turn = game.firstTurn()
             // force properties
             turn.isCantMove = true
@@ -285,8 +299,9 @@ describe('TermPlayer', () => {
             await player.playRoll(turn, game)
         })
 
-        it('should play first roll White 6,1 then break with board as expected for 6 point', async () => {
-            rolls = [[6, 1]]
+        it('should play first roll White 6,1 then break with board as expected for 6 point', async function () {
+            const {rolls, player, game} = this.fixture
+            rolls.push([6, 1])
             player.prompt = MockPrompter([
                 {origin: '13'},
                 {origin: '8'},
@@ -299,8 +314,9 @@ describe('TermPlayer', () => {
             expect(game.board.stateString()).to.equal(States.WhiteTakes61)
         })
 
-        it('should play first roll White 6,1 undo first then second with board as expected for 6 point', async () => {
-            rolls = [[6, 1]]
+        it('should play first roll White 6,1 undo first then second with board as expected for 6 point', async function () {
+            const {rolls, player, game} = this.fixture
+            rolls.push([6, 1])
             player.prompt = MockPrompter([
                 {origin: '13'},
                 {origin: 'u'},
@@ -317,8 +333,9 @@ describe('TermPlayer', () => {
             expect(game.board.stateString()).to.equal(States.WhiteTakes61)
         })
 
-        it('should not prompt with fastForced on force move', async () => {
-            rolls = [[1, 2]]
+        it('should not prompt with fastForced on force move', async function () {
+            const {rolls, player, game} = this.fixture
+            rolls.push([1, 2])
             makeRandomMoves(game.firstTurn(), true)
             game.board.setStateString(States.EitherOneMoveWin)
             player.prompt = () => {throw new Error}
@@ -336,7 +353,8 @@ describe('TermPlayer', () => {
 
         // coverage tricks
 
-        it('should call inquirer.prompt with array and set player.prompt', () => {
+        it('should call inquirer.prompt with array and set player.prompt', function () {
+            const {player} = this.fixture
             const exp = []
             var q
             player.inquirer = {
@@ -352,21 +370,22 @@ describe('TermPlayer', () => {
 
     describe('#promptDecideDouble', () => {
 
-        var turn
-
-        beforeEach(() => {
-            const game = new Game
-            makeRandomMoves(game.firstTurn(), true)
-            turn = game.nextTurn()
+        beforeEach(function () {
+            const {game} = this.fixture
+            update(this.fixture, {
+                turn: makeRandomMoves(game.firstTurn(), true)
+            })
         })
 
-        it('should return true for y', async () => {
+        it('should return true for y', async function () {
+            const {player, turn} = this.fixture
             player.prompt = MockPrompter({accept: 'y'})
             const result = await player.promptDecideDouble(turn)
             expect(result).to.equal(true)
         })
 
-        it('should return false for n', async () => {
+        it('should return false for n', async function () {
+            const {player, turn} = this.fixture
             player.prompt = MockPrompter({accept: 'n'})
             const result = await player.promptDecideDouble(turn)
             expect(result).to.equal(false)
@@ -375,33 +394,36 @@ describe('TermPlayer', () => {
 
     describe('#promptTurnOption', () => {
 
-        var turn
-
-        beforeEach(() => {
-            const game = new Game
-            makeRandomMoves(game.firstTurn(), true)
-            turn = game.nextTurn()
+        beforeEach(function () {
+            const {game} = this.fixture
+            update(this.fixture, {
+                turn: makeRandomMoves(game.firstTurn(), true)
+            })
         })
 
-        it('should return false for r', async () => {
+        it('should return false for r', async function () {
+            const {player, turn} = this.fixture
             player.prompt = MockPrompter({action: 'r'})
             const result = await player.promptTurnOption(turn)
             expect(result).to.equal(false)
         })
 
-        it('should return true for d', async () => {
+        it('should return true for d', async function () {
+            const {player, turn} = this.fixture
             player.prompt = MockPrompter({action: 'd'})
             const result = await player.promptTurnOption(turn)
             expect(result).to.equal(true)
         })
 
-        it('should invalidate foo', async () => {
+        it('should invalidate foo', async function () {
+            const {player, turn} = this.fixture
             player.prompt = MockPrompter({action: 'foo'})
             const err = await getErrorAsync(() => player.promptTurnOption(turn))
             expect(err.message).to.contain('Validation failed for action')
         })
 
-        it('should throw MatchCanceledError for action=q, confirm=true', async () => {
+        it('should throw MatchCanceledError for action=q, confirm=true', async function () {
+            const {player, turn} = this.fixture
             player.prompt = MockPrompter([
                 {action: 'q'},
                 {confirm : true}
@@ -410,7 +432,8 @@ describe('TermPlayer', () => {
             expect(err.name).to.equal('MatchCanceledError')
         })
 
-        it('should return false for q, confirm=false, r', async () => {
+        it('should return false for q, confirm=false, r', async function () {
+            const {player, turn} = this.fixture
             player.prompt = MockPrompter([
                 {action: 'q'},
                 {confirm: false},
@@ -420,7 +443,8 @@ describe('TermPlayer', () => {
             expect(result).to.equal(false)
         })
 
-        it('should do hidden action _f then roll', async () => {
+        it('should do hidden action _f then roll', async function () {
+            const {player, turn} = this.fixture
             player.prompt = MockPrompter([
                 {action: '_f'},
                 {action: 'r'}
@@ -432,26 +456,29 @@ describe('TermPlayer', () => {
 
     describe('#promptFace', () => {
 
-        var turn
 
-        beforeEach(() => {
-            const game = new Game
-            makeRandomMoves(game.firstTurn(), true)
-            turn = game.nextTurn()
+        beforeEach(function () {
+            const {game} = this.fixture
+            update(this.fixture, {
+                turn: makeRandomMoves(game.firstTurn(), true)
+            })
         })
 
-        it('should return 3 for [3, 3, 3, 3] and not prompt', async () => {
+        it('should return 3 for [3, 3, 3, 3] and not prompt', async function () {
+            const {player, turn} = this.fixture
             const result = await player.promptFace(turn, [3, 3, 3, 3])
             expect(result).to.equal(3)
         })
 
-        it('should return 5 for 5 with [5, 6]', async () => {
+        it('should return 5 for 5 with [5, 6]', async function () {
+            const {player, turn} = this.fixture
             player.prompt = MockPrompter({face: '5'})
             const result = await player.promptFace(turn, [5, 6])
             expect(result).to.equal(5)
         })
 
-        it('should fail validation for 3 with [1, 2]', async () => {
+        it('should fail validation for 3 with [1, 2]', async function () {
+            const {player, turn} = this.fixture
             player.prompt = MockPrompter({face: '3'})
             const err = await getErrorAsync(() => player.promptFace(turn, [1, 2]))
             expect(err.message).to.contain('Validation failed for face')
@@ -460,19 +487,22 @@ describe('TermPlayer', () => {
 
     describe('#promptFinish', () => {
 
-        it('should return true for f', async () => {
+        it('should return true for f', async function () {
+            const {player} = this.fixture
             player.prompt = MockPrompter({finish: 'f'})
             const result = await player.promptFinish()
             expect(result).to.equal(true)
         })
 
-        it('should return false for u', async () => {
+        it('should return false for u', async function () {
+            const {player} = this.fixture
             player.prompt = MockPrompter({finish: 'u'})
             const result = await player.promptFinish()
             expect(result).to.equal(false)
         })
 
-        it('should invalidate for foo', async () => {
+        it('should invalidate for foo', async function () {
+            const {player} = this.fixture
             player.prompt = MockPrompter({finish: 'foo'})
             const err = await getErrorAsync(() => player.promptFinish())
             expect(err.message).to.contain('Validation failed for finish')
@@ -481,37 +511,42 @@ describe('TermPlayer', () => {
 
     describe('#promptOrigin', () => {
 
-        var turn
-
-        beforeEach(() => {
-            turn = new Turn(new Board, White)
+        beforeEach(function () {
+            update(this.fixture, {
+                turn: new Turn(new Board, White)
+            })
         })
 
-        it('should return -1 for b with [-1]', async () => {
+        it('should return -1 for b with [-1]', async function () {
+            const {player, turn} = this.fixture
             player.prompt = MockPrompter({origin: 'b'})
             const result = await player.promptOrigin(turn, [-1])
             expect(result).to.equal(-1)
         })
 
-        it('should return 0 for 24 with [0, 4]', async () => {
+        it('should return 0 for 24 with [0, 4]', async function () {
+            const {player, turn} = this.fixture
             player.prompt = MockPrompter({origin: '24'})
             const result = await player.promptOrigin(turn, [0, 4])
             expect(result).to.equal(0)
         })
 
-        it('should return undo for u with [11, 12] canUndo=true', async () => {
+        it('should return undo for u with [11, 12] canUndo=true', async function () {
+            const {player, turn} = this.fixture
             player.prompt = MockPrompter({origin: 'u'})
             const result = await player.promptOrigin(turn, [11, 12], true)
             expect(result).to.equal('undo')
         })
 
-        it('should fail validation for 3 with [3, 4]', async () => {
+        it('should fail validation for 3 with [3, 4]',async function () {
+            const {player, turn} = this.fixture
             player.prompt = MockPrompter({origin: '3'})
             const err = await getErrorAsync(() => player.promptOrigin(turn, [3, 4]))
             expect(err.message).to.contain('Validation failed for origin')
         })
 
-        it('should throw MatchCanceledError for origin=q, confirm=true', async () => {
+        it('should throw MatchCanceledError for origin=q, confirm=true', async function () {
+            const {player, turn} = this.fixture
             player.prompt = MockPrompter([
                 {origin: 'q'},
                 {confirm : true}
@@ -520,7 +555,8 @@ describe('TermPlayer', () => {
             expect(err.name).to.equal('MatchCanceledError')
         })
 
-        it('should return -1 for q, confirm=false, b with [-1]', async () => {
+        it('should return -1 for q, confirm=false, b with [-1]', async function () {
+            const {player, turn} = this.fixture
             player.prompt = MockPrompter([
                 {origin: 'q'},
                 {confirm: false},
@@ -530,7 +566,8 @@ describe('TermPlayer', () => {
             expect(result).to.equal(-1)
         })
 
-        it('should do hidden action _f then quit with MatchCanceledError', async () => {
+        it('should do hidden action _f then quit with MatchCanceledError', async function () {
+            const {player, turn} = this.fixture
             player.prompt = MockPrompter([
                 {origin: '_f'},
                 {origin: 'q'},
@@ -545,7 +582,8 @@ describe('TermPlayer', () => {
 
         describe('coverage', () => {
 
-            it('drawer=null', () => {
+            it('drawer=null', function () {
+                const {player} = this.fixture
                 player.drawer = null
                 player.report()
             })
@@ -556,7 +594,8 @@ describe('TermPlayer', () => {
 
         // coverage
 
-        it('should roll', async () => {
+        it('should roll', async function () {
+            const {player} = this.fixture
             const turn = new Turn(Board.setup(), White)
             await player.rollTurn(turn)
             expect(turn.isRolled).to.equal(true)
@@ -567,33 +606,22 @@ describe('TermPlayer', () => {
 
         // coverage
 
-        var game
-        var players
-        var rolls
-        var roller
-
-        beforeEach(() => {
-            rolls = [[6, 1]]
-            roller = () => rolls.shift() || Dice.rollTwo()
-            game = new Game({roller})
-            players = {
-                White : player,
-                Red   : newRando(Red)
-            }
-            makeRandomMoves(game.firstTurn(), true)
+        beforeEach(function () {
+            this.fixture.rolls.push([6, 1])
+            makeRandomMoves(this.fixture.game.firstTurn(), true)
         })
 
         describe('afterRoll', () => {
 
-            it('should pass for red turn with isDualTerm=false', () => {
-                player.emit('gameStart', game, null, players)
+            it('should pass for red turn with isDualTerm=false', function () {
+                const {player, game} = this.fixture
                 const turn = game.nextTurn()
                 turn.roll()
                 player.emit('afterRoll', turn)
             })
 
-            it('should start waiting for opponent prompt if opponent isNet', () => {
-                player.emit('gameStart', game, null, players)
+            it('should start waiting for opponent prompt if opponent isNet', function () {
+                const {player, game} = this.fixture
                 const turn = game.nextTurn()
                 turn.roll()
                 // hack opponent property
@@ -607,8 +635,8 @@ describe('TermPlayer', () => {
 
         describe('beforeOption', () => {
 
-            it('should start waiting for opponent turn if opponent isNet', () => {
-                player.emit('gameStart', game, null, players)
+            it('should start waiting for opponent turn if opponent isNet', function () {
+                const {player, game} = this.fixture
                 const turn = game.nextTurn()
                 player.opponent.isNet = true
                 var isCalled = false
@@ -620,8 +648,8 @@ describe('TermPlayer', () => {
 
         describe('doubleOffered', () => {
 
-            it('should start waiting for self turn if opponent isNet', () => {
-                player.emit('gameStart', game, null, players)
+            it('should start waiting for self turn if opponent isNet', function () {
+                const {player, game} = this.fixture
                 makeRandomMoves(game.nextTurn().roll(), true)
                 const turn = game.nextTurn()
                 turn.setDoubleOffered()
@@ -635,15 +663,141 @@ describe('TermPlayer', () => {
 
         describe('turnEnd', () => {
 
-            it('should pass for red cant move', () => {
-                player.emit('gameStart', game, null, players)
-                // place red on bar
+            it('should pass for red cant move', function () {
+                const {player, game} = this.fixture
                 game.board.bars.Red.push(game.board.slots[5].pop())
                 const turn = game.nextTurn()
                 turn.setRoll([6, 6])
                 turn.finish()
                 player.emit('turnEnd', turn)
             })
+        })
+    })
+
+    describe('listeners on opponent net player', () => {
+
+        const loglevel = 1
+
+        function eastAndWest(client1, client2) {
+
+            const coordWest = new Coordinator
+            const coordEast = new Coordinator
+
+            client1.logger.name = 'ClientWest'
+            client2.logger.name = 'ClientEast'
+            coordWest.logger.name = 'CoordWest'
+            coordEast.logger.name = 'CoordEast'
+
+            const west = {
+                players: {
+                    White : new TermPlayer(White)
+                  , Red   : new NetPlayer(client1, Red)
+                }
+              , client: client1
+              , coord: coordWest
+            }
+            const east = {
+                players: {
+                    White : new NetPlayer(client2, White)
+                  , Red   : new Player(Red)
+                }
+              , client: client2
+              , coord: coordEast
+            }
+
+            coordWest.loglevel = loglevel
+            coordEast.loglevel = loglevel
+            Object.values(east.players).forEach(player => {
+                player.logger.name += 'East'
+                player.loglevel = loglevel
+            })
+            west.players.White.term.stdout = new NullOutput
+            Object.values(west.players).forEach(player => {
+                player.logger.name += 'West'
+                player.loglevel = loglevel
+            })
+
+            return {east, west}
+        }
+
+        beforeEach(async function() {
+            const server = new Server
+            server.loglevel = loglevel
+            await server.listen()
+            const serverUrl = `http://localhost:${server.port}`
+            const client1 = new Client({serverUrl})
+            const client2 = new Client({serverUrl})
+            client1.loglevel = loglevel
+            client2.loglevel = loglevel
+            const {east, west} = eastAndWest(client1, client2)
+            update(this.fixture, {client1, client2, server, east, west})
+        })
+
+        afterEach(async function () {
+            const {client1, client2, server, east, west} = this.fixture
+            await destroyAll(east.players)
+            await destroyAll(west.players)
+            await client1.close()
+            await client2.close()
+            server.close()
+        })
+
+        it('should not leak listeners', async function() {
+
+            const {east, west} = this.fixture
+
+            const mockMethods = {
+                playRoll    : turn => makeRandomMoves(turn).finish()
+              , drawBoard   : noop
+              , turnOption  : turn => turn.setDoubleOffered()
+              , decideDouble: (turn, game) => {
+                    if (game.cubeValue > 1) {
+                        turn.setDoubleDeclined()
+                    }
+                }
+            }
+
+            update(west.players.White, mockMethods)
+            update(east.players.Red, mockMethods)
+
+            const runMatch = async () => {
+                let promise
+                west.client.once('matchCreated', id => {
+                    promise = east.client.joinMatch(id)
+                })
+                const matchWest = await west.client.createMatch({total: 2})
+                const matchEast = await promise
+                await Promise.all([
+                    west.coord.runMatch(matchWest, west.players)
+                  , east.coord.runMatch(matchEast, east.players)
+                ])
+            }
+
+            const countListeners = () => ({
+                matchCanceled: west.players.Red.listenerCount('matchCanceled')
+              , matchResponse: west.players.Red.listenerCount('matchResponse')
+            })
+
+            const counts0 = countListeners()
+
+            // We expect TermPlayer to add 1 listener
+            const exp = {
+                matchCanceled : counts0.matchCanceled + 1
+              , matchResponse : counts0.matchResponse + 1
+            }
+
+            await west.client.connect()
+            await east.client.connect()
+
+            for (let i = 0; i < 1; ++i) {
+                await runMatch()
+            }
+
+            const res = countListeners()
+            
+            expect(res.matchCanceled).to.equal(exp.matchCanceled)
+            expect(res.matchResponse).to.equal(exp.matchResponse)
+
         })
     })
 })
@@ -674,6 +828,7 @@ describe('Robot', () => {
         const coordinator = new Coordinator
         await coordinator.runMatch(match, white, red)
         expect(match.checkFinished()).to.equal(true)
+        await destroyAll([white, red])
     })
 
     describe('#delay', () => {
@@ -681,6 +836,7 @@ describe('Robot', () => {
         it('should delay for delay=0.01', async () => {
             const player = new TermPlayer.Robot(newRando(White), {delay: 0.01})
             await player.delay()
+            await player.destroy()
         })
     })
 
@@ -690,6 +846,7 @@ describe('Robot', () => {
             const player = new TermPlayer.Robot(newRando(White), {delay: 0.01})
             const result = player.meta()
             expect(result.isRobot).to.equal(true)
+            await player.destroy()
         })
     })
 })

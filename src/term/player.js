@@ -49,7 +49,7 @@ const {
 
 const {MatchCanceledError, WaitingFinishedError} = Errors
 
-const {castToArray, nchars, sp, uniqueInts} = Util
+const {append, castToArray, nchars, sp, uniqueInts} = Util
 
 class TermPlayer extends Base {
 
@@ -68,60 +68,79 @@ class TermPlayer extends Base {
 
         super(color)
 
+        this.isTerm = true
+        this.persp = color
         this.opts = Util.defaults(TermPlayer.defaults(), opts)
         this.term = new TermHelper(this.opts.termEnabled)
         this.theme = Themes.getInstance(this.opts.theme)
-
-        this.logger = new Logger
-        this.isTerm = true
         this.logs = []
 
-        // provide default in case gameStart is not called
-        this.persp = color
+        this.drawer = DrawHelper.forTermPlayer(this)
 
         this.loadHandlers()
         this.inquirer = inquirer.createPromptModule()
+
+        // Track which players we've loaded handlers on
+        // {id: {event: [listener, ...]}}
+        this.opponentListeners = {}
+        // {id: player}
+        this.opponentRegistry = {}
     }
 
-    get loglevel() {
-        return this.logger.loglevel
+    get output() {
+        return this.term.stdout
     }
 
-    set loglevel(n) {
-        this.logger.loglevel = n
+    set output(strm) {
+        this.term.stdout = strm
     }
 
     loadHandlers() {
 
         this.on('matchStart', match => {
-            if (this.opponent.isNet) {
-                this.opponent.on('matchCanceled', err => {
-                    this.cancelPrompt(err)
-                })
-                this.opponent.on('matchResponse', (req, res) => {
-                    if (this.isWaitingPrompt) {
-                        const isMyDouble = req.action == 'turnOption' &&
-                                           req.isDouble &&
-                                           req.color == this.color
-                        if (!isMyDouble) {
-                            this.cancelPrompt(new WaitingFinishedError)
-                        }
-                    }
-                })
-            }
-        })
-
-        this.on('gameStart', (game, match, players) => {
-
-            this.term.write(nchars(21, '\n'))
 
             this.isDualTerm = this.opponent.isTerm
             this.isDualRobot = this.isRobot && this.opponent.isRobot
 
-            this.persp = this.isRobot ? Colors.White : this.color
-            this.drawer = DrawHelper.forGame(game, match, this.persp, this.logs, this.theme)
+            this.drawer.match = match
+            this.drawer.persp = this.persp
+
+            this.removeOpponentListeners(this.opponent)
+
+            const listenersMap = {
+                matchCanceled: [
+                    this.cancelPrompt.bind(this)
+                ]
+              , matchResponse: []
+            }
+
+            if (this.opponent.isNet) {
+                listenersMap.matchResponse.push((req, res) => {
+                    if (!this.isWaitingPrompt) {
+                        return
+                    }
+                    const isMyDouble = req.action == 'turnOption' &&
+                                       req.color == this.color &&
+                                       req.isDouble
+                    if (!isMyDouble) {
+                        this.cancelPrompt(new WaitingFinishedError)
+                    }
+                })
+            }
+
+            this.addOpponentListeners(this.opponent, listenersMap)
+        })
+
+        this.on('gameStart', (game, match, players) => {
+
+            this.drawer.game = game
+            this.drawer.board = game.board
 
             this.report('gameStart', match ? match.games.length : null)
+
+            if (!this.isDualTerm || this.color == Colors.White) {
+                this.output.write(nchars(21, '\n'))
+            }
         })
 
         this.on('firstRoll', (turn, game, match) => {
@@ -152,7 +171,6 @@ class TermPlayer extends Base {
         this.on('beforeOption', turn => {
             if (this.opponent.isNet && turn.color != this.color) {
                 this.promptWaitingForOpponent('Waiting for opponent option')
-                //this.logger.info('Waiting for opponent option')
             }
         })
 
@@ -178,7 +196,6 @@ class TermPlayer extends Base {
             }
             if (this.opponent.isNet && turn.color == this.color) {
                 this.promptWaitingForOpponent('Waiting for opponent to respond')
-                //this.logger.info('Waiting for opponent to respond')
             }
         })
 
@@ -191,9 +208,12 @@ class TermPlayer extends Base {
         })
 
         this.on('gameEnd', game => {
+            const winner = game.getWinner()
             this.report('hr')
-            this.report('gameEnd', game.getWinner(), game.finalValue)
-            this.term.write(nchars(21, '\n'))
+            this.report('gameEnd', winner, game.finalValue)
+            if (!this.isDualTerm || winner == this.color) {
+                this.term.clear()
+            }
         })
 
         this.on('matchEnd', match => {
@@ -423,16 +443,15 @@ class TermPlayer extends Base {
 
     async doHiddenAction(action, turn) {
 
-        const cons = this.logger.console
-
         switch (action) {
 
             case '_':
-                cons.log({
-                    board : {
-                        state28     : turn.board.state28()
-                      , stateString : turn.board.stateString()
-                    }
+                let info = {
+                    state28     : turn.board.state28()
+                  , stateString : turn.board.stateString()
+                }
+                Object.entries(info).forEach(([key, value]) => {
+                    this.output.write(`${key}: ${value}\n`)
                 })
                 break
 
@@ -446,23 +465,23 @@ class TermPlayer extends Base {
 
             case '_r':
                 if (!turn.isRolled) {
-                    this.logger.error('Turn is not rolled')
+                    this.output.write('Turn is not rolled\n')
                     break
                 }
                 if (turn.isCantMove) {
-                    this.logger.info('No moves available')
+                    this.output.write('No moves available\n')
                     break
                 }
                 try {
-                    var robot = this.newRobot(turn.color)
+                    let robot = this.newRobot(turn.color)
                     try {
-                        var moves = await robot.getMoves(turn, this.thisGame, this.thisMatch)
-                        var board = Board.fromStateString(turn.startState)
-                        var moveStrs = moves.map(({origin, face}) => {
+                        let moves = await robot.getMoves(turn, this.thisGame, this.thisMatch)
+                        let board = Board.fromStateString(turn.startState)
+                        let moveStrs = moves.map(({origin, face}) => {
                             const move = board.move(turn.color, origin, face)
                             return this.drawer.reporter.move(move, true).toString()
                         })
-                        cons.log('Robot says:', moveStrs.join(', '))
+                        this.output.write(`Robot says: ${moveStrs.join(', ')}\n`)
                     } finally {
                         await robot.destroy()
                     }
@@ -472,7 +491,7 @@ class TermPlayer extends Base {
                 break
 
             default:
-                this.logger.error('Unknown action')
+                this.output.write('Unknown action\n')
                 break
         }
     }
@@ -526,7 +545,7 @@ class TermPlayer extends Base {
         }
         this.term.moveTo(1, 1)
         this.term.eraseDisplayBelow()
-        this.logger.writeStdout(this.drawer.getString())
+        this.output.write(this.drawer.getString())
     }
 
     originPoint(origin, color) {
@@ -549,6 +568,11 @@ class TermPlayer extends Base {
             this.promptReject = err => {
                 if (this.prompter) {
                     try {
+                        this.prompter.ui.rl.output.write('\n')
+                    } catch (e) {
+                        this.logger.debug('Failed to write an extra line', e)
+                    }
+                    try {
                         this.prompter.ui.close()
                     } catch (e) {
                         this.logger.error('Failed to close UI', e)
@@ -567,10 +591,6 @@ class TermPlayer extends Base {
 
     cancelPrompt(err) {
         if (this.promptReject) {
-            if (this.opponent && this.opponent.isNet) {
-                // print an extra line
-                this.logger.console.log()
-            }
             this.promptReject(err)
         }
     }
@@ -639,6 +659,54 @@ class TermPlayer extends Base {
             return sp('Please enter one of', choices.join())
         }
     }
+
+    removeOpponentListeners(player) {
+        if (!this.opponentListeners[player.id]) {
+            return
+        }
+        const registry = this.opponentListeners[player.id]
+        Object.entries(registry).forEach(([event, listeners]) => {
+            listeners.splice(0).forEach(listener => {
+                player.removeListener(event, listener)
+                this.logger.debug('Removed', event, 'listener from opponent', player.id)
+            })
+        })
+        delete this.opponentListeners[player.id]
+        delete this.opponentRegistry[player.id]
+    }
+
+    addOpponentListeners(player, listenersMap) {
+        if (!this.opponentRegistry[player.id]) {
+            this.opponentRegistry[player.id] = player
+        }
+        if (!this.opponentListeners[player.id]) {
+            this.opponentListeners[player.id] = {}
+        }
+        const registry = this.opponentListeners[player.id]
+        Object.entries(listenersMap).forEach(([event, listeners]) => {
+            if (!registry[event]) {
+                registry[event] = []
+            }
+            castToArray(listeners).forEach(listener => {
+                player.on(event, listener)
+                registry[event].push(listener)
+                this.logger.debug('Added', event, 'listener to opponent', player.id)
+            })
+        })
+    }
+
+    destroy() {
+        Object.values(this.opponentRegistry).forEach(player => {
+            try {
+                this.removeOpponentListeners(player)
+            } catch (err) {
+                const id = player ? player.id : null
+                this.logger.error('Failed to remove opponent listeners for player id', id, err)
+            }
+        })
+
+        return super.destroy()
+    }
 }
 
 class TermRobot extends TermPlayer {
@@ -653,6 +721,7 @@ class TermRobot extends TermPlayer {
 
         this.opts = {...this.opts, ...Util.defaults(TermRobot.defaults(), opts)}
         this.isRobot = true
+        this.persp = Colors.White
         this.robot = robot
     }
 

@@ -103,7 +103,7 @@ class Logger {
         obj.error = (...args) => {
             args = args.map(arg => {
                 if (arg instanceof Error) {
-                    if (opts.server && obj.loglevel >= 0) {
+                    if ((opts.server && obj.loglevel >= 0) || obj.loglevel > 3) {
                         obj.console.error(arg)
                     }
                     return obj.getMessageForError(arg)

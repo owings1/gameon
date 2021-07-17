@@ -44,8 +44,11 @@ const Core = requireSrc('lib/core')
 
 const fs = require('fs')
 const globby = require('globby')
+const mockery = require('mockery')
 const path = require('path')
+const stream = require('stream')
 const tmp = require('tmp')
+const {EventEmitter} = require('events')
 
 const States = require('./states')
 const Rolls = require('./rolls')
@@ -265,6 +268,88 @@ function parseCookies(response) {
   }).join(';');
 }
 
+/**
+ * Adapted from inquirer/test/readline.js
+ */
+class OutputStub {
+    constructor() {
+        this.__raw__ = ''
+    }
+    end() {
+        
+    }
+    mute() {
+        
+    }
+    unmute() {
+        
+    }
+    write(str) {
+        this.__raw__ += str
+    }
+}
+class ReadlineStub extends EventEmitter{
+    constructor() {
+        super()
+        this.line = ''
+        this.input = new EventEmitter
+        this.output = new OutputStub
+    }
+    write() {
+        return this
+    }
+    moveCursor() {
+        return this
+    }
+    setPrompt() {
+        return this
+    }
+    close() {
+        return this
+    }
+    pause() {
+        return this
+    }
+    resume() {
+        return this
+    }
+    resume() {
+        return this
+    }
+    _getCursorPos() {
+        return this
+    }
+}
+
+mockery.enable({
+    warnOnUnregistered: false
+})
+mockery.registerMock('readline', {
+    createInterface() {
+        return new ReadlineStub
+    }
+})
+
+after(() => {
+    mockery.disable()
+})
+
+class NullOutput extends stream.Writable {
+
+    constructor(...args) {
+        super(...args)
+        this.raw = ''
+    }
+
+    _write(chunk, encoding, done) {
+        this.raw += chunk
+        done()
+    }
+    get lines() {
+        return this.raw.split('\n')
+    }
+}
+
 module.exports = {
     expect
   , fetchBoard
@@ -274,6 +359,7 @@ module.exports = {
   , MockPrompter
   , noop
   , normState
+  , NullOutput
   , parseCookies
   , parseKey
   , randomElement

@@ -92,7 +92,6 @@ function createPromptModule(opt) {
     const self = (questions, answers, opts) => {
 
         opts = {emitter: NullEmitter, ...opts}
-        opts.readline = {...opt, ...opts.readline}
 
         questions = castToArray(questions).map(question => (
             {...question, opts: {...opts, ...question.opts}}
@@ -103,7 +102,7 @@ function createPromptModule(opt) {
          */
         let ui
         try {
-            ui = new self.ui.Prompt(self.prompts, opts.readline, self)
+            ui = new self.ui.Prompt(self.prompts, opt, self)
         } catch (error) {
             return Promise.reject(error)
         }
@@ -386,7 +385,7 @@ class Prompt extends Inquirer.ui.Prompt {
         })
 
         ensure(this.activePrompt, {
-            ui       : this.ui
+            ui       : this
           , prompter : this.prompter
         })
 

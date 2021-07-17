@@ -26,6 +26,7 @@ const Constants = require('./constants')
 const Core      = require('./core')
 const Errors    = require('./errors')
 const Logger    = require('./logger')
+const Util      = require('./util')
 
 const {EventEmitter} = require('events')
 
@@ -33,12 +34,15 @@ const {Opponent} = Constants
 
 const {NotImplementedError} = Errors
 
+const {uuid} = Util
+
 class Player extends EventEmitter {
 
     constructor(color) {
 
         super()
 
+        this.id = uuid()
         this.logger = new Logger(this.constructor.name, {named: true})
 
         this.isPlayer = true

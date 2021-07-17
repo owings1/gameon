@@ -364,9 +364,10 @@ class Coordinator {
     async emitAll(emitters, ...args) {
         const event = args[0]
         this.logger.debug('emitAll', event)
+        const emittersArr = Object.values(emitters)
         try {
             const holds = []
-            for (var it of Object.values(emitters)) {
+            for (var it of emittersArr) {
                 it.emit(...args)
                 append(holds, castToArray(it.holds).splice(0))
             }
@@ -375,9 +376,9 @@ class Coordinator {
             }
         } catch (err) {
             this.logger.debug('emitAll.catch', event, err.name)
-            const emErrs = Object.values(emitters).map((emitter, i) => {
+            const emErrs = emittersArr.map((emitter, i) => {
                 const name = emitter.name || emitter.constructor.name
-                const eminfo = ['emitter', i + 1, 'of', emitters.length]
+                const eminfo = ['emitter', i + 1, 'of', emittersArr.length]
                 if (err.isMatchCanceledError) {
                     if (emitter.emit('matchCanceled', err)) {
                         this.logger.debug('matchCanceled handled by', name, ...eminfo)
@@ -385,15 +386,12 @@ class Coordinator {
                     }
                     this.logger.debug('matchCanceled unhandled by', name, ...eminfo)
                 }
-                return [name, eminfo]
-            }).map(args => {
-                if (!args) {
-                    return
-                }
-                const [name, eminfo] = args
+                return [name, eminfo, emitter]
+            }).filter(it => it).map(([name, eminfo, emitter]) => {
                 try {
                     emitter.emit('error', err)
                     this.logger.debug('generic error handled by', name, ...eminfo)
+                    return false
                 } catch (e) {
                     this.logger.warn('generic error unhandled by', name, ...eminfo)
                     return [name, eminfo, e]

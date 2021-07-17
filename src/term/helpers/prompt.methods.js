@@ -72,6 +72,9 @@ class BaseMethods {
         this.emitter = (question.opts && question.opts.emitter) || NullEmitter
         this._keypressIndex = {}
         this._keyHandlers = {}
+        if (this.opt.mute) {
+            this.opt.message = question.message || ''
+        }
     }
 
     getMaxWidth() {

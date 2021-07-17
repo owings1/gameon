@@ -23,10 +23,7 @@
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 const Constants   = require('../lib/constants')
-const Coordinator = require('../lib/coordinator')
 const Core        = require('../lib/core')
-const Dice        = require('../lib/dice')
-const Logger      = require('../lib/logger')
 const Robot       = require('../robot/player')
 const Themes      = require('./themes')
 const Util        = require('../lib/util')
@@ -48,6 +45,7 @@ const {
   , ColorAbbr
   , ColorNorm
   , Colors
+  , DefaultTermEnabled
   , DefaultThemeName
   , Direction
   , Opponent
@@ -61,17 +59,19 @@ const {
 
 class DrawHelper {
 
-    static forBoard(board, persp, logs, themeName) {
-        return new DrawHelper(board, null, null, persp, logs, themeName)
+    static forBoard(board, persp, logs, theme, term) {
+        return new DrawHelper(board, null, null, persp, logs, theme, term)
     }
 
-    static forGame(game, match, persp, logs, themeName) {
-        return new DrawHelper(game.board, game, match, persp, logs, themeName)
+    static forGame(game, match, persp, logs, theme, term) {
+        return new DrawHelper(game.board, game, match, persp, logs, theme, term)
     }
 
-    constructor(board, game, match, persp, logs, themeName) {
+    static forTermPlayer(player) {
+        return new DrawHelper(null, null, null, player.persp, player.logs, player.theme, player.term)
+    }
 
-        themeName = themeName || DefaultThemeName
+    constructor(board, game, match, persp, logs, theme, term) {
 
         this.board = board
         this.game  = game
@@ -79,8 +79,8 @@ class DrawHelper {
         this.persp = persp || White
         this.logs  = logs || []
 
-        this.logger   = new Logger
-        this.theme    = Themes.getInstance(themeName)
+        this.theme    = Themes.getInstance(theme || DefaultThemeName)
+        this.term     = term || new TermHelper(DefaultTermEnabled)
         this.chars    = Chars.table
         this.reporter = new Reporter(this)
 
@@ -97,8 +97,8 @@ class DrawHelper {
 
         this.opersp = Opponent[this.persp]
 
-        this.columns     = Math.max(this.logger.getStdout().columns, 0)
-        this.rows        = Math.max(this.logger.getStdout().rows, 0)
+        this.columns     = this.term.width
+        this.rows        = this.term.height
         this.maxLogWidth = Math.max(0, this.columns - this.BoardWidth - this.AfterWidth - 1)
         this.maxLogWidth = Math.min(this.maxLogWidth, 36)
 
@@ -962,6 +962,7 @@ class TermHelper {
         return 1024
     }
 
+    // Always return stdout even if disabled.
     get stdout() {
         return this.term.stdout
     }

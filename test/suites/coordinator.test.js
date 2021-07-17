@@ -30,6 +30,7 @@ const {
     makeRandomMoves,
     MockPrompter,
     noop,
+    NullOutput,
     requireSrc,
     tmpDir,
     tmpFile,
@@ -328,10 +329,10 @@ describe('-', () => {
                 r2 = newRando(Red)
                 t1 = new TermPlayer(White)
                 t2 = new TermPlayer(Red)
-                t1.logger.loglevel = 1
-                t2.logger.loglevel = 1
-                t1.logger.stdout = {write: noop}
-                t2.logger.stdout = t1.logger.stdout
+                t1.loglevel = 1
+                t2.loglevel = 1
+                t1.output = new NullOutput
+                t2.output = new NullOutput
             })
 
             afterEach(async () => {

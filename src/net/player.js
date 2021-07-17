@@ -39,6 +39,10 @@ class NetPlayer extends Base {
         this.isNet = true
 
         this.dice = null
+        this.loadHandlers()
+    }
+
+    loadHandlers() {
 
         this.on('gameStart', (game, match, players) => {
             this.holds.push(new Promise((resolve, reject) => {
@@ -104,15 +108,6 @@ class NetPlayer extends Base {
         })
     }
 
-    get loglevel() {
-        return super.loglevel
-    }
-
-    set loglevel(n) {
-        super.loglevel = n
-        this.client.loglevel = n
-    }
-
     async rollTurn(turn, game, match) {
         const res = await this.client.matchRequest('rollTurn')
         if (this._checkCanceled(turn, game, match)) {
@@ -148,6 +143,15 @@ class NetPlayer extends Base {
             return
         }
         res.moves.forEach(move => turn.move(move.origin, move.face))
+    }
+
+    get loglevel() {
+        return super.loglevel
+    }
+
+    set loglevel(n) {
+        super.loglevel = n
+        this.client.loglevel = n
     }
 
     _checkCanceled(turn, game, match) {
