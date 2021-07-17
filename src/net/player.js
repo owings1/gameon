@@ -103,7 +103,7 @@ class NetPlayer extends Base {
             this.emit('matchResponse', req, res)
         })
 
-        this.on('matchCanceled', (err, match) => {
+        this.on('matchCanceled', err => {
             this.client.cancelWaiting(err)
         })
     }

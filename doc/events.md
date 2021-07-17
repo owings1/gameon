@@ -102,8 +102,9 @@
 * * * *    ┃ turnEnd         ┃  When the turn is finished. Though this is typically after    ┃
 * * * *    ┃                 ┃  are completed, it is emitted after every turn, including     ┃
 * * * *    ┃                 ┃  when a double is declined, or the player cannot move. If     ┃
-* * * *    ┃                 ┃  the game is finished, the next event is gameEnd, otherwise   ┃
-* * * *    ┃                 ┃  it is turnStart.                                             ┃
+* * * *    ┃                 ┃  this turn is canceled, this event is not emitted. If the     ┃
+* * * *    ┃                 ┃  game is finished, the next event is gameEnd, otherwise it    ┃
+* * * *    ┃                 ┃  is turnStart.                                                ┃
 * * * *    ┃                 ┃                                                               ┃
 * * * *    ┣━━━━━━━━━━━━━━━━━╋━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┫
 * * * *    ┃                 ┃                                                               ┃

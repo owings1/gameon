@@ -30,9 +30,10 @@ const {RequestError} = Errors
 
 class MenuApiHelper {
 
-    constructor() {
+    constructor(term) {
         this.client = new Client
         this.logger = new Logger(this.constructor.name)
+        this.term = term
     }
 
     get loglevel() {
@@ -81,13 +82,15 @@ class MenuApiHelper {
 
     async _handleRequest(serverUrl, uri, data) {
         uri = '/api/v1/' + uri
-        const res = await this.client.setServerUrl(serverUrl).postJson(uri, data)
-        const body = await res.json()
-        if (!res.ok) {
-            this.logger.debug(body)
-            throw RequestError.forResponse(res, body, uri.split('/').pop() + ' failed')
-        }
-        return body
+        return this.term.noCursor(async () => {
+            const res = await this.client.setServerUrl(serverUrl).postJson(uri, data)
+            const body = await res.json()
+            if (!res.ok) {
+                this.logger.debug(body)
+                throw RequestError.forResponse(res, body, uri.split('/').pop() + ' failed')
+            }
+            return body
+        })
     }
 }
 

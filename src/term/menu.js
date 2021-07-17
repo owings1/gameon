@@ -63,7 +63,8 @@ const {DependencyHelper} = Util
 const {StringBuilder}    = Util
 
 const {
-    castToArray
+    append
+  , castToArray
   , destroyAll
   , forceLineReturn
   , isCredentialsFilled
@@ -92,6 +93,7 @@ const {
 const {
     MatchCanceledError
   , MenuError
+  , PromptActiveError
   , RequestError
   , ResetKeyNotEnteredError
   , WaitingAbortedError
@@ -135,7 +137,7 @@ class Menu extends EventEmitter {
         this.logger = new Logger('Menu', {named: true})
         this.alerter = new Logger('Alerter', {raw: true})
         this.alerts = new Alerts
-        this.api = new ApiHelper
+        this.api = new ApiHelper(this.term)
 
         this.isCredentialsLoaded = false
         this.isSettingsLoaded = false
@@ -306,6 +308,7 @@ class Menu extends EventEmitter {
                             return false
                         }
                         args.push(join.answer)
+                        isContinue = false
                     } else {
                         let {matchOpts} = this.settings
                         if (isAdvanced) {
@@ -314,7 +317,7 @@ class Menu extends EventEmitter {
                         args.push(matchOpts)
                     }
                     await this[method](...args)
-                    return true
+                    return isContinue
                 }
 
                 let {answer, isCancel, isChange} = await ask()
@@ -566,9 +569,8 @@ class Menu extends EventEmitter {
             return false
         }
 
-        await this.noCursor(() =>
-            this.api.forgotPassword(credentials.serverUrl, answer)
-        )
+        await this.api.forgotPassword(credentials.serverUrl, answer)
+
         credentials.username = answer
 
         const answers = await this.prompt(this.q.forgotPassword(), null, {
@@ -579,9 +581,8 @@ class Menu extends EventEmitter {
             return false
         }
 
-        const {passwordEncrypted} = await this.noCursor(() =>
-            this.api.resetPassword(credentials, answers)
-        )
+        const {passwordEncrypted} = await this.api.resetPassword(credentials, answers)
+
         credentials.password = this.encryptPassword(passwordEncrypted)
 
         return true
@@ -601,9 +602,8 @@ class Menu extends EventEmitter {
             return false
         }
 
-        const {passwordEncrypted} = await this.noCursor(() =>
-            this.api.changePassword(credentials, answers)
-        )
+        const {passwordEncrypted} = await this.api.changePassword(credentials, answers)
+
         credentials.password = this.encryptPassword(passwordEncrypted)
 
         return true
@@ -621,7 +621,7 @@ class Menu extends EventEmitter {
 
         const {credentials} = this
         try {
-            await this.noCursor(() => this.api.confirmKey(credentials, answer))
+            await this.api.confirmKey(credentials, answer)
         } catch (err) {
             if (err.isUserConfirmedError) {
                 this.alerts.warn('Account already confirmed')
@@ -650,7 +650,7 @@ class Menu extends EventEmitter {
             credentials.username = answer
         }
 
-        await this.noCursor(() => this.api.requestConfirmKey(credentials))
+        await this.api.requestConfirmKey(credentials)
 
         return true
     }
@@ -676,9 +676,7 @@ class Menu extends EventEmitter {
         try {
 
             const password = this.decryptPassword(credentials.password)
-            const {passwordEncrypted} = await this.noCursor(() =>
-                this.api.authenticate({...credentials, password})
-            )
+            const {passwordEncrypted} = await this.api.authenticate({...credentials, password})
             credentials.password = this.encryptPassword(passwordEncrypted)
 
         } catch (err) {
@@ -928,26 +926,42 @@ class Menu extends EventEmitter {
     }
 
     prompt(questions, answers, opts) {
-        opts = this.getPromptOpts(opts)
+
         return new Promise((resolve, reject) => {
+
+            if (this.prompter) {
+                let activeName = null
+                if (this.prompter.ui && this.prompter.ui.activePrompt) {
+                    const {activePrompt} = this.prompter.ui
+                    activeName = activePrompt.opt.name
+                }
+                reject(new PromptActiveError(`A prompt is already active: ${activeName}`))
+                return
+            }
+
+            opts = this.getPromptOpts(opts)
+
             if (opts.cancelOnInterrupt) {
                 this.captureInterrupt = () => {
                     if (this.prompter && this.prompter.ui) {
-                        resolve(InterruptCancelAnswers)
                         this.prompter.ui.close()
+                        resolve(InterruptCancelAnswers)
                         return true
                     }
+                    this.prompter = null
                 }
             }
+
             this.prompter = this.inquirer.prompt(questions, answers, opts)
+
             this.prompter.then(answers => {
                 this.captureInterrupt = null
-                resolve(answers)
                 this.prompter = null
+                resolve(answers)
             }).catch(err => {
                 this.captureInterrupt = null
-                reject(err)
                 this.prompter = null
+                reject(err)
             })
         })
     }
@@ -1043,12 +1057,19 @@ class Menu extends EventEmitter {
         const {maxWidth, minWidth, left, top} = box.params
         const {format} = box.opts
 
+        const errors = []
         const levelsLines = alerts.map(alert => {
+            append(errors, alert.errors)
             const formatted = this.alerts.getFormatted(alert, this.theme.alert)
             return forceLineReturn(formatted.string, maxWidth).split('\n').flat().map(line =>
                 [alert.level, padEnd(line, minWidth, format.pad(' '))]
             )
         }).flat()
+
+        // debug errors if term not enabled
+        if (this.loglevel > 3 && !this.settings.termEnabled) {
+            errors.forEach(error => console.error(error))
+        }
 
         const indent = left - 1
         levelsLines.forEach(([logLevel, line], i) => {
@@ -1160,15 +1181,6 @@ class Menu extends EventEmitter {
 
     eraseAlerts() {
         this.boxes.alerts.erase()
-    }
-
-    async noCursor(cb) {
-        try {
-            this.term.hideCursor()
-            return await cb()
-        } finally {
-            this.term.showCursor()
-        }
     }
 
     async ensureLoaded(isQuiet) {

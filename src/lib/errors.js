@@ -159,6 +159,7 @@ class GameError       extends BaseError {}
 class InternalError   extends BaseError {}
 class MenuError       extends BaseError {}
 class ProgrammerError extends BaseError {}
+class PromptError     extends BaseError {}
 class RobotError      extends BaseError {}
 class SecurityError   extends BaseError {}
 class ThemeError      extends BaseError {}
@@ -232,6 +233,9 @@ class TurnNotFinishedError     extends IllegalStateError {}
 // MenuError
 class ResetKeyNotEnteredError extends MenuError {}
 class WaitingAbortedError     extends MenuError {}
+
+// PromptError
+class PromptActiveError extends PromptError {}
 
 // RequestError
 class HandshakeError          extends RequestError {}
@@ -316,6 +320,8 @@ const Errors = {
   , ParallelRequestError
   , PieceOnBarError
   , ProgrammerError
+  , PromptError
+  , PromptActiveError
   , RequestError
   , ResetKeyNotEnteredError
   , RobotError

@@ -208,6 +208,7 @@ describe('TermPlayer', () => {
             const {rolls, player, game} = this.fixture
             rolls.push([6, 1])
             const turn = game.firstTurn()
+            player.output.raw = ''
             await player.doHiddenAction('_', turn)
             expect(player.output.lines[0]).to.contain(game.board.state28())
         })

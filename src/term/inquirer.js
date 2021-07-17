@@ -150,7 +150,7 @@ class ScreenManager extends ScreenBase {
           , maxWidth     : Infinity
           , defaultWidth : 80
           , emitter      : NullEmitter
-            , clearMaxWidth: false
+          , clearMaxWidth: false
           , term         : DefaultTerm
           , ...opts
         }

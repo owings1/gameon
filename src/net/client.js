@@ -40,6 +40,7 @@ const {
   , secret1
   , stripLeadingSlash
   , stripTrailingSlash
+  , update
   , wsToHttp
 } = Util
 
@@ -53,6 +54,24 @@ const {
   , UnhandledMessageError
 } = Errors
 
+function trimMessageData(data) {
+    if (!data || !data.turn) {
+        return data
+    }
+    const {turn} = data
+    const trimmed = {
+        ...data
+      , turn: {...turn}
+    }
+    if (turn.allowedMoveIndex) {
+        update(trimmed.turn, {
+            allowedEndStates: '[trimmed]'
+          , allowedMoveIndex: '[trimmed]'
+          , endStatesToSeries: '[trimmed]'
+        })
+    }
+    return trimmed
+}
 /**
  * Events:
  *
@@ -393,6 +412,7 @@ class Client extends EventEmitter {
         }
 
         if (!action || data.action == action) {
+            this.logger.debug('action met', action)
             return data
         }
 
@@ -401,6 +421,7 @@ class Client extends EventEmitter {
         if (data.action == 'matchCanceled') {
             err = new MatchCanceledError(data.reason)
             if (this.emit('matchCanceled', err)) {
+                this.logger.debug('matchCanceled', 'handled')
                 return err
             }
         }
@@ -449,6 +470,7 @@ class Client extends EventEmitter {
             this.isWaiting = true
             this.messageResolve = data => {
                 this.emit('response', data)
+                this.logger.debug('response', trimMessageData(data))
                 resolve(data)
             }
             this.messageReject = err => {
@@ -484,6 +506,7 @@ class Client extends EventEmitter {
      * @emits error
      */
     handleMessage(data) {
+        this.logger.debug('message', trimMessageData(data))
         if (this.messageResolve) {
             this.messageResolve(data)
             return

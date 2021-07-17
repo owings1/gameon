@@ -47,7 +47,7 @@ const {
   , PointOrigins
 } = Constants
 
-const {MatchCanceledError, WaitingFinishedError} = Errors
+const {MatchCanceledError, PromptActiveError, WaitingFinishedError} = Errors
 
 const {append, castToArray, nchars, sp, uniqueInts} = Util
 
@@ -228,7 +228,7 @@ class TermPlayer extends Base {
             }
         })
 
-        this.on('matchCanceled', (err, match) => {
+        this.on('matchCanceled', err => {
             this.cancelPrompt(err)
         })
 
@@ -563,9 +563,33 @@ class TermPlayer extends Base {
             theme: this.theme
           , ...opts
         }
+
         return new Promise((resolve, reject) => {
+
+            if (this.prompter) {
+                let activeName = null
+                if (this.prompter.ui && this.prompter.ui.activePrompt) {
+                    const {activePrompt} = this.prompter.ui
+                    activeName = activePrompt.opt.name
+                }
+                reject(new PromptActiveError(`A prompt is already active: ${activeName}`))
+                return
+            }
+
+            // We need to call cleanup at the right time, and can't use promise.finally.
+
+            const cleanup = () => {
+                this.logger.debug('prompter.cleanup')
+                this.promptReject = null
+                this.prompter = null
+            }
+
+            this.logger.debug('prompter.create')
+
             this.prompter = this.inquirer.prompt(questions, answers, opts)
+
             this.promptReject = err => {
+                this.logger.debug('promptReject')
                 if (this.prompter) {
                     try {
                         this.prompter.ui.rl.output.write('\n')
@@ -577,19 +601,28 @@ class TermPlayer extends Base {
                     } catch (e) {
                         this.logger.error('Failed to close UI', e)
                     }
+                } else {
+                    this.logger.debug('No prompter to close')
                 }
+                // Cleanup before reject.
+                cleanup()
                 reject(err)
             }
-            this.prompter.then(resolve).catch(err =>
+
+            this.prompter.then(answers => {
+                this.logger.debug('prompter.then')
+                // Cleanup before resolve
+                cleanup()
+                resolve(answers)
+            }).catch(err => {
+                this.logger.debug('prompter.catch')
                 this.promptReject(err)
-            ).finally(() => {
-                this.promptReject = null
-                this.prompter = null
             })
         })
     }
 
     cancelPrompt(err) {
+        this.logger.debug('cancelPrompt')
         if (this.promptReject) {
             this.promptReject(err)
         }
@@ -609,7 +642,7 @@ class TermPlayer extends Base {
         }
         this.isWaitingPrompt = true
         try {
-            let answers = await this.prompt(question)
+            await this.prompt(question)//this.term.noCusor(() => this.prompt(question))
         } catch (err) {
             if (err.isWaitingFinishedError) {
                 return

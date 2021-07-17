@@ -948,6 +948,23 @@ class TermHelper {
         return this
     }
 
+    noCursor(cb) {
+        let isAsync = false
+        let ret
+        try {
+            this.hideCursor()
+            ret = cb()
+            isAsync = ret instanceof Promise
+            if (isAsync) {
+                return ret.finally(() => this.showCursor())
+            }
+        } finally {
+            if (!isAsync) {
+                this.showCursor()
+            }
+        }
+    }
+
     get height() {
         if (this.enabled) {
             return this.term.height

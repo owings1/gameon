@@ -345,6 +345,7 @@ class NullOutput extends stream.Writable {
         this.raw += chunk
         done()
     }
+
     get lines() {
         return this.raw.split('\n')
     }

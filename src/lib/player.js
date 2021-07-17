@@ -52,12 +52,20 @@ class Player extends EventEmitter {
         this.holds  = []
 
         this.on('matchStart', (match, players) => {
+            this.logger.debug('event.matchStart')
             this.thisMatch = match
             this.opponent = players[Opponent[this.color]]
         })
         this.on('gameStart', (game, match, players) => {
+            this.logger.debug('event.gameStart')
             this.thisGame = game
             this.opponent = players[Opponent[this.color]]
+        })
+        this.on('matchCanceled', err => {
+            this.logger.debug('event.matchCanceled')
+            if (this.thisMatch) {
+                this.thisMatch.cancel()
+            }
         })
     }
 
