@@ -39,7 +39,8 @@ const onFinished = require('on-finished')
 const prom       = require('prom-client')
 
 const {
-    Opponent
+    MatchCancelRef
+  , Opponent
   , Red
   , White
 } = Constants
@@ -55,37 +56,6 @@ const {
   , RequestError
   , ValidateError
 } = Errors
-
-//prom.collectDefaultMetrics()
-
-/*
-const metrics = {
-    connections: new prom.Gauge({
-        name: 'open_connections',
-        help: 'Open connections'
-    }),
-    matchesCompleted: new prom.Counter({
-        name: 'matches_completed',
-        help: 'Total matches completed'
-    }),
-    matchesInProgress: new prom.Gauge({
-        name: 'matches_in_progress',
-        help: 'Matches in progress'
-    }),
-    messagesReceived: new prom.Counter({
-        name: 'messages_received',
-        help: 'Messages received'
-    }),
-    messagesSent: new prom.Counter({
-        name: 'messages_sent',
-        help: 'Messages sent'
-    }),
-    errorsSending: new prom.Counter({
-        name: 'errors_sending',
-        help: 'Errors sending messages'
-    })
-}
-*/
 
 function statusLogLevel(code) {
     if (code >= 500) {
@@ -208,7 +178,7 @@ class Server {
             this.logger.info('Shutting down server')
         }
         Object.keys(this.matches).forEach(id =>
-            this.cancelMatchId(id, 'Server shutdown')
+            this.cancelMatchId(id, MatchCancelRef.serverShutdown)
         )
         if (this.socketServer) {
             this.closeConn(Object.values(this.socketServer.conns))
@@ -357,7 +327,7 @@ class Server {
                 const conn = conns[connId]
                 clearTimeout(conn.handShakeTimeoutId)
                 this.logger.info('Peer', connId, 'disconnected')
-                this.cancelMatchId(conn.matchId, 'Peer disconnected')
+                this.cancelMatchId(conn.matchId, MatchCancelRef.peerDisconnected)
                 delete conns[connId]
                 this.metrics.connections.labels().set(Object.keys(conns).length)
                 this.logActive()
@@ -885,17 +855,17 @@ class Server {
     /**
      *
      * @param string The match ID
-     * @param string The reason message
+     * @param string The reference object (reason, attrs)
      *
      * @returns self
      */
-    cancelMatchId(id, reason) {
+    cancelMatchId(id, {reason, attrs}) {
         const match = this.matches[id]
         if (!match) {
             return this
         }
         this.logger.info('Canceling match', id)
-        this.sendMessage(Object.values(match.conns), {action: 'matchCanceled', reason})
+        this.sendMessage(Object.values(match.conns), {action: 'matchCanceled', reason, attrs})
         delete this.matches[id]
         this.metrics.matchesInProgress.labels().set(Object.keys(this.matches).length)
         return this

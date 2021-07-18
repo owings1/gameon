@@ -73,6 +73,15 @@ class BaseError extends Error {
         if (!this.namePath) {
             this.namePath = this.names.join('.')
         }
+        args.forEach(arg => {
+            if (typeof arg == 'object' && arg.attrs) {
+                if (typeof arg.attrs == 'object') {
+                    Object.entries(arg.attrs).forEach(([key, value]) => {
+                        this[key] = value
+                    })
+                }
+            }
+        })
     }
 }
 
@@ -117,7 +126,13 @@ class ClientError extends BaseError {
 
     static forData(data, fallbackMessage) {
         data = data || {}
-        const message = data.error || fallbackMessage || 'Unknown server error'
+        let message = data.error || fallbackMessage
+        if (!message && data.action) {
+            message = `Unexpected action: ${data.action}`
+        }
+        if (!message) {
+            message = 'Unknown server error'
+        }
         const args = [message]
         let causeName
         if (data.cause) {

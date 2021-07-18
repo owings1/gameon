@@ -157,10 +157,6 @@ describe('-', () => {
                         matchId = id
                         promise = client2.joinMatch(id)
                     })
-                    await Promise.all([
-                        client1.connect()
-                      , client2.connect()
-                    ])
                     await client1.createMatch(opts)
                     await promise
                     return server.matches[matchId]

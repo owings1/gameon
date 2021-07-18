@@ -779,11 +779,11 @@ class Menu extends EventEmitter {
             this.emit('beforeClientConnect', client)
             await client.connect()
 
-            client.on('matchCanceled', err => {
-                if (!this.alerts.getErrors().find(it => err)) {
-                    this.alerts.error(err)
-                }
-            })
+            //client.on('matchCanceled', err => {
+            //    if (!this.alerts.getErrors().find(it => err)) {
+            //        this.alerts.error(err)
+            //    }
+            //})
 
             const promise = isStart ? client.createMatch(matchOpts) : client.joinMatch(matchId)
             this.emit('clientWaitStart', client)
@@ -792,8 +792,14 @@ class Menu extends EventEmitter {
             try {
                 match = await promise
             } catch (err) {
+                // A WaitingAbortedError is typically user-initiated.
                 if (err.isWaitingAbortedError) {
                     this.alerts.warn(err)
+                    return
+                }
+                // A MatchCanceledError can happen when the server shuts down.
+                if (err.isMatchCanceledError) {
+                    this.alerts.error(err)
                     return
                 }
                 throw err

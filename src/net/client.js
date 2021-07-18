@@ -55,23 +55,29 @@ const {
 } = Errors
 
 function trimMessageData(data) {
-    if (!data || !data.turn) {
+    if (!data) {
         return data
     }
-    const {turn} = data
-    const trimmed = {
-        ...data
-      , turn: {...turn}
+    const trimmed = {...data}
+    if (data.password) {
+        trimmed.password = '***'
     }
-    if (turn.allowedMoveIndex) {
-        update(trimmed.turn, {
-            allowedEndStates: '[trimmed]'
-          , allowedMoveIndex: '[trimmed]'
-          , endStatesToSeries: '[trimmed]'
-        })
+    if (data.token) {
+        trimmed.token = '***'
+    }
+    if (data.turn) {
+        trimmed.turn = {...data.turn}
+        if (data.turn.allowedMoveIndex) {
+            update(trimmed.turn, {
+                allowedEndStates: '[trimmed]'
+              , allowedMoveIndex: '[trimmed]'
+              , endStatesToSeries: '[trimmed]'
+            })
+        }
     }
     return trimmed
 }
+
 /**
  * Events:
  *
@@ -123,6 +129,8 @@ class Client extends EventEmitter {
         this.isHandshake = null
         this.match = null
         this.matchId = null
+
+        this.isClosing = false
     }
 
     /**
@@ -138,6 +146,8 @@ class Client extends EventEmitter {
             return
         }
 
+        this.isClosing = false
+
         await new Promise((resolve, reject) => {
 
             this.socketClient
@@ -150,35 +160,52 @@ class Client extends EventEmitter {
             })
 
             this.socketClient.on('connect', conn => {
+
                 this.conn = conn
+
                 conn.on('error', err => {
                     // Observed errors:
-                    //  ❯ ECONNRESET
+                    //  ❯ ECONNRESET, syscall: read, errno: -54
                     //  ❯ EPIPE, syscall: write, errno: -32
                     this.logger.debug('conn.error', err)
+                    this.logger.debug('cancelMatch.from.conn.onError')
                     const isHandled = this.cancelMatch(err)
-                    try {
-                        this.close()
-                    } finally {
-                        if (!isHandled) {
-                            // Only emit error if there is an active match
-                            if (this.match) {
-                                this.emit('error', err)
-                            } else {
-                                this.logger.warn(err)
-                            }
-                        }
+                    if (!this.isClosing) {
+                        this.logger.error(err)
                     }
                 })
-                conn.on('close', () => {
-                    this.logger.debug('conn.close')
+
+                conn.on('close', (code, description) => {
+                    /**
+                     * ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+                     * ┃ WebSocketConnection.CLOSE_DESCRIPTIONS                ┃
+                     * ┣━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┫
+                     * ┃ 1000  ┃ Normal connection closure                     ┃
+                     * ┃ 1001  ┃ Remote peer is going away                     ┃
+                     * ┃ 1002  ┃ Protocol error                                ┃
+                     * ┃ 1003  ┃ Unprocessable input                           ┃
+                     * ┃ 1004  ┃ Reserved                                      ┃
+                     * ┃ 1005  ┃ Reason not provided                           ┃
+                     * ┃ 1006  ┃ Abnormal closure, no further detail available ┃
+                     * ┃ 1007  ┃ Invalid data received                         ┃
+                     * ┃ 1008  ┃ Policy violation                              ┃
+                     * ┃ 1009  ┃ Message too big                               ┃
+                     * ┃ 1010  ┃ Extension requested by client is required     ┃
+                     * ┃ 1011  ┃ Internal Server Error                         ┃
+                     * ┃ 1015  ┃ TLS Handshake Failed                          ┃
+                     * ┗━━━━━━━┻━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+                     */
+
+                    this.logger.debug('conn.close', code, description)
                     this.conn = null
                     this.isHandshake = false
+
                     // Removing listeners could swallow some errors, for example
                     // a connection reset on a server shutdown. But in theory
                     // these represent more general events handled elsewhere.
                     conn.removeAllListeners()
                 })
+
                 conn.on('message', msg => {
                     let data
                     try {
@@ -210,13 +237,15 @@ class Client extends EventEmitter {
      * @throws ClientError.ConnectionClosedError
      *         ❯ If there is pending response expected.
      */
-    close() {
+    close(err = null) {
+        this.isClosing = true
         try {
-            if (this.isWaiting) {
-                // NB: this can throw an unhandled promise rejection if a caller of
-                //     waitForMessage does not handle the error.
-                this.cancelWaiting(new ConnectionClosedError('Client closing'))
-            }
+            err = err || new ConnectionClosedError('Client closing')
+            this.logger.debug('cancelMatch.from.client.close')
+            this.cancelMatch(err)
+            // NB: this can throw an unhandled promise rejection if a caller of
+            //     waitForMessage does not handle the error.
+            this.cancelWaiting(err)
         } finally {
             if (this.conn) {
                 this.conn.close()
@@ -241,23 +270,6 @@ class Client extends EventEmitter {
         this.logger.log('Server handshake success')
         this.isHandshake = true
         return res
-    }
-
-    /**
-     *
-     * @param Error
-     *
-     * @returns boolean Whether a reject handler was called.
-     */
-    cancelWaiting(err) {
-        this.logger.debug('cancelWaiting')
-        if (this.messageReject) {
-            this.messageReject(err)
-            this.logger.debug('cancelWaiting handled')
-            return true
-        }
-        this.logger.debug('cancelWaiting not handled')
-        return false
     }
 
     /**
@@ -298,10 +310,10 @@ class Client extends EventEmitter {
         this.logger.info('Waiting for opponent to join')
 
         res = await this.waitForResponse('opponentJoined')
+
         // If matchCanceled is handled, then an error is returned. This can
         // happen if the server shuts down while waiting.
         if (res instanceof Error) {
-            this.cancelMatch(res)
             throw res
         }
 
@@ -417,7 +429,9 @@ class Client extends EventEmitter {
      *    or, if the response action is matchCanceled, a MatchCanceledError.
      *
      *  ❯ For a MatchCanceledError, the matchCanceled event is emitted. If there
-     *    is an attached listener, the error is returned.
+     *    is an attached listener, the error is returned. An exception to this
+     *    is when the expected action is `opponentJoined`, which can happen in
+     *    the case of a server shutdown. In that case, the error is thrown.
      *
      *  ❯ Otherwise, the responseError event is emitted. If there is an attached
      *    listener, then null is returned.
@@ -464,36 +478,47 @@ class Client extends EventEmitter {
         let err
 
         if (data.action == 'matchCanceled') {
-            err = new MatchCanceledError(data.reason)
+            err = new MatchCanceledError(data.reason, {attrs: data.attrs})
         } else {
             err = new UnexpectedResponseError(
                 `Expecting response ${action}, but got ${data.action} instead`
             )
         }
 
-        // This is probably a noop.
-        if (this.cancelWaiting(err)) {
-            // To check for test coverage.
-            let foo = 'bar'
-        }
+        try {
 
-        if (err.isMatchCanceledError) {
-            // Return the error if there is an active match and a matchCanceled
-            // listener.
-            if (this.cancelMatch(err)) {
-                return err
+            if (err.isMatchCanceledError) {
+                this.logger.debug('cancelMatch.from.waitForResponse')
+                let isHandled = this.cancelMatch(err)
+                // A MatchCanceledError can happen before opponentJoined in the case
+                // of a server shutdown.
+                if (action == 'opponentJoined') {
+                    throw err
+                }
+                // Return the error if there is an active match and a matchCanceled
+                // listener.
+                if (isHandled) {
+                    return err
+                }
+            }
+
+            // This is for testing only, not recoverable in most cases.
+            if (this.emit('responseError', err, data)) {
+                this.logger.error(err)
+                return null
+            }
+
+            this.logger.warn(err)
+
+            throw err
+
+        } finally {
+
+            if (err.isClientShouldClose) {
+                this.logger.debug('waitForResponse.isClientShouldClose')
+                this.close(err)
             }
         }
-
-        // This is for testing only, not recoverable in most cases.
-        if (this.emit('responseError', err, data)) {
-            this.logger.error(err)
-            return null
-        }
-
-        this.logger.warn(err)
-
-        throw err
     }
 
     /**
@@ -511,6 +536,7 @@ class Client extends EventEmitter {
      * @returns object
      */
     waitForMessage() {
+
         return new Promise((resolve, reject) => {
             if (!this.conn) {
                 reject(new ConnectionClosedError('Connection lost'))
@@ -522,9 +548,18 @@ class Client extends EventEmitter {
             }
             this.isWaiting = true
             this.messageResolve = data => {
+
                 this.emit('response', data)
                 this.logger.debug('response', trimMessageData(data))
+
                 resolve(data)
+
+                // Clear current match if finished.
+                if (data.match && data.match.uuid && data.match.isFinished) {
+                    if (this.match && this.match.uuid == data.match.uuid) {
+                        this.clearCurrentMatch()
+                    }
+                }
             }
             this.messageReject = err => {
                 this.logger.debug('messageReject')
@@ -539,15 +574,19 @@ class Client extends EventEmitter {
     }
 
     /**
-     * @param object
      *
-     * @returns self
+     * @param Error
+     *
+     * @returns boolean Whether a reject handler was called.
      */
-    sendMessage(req) {
-        req = {secret: this.secret, ...req}
-        this.logger.debug('sendMessage', req)
-        this.conn.sendUTF(JSON.stringify(req))
-        return this
+    cancelWaiting(err) {
+        if (this.messageReject) {
+            this.logger.debug('cancelWaiting.rejecting')
+            this.messageReject(err)
+            return true
+        }
+        this.logger.debug('cancelWaiting.nothing.waiting')
+        return false
     }
 
     /**
@@ -560,34 +599,68 @@ class Client extends EventEmitter {
      * @emits error
      */
     handleMessage(data) {
+
         this.logger.debug('message', trimMessageData(data))
+
         if (this.messageResolve) {
             this.messageResolve(data)
             return
         }
         // If there is no messageResolve, there is no messageReject.
         let err
-        if (data.action == 'matchCanceled') {
-            err = new MatchCanceledError(data.reason)
-            // Let the matchCanceled handler take care of the error.
-            if (this.cancelMatch(err)) {
+        try {
+            if (data.action == 'matchCanceled') {
+                err = new MatchCanceledError(data.reason, {attrs: data.attrs})
+                // Let the matchCanceled handler take care of the error.
+                this.logger.debug('cancelMatch.from.handleMessage')
+                if (this.cancelMatch(err)) {
+                    return
+                }
+            }
+            if (!err) {
+                err = ClientError.forData(data)
+            }
+            if (this.emit('unhandledMessage', data)) {
                 return
             }
+        
+            this.logger.warn('Unhandled message from server', err)
+
+            // Since this is recoverable, we emit an error instead of throwing.
+            // Very interesting: this exits the process even on tests, no matter
+            // whether we throw or emit.
+            //throw err
+            this.emit('error', err)
+
+        } finally {
+
+            if (err && err.isClientShouldClose) {
+                this.logger.debbug('handleMessage.isClientShouldClose')
+                this.close(err)
+            }
         }
-        if (this.emit('unhandledMessage', data)) {
-            return
-        }
-        if (!err) {
-            err = ClientError.forData(data)
-        }
-        this.logger.warn('Unhandled message from server', err)
-        // Since this is recoverable, we emit an error instead of throwing.
-        // Very interesting: this exits the process even on tests, no matter
-        // whether we throw or emit.
-        //throw err
-        this.emit('error', err)
     }
 
+    /**
+     * @param object
+     *
+     * @returns self
+     */
+    sendMessage(req) {
+        req = {secret: this.secret, ...req}
+        this.logger.debug('sendMessage', trimMessageData(req))
+        this.conn.sendUTF(JSON.stringify(req))
+        return this
+    }
+
+    /**
+     * Emit matchCanceled if there is an active match, and clear the current
+     * match properties.
+     *
+     * @param Error The error to pass to the matchCanceled event
+     *
+     * @returns boolean Whether there was an active match AND a listener attached
+     */
     cancelMatch(err) {
         if (!this.match) {
             this.logger.log('No match to cancel')
@@ -597,18 +670,22 @@ class Client extends EventEmitter {
         try {
             isHandled = this.emit('matchCanceled', err)
         } finally {
-            update(this, {
-                match   : null
-              , matchId : null
-              , color   : null
-            })
+            this.clearCurrentMatch()
         }
         if (isHandled) {
             this.logger.debug('matchCanceled', 'handled')
         }
-        // ?
         return isHandled
     }
+
+    clearCurrentMatch() {
+        update(this, {
+            match   : null
+          , matchId : null
+          , color   : null
+        })
+    }
+
     /**
      * @async
      *

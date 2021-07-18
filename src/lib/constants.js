@@ -312,6 +312,23 @@ const Menu = {
 
 const CHash = 'a9c0fc569fd231b004d44e718add99e2'
 
+const MatchCancelRef = {
+    peerDisconnected: {
+        reason: 'Peer disconnected'
+      , attrs: {
+            isClientShouldClose : false
+          , isNet               : true
+        }
+    }
+  , serverShutdown: {
+        reason: 'Server Shutdown'
+      , attrs: {
+            isServerShutdown    : true
+          , isClientShouldClose : true
+          , isNet               : true
+        }
+    }
+}
 const Constants = {
     BoardStrings
   , BottomPoints
@@ -335,6 +352,7 @@ const Constants = {
   , EncryptedFlagPrefix
   , InsideOrigins
   , InvalidUsernameChars
+  , MatchCancelRef
   , Menu
   , MoveCoords
   , MoveHashes
