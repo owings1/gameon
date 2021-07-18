@@ -152,11 +152,32 @@ class Client extends EventEmitter {
             this.socketClient.on('connect', conn => {
                 this.conn = conn
                 conn.on('error', err => {
-                    this.logger.error(err)
+                    // Observed errors:
+                    //  ❯ ECONNRESET
+                    //  ❯ EPIPE, syscall: write, errno: -32
+                    this.logger.debug('conn.error', err)
+                    const isHandled = this.cancelMatch(err)
+                    try {
+                        this.close()
+                    } finally {
+                        if (!isHandled) {
+                            // Only emit error if there is an active match
+                            if (this.match) {
+                                this.emit('error', err)
+                            } else {
+                                this.logger.warn(err)
+                            }
+                        }
+                    }
                 })
                 conn.on('close', () => {
+                    this.logger.debug('conn.close')
                     this.conn = null
                     this.isHandshake = false
+                    // Removing listeners could swallow some errors, for example
+                    // a connection reset on a server shutdown. But in theory
+                    // these represent more general events handled elsewhere.
+                    conn.removeAllListeners()
                 })
                 conn.on('message', msg => {
                     let data
@@ -171,6 +192,8 @@ class Client extends EventEmitter {
                     this.handleMessage(data)
                 })
                 resolve()
+                // In case we reject afterward, probably a noop.
+                reject = err => this.emit('error', err)
             })
 
             try {
@@ -223,11 +246,18 @@ class Client extends EventEmitter {
     /**
      *
      * @param Error
+     *
+     * @returns boolean Whether a reject handler was called.
      */
     cancelWaiting(err) {
+        this.logger.debug('cancelWaiting')
         if (this.messageReject) {
             this.messageReject(err)
+            this.logger.debug('cancelWaiting handled')
+            return true
         }
+        this.logger.debug('cancelWaiting not handled')
+        return false
     }
 
     /**
@@ -239,6 +269,7 @@ class Client extends EventEmitter {
      * @emits opponentJoined
      *
      * @throws ClientError
+     * @throws GameError.MatchCanceledError
      *
      * @returns Match
      */
@@ -248,33 +279,36 @@ class Client extends EventEmitter {
 
         const {total} = opts
         const req = {action: 'createMatch', total, opts}
-        const {id, match} = await this.sendAndWaitForResponse(req, 'matchCreated')
+        let res = await this.sendAndWaitForResponse(req, 'matchCreated')
+
+        // Corner case of a generic responseError being handled
+        if (res instanceof Error) {
+            throw res
+        }
+
+        const {id, match} = res
 
         this.matchId = id
         this.match = Match.unserialize(match)
         this.color = White
 
         this.logger.info('Created new match', id)
-        this.emit('matchCreated', id)
+        this.emit('matchCreated', id, this.match)
 
-        this.logger.info('Waiting for opponent to join')        
-        await this.waitForResponse('opponentJoined')
+        this.logger.info('Waiting for opponent to join')
+
+        res = await this.waitForResponse('opponentJoined')
+        // If matchCanceled is handled, then an error is returned. This can
+        // happen if the server shuts down while waiting.
+        if (res instanceof Error) {
+            this.cancelMatch(res)
+            throw res
+        }
 
         this.logger.info('Opponent joined', id)
         this.emit('opponentJoined', this.match)
 
         return this.match
-    }
-
-    /**
-     * @param string|null The server URL.
-     *
-     * @returns self
-     */
-    setServerUrl(serverUrl) {
-        this.serverSocketUrl = httpToWs(serverUrl)
-        this.serverHttpUrl = stripTrailingSlash(wsToHttp(serverUrl))
-        return this
     }
 
     /**
@@ -294,7 +328,14 @@ class Client extends EventEmitter {
 
         this.logger.info('Joining match', id)
         const req = {action: 'joinMatch', id}
-        const {match} = await this.sendAndWaitForResponse(req, 'matchJoined')
+        let res = await this.sendAndWaitForResponse(req, 'matchJoined')
+
+        // Corner case of a generic responseError being handled.
+        if (res instanceof Error) {
+            throw res
+        }
+
+        const {match} = res
 
         this.matchId = id
         this.match = Match.unserialize(match)
@@ -411,6 +452,7 @@ class Client extends EventEmitter {
         const data = await this.waitForMessage()
 
         if (data.isError) {
+            this.logger.debug('data.isError', 'throwing')
             throw ClientError.forData(data)
         }
 
@@ -423,16 +465,24 @@ class Client extends EventEmitter {
 
         if (data.action == 'matchCanceled') {
             err = new MatchCanceledError(data.reason)
-            if (this.emit('matchCanceled', err)) {
-                this.logger.debug('matchCanceled', 'handled')
-                return err
-            }
-        }
-
-        if (!err) {
+        } else {
             err = new UnexpectedResponseError(
                 `Expecting response ${action}, but got ${data.action} instead`
             )
+        }
+
+        // This is probably a noop.
+        if (this.cancelWaiting(err)) {
+            // To check for test coverage.
+            let foo = 'bar'
+        }
+
+        if (err.isMatchCanceledError) {
+            // Return the error if there is an active match and a matchCanceled
+            // listener.
+            if (this.cancelMatch(err)) {
+                return err
+            }
         }
 
         // This is for testing only, not recoverable in most cases.
@@ -477,6 +527,7 @@ class Client extends EventEmitter {
                 resolve(data)
             }
             this.messageReject = err => {
+                this.logger.debug('messageReject')
                 this.logger.warn(err.name, err.message)
                 reject(err)
             }
@@ -518,7 +569,8 @@ class Client extends EventEmitter {
         let err
         if (data.action == 'matchCanceled') {
             err = new MatchCanceledError(data.reason)
-            if (this.emit('matchCanceled', err)) {
+            // Let the matchCanceled handler take care of the error.
+            if (this.cancelMatch(err)) {
                 return
             }
         }
@@ -536,6 +588,27 @@ class Client extends EventEmitter {
         this.emit('error', err)
     }
 
+    cancelMatch(err) {
+        if (!this.match) {
+            this.logger.log('No match to cancel')
+            return false
+        }
+        let isHandled = false
+        try {
+            isHandled = this.emit('matchCanceled', err)
+        } finally {
+            update(this, {
+                match   : null
+              , matchId : null
+              , color   : null
+            })
+        }
+        if (isHandled) {
+            this.logger.debug('matchCanceled', 'handled')
+        }
+        // ?
+        return isHandled
+    }
     /**
      * @async
      *
@@ -565,6 +638,17 @@ class Client extends EventEmitter {
             params = {action: params}
         }
         return {id: this.matchId, color: this.color, ...params}
+    }
+
+    /**
+     * @param string|null The server URL.
+     *
+     * @returns self
+     */
+    setServerUrl(serverUrl) {
+        this.serverSocketUrl = httpToWs(serverUrl)
+        this.serverHttpUrl = stripTrailingSlash(wsToHttp(serverUrl))
+        return this
     }
 
     /**

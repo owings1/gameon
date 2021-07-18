@@ -32,6 +32,7 @@ class ServerCommand extends Base {
     async init(...args) {
         await super.init(...args)
         this.server = this.server || new Server
+        this._loadProcHandlers()
     }
 
     async run() {
@@ -44,6 +45,34 @@ class ServerCommand extends Base {
 
     getMetricsPort() {
         return this.flags.metricsPort || this.env.METRICS_PORT || 8181
+    }
+
+    _loadProcHandlers() {
+        this._onSigint = this._onSigint.bind(this)
+        this.proc.on('SIGINT', this._onSigint)
+    }
+
+    _removeProcHandlers() {
+        this.proc.removeListener('SIGINT', this._onSigint)
+    }
+
+    _onSigint() {
+        this.logger.debug('SIGINT handler')
+        this._cleanup()
+        this.proc.exit(0)
+    }
+
+    _cleanup() {
+        try {
+            this._removeProcHandlers()
+        } catch (err) {
+            this.logger.console.error(err)
+        }
+        try {
+            this.server.close()
+        } catch (err) {
+            this.logger.warn(err)
+        }
     }
 }
 

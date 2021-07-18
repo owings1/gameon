@@ -36,6 +36,14 @@ const ClientListeners = {
         this.emit('matchCanceled', err)
     }
 
+  , matchCreated: function(id, match) {
+        // Set this earlier than the base player. In the case that matchCanceled
+        // is emitted before matchStart, the base player will be able to call
+        // match.cancel().
+        this.logger.debug('matchCreated')
+        this.thisMatch = match
+    }
+
   , matchResponse: function(req, res) {
         this.emit('matchResponse', req, res)
     }
@@ -170,6 +178,9 @@ class NetPlayer extends Base {
     }
 
     async gameStart(game, match, players) {
+        if (this._checkCanceled(null, game, match)) {
+            return
+        }
         await this.client.matchRequest('nextGame')
         if (this._checkCanceled(null, game, match)) {
             return

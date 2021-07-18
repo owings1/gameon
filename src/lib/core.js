@@ -135,6 +135,7 @@ class Match {
         this.scores = {Red: 0, White: 0}
         this.winner = null
         this.isCanceled = false
+        this.cancelError = null
         this.isFinished = false
         this.hasCrawforded = false
 
@@ -201,11 +202,12 @@ class Match {
     /**
      * @returns self
      */
-    cancel() {
+    cancel(err) {
         if (this.checkFinished()) {
             return this
         }
         this.isCanceled = true
+        this.cancelError = err
         this.isFinished = true
         if (this.thisGame) {
             this.thisGame.cancel()

@@ -320,7 +320,7 @@ class Coordinator {
     async cancelMatch(match, players, err) {
         match._cancelingCoordinator = this
         match._coordinatorCancelError = err
-        match.cancel()
+        match.cancel(err)
         await this.emitAll(players, 'matchCanceled', err, match)
     }
 

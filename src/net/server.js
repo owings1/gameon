@@ -56,8 +56,9 @@ const {
   , ValidateError
 } = Errors
 
-prom.collectDefaultMetrics()
+//prom.collectDefaultMetrics()
 
+/*
 const metrics = {
     connections: new prom.Gauge({
         name: 'open_connections',
@@ -84,6 +85,7 @@ const metrics = {
         help: 'Errors sending messages'
     })
 }
+*/
 
 function statusLogLevel(code) {
     if (code >= 500) {
@@ -149,6 +151,9 @@ class Server {
         this.app = this.createApp()
         this.metricsApp = this.createMetricsApp()
 
+        this.promRegistry = null
+        this.metrics = null
+
         this.matches = {}
         this.httpServer = null
         this.socketServer = null
@@ -165,7 +170,7 @@ class Server {
      */
     async listen(port, metricsPort) {
 
-        this.close()
+        this.close(true)
 
         await new Promise((resolve, reject) => {
             try {
@@ -181,21 +186,27 @@ class Server {
 
         await new Promise((resolve, reject) => {
             try {
+                this.promRegistry = new prom.Registry
+                this.metrics = this.createMetrics()
+                prom.collectDefaultMetrics({register: this.promRegistry})
                 this.metricsHttpServer = this.metricsApp.listen(metricsPort, resolve)
             } catch (err) {
                 reject(err)
             }
         })
+
         this.metricsPort = this.metricsHttpServer.address().port
         this.logger.info('Metrics listening on port', this.metricsPort)
-
         return this
     }
 
     /**
      *
      */
-    close() {
+    close(isSkipLog) {
+        if (!isSkipLog) {
+            this.logger.info('Shutting down server')
+        }
         Object.keys(this.matches).forEach(id =>
             this.cancelMatchId(id, 'Server shutdown')
         )
@@ -212,12 +223,19 @@ class Server {
             this.metricsHttpServer.close()
             this.metricsHttpServer = null
         }
+        if (this.promRegistry) {
+            this.promRegistry.clear()
+            this.promRegistry = null
+        }
+        if (!isSkipLog) {
+            this.logger.info('Server shutdown complete')
+        }
         return this
     }
 
     /**
      *
-     * @return Function
+     * @return Function Express app
      */
     createApp() {
 
@@ -244,7 +262,7 @@ class Server {
 
     /**
      *
-     * @return Function
+     * @return Function Express app
      */
     createMetricsApp() {
 
@@ -252,7 +270,7 @@ class Server {
 
         app.get('/metrics', (req, res) => {
             try {
-                res.set('content-type', prom.register.contentType)
+                res.set('content-type', this.promRegistry.contentType)
                 this.fetchMetrics().then(metrics => res.status(200).end(metrics))
             } catch (err) {
                 const error = {name: err.name, message: err.message}
@@ -265,12 +283,50 @@ class Server {
     }
 
     /**
+     * @return object Prometheus metrics
+     */
+    createMetrics() {
+        return {
+            connections: new prom.Gauge({
+                name: 'open_connections',
+                help: 'Open connections',
+                registers: [this.promRegistry]
+            }),
+            matchesCompleted: new prom.Counter({
+                name: 'matches_completed',
+                help: 'Total matches completed',
+                registers: [this.promRegistry]
+            }),
+            matchesInProgress: new prom.Gauge({
+                name: 'matches_in_progress',
+                help: 'Matches in progress',
+                registers: [this.promRegistry]
+            }),
+            messagesReceived: new prom.Counter({
+                name: 'messages_received',
+                help: 'Messages received',
+                registers: [this.promRegistry]
+            }),
+            messagesSent: new prom.Counter({
+                name: 'messages_sent',
+                help: 'Messages sent',
+                registers: [this.promRegistry]
+            }),
+            errorsSending: new prom.Counter({
+                name: 'errors_sending',
+                help: 'Errors sending messages',
+                registers: [this.promRegistry]
+            })
+        }
+    }
+    /**
      * @async
      *
      * @return object
      */
     fetchMetrics() {
-        return prom.register.metrics()
+        return this.promRegistry.metrics()
+        //return prom.register.metrics()
     }
 
     /**
@@ -295,7 +351,7 @@ class Server {
 
             this.logger.info('Peer', connId, 'connected', conns[connId].remoteAddress)
 
-            metrics.connections.labels().set(Object.keys(conns).length)
+            this.metrics.connections.labels().set(Object.keys(conns).length)
 
             conns[connId].on('close', () => {
                 const conn = conns[connId]
@@ -303,13 +359,13 @@ class Server {
                 this.logger.info('Peer', connId, 'disconnected')
                 this.cancelMatchId(conn.matchId, 'Peer disconnected')
                 delete conns[connId]
-                metrics.connections.labels().set(Object.keys(conns).length)
+                this.metrics.connections.labels().set(Object.keys(conns).length)
                 this.logActive()
             })
 
             conns[connId].on('message', msg => {
                 const conn = conns[connId]
-                metrics.messagesReceived.labels().inc()
+                this.metrics.messagesReceived.labels().inc()
                 let req
                 try {
                     req = JSON.parse(msg.utf8Data)
@@ -339,10 +395,10 @@ class Server {
      * Response to a request from a connection. Delegates to one of four
      * response types:
      *
-     *   ❯ establishSecretResponse
-     *   ❯ createMatchResponse
-     *   ❯ joinMatchResponse
-     *   ❯ matchResponse
+     *   ❯ handshakeResponse
+     *   ❯ matchCreateResponse
+     *   ❯ matchJoinResponse
+     *   ❯ matchPlayResponse
      *
      * Error Responses:
      *
@@ -380,19 +436,19 @@ class Server {
             switch (action) {
 
                 case 'establishSecret':
-                    await this.establishSecretResponse(conn, req)
+                    await this.handshakeResponse(conn, req)
                     break
 
                 case 'createMatch':
-                    this.createMatchResponse(conn, req)
+                    this.matchCreateResponse(conn, req)
                     break
 
                 case 'joinMatch':
-                    this.joinMatchResponse(conn, req)
+                    this.matchJoinResponse(conn, req)
                     break
 
                 default:
-                    this.matchResponse(req)
+                    this.matchPlayResponse(req)
                     break
             }
 
@@ -421,7 +477,7 @@ class Server {
      *
      * @returns undefined
      */
-    async establishSecretResponse(conn, req) {
+    async handshakeResponse(conn, req) {
 
         clearTimeout(conn.handShakeTimeoutId)
 
@@ -470,7 +526,7 @@ class Server {
      *
      * @returns undefined
      */
-    createMatchResponse(conn, req) {
+    matchCreateResponse(conn, req) {
 
         const id = Server.matchIdFromSecret(conn.secret)
 
@@ -498,7 +554,7 @@ class Server {
         this.sendMessage(conn, {action: 'matchCreated', id, match: match.meta()})
 
         this.logActive()
-        metrics.matchesInProgress.labels().set(Object.keys(this.matches).length)
+        this.metrics.matchesInProgress.labels().set(Object.keys(this.matches).length)
     }
 
     /**
@@ -516,7 +572,7 @@ class Server {
      *
      * @returns undefined
      */
-    joinMatchResponse(conn, req) {
+    matchJoinResponse(conn, req) {
 
         const {id} = req
 
@@ -561,7 +617,7 @@ class Server {
      *
      * @returns undefined
      */
-    matchResponse(req) {
+    matchPlayResponse(req) {
 
         const match = this.getMatchForRequest(req)
 
@@ -751,6 +807,49 @@ class Server {
     }
 
     /**
+     * Send a message to one or more socket connections.
+     *
+     * @param WebSocketConnection|array The connection, or array of connections
+     * @param object The message data
+     *
+     * @returns boolean Whether all messages were send successfully
+     */
+    sendMessage(conns, data) {
+
+        data = data || {}
+
+        let title = data.action
+        if (data instanceof Error) {
+            if (!data.isRequestError) {
+                data = RequestError.forError(data)
+            }
+            data = makeErrorObject(data)
+            title = data.namePath || data.name
+        }
+
+        const body = JSON.stringify(data)
+
+        let isSuccess = true
+        castToArray(conns).forEach(conn => {
+            try {
+                if (conn && conn.connected) {
+                    this.logger.log('Sending message to', conn.color, conn.connId, title)
+                    conn.sendUTF(body)
+                    this.metrics.messagesSent.labels().inc()
+                }
+            } catch (err) {
+                isSuccess = false
+                const id = (conn && conn.id) || null
+                this.logger.warn('Failed sending message', {id}, err)
+                this.metrics.errorsSending.labels().inc()
+                this.closeConn(conn)
+            }
+        })
+
+        return isSuccess
+    }
+
+    /**
      * Check if a match is finished, and update the match score. If the match
      * is finished, delete the match from the stored matches.
      *
@@ -765,9 +864,9 @@ class Server {
         }
         if (match.hasWinner()) {
             this.logger.info('Match', match.id, 'is completed')
-            metrics.matchesCompleted.labels().inc()
+            this.metrics.matchesCompleted.labels().inc()
             delete this.matches[match.id]
-            metrics.matchesInProgress.labels().set(Object.keys(this.matches).length)
+            this.metrics.matchesInProgress.labels().set(Object.keys(this.matches).length)
             this.logActive()
             return true
         }
@@ -798,50 +897,8 @@ class Server {
         this.logger.info('Canceling match', id)
         this.sendMessage(Object.values(match.conns), {action: 'matchCanceled', reason})
         delete this.matches[id]
-        metrics.matchesInProgress.labels().set(Object.keys(this.matches).length)
+        this.metrics.matchesInProgress.labels().set(Object.keys(this.matches).length)
         return this
-    }
-
-    /**
-     * Send a message to one or more socket connections.
-     *
-     * @param WebSocketConnection|array The connection, or array of connections
-     * @param object The message data
-     *
-     * @returns boolean Whether all messages were send successfully
-     */
-    sendMessage(conns, data) {
-
-        data = data || {}
-
-        let title = data.action
-        if (data instanceof Error) {
-            if (!data.isRequestError) {
-                data = RequestError.forError(data)
-            }
-            data = makeErrorObject(data)
-            title = data.namePath || data.name
-        }
-
-        const body = JSON.stringify(data)
-
-        let isSuccess = true
-        castToArray(conns).forEach(conn => {
-            try {
-                if (conn && conn.connected) {
-                    this.logger.log('Sending message to', conn.color, conn.connId, title)
-                    conn.sendUTF(body)
-                    metrics.messagesSent.labels().inc()
-                }
-            } catch (err) {
-                isSuccess = false
-                const id = (conn && conn.id) || null
-                this.logger.warn('Failed sending message', {id}, err)
-                metrics.errorsSending.labels().inc()
-                this.closeConn(conn)
-            }
-        })
-        return isSuccess
     }
 
     /**
@@ -889,6 +946,7 @@ class Server {
                 this.logger.warn('Failed to close connection', {id}, err)
             }
         })
+
         return this
     }
 

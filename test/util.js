@@ -45,22 +45,24 @@ function requireSrc(p) {
 const Util = requireSrc('lib/util')
 const Core = requireSrc('lib/core')
 
-const fs = require('fs')
+const fs     = require('fs')
 const globby = require('globby')
-const path = require('path')
+const path   = require('path')
 const stream = require('stream')
-const tmp = require('tmp')
+const tmp    = require('tmp')
+
 const {EventEmitter} = require('events')
 
 const States = require('./states')
-const Rolls = require('./rolls')
+const Rolls  = require('./rolls')
 
 const {Board} = Core
 
-const States28 = {}
-for (var k in States) {
-    States28[k] = Board.fromStateString(States[k]).state28()
-}
+const States28 = Object.fromEntries(
+    Object.entries(States).map(([key, value]) =>
+        [key, Board.fromStateString(value).state28()]
+    )
+)
 
 function suites(dir, glob) {
     dir = dir || path.resolve(__dirname, 'suites')
@@ -84,10 +86,6 @@ function suites(dir, glob) {
     )
 }
 
-//const Structures = {
-//    Initial : [0, 0, 2, 0, 0, 0, 0, -5, 0, -3, 0, 0, 0, 5, -5, 0, 0, 0, 3, 0, 5, 0, 0, 0, 0, -2, 0, 0]
-//}
-
 function normState(str) {
     return Board.fromStateString(str).stateString()
 }
@@ -100,6 +98,13 @@ function noop() {
 
 }
 
+class GetErrorError extends Error {
+    constructor(...args) {
+        super(...args)
+        this.name = this.constructor.name
+    }
+}
+
 function getError(cb) {
     let ret
     try {
@@ -109,23 +114,16 @@ function getError(cb) {
     }
     if (ret instanceof Promise) {
         return new Promise((resolve, reject) => {
-            ret.then(() => {
-                reject(new Error('No error returned'))
+            ret.then(res => {
+                console.log(res)
+                reject(new GetErrorError('No error returned'))
             }).catch(resolve)
         })
     } else {
-        throw new Error('No error returned')
+        console.log(ret)
+        throw new GetErrorError('No error returned')
     }
 }
-
-
-//async function getErrorAsync(cb) {
-//    try {
-//        await cb()
-//    } catch (err) {
-//        return err
-//    }
-//}
 
 function tmpFile() {
     return tmp.fileSync().name
@@ -147,7 +145,6 @@ function makeRandomMoves(turn, isFinish) {
             break
         }
         let move = randomElement(moves)
-        //console.log(move)
         turn.move(move.origin, move.face)
     }
     if (isFinish) {
@@ -159,27 +156,6 @@ function makeRandomMoves(turn, isFinish) {
 // parse key from email
 function parseKey(params) {
     return params.Message.Body.Text.Data.match(/^Key: (.*)$/)[1]
-}
-
-const {URLSearchParams} = require('url')
-
-function getUrlParams(obj) {
-    obj = obj || {}
-    const params = new URLSearchParams
-    for (let k in obj) {
-        params.append(k, obj[k])
-    }
-    return params
-}
-
-// https://stackoverflow.com/questions/34815845/how-to-send-cookies-with-node-fetch
-function parseCookies(response) {
-    const raw = response.headers.raw()['set-cookie']
-    return raw.map(entry => {
-        const parts = entry.split(';')
-        const cookiePart = parts[0]
-        return cookiePart
-    }).join(';')
 }
 
 class NullOutput extends stream.Writable {
@@ -199,14 +175,17 @@ class NullOutput extends stream.Writable {
     }
 }
 
+const {httpFixture, getUrlParams, parseCookies} = require('./util/http-util')
+const MockPrompter = require('./util/mock-prompter')
 module.exports = {
     expect
   , fetchBoard
   , getError
   , getErrorAsync : getError
   , getUrlParams
+  , httpFixture
   , makeRandomMoves
-  , MockPrompter: require('./util/mock-prompter')
+  , MockPrompter
   , noop
   , normState
   , NullOutput
@@ -217,7 +196,6 @@ module.exports = {
   , Rolls
   , States
   , States28
-  //, Structures
   , suites
   , tmpDir
   , tmpFile

@@ -26,7 +26,6 @@ const Test = require('../util')
 const {
     expect,
     getError,
-    getErrorAsync,
     requireSrc
 } = Test
 
@@ -96,14 +95,14 @@ describe('-', () => {
 
         it('should reject when server is down', async () => {
             server.close()
-            const err = await getErrorAsync(() => client.connect())
+            const err = await getError(() => client.connect())
             expect(!!err).to.equal(true)
         })
 
         it('should reject when socketClient.connect throws', async () => {
             server.close()
             client.socketClient.connect = () => { throw new Error }
-            const err = await getErrorAsync(() => client.connect())
+            const err = await getError(() => client.connect())
             expect(!!err).to.equal(true)
         })
     })
@@ -142,7 +141,7 @@ describe('-', () => {
         it('should throw when waitForResponse throws (coverage)', async () => {
             const e = new Error
             client.waitForResponse = () => {throw e}
-            const err = await getErrorAsync(() => client.sendAndWaitForResponse())
+            const err = await getError(() => client.sendAndWaitForResponse())
             expect(err).to.equal(e)
         })
 
@@ -150,7 +149,7 @@ describe('-', () => {
             const e = new Error
             client.waitForResponse = () => {}
             client.sendMessage = () => {throw e}
-            const err = await getErrorAsync(() => client.sendAndWaitForResponse())
+            const err = await getError(() => client.sendAndWaitForResponse())
             expect(err).to.equal(e)
         })
     })
@@ -161,7 +160,7 @@ describe('-', () => {
             const conn = client.conn
             client.conn = null
             try {
-                const err = await getErrorAsync(() => client.waitForMessage())
+                const err = await getError(() => client.waitForMessage())
                 expect(err.name).to.equal('ConnectionClosedError')
             } finally {
                 client.conn = conn
@@ -176,7 +175,7 @@ describe('-', () => {
         })
 
         it('should throw error when response has isError=true', async () => {
-            const p = getErrorAsync(() => client.waitForResponse('test'))
+            const p = getError(() => client.waitForResponse('test'))
             const conns = Object.values(server.socketServer.conns)
             server.sendMessage(conns, {isError: true, error: 'testErrorMessage'})
             const err = await p
@@ -185,7 +184,7 @@ describe('-', () => {
 
         it('should throw error when response has mismatched action', async () => {
             client.loglevel = 0
-            const p = getErrorAsync(() => client.waitForResponse('test'))
+            const p = getError(() => client.waitForResponse('test'))
             const conns = Object.values(server.socketServer.conns)
             server.sendMessage(conns, {action: 'testErrorMessage'})
             const err = await p
@@ -194,7 +193,7 @@ describe('-', () => {
 
         it('should throw MatchCanceledError for response action=matchCanceled with reason as message', async () => {
             client.loglevel = -1
-            const p = getErrorAsync(() => client.waitForResponse('test'))
+            const p = getError(() => client.waitForResponse('test'))
             const conns = Object.values(server.socketServer.conns)
             server.sendMessage(conns, {action: 'matchCanceled', reason: 'testReason'})
             const err = await p

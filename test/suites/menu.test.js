@@ -954,10 +954,10 @@ describe('-', () => {
                 expect(isCalled).to.equal(true)
             })
 
-            it('should alert warn match canceled but not throw for mock coodinator', async () => {
+            it('should alert match canceled but not throw for mock coodinator', async () => {
                 const err = new MatchCanceledError
                 menu.newCoordinator = () => newThrowingCoordinator(err)
-                menu.loglevel = 0
+                menu.loglevel = -1
                 await menu.playHumans(menu.settings.matchOpts)
                 await menu.consumeAlerts()
                 expect(menu.alerts.lastError).to.equal(err)

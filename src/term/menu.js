@@ -754,6 +754,11 @@ class Menu extends EventEmitter {
 
         await this.ensureLoaded()
 
+        if (this.thisClient) {
+            this.thisClient.close()
+            this.thisClient.removeAllListeners()
+        }
+
         const client = this.newClient()
 
         try {
@@ -773,6 +778,12 @@ class Menu extends EventEmitter {
 
             this.emit('beforeClientConnect', client)
             await client.connect()
+
+            client.on('matchCanceled', err => {
+                if (!this.alerts.getErrors().find(it => err)) {
+                    this.alerts.error(err)
+                }
+            })
 
             const promise = isStart ? client.createMatch(matchOpts) : client.joinMatch(matchId)
             this.emit('clientWaitStart', client)
@@ -842,7 +853,9 @@ class Menu extends EventEmitter {
         } catch (err) {
 
             if (err.isMatchCanceledError) {
-                this.alerts.warn(err)
+                if (!this.alerts.getErrors().find(it => err)) {
+                    this.alerts.error(err)
+                }
                 return
             }
 

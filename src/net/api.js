@@ -23,7 +23,6 @@
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 const Auth      = require('./auth')
-const Constants = require('../lib/constants')
 const Logger    = require('../lib/logger')
 const Util      = require('../lib/util')
 
@@ -34,7 +33,10 @@ const Messages = {
     accountConfirmed : 'Account confirmed.'
   , accountCreated   : 'Account created, check your email to confirm.'
   , authenticated    : 'User authenticated.'
+  , badRequest       : 'Bad Request'
   , confirmKeySent   : 'A confirm key has been sent if the account exists and is unconfirmed, check your email.'
+  , internalError    : 'Internal Error'
+  , notFound         : 'Not Found'
   , passwordChanged  : 'Password changed.'
   , passwordReset    : 'Password reset.'
   , resetKeySent     : 'A reset key has been sent if the account exists, check your email.'
@@ -51,20 +53,8 @@ class Api {
         this.opts = Util.defaults(Api.defaults(process.env), opts)
         this.logger = new Logger(this.constructor.name, {server: true})
 
-        // TODO: should we require the auth instance in the constructor?
-        //       we only instantiate the Api class in one place anyway.
-        //this.auth = Auth.create({...opts, ...this.opts, loggerPrefix: this.constructor.name})
         this.auth = auth
         this.v1 = this.create_v1()
-    }
-
-    get loglevel() {
-        return this.logger.loglevel
-    }
-
-    set loglevel(n) {
-        this.logger.loglevel = n
-        //this.auth.loglevel = n
     }
 
     create_v1() {
@@ -74,7 +64,7 @@ class Api {
 
         app.use((req, res, next) => {
             res.errorHandler = err => this.handleError(err, res)
-            next()
+            jsonParser(req, res, next)
         })
 
         app.post('/authenticate', jsonParser, (req, res) => {
@@ -129,7 +119,7 @@ class Api {
                     return
                 }
                 res.errorHandler(err)
-            })            
+            })
         })
 
         app.post('/forgot-password', jsonParser, (req, res) => {
@@ -198,15 +188,14 @@ class Api {
             }).catch(res.errorHandler)
         })
 
-        return app
-    }
+        app.use((req, res) => {
+            const status = 404
+            const message = Messages.notFound
+            const body = {status, message}
+            res.status(status).send(body)
+        })
 
-    handleInternalError(err, res) {
-        const status = 500
-        const error = {name: 'InternalError', message: 'Internal Error'}
-        const body = {status, message: 'Internal Error', error}
-        res.status(status).send(body)
-        this.logger.error(err)
+        return app
     }
 
     handleError(err, res) {
@@ -215,9 +204,27 @@ class Api {
             return
         }
         const status = 400
+        const message = Messages.badRequest
         const error = {name: err.name, message: err.message}
-        const body = {status, message: 'Bad Request', error}
+        const body = {status, message, error}
         res.status(status).send(body)
+    }
+
+    handleInternalError(err, res) {
+        const status = 500
+        const message = Messages.internalError
+        const error = {name: 'InternalError', message}
+        const body = {status, message, error}
+        res.status(status).send(body)
+        this.logger.error(err)
+    }
+
+    get loglevel() {
+        return this.logger.loglevel
+    }
+
+    set loglevel(n) {
+        this.logger.loglevel = n
     }
 }
 

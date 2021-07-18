@@ -52,8 +52,9 @@ const Listeners = {
 
   , matchCanceled: function(err) {
         this.logger.debug('event.matchCanceled')
+        // NB: If matchCanceled is emitted before matchStart, then this will not help.
         if (this.thisMatch) {
-            this.thisMatch.cancel()
+            this.thisMatch.cancel(err)
         }
     }
 }

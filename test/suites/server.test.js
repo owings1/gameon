@@ -26,6 +26,7 @@ const Test = require('../util')
 const {
     expect,
     getError,
+    httpFixture,
     makeRandomMoves,
     parseKey,
     requireSrc,
@@ -33,8 +34,7 @@ const {
     tmpDir
 } = Test
 
-const fetch = require('node-fetch')
-const fse   = require('fs-extra')
+const fse = require('fs-extra')
 
 describe('-', () => {
 
@@ -401,7 +401,7 @@ describe('-', () => {
                 })
             })
 
-            describe('#matchResponse', () => {
+            describe('#matchPlayResponse', () => {
 
                 beforeEach(async function () {
                     const match = await this.createMatch({total: 3})
@@ -416,7 +416,7 @@ describe('-', () => {
                 it('should pass for bad action', function (done) {
                     const {client, server, id} = this.fixture
                     client.once('unhandledMessage', () => done())
-                    server.matchResponse({id, color: White, secret: client.secret})
+                    server.matchPlayResponse({id, color: White, secret: client.secret})
                 })
 
                 describe('nextGame', () => {
@@ -676,7 +676,7 @@ describe('-', () => {
 
     describe('HTTP', () => {
 
-        const {getUrlParams, parseCookies} = Test
+        const {parseCookies} = Test
 
         beforeEach(function() {
 
@@ -692,48 +692,7 @@ describe('-', () => {
               , json    : false
             })
 
-            const getHeaders = _headers => {
-                const headers = {}
-                if (this.fixture.json) {
-                    headers['content-type'] = 'application/json'
-                }
-                update(headers, this.fixture.headers)
-                return update(headers, _headers)
-            }
-
-            this.url = uri => this.fixture.baseUrl + uri
-
-            this.get = (uri, opts) => {
-                opts = {...opts}
-                const headers = getHeaders(opts.headers)
-                return fetch(this.url(uri), {
-                    ...this.fixture.opts
-                  , ...opts
-                  , headers
-                })
-            }
-
-            this.post = (uri, body, opts) => {
-                opts = {...opts}
-                const headers = getHeaders(opts.headers)
-                if (this.fixture.json) {
-                    body = JSON.stringify(body)
-                } else {
-                    body = getUrlParams(body)
-                }
-                return fetch(this.url(uri), {
-                    method: 'POST'
-                  , ...this.fixture.opts
-                  , ...opts
-                  , body
-                  , headers
-                })
-            }
-
-            this.req = (...args) =>  {
-                const method = this.fixture.method.toLowerCase()
-                return this[method](this.fixture.uri, ...args)
-            }
+            update(this, httpFixture)
         })
 
         describe('api', () => {

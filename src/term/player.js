@@ -62,6 +62,11 @@ const Listeners = {
 
     matchStart: function(match) {
 
+        if (match.isCanceled) {
+            this.emit('matchCanceled', match.cancelError)
+            return
+        }
+
         this.isDualTerm = this.opponent.isTerm
         this.isDualRobot = this.isRobot && this.opponent.isRobot
 
