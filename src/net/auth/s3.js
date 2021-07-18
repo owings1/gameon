@@ -46,6 +46,7 @@ class S3Auth extends Base {
 
     constructor(opts){
         super()
+        this.type = 's3'
         this.opts = Util.defaults(S3Auth.defaults(process.env), opts)
         this.s3 = new AWS.S3()
     }

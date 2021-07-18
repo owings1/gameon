@@ -26,995 +26,1256 @@ const Test = require('../util')
 const {
     expect,
     getError,
-    getErrorAsync,
     makeRandomMoves,
     parseKey,
-    parseCookies,
     requireSrc,
     States,
     tmpDir
 } = Test
 
 const fetch = require('node-fetch')
-const fs    = require('fs')
 const fse   = require('fs-extra')
-
-const {URLSearchParams} = require('url')
 
 describe('-', () => {
 
-    const Auth        = requireSrc('net/auth')
-    const Client      = requireSrc('net/client')
-    const Core        = requireSrc('lib/core')
-    const Constants   = requireSrc('lib/constants')
-    const Dice        = requireSrc('lib/dice')
-    const Server      = requireSrc('net/server')
-    const Util        = requireSrc('lib/util')
+    const Client = requireSrc('net/client')
+    const Server = requireSrc('net/server')
 
-    const {White, Red}  = Constants
-    const {Match} = Core
+    const Dice      = requireSrc('lib/dice')
+    const {Match}   = requireSrc('lib/core')
 
-    var server
-    var serverUrl
-    var metricsUrl
+    const {White, Red}      = requireSrc('lib/constants')
+    const {ucfirst, update} = requireSrc('lib/util')
 
-    var client1
-    var client2
-    var client // alias for client1
+    const loglevel = 1
 
-    var authDir
-    var authServer
-    var authServerUrl
-    var authClient
-    
-    function getParams(obj) {
-        obj = obj || {}
-        const params = new URLSearchParams
-        for (var k in obj) {
-            params.append(k, obj[k])
+    beforeEach(async function () {
+
+        // Create servers.
+        this.objects = {
+            server      : new Server
+          , authServer  : new Server({
+                authType: 'directory'
+              , authDir : tmpDir()
+              , sessionInsecure : true
+            })
         }
-        return params
-    }
 
-    async function createMatch() {
-        await Promise.all([client1.connect(), client2.connect()])
-        const res = await client1.sendAndWait({action: 'createMatch', total: 1})
-        const id = res.id
-        const p = client1.waitForMessage()
-        await client2.sendAndWait({action: 'joinMatch', id})
-        await p
-        return server.matches[id]
-    }
+        // Set servers loglevel, logger name, and listen.
+        for (let [name, server] of Object.entries(this.objects)) {
+            server.loglevel = loglevel
+            server.logger.name = ucfirst(name)
+            await server.listen()
+            // Monkey patch for tests
+            server.testUrl = 'http://localhost:' + server.port
+            server.testMetricsUrl = 'http://localhost:' + server.metricsPort
+        }
 
-    async function sendAndWait(msg) {
-        const p = this.waitForMessage()
-        this.sendMessage(msg)
-        return await p
-    }
+        // Create clients. Set loglevel and logger name.
+        Object.entries({
+            client1    : 'server'
+          , client2    : 'server'
+          , authClient : 'authServer'
+        }).forEach(([name, serverName]) => {
+            const server = this.objects[serverName]
+            const client = new Client({serverUrl: server.testUrl})
+            client.loglevel = loglevel
+            client.logger.name = ucfirst(name)
+            this.objects[name] = client
+        })
 
-    beforeEach(async () => {
+        this.setLoglevel = n => {
+            Object.values(this.objects).forEach(obj => {
+                obj.loglevel = n
+            })
+        }
 
-        authDir = tmpDir()
-
-        server = new Server
-        authServer = new Server({authType: 'directory', authDir, sessionInsecure : true})
-
-        server.loglevel = 1
-        authServer.loglevel = 1
-
-        await server.listen()
-        await authServer.listen()
-
-        serverUrl = 'http://localhost:' + server.port
-        metricsUrl = 'http://localhost:' + server.metricsPort
-        authServerUrl = 'http://localhost:' + authServer.port
-
-        client1 = new Client({serverUrl})
-        client2 = new Client({serverUrl})
-        authClient = new Client({serverUrl: authServerUrl})
-
-        client1.logger.name = 'Client1'
-        client2.logger.name = 'Client2'
-        authClient.logger.name = 'AuthClient'
-
-        client1.loglevel = 1
-        client2.loglevel = 1
-        authClient.loglevel = 1
-
-        client1.sendAndWait = sendAndWait
-        client2.sendAndWait = sendAndWait
-        client = client1        
+        this.fixture = {}
     })
 
-    afterEach(async () => {
-        await client1.close()
-        await client2.close()
-        await server.close()
-
-        await fse.remove(authDir)
-        await authServer.close()
+    afterEach(async function() {
+        // Close objects.
+        Object.values(this.objects).forEach(obj => {
+            obj.close()
+        })
+        // Remove authDir.
+        const {auth} = this.objects.authServer
+        await fse.remove(auth.impl.opts.authDir)
     })
 
-    describe('Server', () => {
-
-        it('should authenticate with token', async () => {
-            const username = 'nobody@nowhere.example'
-            const password = 'fcw4ERXs'
-            await authServer.auth.createUser(username, password, true)
-            const token = authServer.auth.getToken(username, password)
-            authClient.username = null
-            authClient.password = null
-            authClient.token = token
-            await authClient.connect()
-        })
-
-        it('should construct with opt webEnabled=false', () => {
-            const s2 = new Server({webEnabled: false})
-            expect(s2.opts.webEnabled).to.equal(false)
-        })
-
-        describe('#checkMatchFinished', () => {
-
-            it('should delete match from matches when finished', async () => {
-                const match = await createMatch()
-                const game = match.nextGame()
-                game.board.setStateString(States.WhiteWin)
-                makeRandomMoves(game.firstTurn()).finish()
-                server.checkMatchFinished(match)
-                expect(Object.keys(server.matches)).to.not.contain(match.id)
-            })
-        })
-
-        describe('#close', () => {
-
-            it('should pass when socketServer, httpServer, and metricsHttpServer are null', () => {
-                // coverage
-                server.close()
-                server.socketServer = null
-                server.httpServer = null
-                server.metricsHttpServer = null
-                server.close()
-            })
-        })
-
-        describe('#listen', () => {
-
-            it('should have non-null socketServer', () => {
-                expect(!!server.socketServer).to.equal(true)
-            })
-
-            it('should accept connection', async () => {
-                await client.connect()
-                expect(!!client.conn).to.equal(true)
-            })
-
-            it('should throw when createSocketServer throws for mock method', async () => {
-                server.close()
-                const e = new Error
-                server.createSocketServer = () => {
-                    throw e
-                }
-                const err = await getErrorAsync(() => server.listen())
-                expect(err).to.equal(e)
-            })
-
-            it('should throw when app.listen throws for mock method', async () => {
-                server.close()
-                const e = new Error
-                server.app.listen = () => { throw e }
-                const err = await getErrorAsync(() => server.listen())
-                expect(err).to.equal(e)
-            })
-        })
-
-        describe('#logActive', () => {
-
-            it('should pass when socketServer is null', () => {
-                // coverage
-                server.close()
-                server.socketServer = null
-                server.logActive()
-            })
-        })
-
-        describe('#getMatchForRequest', () => {
-
-            it('should throw MatchNotFoundError for non-existent match', () => {
-                const secret = Client.generateSecret()
-                const err = getError(() => server.getMatchForRequest({color: White, id: '12345678', secret}))
-                expect(err.name).to.equal('MatchNotFoundError')
-            })
-
-            it('should throw HandshakeError for mismatched secret', async () => {
-                const {id} = await createMatch()
-                const err = getError(() => server.getMatchForRequest({color: White, id, secret: 'badSecret'}))
-                expect(err.name).to.equal('HandshakeError')
-            })
-        })
-
-        describe('#matchIdFromSecret', () => {
-    
-        })
-
-        describe('#response', () => {
-
-            async function bareConn(client) {
-                const p = new Promise(resolve => client.socketClient.on('connect', conn => {
-                    client.conn = conn
-                    conn.on('message', msg => {
-                        const data = JSON.parse(msg.utf8Data)
-                        if (client.messageResolve) {
-                            client.messageResolve(data)
-                            client.messageResolve = null
-                        } else {
-                            throw new Error('unhandled message', msg)
-                        }
-                    })
-                    resolve()
-                }))
-                client.socketClient.connect(client.serverSocketUrl)
-                await p
-            }
-
-            it('should return HandshakeError for missing secret in message', async () => {
-                server.loglevel = -1
-                await client.connect()
-                const res = await client.sendAndWait({secret: null})
-                expect(res.isError).to.equal(true)
-                expect(res.name).to.equal('HandshakeError')
-            })
-
-            it('should return HandshakeError for missing secret on server', async () => {
-                server.loglevel = -1
-                await bareConn(client)                
-                const res = await client.sendAndWait({secret: 'abc'})
-                expect(res.isError).to.equal(true)
-                expect(res.name).to.equal('HandshakeError')
-            })
-
-            describe('establishSecret', () => {
-
-                it('should return HandshakeError for secret of length 23', async () => {
-                    server.loglevel = -1
-                    const msg = {secret: 'abcdefghijklmnopqrstuvw', action: 'establishSecret'}
-                    await bareConn(client)
-                    const res = await client.sendAndWait(msg)
-                    expect(res.isError).to.equal(true)
-                    expect(res.name).to.equal('HandshakeError')
-                })
-
-                it('should return HandshakeError for mismatch secret', async () => {
-                    server.loglevel = -1
-                    await client.connect()
-                    const msg = {secret: Client.generateSecret(), action: 'establishSecret'}
-                    const res = await client.sendAndWait(msg)
-                    expect(res.isError).to.equal(true)
-                    expect(res.name).to.equal('HandshakeError')
-                })
-            })
-
-            describe('createMatch', () => {
-
-                it('should return matchCreated with id of new match with total 1', async () => {
-                    await client.connect()
-                    const msg = {action: 'createMatch', total: 1}
-                    const res = await client.sendAndWait(msg)
-                    expect(res.action).to.equal('matchCreated')
-                    expect(typeof(res.id)).to.equal('string')
-                })
-
-                it('should return ArgumentError for match with total -1', async function() {
-                    server.loglevel = 0
-                    await client.connect()
-                    const req = {total: -1}
-                    const err = await getErrorAsync(() => client.createMatch(req))
-                    expect(err.isArgumentError).to.equal(true)
-                })
-            })
-
-            describe('joinMatch', () => {
-
-                it('should return matchJoined and opponentJoind with id of new match with total 1', async function () {
-
-                    await client1.connect()
-                    await client2.connect()
-
-                    let promise
-                    client1.on('response', ({action, id}) => {
-                        if (action == 'matchCreated') {
-                            promise = client2.sendMessage({action: 'joinMatch', id}).waitForResponse()
-                        }
-                    })
-
-                    await client1.sendMessage({action: 'createMatch', total: 1}).waitForResponse()
-
-                    const res1 = await client1.waitForResponse()
-                    const res2 = await promise
-
-                    expect(res1.action).to.equal('opponentJoined')
-                    expect(res2.action).to.equal('matchJoined')
-                    expect(res1.id).to.equal(res2.id)
-                })
-
-                it('should return MatchNotFoundError for unknown match id', async () => {
-                    server.api.logger.loglevel = -1
-                    server.logger.loglevel = -1
-                    await client.connect()
-                    const msg = {action: 'joinMatch', id: '12345678'}
-                    const res = await client.sendAndWait(msg)
-                    expect(res.name).to.equal('MatchNotFoundError')
-                })
-
-                it('should return MatchAlreadyJoinedError when already joined', async () => {
-                    server.api.logger.loglevel = -1
-                    server.logger.loglevel = -1
-                    await client.connect()
-                    const {id} = await client.sendAndWait({action: 'createMatch', total: 1})
-                    var p = client.waitForMessage()
-                    await client2.connect()
-                    const msg = {action: 'joinMatch', id}
-                    await client2.sendAndWait(msg)
-                    await p
-                    const res = await client2.sendAndWait(msg)
-                    expect(res.name).to.equal('MatchAlreadyJoinedError')
-                })
-            })
-        })
-
-        describe('#matchResponse', () => {
-
-            var id
-            var match
-
-            var rolls
-            var roller
-
-            beforeEach(async () => {
-                match = await createMatch()
-                rolls = []
-                match.opts.roller = () => rolls.shift() || Dice.rollTwo()
-                match.total = 3
-                id = match.id
-            })
-
-            
-            it('should pass for bad action', function (done) {
-                client1.once('unhandledMessage', () => done())
-                server.loglevel = 0
-                server.matchResponse({id, color: White, secret: client.secret})
-            })
-
-            describe('nextGame', () => {
-
-                it('should reply with nextGame for correct color and id', async () => {
-                    client1.sendAndWait({action: 'nextGame', color: White, id})
-                    const res = await client2.sendAndWait({action: 'nextGame', color: Red, id})
-                    expect(res.action).to.equal('nextGame')
-                })
-
-                it('should return GameNotFinishedError when both make second call', async () => {
-                    const pr1 = client1.sendAndWait({action: 'nextGame', color: White, id})
-                    await client2.sendAndWait({action: 'nextGame', color: Red, id})
-                    const pr2 = client1.sendAndWait({action: 'nextGame', color: White, id})
-                    server.loglevel = -1
-                    client1.loglevel = -1
-                    const res = await client2.sendAndWait({action: 'nextGame', color: Red, id})
-                    await pr1
-                    const errOk = new Error
-                    try {
-                        client1.cancelWaiting(errOk)
-                        await pr2
-                    } catch (err) {
-                        if (err !== errOk) {
-                            throw err
-                        }
-                    }
-                    // alternative to try/await/catch
-                    //client.messageReject = null
-
-                    expect(res.isGameNotFinishedError).to.equal(true)
-                })
-            })
-
-            describe('firstTurn', () => {
-
-                it('should reply with same dice for started game', function (done) {
-
-                    let isDebug = false
-
-                    if (isDebug) {
-                        server.loglevel = 4
-                        client1.loglevel = 4
-                        client2.loglevel = 4
-                    }
-
-                    match.nextGame()
-
-                    client1.matchRequest('firstTurn', {color: White, id}).then(res => {
-                        expect(res.dice).to.have.length(2)
-                        next(null, res)
-                    }).catch(next)
-
-                    client2.matchRequest('firstTurn', {color: Red, id}).then(res => {
-                        expect(res.dice).to.have.length(2)
-                        next(null, res)
-                    }).catch(next)
-
-                    const results = []
-                    const errors = []
-
-                    function next(err, res) {
-
-                        results.push(res)
-                        if (err) {
-                            errors.push(err)
-                        }
-
-                        if (results.length < 2) {
-                            return
-                        }
-
-                        if (errors.length) {
-                            if (errors.length > 1) {
-                                console.error('Secondary errors', ...errors.slice(1))
-                            }
-                            return done(errors[0])
-                        }
-
-                        try {
-                            const [res1, res2] = results
-                            expect(res1.dice).to.jsonEqual(res2.dice)
-                        } catch (err) {
-                            return done(err)
-                        }
-
-                        done()
-                    }
-                })
-            })
-
-            describe('playRoll', () => {
-
-                it('should reply with same moves', async () => {
-                    const game = match.nextGame()
-                    rolls = [[2, 1]]
-                    game.firstTurn()
-                    client2.sendAndWait({action: 'playRoll', color: Red, id})
-                    const moves = [
-                        {origin: 0, face: 1},
-                        {origin: 0, face: 2}
-                    ]
-                    const res = await client1.sendAndWait({action: 'playRoll', color: White, id, moves})
-                    expect(res.moves).to.jsonEqual(moves)
-                })
-
-                it('should return RequestError for missing moves', async () => {
-                    const game = match.nextGame()
-                    rolls = [[2, 1]]
-                    game.firstTurn()
-                    const res = await client1.sendAndWait({action: 'playRoll', color: White, id})
-                    expect(res.isRequestError).to.equal(true)
-                })
-            })
-
-            describe('nextTurn', () => {
-                it('should reply for valid case', async () => {
-                    makeRandomMoves(match.nextGame().firstTurn()).finish()
-                    client2.sendAndWait({action: 'nextTurn', color: Red, id})
-                    const res = await client1.sendAndWait({action: 'nextTurn', color: White, id})
-                    expect(res.action).to.equal('nextTurn')
-                })
-            })
-
-            describe('turnOption', () => {
-
-                it('should return isDouble for isDouble=false', async () => {
-                    const game = match.nextGame()
-                    makeRandomMoves(game.firstTurn(), true)
-                    game.nextTurn()
-                    client2.sendAndWait({action: 'turnOption', isDouble: false, color: Red, id})
-                    const res = await client1.sendAndWait({action: 'turnOption', color: White, id})
-                    expect(res.isDouble).to.equal(false)
-                })
-
-                it('should return isDouble=true for isDouble=true', async () => {
-                    const game = match.nextGame()
-                    rolls = [[2, 1]]
-                    makeRandomMoves(game.firstTurn(), true)
-                    game.nextTurn()
-                    client2.sendAndWait({action: 'turnOption', color: Red, id, isDouble: true})
-                    const res = await client1.sendAndWait({action: 'turnOption', color: White, id})
-                    expect(res.isDouble).to.equal(true)
-                })
-            })
-
-            describe('doubleResponse', () => {
-
-                it('should set double declined for isAccept=false', async () => {
-                    const game = match.nextGame()
-                    rolls = [[2, 1]]
-                    makeRandomMoves(game.firstTurn(), true)
-                    game.nextTurn().setDoubleOffered()
-                    client2.sendAndWait({action: 'doubleResponse', color: Red, id})
-                    const res = await client1.sendAndWait({action: 'doubleResponse', color: White, id, isAccept: false})
-                    expect(game.thisTurn.isDoubleDeclined).to.equal(true)
-                    expect(res.isAccept).to.equal(false)
-                })
-
-                it('should double game for isAccept=true', async () => {
-                    const game = match.nextGame()
-                    rolls = [[2, 1]]
-                    makeRandomMoves(game.firstTurn(), true)
-                    game.nextTurn().setDoubleOffered()
-                    client2.sendAndWait({action: 'doubleResponse', color: Red, id})
-                    const res = await client1.sendAndWait({action: 'doubleResponse', color: White, id, isAccept: true})
-                    expect(game.cubeValue).to.equal(2)
-                    expect(res.isAccept).to.equal(true)
-                })
-            })
-
-            describe('rollTurn', () => {
-                it('should return same dice', async () => {
-                    const game = match.nextGame()
-                    makeRandomMoves(game.firstTurn(), true)
-                    game.nextTurn()
-                    const p = client2.sendAndWait({action: 'rollTurn', color: Red, id})
-                    const res = await client1.sendAndWait({action: 'rollTurn', color: White, id})
-                    const res2 = await p
-                    expect(res.dice.length).to.equal(2)
-                    expect(res.dice).to.jsonEqual(res2.dice)
-                })
-            })
-        })
-
-        describe('#roll', () => {
-            it('should return 2 length array', () => {
-                const result = server.roll()
-                expect(result).to.have.length(2)
-            })
-        })
+    describe('Static', () => {
 
         describe('#validateColor', () => {
 
-            it('should pass for White', () => {
-                Server.validateColor(White)
+            it('should pass for White and return White', function () {
+                const res = Server.validateColor(White)
+                expect(res).to.equal(White)
             })
 
-            it('should pass for Red', () => {
-                Server.validateColor(Red)
+            it('should pass for Red and return Red', function () {
+                const res = Server.validateColor(Red)
+                expect(res).to.equal(Red)
             })
 
-            it('should throw server error for Brown', () => {
+            it('should throw RequestError/ValidateError error for Brown', function () {
                 const err = getError(() => Server.validateColor('Brown'))
                 expect(err.isRequestError).to.equal(true)
+                expect(err.isValidateError).to.equal(true)
             })
         })
     })
 
-    describe('api', () => {
+    describe('#constructor', () => {
 
-        describe('signup', () => {
-
-            it('should return 201', async () => {
-                const username = 'nobody@nowhere.example'
-                const password = '6pN3pHeZ'
-                const res = await authClient.postJson('/api/v1/signup', {username, password})
-                expect(res.status).to.equal(201)
-            })
-
-            it('should create a user and userExists() = true', async () => {
-                const username = 'nobody@nowhere.example'
-                const password = 'udb2SZbK'
-                await authClient.postJson('/api/v1/signup', {username, password})
-                const res = await authServer.auth.userExists(username)
-                expect(res).to.equal(true)
-            })
-
-            it('should send confirm email', async () => {
-                const username = 'nobody@nowhere.example'
-                const password = 'C98FCQxU'
-                await authClient.postJson('/api/v1/signup', {username, password})
-                expect(authServer.api.auth.email.impl.lastEmail.Destination.ToAddresses).to.have.length(1).and.to.contain(username)
-            })
-
-            it('should return 400 for bad email', async () => {
-                const username = 'nobody-bad-email'
-                const password = 'EbaD99wa'
-                const res = await authClient.postJson('/api/v1/signup', {username, password})
-                expect(res.status).to.equal(400)
-            })
-
-            it('should have error.name=ValidateError for bad email', async () => {
-                authServer.api.logger.loglevel = -1
-                const username = 'nobody-bad-email'
-                const password = 'EbaD99wa'
-                const res = await authClient.postJson('/api/v1/signup', {username, password})
-                const body = await res.json()
-                expect(body.error.name).to.equal('ValidateError')
-            })
-
-            it('should return 400 for bad password', async () => {
-                const username = 'nobody@nowhere.example'
-                const password = 'password'
-                const res = await authClient.postJson('/api/v1/signup', {username, password})
-                expect(res.status).to.equal(400)
-            })
-
-            it('should have error.name=ValidateError for bad password', async () => {
-                authServer.api.logger.loglevel = -1
-                const username = 'nobody@nowhere.example'
-                const password = 'password'
-                const res = await authClient.postJson('/api/v1/signup', {username, password})
-                const body = await res.json()
-                expect(body.error.name).to.equal('ValidateError')
-            })
-
-            it('should return 500 when sendConfirmEmail throws', async () => {
-                const username = 'nobody@nowhere.example'
-                const password = 'H6WJmuyZ'
-                authServer.api.auth.sendConfirmEmail = () => {throw new Error}
-                authServer.logger.loglevel = -1
-                authServer.api.logger.loglevel = -1
-                const res = await authClient.postJson('/api/v1/signup', {username, password})
-                expect(res.status).to.equal(500)
-            })
-
-            it('should have error.name=InternalError when sendConfirmEmail rejects', async () => {
-                const username = 'nobody@nowhere.example'
-                const password = 'zQ2EzTRx'
-                authServer.api.auth.sendConfirmEmail = () => new Promise((resolve, reject) => reject(new Error))
-                authServer.logger.loglevel = -1
-                authServer.api.logger.loglevel = -1
-                const res = await authClient.postJson('/api/v1/signup', {username, password})
-                const body = await res.json()
-                expect(body.error.name).to.equal('InternalError')
-            })
-        })
-
-        describe('send-confirm-email', () => {
-
-            it('should return 200 for non existent user', async () => {
-                const username = 'nobody@nowhere.example'
-                authServer.logger.loglevel = 0
-                authServer.api.logger.loglevel = 0
-                const res = await authClient.postJson('/api/v1/send-confirm-email', {username})
-                expect(res.status).to.equal(200)
-            })
-
-            it('should return 400 for bad username', async () => {
-                const username = 'bad-username'
-                authServer.logger.loglevel = 0
-                authServer.api.logger.loglevel = 0
-                const res = await authClient.postJson('/api/v1/send-confirm-email', {username})
-                expect(res.status).to.equal(400)
-            })
-
-            it('should send email for unconfirmed user', async () => {
-                const username = 'nobody@nowhere.example'
-                const password = 'cbSx6gnx'
-                await authServer.auth.createUser(username, password)
-                const res = await authClient.postJson('/api/v1/send-confirm-email', {username})
-                expect(authServer.api.auth.email.impl.lastEmail.Destination.ToAddresses).to.have.length(1).and.to.contain(username)
-            })
-
-            it('should return 500 when email sending fails', async () => {
-                const username = 'nobody@nowhere.example'
-                const password = 'SqY3ExtF'
-                await authServer.auth.createUser(username, password)
-                authServer.logger.loglevel = -1
-                authServer.api.logger.loglevel = -1
-                authServer.api.auth.email.impl.send = () => {throw new Error}
-                const res = await authClient.postJson('/api/v1/send-confirm-email', {username})
-                expect(res.status).to.equal(500)
-            })
-        })
-
-        describe('forgot-password', () => {
-
-            it('should return 200 for non existent user', async () => {
-                const username = 'nobody@nowhere.example'
-                authServer.api.logger.loglevel = 0
-                authServer.logger.loglevel = 0
-                const res = await authClient.postJson('/api/v1/forgot-password', {username})
-                expect(res.status).to.equal(200)
-            })
-
-            it('should return 400 for bad username', async () => {
-                const username = 'bad-username'
-                authServer.api.logger.loglevel = 0
-                authServer.logger.loglevel = 0
-                const res = await authClient.postJson('/api/v1/forgot-password', {username})
-                expect(res.status).to.equal(400)
-            })
-
-            it('should send email for confirmed user', async () => {
-                const username = 'nobody@nowhere.example'
-                const password = 'n2sLvf4b'
-                await authServer.auth.createUser(username, password, true)
-                const res = await authClient.postJson('/api/v1/forgot-password', {username})
-                expect(authServer.api.auth.email.impl.lastEmail.Destination.ToAddresses).to.have.length(1).and.to.contain(username)
-            })
-        })
-
-        describe('confirm-acount', () => {
-
-            it('should return 200 and confirm user for valid key', async () => {
-                const username = 'nobody@nowhere.example'
-                const password = '5btmHKfG'
-                await authServer.auth.createUser(username, password)
-                await authServer.auth.sendConfirmEmail(username)
-                const confirmKey = parseKey(authServer.auth.email.impl.lastEmail)
-                const res = await authClient.postJson('/api/v1/confirm-account', {username, confirmKey})
-                expect(res.status).to.equal(200)
-                const user = await authServer.auth.readUser(username)
-                expect(user.confirmed).to.equal(true)
-            })
-
-            it('should return 400 for bad username', async () => {
-                const username = 'bad-username'
-                authServer.logger.loglevel = 0
-                const confirmKey = 'whatever'
-                const res = await authClient.postJson('/api/v1/confirm-account', {username, confirmKey})
-                expect(res.status).to.equal(400)
-            })
-        })
-
-        describe('change-password', () => {
-
-            it('should return 200 and authenticate for confirmed user', async () => {
-                const username = 'nobody@nowhere.example'
-                const oldPassword = '2qgN4Cxd'
-                await authServer.auth.createUser(username, oldPassword, true)
-                const newPassword = '8LtMu24j'
-                const res = await authClient.postJson('/api/v1/change-password', {username, oldPassword, newPassword})
-                expect(res.status).to.equal(200)
-                await authServer.auth.authenticate(username, newPassword)
-            })
-
-            it('should return 400 for bad username', async () => {
-                const username = 'bad-username'
-                const oldPassword = '2qgN4Cxd'
-                const newPassword = '8LtMu24j'
-                const res = await authClient.postJson('/api/v1/change-password', {username, oldPassword, newPassword})
-                expect(res.status).to.equal(400)
-            })
-        })
-
-        describe('reset-password', () => {
-
-            it('should return 200 and authenticate for good key', async () => {
-                const username = 'nobody@nowhere.example'
-                const oldPassword = 'nRGJb9rA'
-                await authServer.auth.createUser(username, oldPassword, true)
-                await authServer.auth.sendResetEmail(username)
-                const resetKey = parseKey(authServer.auth.email.impl.lastEmail)
-                const password = 'F86ezYsU'
-                const res = await authClient.postJson('/api/v1/reset-password', {username, password, resetKey})
-                expect(res.status).to.equal(200)
-                await authServer.auth.authenticate(username, password)
-            })
-
-            it('should return 400 for bad key', async () => {
-                const username = 'nobody@nowhere.example'
-                const oldPassword = 'swaU93BL'
-                await authServer.auth.createUser(username, oldPassword, true)
-                const resetKey = 'bad-key'
-                const password = 'Spng4EAC'
-                const res = await authClient.postJson('/api/v1/reset-password', {username, password, resetKey})
-                expect(res.status).to.equal(400)
-            })
-        })        
-    })
-
-    describe('metrics', () => {
-
-        describe('GET /metrics', () => {
-            it('should return 200', async () => {
-                const res = await fetch(metricsUrl + '/metrics')
-                expect(res.status).to.equal(200)
-            })
-            it('should return 500 when fetchMetrics throws', async () => {
-                server.fetchMetrics = () => {throw new Error('test')}
-                const res = await fetch(metricsUrl + '/metrics')
-                expect(res.status).to.equal(500)
-            })
+        it('should construct with opt webEnabled=false', function () {
+            const s2 = new Server({webEnabled: false})
+            expect(s2.opts.webEnabled).to.equal(false)
         })
     })
 
-    describe('web', () => {
+    describe('Socket', () => {
 
-        describe('GET /health', () => {
-            it('should return 200', async () => {
-                const res = await fetch(serverUrl + '/health')
-                expect(res.status).to.equal(200)
-            })
-        })
+        describe('Anonymous', () => {
 
-        describe('GET /', () => {
+            beforeEach(function () {
 
-            it('should return 200', async () => {
-                const res = await fetch(serverUrl + '/')
-                expect(res.status).to.equal(200)
-            })
+                const {server, client1, client2} = this.objects
 
-            it('should have text Gameon in body', async () => {
-                const res = await fetch(serverUrl + '/')
-                const body = await res.text()
-                expect(body).to.contain('Gameon')
-            })
-
-            it('should clear invalid session cookie', async () => {
-                const res = await fetch(serverUrl + '/', {
-                    headers: {
-                        cookie: ['gasid=abcd']
-                    }
+                update(this.fixture, {
+                    client : client1
+                  , client1
+                  , client2
+                  , server
                 })
-                const parsedCookies = parseCookies(res)
-                expect(parsedCookies).to.contain('gasid=').and.to.not.contain('gasid=abcd')
+
+                // Returns the server's match instance
+                this.createMatch = async function (opts) {
+                    opts = {total: 1, ...opts}
+                    let promise
+                    let matchId
+                    client1.once('matchCreated', id => {
+                        matchId = id
+                        promise = client2.joinMatch(id)
+                    })
+                    await Promise.all([
+                        client1.connect()
+                      , client2.connect()
+                    ])
+                    await client1.createMatch(opts)
+                    await promise
+                    return server.matches[matchId]
+                }
+            })
+
+            describe('#checkMatchFinished', () => {
+
+                it('should delete match from matches when finished and return true', async function () {
+                    const {server} = this.fixture
+                    const match = await this.createMatch()
+                    const game = match.nextGame()
+                    game.board.setStateString(States.WhiteWin)
+                    makeRandomMoves(game.firstTurn()).finish()
+                    const res = server.checkMatchFinished(match)
+                    expect(Object.keys(server.matches)).to.not.contain(match.id)
+                    expect(res).to.equal(true)
+                })
+            })
+
+            describe('#close', () => {
+
+                it('should pass when socketServer, httpServer, and metricsHttpServer are null', function () {
+                    // coverage
+                    const {server} = this.fixture
+                    server.close()
+                    update(server, {
+                        socketServer      : null
+                      , httpServer        : null
+                      , metricsHttpServer : null
+                    })
+                    server.close()
+                })
+            })
+
+            describe('#listen', () => {
+
+                it('should have non-null socketServer', function () {
+                    const {server} = this.fixture
+                    expect(!!server.socketServer).to.equal(true)
+                })
+
+                it('should accept connection', async function () {
+                    const {client} = this.fixture
+                    await client.connect()
+                    expect(!!client.conn).to.equal(true)
+                })
+
+                it('should throw when createSocketServer throws for mock method', async function () {
+                    const {server} = this.fixture
+                    server.close()
+                    const e = new Error
+                    server.createSocketServer = () => {
+                        throw e
+                    }
+                    const err = await getError(() => server.listen())
+                    expect(err).to.equal(e)
+                })
+
+                it('should throw when app.listen throws for mock method', async function () {
+                    const {server} = this.fixture
+                    server.close()
+                    const e = new Error
+                    server.app.listen = () => { throw e }
+                    const err = await getError(() => server.listen())
+                    expect(err).to.equal(e)
+                })
+            })
+
+            describe('#logActive', () => {
+
+                it('should pass when socketServer is null', function () {
+                    // coverage
+                    const {server} = this.fixture
+                    server.close()
+                    server.socketServer = null
+                    server.logActive()
+                })
+            })
+
+            describe('#getMatchForRequest', () => {
+
+                it('should throw MatchNotFoundError for non-existent match', function () {
+                    const {server} = this.fixture
+                    const secret = Client.generateSecret()
+                    const req = {color: White, id: '12345678', secret}
+                    const err = getError(() =>
+                        server.getMatchForRequest(req)
+                    )
+                    expect(err.isMatchNotFoundError).to.equal(true)
+                })
+
+                it('should throw HandshakeError for mismatched secret', async function () {
+                    const {server} = this.fixture
+                    const {id} = await this.createMatch()
+                    const req = {color: White, id, secret: 'badSecret'}
+                    const err = getError(() =>
+                        server.getMatchForRequest(req)
+                    )
+                    expect(err.isHandshakeError).to.equal(true)
+                })
+            })
+
+            describe('#response', () => {
+
+                function bareConn(client) {
+                    return new Promise(resolve => {
+                        client.socketClient.on('connect', conn => {
+                            client.conn = conn
+                            conn.on('message', msg => {
+                                const data = JSON.parse(msg.utf8Data)
+                                if (client.messageResolve) {
+                                    client.messageResolve(data)
+                                    client.messageResolve = null
+                                } else {
+                                    throw new Error('unhandled message', msg)
+                                }
+                            })
+                            resolve(conn)
+                        })
+                        client.socketClient.connect(client.serverSocketUrl)
+                    })
+                }
+
+                it('should return HandshakeError for missing secret in message', async function () {
+                    const {client} = this.fixture
+                    this.setLoglevel(-1)
+                    await client.connect()
+                    const err = await getError(() =>
+                        client.sendAndWaitForResponse({secret: null})
+                    )
+                    expect(err.isHandshakeError).to.equal(true)
+                })
+
+                it('should return HandshakeError for missing secret on server', async function () {
+                    const {client} = this.fixture
+                    this.setLoglevel(-1)
+                    await bareConn(client)
+                    const err = await getError(() =>
+                        client.sendAndWaitForResponse({secret: 'abc'})
+                    )
+                    expect(err.isHandshakeError).to.equal(true)
+                })
+
+                describe('establishSecret', () => {
+
+                    it('should return HandshakeError for secret of length 23', async function () {
+                        const {client} = this.fixture
+                        this.setLoglevel(-1)
+                        await bareConn(client)
+                        const req = {secret: 'abcdefghijklmnopqrstuvw', action: 'establishSecret'}
+                        const err = await getError(() =>
+                            client.sendAndWaitForResponse(req)
+                        )
+                        expect(err.isHandshakeError).to.equal(true)
+                    })
+
+                    it('should return HandshakeError for mismatch secret', async function () {
+                        const {client} = this.fixture
+                        this.setLoglevel(-1)
+                        await client.connect()
+                        const req = {secret: Client.generateSecret(), action: 'establishSecret'}
+                        const err = await getError(() =>
+                            client.sendAndWaitForResponse(req)
+                        )
+                        expect(err.isHandshakeError).to.equal(true)
+                    })
+                })
+
+                describe('createMatch', () => {
+
+                    it('should return matchCreated with id of new match with total 1', async function () {
+                        const {client} = this.fixture
+                        await client.connect()
+                        const req = {action: 'createMatch', total: 1}
+                        const res = await client.sendAndWaitForResponse(req)
+                        expect(res.action).to.equal('matchCreated')
+                        expect(typeof res.id).to.equal('string')
+                        expect(res.id).to.have.length(8)
+                    })
+
+                    it('should return ValidateError for match with total -1', async function() {
+                        const {client} = this.fixture
+                        this.setLoglevel(0)
+                        await client.connect()
+                        const req = {total: -1}
+                        const err = await getError(() => client.createMatch(req))
+                        expect(err.isValidateError).to.equal(true)
+                    })
+                })
+
+                describe('joinMatch', () => {
+
+                    it('should return matchJoined and opponentJoind with id of new match with total 1', async function () {
+
+                        const {client1, client2} = this.fixture
+
+                        await client1.connect()
+                        await client2.connect()
+
+                        let promise
+                        client1.on('response', ({action, id}) => {
+                            if (action == 'matchCreated') {
+                                promise = client2.sendMessage({action: 'joinMatch', id}).waitForResponse()
+                            }
+                        })
+
+                        await client1.sendMessage({action: 'createMatch', total: 1}).waitForResponse()
+
+                        const res1 = await client1.waitForResponse()
+                        const res2 = await promise
+
+                        expect(res1.action).to.equal('opponentJoined')
+                        expect(res2.action).to.equal('matchJoined')
+                        expect(res1.id).to.equal(res2.id)
+                    })
+
+                    it('should return MatchNotFoundError for unknown match id', async function () {
+                        const {client} = this.fixture
+                        this.setLoglevel(-1)
+                        await client.connect()
+                        const req = {action: 'joinMatch', id: '12345678'}
+                        const err = await getError(() =>
+                            client.sendAndWaitForResponse(req)
+                        )
+                        expect(err.isMatchNotFoundError).to.equal(true)
+                    })
+
+                    it('should return MatchAlreadyJoinedError when already joined', async function () {
+                        const {client2} = this.fixture
+                        this.setLoglevel(-1)
+                        const {id} = await this.createMatch()
+                        const err = await getError(() =>
+                            client2.joinMatch(id)
+                        )
+                        expect(err.isMatchAlreadyJoinedError).to.equal(true)
+                    })
+                })
+            })
+
+            describe('#matchResponse', () => {
+
+                beforeEach(async function () {
+                    const match = await this.createMatch({total: 3})
+                    const id = match.id
+                    const rolls = []
+                    const mr1 = {color: White, id}
+                    const mr2 = {color: Red, id}
+                    match.opts.roller = () => rolls.shift() || Dice.rollTwo()
+                    update(this.fixture, {match, rolls, id, mr1, mr2})
+                })
+
+                it('should pass for bad action', function (done) {
+                    const {client, server, id} = this.fixture
+                    client.once('unhandledMessage', () => done())
+                    server.matchResponse({id, color: White, secret: client.secret})
+                })
+
+                describe('nextGame', () => {
+
+                    it('should reply with nextGame for correct color and id', async function () {
+                        const {client1, client2, mr1, mr2} = this.fixture
+                        client1.matchRequest('nextGame', mr1)
+                        const res = await client2.matchRequest('nextGame', mr2)
+                        expect(res.action).to.equal('nextGame')
+                    })
+
+                    it('should return GameNotFinishedError when both make second call', async function () {
+
+                        const {client1, client2, mr1, mr2} = this.fixture
+
+                        client1.matchRequest('nextGame', mr1)
+                        await client2.matchRequest('nextGame', mr2)
+                    
+                        const err = await getError(() =>
+                            client1.matchRequest('nextGame', mr1)
+                        )
+                        expect(err.isGameNotFinishedError).to.equal(true)
+                    })
+                })
+
+                describe('firstTurn', () => {
+
+                    it('should reply with same dice for started game', function (done) {
+
+                        const {client1, client2, server, match, mr1, mr2} = this.fixture
+
+                        let isDebug = false
+
+                        if (isDebug) {
+                            this.setLoglevel(4)
+                        }
+
+                        match.nextGame()
+
+                        client1.matchRequest('firstTurn', mr1).then(res => {
+                            expect(res.dice).to.have.length(2)
+                            next(null, res)
+                        }).catch(next)
+
+                        client2.matchRequest('firstTurn', mr2).then(res => {
+                            expect(res.dice).to.have.length(2)
+                            next(null, res)
+                        }).catch(next)
+
+                        const results = []
+                        const errors = []
+
+                        function next(err, res) {
+
+                            results.push(res)
+                            if (err) {
+                                errors.push(err)
+                            }
+
+                            if (results.length < 2) {
+                                return
+                            }
+
+                            if (errors.length) {
+                                if (errors.length > 1) {
+                                    console.error('Secondary errors', ...errors.slice(1))
+                                }
+                                return done(errors[0])
+                            }
+
+                            try {
+                                const [res1, res2] = results
+                                expect(res1.dice).to.jsonEqual(res2.dice)
+                            } catch (err) {
+                                return done(err)
+                            }
+
+                            done()
+                        }
+                    })
+                })
+
+                describe('playRoll', () => {
+
+                    it('should reply with same moves', async function () {
+
+                        const {client1, client2, rolls, match, mr1, mr2} = this.fixture
+
+                        rolls.push([2, 1])
+                        match.nextGame().firstTurn()
+
+                        client2.matchRequest('playRoll', mr2)
+
+                        const moves = [
+                            {origin: 0, face: 1},
+                            {origin: 0, face: 2}
+                        ]
+                        const req = {...mr1, moves}
+                        const res = await client1.matchRequest('playRoll', req)
+
+                        expect(res.moves).to.jsonEqual(moves)
+                    })
+
+                    it('should return RequestError for missing moves', async function () {
+
+                        const {client1, match, rolls, mr1} = this.fixture
+
+                        rolls.push([2, 1])
+                        match.nextGame().firstTurn()
+
+                        const err = await getError(() =>
+                            client1.matchRequest('playRoll', mr1)
+                        )
+
+                        expect(err.isRequestError).to.equal(true)
+                    })
+                })
+
+                describe('nextTurn', () => {
+
+                    it('should reply for valid case', async function () {
+
+                        const {client1, client2, match, mr1, mr2} = this.fixture
+
+                        makeRandomMoves(match.nextGame().firstTurn()).finish()
+
+                        client1.matchRequest('nextTurn', mr1)
+                        const res = await client2.matchRequest('nextTurn', mr2)
+
+                        expect(res.action).to.equal('nextTurn')
+                    })
+                })
+
+                describe('turnOption', () => {
+
+                    it('should return isDouble for isDouble=false', async function () {
+
+                        const {client1, client2, match, mr1, mr2, rolls} = this.fixture
+
+                        rolls.push([2, 1])
+                        const game = match.nextGame()
+                        makeRandomMoves(game.firstTurn()).finish()
+                        game.nextTurn()
+
+                        const req = {...mr2, isDouble: false}
+                        client2.matchRequest('turnOption', req)
+
+                        const res = await client1.matchRequest('turnOption', mr1)
+
+                        expect(res.isDouble).to.equal(false)
+                    })
+
+                    it('should return isDouble=true for isDouble=true', async function () {
+
+                        const {client1, client2, match, mr1, mr2, rolls} = this.fixture
+
+                        rolls.push([2, 1])
+                        const game = match.nextGame()
+                        makeRandomMoves(game.firstTurn()).finish()
+                        game.nextTurn()
+
+                        const req = {...mr2, isDouble: true}
+                        client2.matchRequest('turnOption', req)
+
+                        const res = await client1.matchRequest('turnOption', mr1)
+
+                        expect(res.isDouble).to.equal(true)
+                    })
+                })
+
+                describe('doubleResponse', () => {
+
+                    it('should set double declined for isAccept=false', async function () {
+
+                        const {client1, client2, match, id, rolls} = this.fixture
+
+                        rolls.push([2, 1])
+                        const game = match.nextGame()
+                        makeRandomMoves(game.firstTurn()).finish()
+                        game.nextTurn().setDoubleOffered()
+
+                        client2.matchRequest('doubleResponse', {color: Red, id})
+
+                        const req = {color: White, id, isAccept: false}
+                        const res = await client1.matchRequest('doubleResponse', req)
+
+                        expect(res.isAccept).to.equal(false)
+                    })
+
+                    it('should double game for isAccept=true', async function () {
+
+                        const {client1, client2, match, id, rolls} = this.fixture
+
+                        rolls.push([2, 1])
+                        const game = match.nextGame()
+                        makeRandomMoves(game.firstTurn()).finish()
+                        game.nextTurn().setDoubleOffered()
+
+                        client2.matchRequest('doubleResponse', {color: Red, id})
+                        const req = {color: White, id, isAccept: true}
+                        const res = await client1.matchRequest('doubleResponse', req)
+
+                        expect(res.isAccept).to.equal(true)
+                        expect(game.cubeValue).to.equal(2)
+                    })
+                })
+
+                describe('rollTurn', () => {
+
+                    it('should return same dice', async function () {
+
+                        const {client1, client2, match, mr1, mr2} = this.fixture
+
+                        const game = match.nextGame()
+                        makeRandomMoves(game.firstTurn(), true)
+                        game.nextTurn()
+
+                        const prom = client2.matchRequest('rollTurn', mr2)
+
+                        const res1 = await client1.matchRequest('rollTurn', mr1)
+                        const res2 = await prom
+
+                        expect(res1.dice.length).to.equal(2)
+                        expect(res1.dice).to.jsonEqual(res2.dice)
+                    })
+                })
             })
         })
+
+        describe('Auth', () => {
+
+            beforeEach(function () {
+                const {authServer, authClient} = this.objects
+                update(this.fixture, {
+                    client : authClient
+                  , server : authServer
+                  , auth   : authServer.auth
+                })
+            })
+
+            it('should authenticate with token', async function () {
+                const {auth, client} = this.fixture
+                const username = 'nobody@nowhere.example'
+                const password = 'fcw4ERXs'
+                await auth.createUser(username, password, true)
+                const token = auth.getToken(username, password)
+                update(client, {
+                    username: null
+                  , password: null
+                  , token
+                })
+
+                await client.connect()
+            })
+        })
+    })
+
+    describe('HTTP', () => {
+
+        const {getUrlParams, parseCookies} = Test
+
+        beforeEach(function() {
+
+            const {server} = this.objects
+
+            update(this.fixture, {
+                server
+              , baseUrl : server.testUrl
+              , uri     : ''
+              , method  : 'GET'
+              , opts    : {}
+              , headers : {}
+              , json    : false
+            })
+
+            const getHeaders = _headers => {
+                const headers = {}
+                if (this.fixture.json) {
+                    headers['content-type'] = 'application/json'
+                }
+                update(headers, this.fixture.headers)
+                return update(headers, _headers)
+            }
+
+            this.url = uri => this.fixture.baseUrl + uri
+
+            this.get = (uri, opts) => {
+                opts = {...opts}
+                const headers = getHeaders(opts.headers)
+                return fetch(this.url(uri), {
+                    ...this.fixture.opts
+                  , ...opts
+                  , headers
+                })
+            }
+
+            this.post = (uri, body, opts) => {
+                opts = {...opts}
+                const headers = getHeaders(opts.headers)
+                if (this.fixture.json) {
+                    body = JSON.stringify(body)
+                } else {
+                    body = getUrlParams(body)
+                }
+                return fetch(this.url(uri), {
+                    method: 'POST'
+                  , ...this.fixture.opts
+                  , ...opts
+                  , body
+                  , headers
+                })
+            }
+
+            this.req = (...args) =>  {
+                const method = this.fixture.method.toLowerCase()
+                return this[method](this.fixture.uri, ...args)
+            }
+        })
+
+        describe('api', () => {
+
+            beforeEach(function () {
+                const server = this.objects.authServer
+                const {auth} = server
+                update(this.fixture, {
+                    server
+                  , auth
+                  , baseUrl : server.testUrl
+                  , uri     : '/api/v1'
+                  , method  : 'POST'
+                  , json    : true
+                })
+
+                this.lastEmail = () => auth.email.impl.lastEmail
+            })
+
+            describe('POST /api/v1/signup', () => {
+
+                beforeEach(function() {
+                    this.fixture.uri += '/signup'
+                })
+
+                it('should return 201', async function () {
+                    const req = {
+                        username: 'nobody@nowhere.example'
+                      , password: '6pN3pHeZ'
+                    }
+                    const res = await this.req(req)
+                    expect(res.status).to.equal(201)
+                })
+
+                it('should create a user and userExists() = true', async function () {
+                    const {auth} = this.fixture
+                    const req = {
+                        username: 'nobody@nowhere.example'
+                      , password: 'udb2SZbK'
+                    }
+                    await this.req(req)
+                    const res = await auth.userExists(req.username)
+                    expect(res).to.equal(true)
+                })
+
+                it('should send confirm email', async function () {
+                    const req = {
+                        username: 'nobody@nowhere.example'
+                      , password: 'C98FCQxU'
+                    }
+                    await this.req(req)
+                    const email = this.lastEmail()
+                    expect(email.Destination.ToAddresses)
+                        .to.have.length(1).and
+                        .to.contain(req.username)
+                })
+
+                it('should return 400 for bad email', async function () {
+                    const req = {
+                        username: 'nobody-bad-email'
+                      , password: 'EbaD99wa'
+                    }
+                    const res = await this.req(req)
+                    expect(res.status).to.equal(400)
+                })
+
+                it('should have error.name=ValidateError for bad email', async function () {
+                    this.setLoglevel(-1)
+                    const req = {
+                        username: 'nobody-bad-email'
+                      , password: 'EbaD99wa'
+                    }
+                    const res = await this.req(req)
+                    const body = await res.json()
+                    expect(body.error.name).to.equal('ValidateError')
+                })
+
+                it('should return 400 for bad password', async function () {
+                    const req = {
+                        username: 'nobody@nowhere.example'
+                      , password: 'password'
+                    }
+                    const res = await this.req(req)
+                    expect(res.status).to.equal(400)
+                })
+
+                it('should have error.name=ValidateError for bad password', async function () {
+                    this.setLoglevel(-1)
+                    const req = {
+                        username: 'nobody@nowhere.example'
+                      , password: 'password'
+                    }
+                    const res = await this.req(req)
+                    const body = await res.json()
+                    expect(body.error.name).to.equal('ValidateError')
+                })
+
+                it('should return 500 when sendConfirmEmail throws', async function () {
+                    const {auth} = this.fixture
+                    this.setLoglevel(-1)
+                    auth.sendConfirmEmail = () => {throw new Error}
+                    const req = {
+                        username: 'nobody@nowhere.example'
+                      , password: 'H6WJmuyZ'
+                    }
+                    const res = await this.req(req)
+                    expect(res.status).to.equal(500)
+                })
+
+                it('should have error.name=InternalError when sendConfirmEmail rejects', async function () {
+                    const {auth} = this.fixture
+                    this.setLoglevel(-1)
+                    auth.sendConfirmEmail = () => new Promise(
+                        (resolve, reject) => reject(new Error)
+                    )
+                    const req = {
+                        username: 'nobody@nowhere.example'
+                      , password: 'zQ2EzTRx'
+                    }
+                    const res = await this.req(req)
+                    const body = await res.json()
+                    expect(body.error.name).to.equal('InternalError')
+                })
+            })
+
+            describe('POST /api/v1/send-confirm-email', () => {
+
+                beforeEach(function() {
+                    this.fixture.uri += '/send-confirm-email'
+                })
+
+                it('should return 200 for non-existent user', async function () {
+                    this.setLoglevel(0)
+                    const req = {
+                        username: 'nobody@nowhere.example'
+                    }
+                    const res = await this.req(req)
+                    expect(res.status).to.equal(200)
+                })
+
+                it('should return 400 for bad username', async function () {
+                    this.setLoglevel(0)
+                    const req = {
+                        username: 'bad-username'
+                    }
+                    const res = await this.req(req)
+                    expect(res.status).to.equal(400)
+                })
+
+                it('should send email for unconfirmed user', async function () {
+                    const {auth} = this.fixture
+                    const req = {
+                        username: 'nobody@nowhere.example'
+                    }
+                    const password = 'cbSx6gnx'
+                    await auth.createUser(req.username, password)
+                    const res = await this.req(req)
+                    const email = this.lastEmail()
+                    expect(email.Destination.ToAddresses)
+                        .to.have.length(1).and
+                        .to.contain(req.username)
+                })
+
+                it('should return 500 when email sending fails', async function () {
+                    const {auth} = this.fixture
+                    auth.email.impl.send = () => {throw new Error}
+                    const req = {
+                        username: 'nobody@nowhere.example'
+                    }
+                    const password = 'SqY3ExtF'
+                    await auth.createUser(req.username, password)
+                    this.setLoglevel(-1)
+                    const res = await this.req(req)
+                    expect(res.status).to.equal(500)
+                })
+            })
+
+            describe('POST /api/v1/forgot-password', () => {
+
+                beforeEach(function() {
+                    this.fixture.uri += '/forgot-password'
+                })
+
+                it('should return 200 for non existent user', async function () {
+                    this.setLoglevel(0)
+                    const req = {
+                        username: 'nobody@nowhere.example'
+                    }
+                    const res = await this.req(req)
+                    expect(res.status).to.equal(200)
+                })
+
+                it('should return 400 for bad username', async function () {
+                    this.setLoglevel(0)
+                    const req = {
+                        username: 'bad-username'
+                    }
+                    const res = await this.req(req)
+                    expect(res.status).to.equal(400)
+                })
+
+                it('should send email for confirmed user', async function () {
+                    const {auth} = this.fixture
+                    const req = {
+                        username: 'nobody@nowhere.example'
+                    }
+                    const password = 'n2sLvf4b'
+                    await auth.createUser(req.username, password, true)
+                    const res = await this.req(req)
+                    const email = this.lastEmail()
+                    expect(email.Destination.ToAddresses)
+                        .to.have.length(1).and
+                        .to.contain(req.username)
+                })
+            })
+
+            describe('POST /api/v1/confirm-account', () => {
+
+                beforeEach(function() {
+                    this.fixture.uri += '/confirm-account'
+                })
+
+                it('should return 200 and confirm user for valid key', async function () {
+                    const {auth} = this.fixture
+                    const username = 'nobody@nowhere.example'
+                    const password = '5btmHKfG'
+                    await auth.createUser(username, password)
+                    await auth.sendConfirmEmail(username)
+                    const req = {
+                        username
+                      , confirmKey: parseKey(this.lastEmail())
+                    }
+                    const res = await this.req(req)
+                    expect(res.status).to.equal(200)
+                    const user = await auth.readUser(username)
+                    expect(user.confirmed).to.equal(true)
+                })
+
+                it('should return 400 for bad username', async function () {
+                    this.setLoglevel(0)
+                    const req = {
+                        username   : 'bad-username'
+                      , confirmKey : 'whatever'
+                    }
+                    const res = await this.req(req)
+                    expect(res.status).to.equal(400)
+                })
+            })
+
+            describe('POST /api/v1/change-password', () => {
+
+                beforeEach(function() {
+                    this.fixture.uri += '/change-password'
+                })
+
+                it('should return 200 and authenticate for confirmed user', async function () {
+                    const {auth} = this.fixture
+                    const req = {
+                        username    : 'nobody@nowhere.example'
+                      , oldPassword : '2qgN4Cxd'
+                      , newPassword : '8LtMu24j'
+                    }
+                    await auth.createUser(req.username, req.oldPassword, true)
+                    const res = await this.req(req)
+                    expect(res.status).to.equal(200)
+                    const user = await auth.authenticate(req.username, req.newPassword)
+                    expect(user.username).to.equal(req.username)
+                })
+
+                it('should return 400 for bad username', async function () {
+                    const req = {
+                        username    : 'bad-username'
+                      , oldPassword : '2qgN4Cxd'
+                      , newPassword : '8LtMu24j'
+                    }
+                    const res = await this.req(req)
+                    expect(res.status).to.equal(400)
+                })
+            })
+
+            describe('POST /api/v1/reset-password', () => {
+
+                beforeEach(function() {
+                    this.fixture.uri += '/reset-password'
+                })
+
+                it('should return 200 and authenticate for good key',async function () {
+                    const {auth} = this.fixture
+                    const username = 'nobody@nowhere.example'
+                    const oldPassword = 'nRGJb9rA'
+                    await auth.createUser(username, oldPassword, true)
+                    await auth.sendResetEmail(username)
+                    const req = {
+                        username
+                      , password : 'F86ezYsU'
+                      , resetKey : parseKey(this.lastEmail())
+                    }
+                    const res = await this.req(req)
+                    expect(res.status).to.equal(200)
+                    const user = await auth.authenticate(req.username, req.password)
+                    expect(user.username).to.equal(req.username)
+                })
+
+                it('should return 400 for bad key',async function () {
+                    const {auth} = this.fixture
+                    const username = 'nobody@nowhere.example'
+                    const oldPassword = 'swaU93BL'
+                    await auth.createUser(username, oldPassword, true)
+                    const req = {
+                        username
+                      , password : 'Spng4EAC'
+                      , resetKey : 'bad-key'
+                    }
+                    const res = await this.req(req)
+                    expect(res.status).to.equal(400)
+                })
+            })        
+        })
+
+        describe('metrics', () => {
+
+            beforeEach(function () {
+                const {server} = this.fixture
+                this.fixture.baseUrl = server.testMetricsUrl
+            })
+
+            describe('GET /metrics', () => {
+
+                beforeEach(function () {
+                    this.fixture.uri += '/metrics'
+                })
+
+                it('should return 200', async function () {
+                    const res = await this.req()
+                    expect(res.status).to.equal(200)
+                })
+
+                it('should return 500 when fetchMetrics throws', async function () {
+                    const {server} = this.fixture
+                    server.fetchMetrics = () => {throw new Error('test')}
+                    const res = await this.req()
+                    expect(res.status).to.equal(500)
+                })
+            })
+        })
+
+        describe('web', () => {
+
+            describe('Anonymous', () => {
+
+                describe('GET /health', () => {
+
+                    beforeEach(function() {
+                        this.fixture.uri += '/health'
+                    })
+
+                    it('should return 200', async function () {
+                        const res = await this.req()
+                        expect(res.status).to.equal(200)
+                    })
+                })
+
+                describe('GET /', () => {
+
+                    beforeEach(function() {
+                        this.fixture.uri += '/'
+                    })
+
+                    it('should return 200', async function () {
+                        const res = await this.req()
+                        expect(res.status).to.equal(200)
+                    })
+
+                    it('should have text Gameon in body', async function () {
+                        const res = await this.req()
+                        const body = await res.text()
+                        expect(body).to.contain('Gameon')
+                    })
+
+                    it('should clear invalid session cookie', async function () {
+                        const opts = {
+                            headers: {
+                                cookie: ['gasid=abcd']
+                            }
+                        }
+                        const res = await this.req(opts)
+                        expect(parseCookies(res))
+                            .to.contain('gasid=').and
+                            .to.not.contain('gasid=abcd')
+                    })
+                })
         
-        describe('GET /nowhere', () => {
+                describe('GET /nowhere', () => {
 
-            it('should return 404', async () => {
-                const res = await fetch(serverUrl + '/nowhere')
-                expect(res.status).to.equal(404)
-            })
-        })
+                    beforeEach(function() {
+                        this.fixture.uri += '/nowhere'
+                    })
 
-        describe('GET /login', () => {
-
-            it('should return 200', async () => {
-                const res = await fetch(authServerUrl + '/login')
-                expect(res.status).to.equal(200)
-            })
-        })
-
-        describe('POST /login', () => {
-
-            it('should return 400 with bad credentials', async () => {
-                const username = 'nobody@nowhere.example'
-                const password = 's8Kfjsdk9'
-                const params = getParams({username, password})
-                authServer.web.auth.logger.loglevel = -1
-                const res = await fetch(authServerUrl + '/login', {
-                    method: 'POST',
-                    body: params
+                    it('should return 404', async function () {
+                        const res = await this.req()
+                        expect(res.status).to.equal(404)
+                    })
                 })
-                expect(res.status).to.equal(400)
             })
 
-            it('should return 400 with no data', async () => {
-                const params = getParams()
-                const res = await fetch(authServerUrl + '/login', {
-                    method: 'POST',
-                    body: params
-                })
-                expect(res.status).to.equal(400)
-            })
+            describe('Auth', () => {
 
-            it('should return 500 when authenticate throws Error', async () => {
-                const username = 'nobody@nowhere.example'
-                const password = 'tz7TcUUm'
-                const params = getParams({username, password})
-                authServer.web.auth.authenticate = async () => { throw new Error }
-                const res = await fetch(authServerUrl + '/login', {
-                    method: 'POST',
-                    body: params
+                beforeEach(async function () {
+                    const server = this.objects.authServer
+                    const {auth} = server
+                    update(this.fixture, {
+                        server
+                      , auth
+                      , baseUrl : server.testUrl
+                      , opts    : {redirect: 'manual'}
+                    })
+                    const user = {
+                        username: 'fixture@nowhere.example'
+                      , password: 'BXQ8Ya2TpZEMm3W3'
+                    }
+                    await auth.createUser(...Object.values(user), true)
+                    const login = await this.post('/login', user)
+                    const cookie = parseCookies(login)
+                    update(this.fixture, {cookie, user})
                 })
-                expect(res.status).to.equal(500)
-            })
 
-            it('should return 302 to /dashboard with good credentials', async () => {
-                const username = 'nobody@nowhere.example'
-                const password = 'M3nGUmSF'
-                const params = getParams({username, password})
-                authServer.auth.createUser(username, password, true)
-                const res = await fetch(authServerUrl + '/login', {
-                    method: 'POST',
-                    body: params,
-                    redirect: 'manual'
+                describe('GET /login', () => {
+
+                    beforeEach(function() {
+                        this.fixture.uri += '/login'
+                    })
+
+                    it('should return 200', async function () {
+                        const res = await this.req()
+                        expect(res.status).to.equal(200)
+                    })
                 })
-                expect(res.status).to.equal(302)
-                expect(res.headers.get('location')).to.equal(authServerUrl + '/dashboard')
-            })
-        })
+
+                describe('POST /login', () => {
+
+                    beforeEach(function() {
+                        this.fixture.uri += '/login'
+                        this.fixture.method = 'POST'
+                    })
+
+                    it('should return 400 with bad credentials', async function () {
+                        this.setLoglevel(0)
+                        const params = {
+                            username : 'nobody@nowhere.example'
+                          , password : 's8Kfjsdk9'
+                        }
+                        const res = await this.req(params)
+                        expect(res.status).to.equal(400)
+                    })
+
+                    it('should return 400 with no data', async function () {
+                        this.setLoglevel(0)
+                        const res = await this.req()
+                        expect(res.status).to.equal(400)
+                    })
+
+                    it('should return 500 when authenticate throws Error', async function () {
+                        const {auth} = this.fixture
+                        auth.authenticate = async () => {throw new Error}
+                        const params = {
+                            username : 'nobody@nowhere.example'
+                          , password : 'tz7TcUUm'
+                        }
+                        const res = await this.req(params)
+                        expect(res.status).to.equal(500)
+                    })
+
+                    it('should return 302 to /dashboard with good credentials', async function () {
+                        const res = await this.req(this.fixture.user)
+                        expect(res.status).to.equal(302)
+                        expect(res.headers.get('location'))
+                            .to.equal(this.url('/dashboard'))
+                    })
+                })
 
         
-        describe('GET /logout', () => {
+                describe('GET /logout', () => {
 
-            it('should return 302 to / with no login session', async () => {
-                const res = await fetch(authServerUrl + '/logout', {
-                    redirect: 'manual'
-                })
-                expect(res.status).to.equal(302)
-                expect(res.headers.get('location')).to.equal(authServerUrl + '/')
-            })
+                    beforeEach(function() {
+                        this.fixture.uri += '/logout'
+                    })
 
-            it('should return 302 to / with login session', async () => {
-                const username = 'nobody@nowhere.example'
-                const password = 'VuVahF43'
-                const params = getParams({username, password})
-                authServer.auth.createUser(username, password, true)
-                const loginRes = await fetch(authServerUrl + '/login', {
-                    method: 'POST',
-                    body: params,
-                    redirect: 'manual'
-                })
-                const parsedCookies = parseCookies(loginRes)
-                const res = await fetch(authServerUrl + '/logout', {
-                    redirect: 'manual',
-                    headers: {
-                        cookie: parsedCookies
-                    }
-                })
-                expect(res.status).to.equal(302)
-                expect(res.headers.get('location')).to.equal(authServerUrl + '/')
-            })
-        })
+                    it('should return 302 to / with no login session', async function () {
+                        const res = await this.req()
+                        expect(res.status).to.equal(302)
+                        expect(res.headers.get('location'))
+                            .to.equal(this.url('/'))
+                    })
 
-        describe('GET /dashboard', () => {
+                    it('should return 302 to / with login session', async function () {
+                        const {cookie} = this.fixture
+                        const res = await this.req({headers: {cookie}})
+                        expect(res.status).to.equal(302)
+                        expect(res.headers.get('location'))
+                            .to.equal(this.url('/'))
+                    })
+                })
 
-            it('should return 200 for logged in', async () => {
-                const username = 'nobody@nowhere.example'
-                const password = 'DtgZ77mU'
-                const params = getParams({username, password})
-                authServer.auth.createUser(username, password, true)
-                //console.log(authServer.auth)
-                const loginRes = await fetch(authServerUrl + '/login', {
-                    method: 'POST',
-                    body: params,
-                    redirect: 'manual'
-                })
-                const parsedCookies = parseCookies(loginRes)
-                const res = await fetch(authServerUrl + '/dashboard', {
-                    redirect: 'manual',
-                    headers: {
-                        cookie: parsedCookies
-                    }
-                })
-                //console.log(await loginRes.text())
-                //console.log(await res.text())
-                expect(res.status).to.equal(200)
-            })
+                describe('GET /dashboard', () => {
 
-            it('should redirect to /login when not logged in', async () => {
-                const res = await fetch(authServerUrl + '/dashboard', {
-                    redirect: 'manual'
-                })
-                expect(res.status).to.equal(302)
-                expect(res.headers.get('location')).to.equal(authServerUrl + '/login')
-            })
-        })
+                    beforeEach(function() {
+                        this.fixture.uri += '/dashboard'
+                    })
 
-        describe('GET /play', () => {
+                    it('should return 200 for logged in', async function () {
+                        const {cookie} = this.fixture
+                        const res = await this.req({headers: {cookie}})
+                        expect(res.status).to.equal(200)
+                    })
 
-            it('should return 200 for logged in', async () => {
-                const username = 'nobody@nowhere.example'
-                const password = 'sj8GWDuJ'
-                const params = getParams({username, password})
-                authServer.auth.createUser(username, password, true)
-                const loginRes = await fetch(authServerUrl + '/login', {
-                    method: 'POST',
-                    body: params,
-                    redirect: 'manual'
+                    it('should redirect to /login when not logged in', async function () {
+                        const res = await this.req()
+                        expect(res.status).to.equal(302)
+                        expect(res.headers.get('location'))
+                            .to.equal(this.url('/login'))
+                    })
                 })
-                const parsedCookies = parseCookies(loginRes)
-                const res = await fetch(authServerUrl + '/play', {
-                    redirect: 'manual',
-                    headers: {
-                        cookie: parsedCookies
-                    }
-                })
-                expect(res.status).to.equal(200)
-            })
 
-            it('should redirect to /login when not logged in', async () => {
-                const res = await fetch(authServerUrl + '/play', {
-                    redirect: 'manual'
+                describe('GET /play', () => {
+
+                    beforeEach(function() {
+                        this.fixture.uri += '/play'
+                    })
+
+                    it('should return 200 for logged in', async function () {
+                        const {cookie} = this.fixture
+                        const res = await this.req({headers: {cookie}})
+                        expect(res.status).to.equal(200)
+                    })
+
+                    it('should redirect to /login when not logged in', async function () {
+                        const res = await this.req()
+                        expect(res.status).to.equal(302)
+                        expect(res.headers.get('location'))
+                            .to.equal(this.url('/login'))
+                    })
                 })
-                expect(res.status).to.equal(302)
-                expect(res.headers.get('location')).to.equal(authServerUrl + '/login')
             })
         })
     })

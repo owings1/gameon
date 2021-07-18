@@ -629,6 +629,7 @@ class Util {
 
     static update(target, source) {
         target = target || {}
+        source = source || {}
         Object.entries(source).forEach(([key, value]) => {
             target[key] = value
         })

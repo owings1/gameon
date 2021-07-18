@@ -46,12 +46,15 @@ class Api {
         return {}
     }
 
-    constructor(opts) {
+    constructor(auth, opts) {
 
         this.opts = Util.defaults(Api.defaults(process.env), opts)
         this.logger = new Logger(this.constructor.name, {server: true})
 
-        this.auth = Auth.create({...opts, ...this.opts, loggerPrefix: this.constructor.name})
+        // TODO: should we require the auth instance in the constructor?
+        //       we only instantiate the Api class in one place anyway.
+        //this.auth = Auth.create({...opts, ...this.opts, loggerPrefix: this.constructor.name})
+        this.auth = auth
         this.v1 = this.create_v1()
     }
 
@@ -61,7 +64,7 @@ class Api {
 
     set loglevel(n) {
         this.logger.loglevel = n
-        this.auth.loglevel = n
+        //this.auth.loglevel = n
     }
 
     create_v1() {

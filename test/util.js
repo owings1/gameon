@@ -25,26 +25,28 @@
 const chai = require('chai')
 const {expect} = chai
 
-// https://www.chaijs.com/guide/helpers/
-function assertJsonEqual(b) {
+// See https://www.chaijs.com/guide/helpers/
+chai.Assertion.addMethod('jsonEqual', function assertJsonEqual(b) {
     const exp = JSON.stringify(this._obj)
     const res = JSON.stringify(b)
-    this.assert(exp == res, "expected #{act} to equal #{exp}", "expected #{exp} to not equal #{act}", res, exp)
-}
-
-chai.Assertion.addMethod('jsonEqual', assertJsonEqual)
+    this.assert(
+        exp == res
+      , "expected #{act} to equal #{exp}"
+      , "expected #{exp} to not equal #{act}"
+      , res
+      , exp
+    )
+})
 
 function requireSrc(p) {
     return require('../src/' + p)
 }
-
 
 const Util = requireSrc('lib/util')
 const Core = requireSrc('lib/core')
 
 const fs = require('fs')
 const globby = require('globby')
-const mockery = require('mockery')
 const path = require('path')
 const stream = require('stream')
 const tmp = require('tmp')
@@ -82,9 +84,9 @@ function suites(dir, glob) {
     )
 }
 
-const Structures = {
-    Initial : [0, 0, 2, 0, 0, 0, 0, -5, 0, -3, 0, 0, 0, 5, -5, 0, 0, 0, 3, 0, 5, 0, 0, 0, 0, -2, 0, 0]
-}
+//const Structures = {
+//    Initial : [0, 0, 2, 0, 0, 0, 0, -5, 0, -3, 0, 0, 0, 5, -5, 0, 0, 0, 3, 0, 5, 0, 0, 0, 0, -2, 0, 0]
+//}
 
 function normState(str) {
     return Board.fromStateString(str).stateString()
@@ -99,20 +101,31 @@ function noop() {
 }
 
 function getError(cb) {
+    let ret
     try {
-        cb()
+        ret = cb()
     } catch (err) {
         return err
+    }
+    if (ret instanceof Promise) {
+        return new Promise((resolve, reject) => {
+            ret.then(() => {
+                reject(new Error('No error returned'))
+            }).catch(resolve)
+        })
+    } else {
+        throw new Error('No error returned')
     }
 }
 
-async function getErrorAsync(cb) {
-    try {
-        await cb()
-    } catch (err) {
-        return err
-    }
-}
+
+//async function getErrorAsync(cb) {
+//    try {
+//        await cb()
+//    } catch (err) {
+//        return err
+//    }
+//}
 
 function tmpFile() {
     return tmp.fileSync().name
@@ -129,11 +142,11 @@ function randomElement(arr) {
 
 function makeRandomMoves(turn, isFinish) {
     while (true) {
-        var moves = turn.getNextAvailableMoves()
+        let moves = turn.getNextAvailableMoves()
         if (moves.length == 0) {
             break
         }
-        var move = randomElement(moves)
+        let move = randomElement(moves)
         //console.log(move)
         turn.move(move.origin, move.face)
     }
@@ -148,124 +161,25 @@ function parseKey(params) {
     return params.Message.Body.Text.Data.match(/^Key: (.*)$/)[1]
 }
 
-class MockPrompterError extends Error {
-    constructor(...args) {
-        super(...args)
-        this.name = this.constructor.name
+const {URLSearchParams} = require('url')
+
+function getUrlParams(obj) {
+    obj = obj || {}
+    const params = new URLSearchParams
+    for (let k in obj) {
+        params.append(k, obj[k])
     }
-}
-
-function MockPrompter(responses, isSkipAssertAsked, isSkipAssertAnswered, isSkipAssertValid) {
-
-    const isAssertAsked = !isSkipAssertAsked
-    const isAssertAnswered = !isSkipAssertAnswered
-    const isAssertValid = !isSkipAssertValid
-
-    responses = Util.castToArray(responses)
-    var seqi = 0
-    const prompter = (async questions => {
-        questions = Util.castToArray(questions)
-        const answers = {}
-        const response = responses.shift()
-        try {
-            if (!response) {
-                throw new MockPrompterError('MockPrompter did not have a reponse for seqi ' + seqi + ' with questions ' + questions.map(it => it.name).join(', '))
-            }
-
-            const unasked = Util.keyValuesTrue(Object.keys(response))
-            const unanswered = []
-
-            var shouldThrow = false
-            const alerts = []
-
-            for (var question of questions) {
-
-                if ('when' in question) {
-                    if (typeof question.when == 'function') {
-                        var whenResult = await question.when(answers)
-                        if (!whenResult) {
-                            continue
-                        }
-                    }
-                    if (!question.when) {
-                        continue
-                    }
-                }
-
-                var opt = question.name
-                delete unasked[opt]
-
-                if (!(opt in response)) {
-                    unanswered.push(opt)
-                    continue
-                }
-
-                if (typeof response[opt] == 'function') {
-                    var value = await response[opt](question)
-                } else {
-                    var value = response[opt]
-                }
-                if (typeof question.filter == 'function') {
-                    value = await question.filter(value, answers)
-                }
-                if ('validate' in question) {
-                    var valid = await question.validate(value, answers)
-                    if (valid !== true) {
-                        alerts.push(
-                            "Validation failed for " + opt + ": " + valid
-                        )
-                        shouldThrow = shouldThrow || isAssertValid
-                    }
-                }
-                if (typeof question.default == 'function') {
-                    // call for coverage
-                    await question.default(answers)
-                }
-                answers[opt] = value
-            }
-
-            if (Object.keys(unasked).length) {
-                alerts.push(
-                    "MockPrompter was not asked: " + Object.keys(unasked).join(', ') + " in seqi " + seqi
-                )
-                shouldThrow = shouldThrow || isAssertAsked
-            }
-
-            if (unanswered.length) {
-                alerts.push(
-                    "MockPrompter did not answer: " + unanswered.join(', ') + " in seqi " + seqi
-                )
-                shouldThrow = shouldThrow || isAssertAnswered
-            }
-
-            if (shouldThrow) {
-                throw new MockPrompterError(alerts.join(' AND '))
-            }
-
-            if (alerts.length) {
-                console.error('MockPrompter Alerts!', alerts)
-            }
-                
-        } finally {
-            if (prompter.debug) {
-                console.log({questions, answers})
-            }
-        }
-        seqi += 1
-        return answers
-    })
-
-    return prompter
+    return params
 }
 
 // https://stackoverflow.com/questions/34815845/how-to-send-cookies-with-node-fetch
 function parseCookies(response) {
-  const raw = response.headers.raw()['set-cookie'];
-  return raw.map((entry) => {
-    const parts = entry.split(';');
-    const cookiePart = parts[0];
-    return cookiePart;
-  }).join(';');
+    const raw = response.headers.raw()['set-cookie']
+    return raw.map(entry => {
+        const parts = entry.split(';')
+        const cookiePart = parts[0]
+        return cookiePart
+    }).join(';')
 }
 
 class NullOutput extends stream.Writable {
@@ -289,9 +203,10 @@ module.exports = {
     expect
   , fetchBoard
   , getError
-  , getErrorAsync
+  , getErrorAsync : getError
+  , getUrlParams
   , makeRandomMoves
-  , MockPrompter
+  , MockPrompter: require('./util/mock-prompter')
   , noop
   , normState
   , NullOutput
@@ -302,7 +217,7 @@ module.exports = {
   , Rolls
   , States
   , States28
-  , Structures
+  //, Structures
   , suites
   , tmpDir
   , tmpFile

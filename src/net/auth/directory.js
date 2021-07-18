@@ -43,6 +43,7 @@ class DirectoryAuth extends Base {
 
     constructor(opts){
         super()
+        this.type = 'directory'
         this.opts = Util.defaults(DirectoryAuth.defaults(process.env), opts)
         if (!this.opts.authDir) {
             throw new ArgumentError('Auth directory not set.')

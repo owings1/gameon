@@ -28,6 +28,7 @@ class AnonymousAuth extends Base {
 
     constructor(opts) {
         super()
+        this.type = 'anonymous'
         this.isAnonymous = true
     }
 }

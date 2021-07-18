@@ -60,12 +60,13 @@ class Web {
         }
     }
 
-    constructor(opts) {
+    constructor(auth, opts) {
 
         this.logger = new Logger(this.constructor.name, {server: true})
 
         this.opts = Util.defaults(Web.defaults(process.env), opts)
-        this.auth = Auth.create({...opts, ...this.opts, loggerPrefix: 'Web'})
+        this.auth = auth
+        //this.auth = Auth.create({...opts, ...this.opts, loggerPrefix: 'Web'})
 
         this.app = this.createExpressApp()
     }
@@ -76,7 +77,7 @@ class Web {
 
     set loglevel(n) {
         this.logger.loglevel = n
-        this.auth.loglevel = n
+        //this.auth.loglevel = n
     }
 
     createExpressApp() {

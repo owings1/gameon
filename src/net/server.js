@@ -23,7 +23,6 @@
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 const Constants = require('../lib/constants')
-const Dice      = require('../lib/dice')
 const Errors    = require('../lib/errors')
 const Logger    = require('../lib/logger')
 const {Match}   = require('../lib/core')
@@ -45,10 +44,9 @@ const {
   , White
 } = Constants
 
-const {castToArray, hash, makeErrorObject, update} = Util
+const {castToArray, hash, makeErrorObject, update, uuid} = Util
 
 const {
-    // RequestErrors
     HandshakeError
   , InvalidActionError
   , MatchAlreadyExistsError
@@ -119,38 +117,43 @@ function formatLog(req, res) {
 class Server {
 
     /**
-     * @param object (optional)
+     * Get the default options.
      *
-     * @return
+     * @param object (optional) The environment variables.
+     *
+     * @return object The default options
      */
     static defaults(env) {
         return {
             socketHsTimeout : +env.SOCKET_HSTIMEOUT || 5000
           , webEnabled      : !env.GAMEON_WEB_DISABLED
-          , apiEmailTimeout : +env.API_EMAILTIMEOUT || 5 * 1000
         }
     }
 
     /**
-     * @param object (optional)
+     * Constructor
+     *
+     * @param object (optional) The options
+     *
+     * @throws TypeError
      */
     constructor(opts) {
 
         this.logger = new Logger(this.constructor.name, {server: true})
 
         this.opts = Util.defaults(Server.defaults(process.env), opts)
-        this.auth = Auth.create({...opts, ...this.opts, loggerPrefix: this.constructor.name})
-        this.api  = new Api({...opts, emailTimeout: this.opts.apiEmailTimeout})
-        this.web  = new Web(opts)
+        this.auth = Auth.create({...opts, ...this.opts})
+        this.api  = new Api(this.auth, opts)
+        this.web  = new Web(this.auth, opts)
 
         this.app = this.createApp()
         this.metricsApp = this.createMetricsApp()
 
         this.matches = {}
-        this.connTicker = 0
         this.httpServer = null
-        this.port = null
         this.socketServer = null
+        this.port = null
+        this.metricsPort = null
     }
 
     /**
@@ -160,28 +163,33 @@ class Server {
      * @param integer (optional)
      *
      */
-    listen(port, metricsPort) {
+    async listen(port, metricsPort) {
 
-        return new Promise((resolve, reject) => {
+        this.close()
+
+        await new Promise((resolve, reject) => {
             try {
-                this.httpServer = this.app.listen(port, () => {
-                    this.port = this.httpServer.address().port
-                    this.logger.info('Listening on port', this.port, 'with', this.auth.type, 'auth')
-                    try {
-                        this.socketServer = this.createSocketServer(this.httpServer)
-                        this.metricsHttpServer = this.metricsApp.listen(metricsPort, () => {
-                            this.metricsPort = this.metricsHttpServer.address().port
-                            this.logger.info('Metrics listening on port', this.metricsPort)
-                            resolve()
-                        })
-                    } catch (err) {
-                        reject(err)
-                    }
-                })
+                this.httpServer = this.app.listen(port, resolve)
             } catch (err) {
                 reject(err)
             }
         })
+        this.port = this.httpServer.address().port
+        this.logger.info('Listening on port', this.port, 'with', this.auth.type, 'auth')
+
+        this.socketServer = this.createSocketServer(this.httpServer)
+
+        await new Promise((resolve, reject) => {
+            try {
+                this.metricsHttpServer = this.metricsApp.listen(metricsPort, resolve)
+            } catch (err) {
+                reject(err)
+            }
+        })
+        this.metricsPort = this.metricsHttpServer.address().port
+        this.logger.info('Metrics listening on port', this.metricsPort)
+
+        return this
     }
 
     /**
@@ -193,13 +201,18 @@ class Server {
         )
         if (this.socketServer) {
             this.closeConn(Object.values(this.socketServer.conns))
+            this.socketServer.shutDown()
+            this.socketServer = null
         }
         if (this.httpServer) {
             this.httpServer.close()
+            this.httpServer = null
         }
         if (this.metricsHttpServer) {
             this.metricsHttpServer.close()
+            this.metricsHttpServer = null
         }
+        return this
     }
 
     /**
@@ -252,6 +265,7 @@ class Server {
     }
 
     /**
+     * @async
      *
      * @return object
      */
@@ -273,7 +287,7 @@ class Server {
         server.on('request', request => {
 
             const {conns} = server
-            const connId = this.newConnectionId()
+            const connId = Server.newConnectionId()
 
             // Being extra careful not to keep a reference to conn in this scope.
             conns[connId] = request.accept(null, request.origin)
@@ -322,14 +336,35 @@ class Server {
     }
 
     /**
+     * Response to a request from a connection. Delegates to one of four
+     * response types:
+     *
+     *   ❯ establishSecretResponse
+     *   ❯ createMatchResponse
+     *   ❯ joinMatchResponse
+     *   ❯ matchResponse
+     *
+     * Error Responses:
+     *
+     *   ❯ AuthError
+     *   ❯ InternalError
+     *   ❯ RequestError
+     *   ❯ ValidateError
+     *
      * @async
      *
-     * @param WebSocketConnection
-     * @param object
+     * @param WebSocketConnection The client connection
+     * @param object The request data
+     *
+     * @returns undefined
      */
     async response(conn, req) {
 
         try {
+
+            if (typeof req != 'object') {
+                throw new RequestError('Invalid request data')
+            }
 
             const {action} = req
 
@@ -349,15 +384,15 @@ class Server {
                     break
 
                 case 'createMatch':
-                    await this.createMatchResponse(conn, req)
+                    this.createMatchResponse(conn, req)
                     break
 
                 case 'joinMatch':
-                    await this.joinMatchResponse(conn, req)
+                    this.joinMatchResponse(conn, req)
                     break
 
                 default:
-                    await this.matchResponse(req)
+                    this.matchResponse(req)
                     break
             }
 
@@ -376,15 +411,24 @@ class Server {
     /**
      * @async
      *
-     * @param WebSocketConnection
-     * @param object
+     * @param WebSocketConnection The client connection
+     * @param object The request data
+     *
+     * @throws AuthError
+     * @throws InternalError
+     * @throws RequestError
+     * @throws ValidateError
+     *
+     * @returns undefined
      */
     async establishSecretResponse(conn, req) {
 
         clearTimeout(conn.handShakeTimeoutId)
 
-        if (!req.secret || req.secret.length != 64) {
-            throw new HandshakeError('bad secret')
+        try {
+            Server.validateSecret(req.secret)
+        } catch (err) {
+            throw new HandshakeError(err.message)
         }
 
         if (conn.secret && conn.secret != req.secret) {
@@ -392,31 +436,57 @@ class Server {
         }
 
         if (req.token) {
-            var {username, password} = this.auth.parseToken(req.token)
+            try {
+                var {username, password} = this.auth.parseToken(req.token)
+            } catch (err) {
+                if (!err.isArgumentError) {
+                    this.logger.error(err)
+                }
+                // Reduce error tree, only pass message.
+                throw new ValidateError(err.message)
+            }
         } else {
             var {username, password} = req
         }
 
         const {passwordEncrypted} = await this.auth.authenticate(username, password)
 
-        conn.username = username
-        conn.secret = req.secret
+        update(conn, {
+            username
+          , secret: req.secret
+        })
 
         this.sendMessage(conn, {action: 'acknowledgeSecret', passwordEncrypted})
         this.logger.log('Client connected', conn.connId)
     }
 
     /**
-     * @async
+     * Handle a createMatch response.
      *
-     * @param WebSocketConnection
-     * @param object
+     * @param WebSocketConnection The client connection
+     * @param object The request data
+     *
+     * @throws ValidateError
+     *
+     * @returns undefined
      */
     createMatchResponse(conn, req) {
 
         const id = Server.matchIdFromSecret(conn.secret)
+
+        Server.validateMatchId(id)
+
         const {total, opts} = req
-        const match = new Match(total, opts)
+        let match
+        try {
+            match = new Match(total, opts)
+        } catch (err) {
+            if (!err.isArgumentError) {
+                this.logger.error(err)
+            }
+            // Reduce error tree, only pass message.
+            throw new ValidateError(err.message)
+        }
 
         this.logger.info('Match', id, 'created')
 
@@ -432,14 +502,26 @@ class Server {
     }
 
     /**
-     * @async
+     * Handle a joinMatch response. On success, this will send a `matchJoined`
+     * response to the requester (Red) with the match information, and an
+     * `opponentJoined` response to the waiting match creator (White) with
+     * the match ID.
      *
-     * @param WebSocketConnection
-     * @param object
+     * @param WebSocketConnection The client connection
+     * @param object The request data
+     *
+     * @throws RequestError.MatchAlreadyJoinedError
+     * @throws RequestError.MatchNotFoundError
+     * @throws ValidateError
+     *
+     * @returns undefined
      */
     joinMatchResponse(conn, req) {
 
         const {id} = req
+
+        Server.validateMatchId(id)
+
         const match = this.matches[id]
 
         if (!match) {
@@ -464,15 +546,29 @@ class Server {
     }
 
     /**
-     * @async
+     * Handle a match play response. Since connection IDs for a match are stored
+     * internally, only the request data is needed.
      *
-     * @param object
+     * Error Responses:
+     *  - RequestError
+     *  - ValidateError
+     *
+     * @param object The request data
+     *
+     * @throws RequestError.HandshakeError
+     * @throws RequestError.MatchNotFoundError
+     * @throws ValidateError
+     *
+     * @returns undefined
      */
     matchResponse(req) {
 
         const match = this.getMatchForRequest(req)
 
         const {action, color} = req
+
+        Server.validateColor(color)
+
         const opponent = Opponent[color]
         const isFirst = !Object.keys(match.sync).length
         const {thisGame} = match
@@ -610,7 +706,7 @@ class Server {
                 handle(
                     () => {
                         if (thisTurn.color == color) {
-                            thisTurn.setRoll(this.roll())
+                            thisTurn.roll()
                         }
                         return thisTurn
                     }
@@ -655,8 +751,12 @@ class Server {
     }
 
     /**
+     * Check if a match is finished, and update the match score. If the match
+     * is finished, delete the match from the stored matches.
      *
-     * @param Match
+     * @param Match The match to check
+     *
+     * @returns boolean Whether the match is finished
      */
     checkMatchFinished(match) {
         if (match.thisGame && match.thisGame.checkFinished()) {
@@ -669,11 +769,13 @@ class Server {
             delete this.matches[match.id]
             metrics.matchesInProgress.labels().set(Object.keys(this.matches).length)
             this.logActive()
+            return true
         }
+        return false
     }
 
     /**
-     *
+     * Log the current active connection information.
      */
     logActive() {
         const numConns = this.socketServer ? Object.keys(this.socketServer.conns).length : 0
@@ -683,24 +785,30 @@ class Server {
 
     /**
      *
-     * @param
-     * @param
+     * @param string The match ID
+     * @param string The reason message
+     *
+     * @returns self
      */
     cancelMatchId(id, reason) {
         const match = this.matches[id]
         if (!match) {
-            return
+            return this
         }
         this.logger.info('Canceling match', id)
         this.sendMessage(Object.values(match.conns), {action: 'matchCanceled', reason})
         delete this.matches[id]
         metrics.matchesInProgress.labels().set(Object.keys(this.matches).length)
+        return this
     }
 
     /**
+     * Send a message to one or more socket connections.
      *
-     * @param WebSocketConnection|array
-     * @param object
+     * @param WebSocketConnection|array The connection, or array of connections
+     * @param object The message data
+     *
+     * @returns boolean Whether all messages were send successfully
      */
     sendMessage(conns, data) {
 
@@ -717,6 +825,7 @@ class Server {
 
         const body = JSON.stringify(data)
 
+        let isSuccess = true
         castToArray(conns).forEach(conn => {
             try {
                 if (conn && conn.connected) {
@@ -725,28 +834,25 @@ class Server {
                     metrics.messagesSent.labels().inc()
                 }
             } catch (err) {
+                isSuccess = false
                 const id = (conn && conn.id) || null
                 this.logger.warn('Failed sending message', {id}, err)
                 metrics.errorsSending.labels().inc()
                 this.closeConn(conn)
             }
         })
+        return isSuccess
     }
 
     /**
      *
-     * @return string
-     */
-    newConnectionId() {
-        this.connTicker += 1
-        return hash('md5', this.connTicker.toString(), 'hex')
-    }
-
-    /**
+     * @param object The request data
      *
-     * @param
+     * @throws RequestError.HandshakeError
+     * @throws RequestError.MatchNotFoundError
+     * @throws ValidateError
      *
-     * @return
+     * @returns Match The match from the stored matches
      */
     getMatchForRequest(req) {
         const {id, color, secret} = req
@@ -765,11 +871,14 @@ class Server {
     }
 
     /**
+     * Safely close connection(s).
      *
-     * @param WebSocketConnection|array
+     * @param WebSocketConnection|array The connection, or array of connections
+     *
+     * @returns self
      */
-    // close safely
     closeConn(conns) {
+
         castToArray(conns).forEach(conn => {
             try {
                 if (conn && conn.connected) {
@@ -780,25 +889,18 @@ class Server {
                 this.logger.warn('Failed to close connection', {id}, err)
             }
         })
+        return this
     }
 
     /**
-     *
-     * @return
-     */
-    roll() {
-        return Dice.rollTwo()
-    }
-
-    /**
-     *
+     * Getter for loglevel (integer).
      */
     get loglevel() {
         return this.logger.loglevel
     }
 
     /**
-     *
+     * Setter for loglevel (integer). Propagates to auth, api, and web.
      */
     set loglevel(n) {
         this.logger.loglevel = n
@@ -808,22 +910,73 @@ class Server {
     }
 
     /**
+     * Validate a color string.
      *
-     * @param
+     * @param string The color string to test
+     *
+     * @throws ValidateError
+     *
+     * @returns string The color string
      */
     static validateColor(color) {
         if (color != White && color != Red) {
-            throw new ValidateError(`invalid color: ${color}`)
+            throw new ValidateError(`Invalid color: ${color}.`)
         }
+        return color
     }
 
     /**
+     * Validate a match ID string.
      *
-     * @param
+     * @param string The string to test.
      *
-     * @return
+     * @throws ValidateError
+     *
+     * @returns string The match ID string
+     */
+    static validateMatchId(str) {
+        if (!str || typeof str != 'string' || str.length != 8) {
+            throw new ValidateError('Invalid match ID.')
+        }
+        return str
+    }
+
+    /**
+     * Validate a client secret string.
+     *
+     * @param string The string to test.
+     *
+     * @throws ValidateError
+     *
+     * @returns string The secret string
+     */
+    static validateSecret(str) {
+        if (!str || typeof str != 'string' || str.length != 64) {
+            throw new ValidateError('Invalid secret.')
+        }
+        return str
+    }
+
+    /**
+     * Generate a new connection ID.
+     *
+     * @return string The connection ID
+     */
+    static newConnectionId() {
+        return uuid()
+    }
+
+    /**
+     * Generate a match ID from a client secret.
+     *
+     * @param string The client secret.
+     *
+     * @throws ValidateError
+     *
+     * @returns string The 8-character match ID
      */
     static matchIdFromSecret(str) {
+        Server.validateSecret(str)
         return hash('sha256', str, 'hex').substring(0, 8)
     }
 }

@@ -111,10 +111,9 @@ class Auth {
           , passwordMin   : +env.AUTH_PASSWORD_MIN || 8
           , passwordRegex : env.AUTH_PASSWORD_REGEX || DefaultPasswordRegex
           , passwordHelp  : env.AUTH_PASSWORD_HELP || DefaultPasswordHelp
-          , emailTimeout  : +env.AUTH_EMAILTIMEOUT   || 30 * 1000
+          , emailTimeout  : +env.AUTH_EMAILTIMEOUT   || 15 * 1000
           , confirmExpiry : +env.AUTH_CONFIRM_EXPIRY || 86400
           , resetExpiry   : +env.AUTH_RESET_EXPIRY   || 3600
-          , loggerPrefix  : null
         }
         if (opts.passwordRegex != DefaultPasswordRegex && !env.AUTH_PASSWORD_HELP) {
             // If a custom regex is defined, but not a help message, make a generic message.
@@ -139,7 +138,6 @@ class Auth {
         const type = (opts && opts.authType) || env.AUTH_TYPE || DefaultAuthType
         const impl = new ImplClasses[type](opts)
         const auth = new Auth(impl, opts)
-        auth.type = type
         return auth
     }
 
@@ -155,11 +153,7 @@ class Auth {
 
         this.opts = Util.defaults(Auth.defaults(process.env), opts)
 
-        const loggerName = [
-            this.opts.loggerPrefix, this.constructor.name
-        ].filter(it => it).join('.')
-
-        this.logger = new Logger(loggerName, {server: true})
+        this.logger = new Logger(this.constructor.name, {server: true})
 
         this.email = Email.create({
             ...opts
@@ -912,6 +906,13 @@ class Auth {
                 )
             }
         }
+    }
+
+    /**
+     * Getter for type. Delegates to impl.type.
+     */
+    get type() {
+        return this.impl.type
     }
 
     /**

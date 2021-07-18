@@ -44,39 +44,8 @@ const ClientListeners = {
 const Listeners = {
 
     gameStart: function(game, match, players) {
-
         this.holds.push(
-
-            new Promise((resolve, reject) => {
-
-                this.client.matchRequest('nextGame').then(() => {
-
-                    if (this._checkCanceled(null, game, match)) {
-                        resolve()
-                        return
-                    }
-
-                    game.opts.roller = () => this.dice
-
-                    this.client.matchRequest('firstTurn').then(res => {
-
-                        if (this._checkCanceled(null, game, match)) {
-                            resolve()
-                            return
-                        }
-
-                        this.dice = res.dice
-
-                        this.opponent.rollTurn = async (turn, game, match) => {
-                            await this.rollTurn(turn, game, match)
-                        }
-
-                        resolve()
-
-                    }).catch(reject)
-
-                }).catch(reject)
-            })
+            this.gameStart(game, match, players)
         )
     }
 
@@ -145,13 +114,13 @@ class NetPlayer extends Base {
             )
         )
 
-        Object.entries(this.clientListeners).forEach(([event, listener]) => {
+        Object.entries(this.clientListeners).forEach(([event, listener]) =>
             this.client.on(event, listener)
-        })
+        )
 
-        Object.entries(Listeners).forEach(([event, listener]) => {
+        Object.entries(Listeners).forEach(([event, listener]) =>
             this.on(event, listener)
-        })
+        )
     }
 
     async rollTurn(turn, game, match) {
@@ -200,6 +169,53 @@ class NetPlayer extends Base {
         this.client.loglevel = n
     }
 
+    async gameStart(game, match, players) {
+        await this.client.matchRequest('nextGame')
+        if (this._checkCanceled(null, game, match)) {
+            return
+        }
+        game.opts.roller = () => this.dice
+        const res = await this.client.matchRequest('firstTurn')
+        if (this._checkCanceled(null, game, match)) {
+            return
+        }
+        this.dice = res.dice
+        this.opponent.rollTurn = async (turn, game, match) => {
+            await this.rollTurn(turn, game, match)
+        }
+        /*
+        return new Promise((resolve, reject) => {
+
+            this.client.matchRequest('nextGame').then(() => {
+
+                if (this._checkCanceled(null, game, match)) {
+                    resolve()
+                    return
+                }
+
+                game.opts.roller = () => this.dice
+
+                this.client.matchRequest('firstTurn').then(res => {
+
+                    if (this._checkCanceled(null, game, match)) {
+                        resolve()
+                        return
+                    }
+
+                    this.dice = res.dice
+
+                    this.opponent.rollTurn = async (turn, game, match) => {
+                        await this.rollTurn(turn, game, match)
+                    }
+
+                    resolve()
+
+                }).catch(reject)
+
+            }).catch(reject)
+        })
+        */
+    }
     destroy() {
         Object.entries(Listeners).forEach(([event, listener]) =>
             this.removeListener(event, listener)
