@@ -762,12 +762,14 @@ class Menu extends EventEmitter {
         const client = this.newClient()
 
         try {
+
             const termPlayer = new TermPlayer(isStart ? White : Red, this.settings)
             const netPlayer  = new NetPlayer(client, isStart ? Red : White)
             const players = {
                 White : isStart ? termPlayer : netPlayer
               , Red   : isStart ? netPlayer  : termPlayer
             }
+
             this.captureInterrupt = () => {
                 this.alerts.warn('Aborting waiting')
                 client.cancelWaiting(new WaitingAbortedError('Keyboard interrupt'))
@@ -778,12 +780,6 @@ class Menu extends EventEmitter {
 
             this.emit('beforeClientConnect', client)
             await client.connect()
-
-            //client.on('matchCanceled', err => {
-            //    if (!this.alerts.getErrors().find(it => err)) {
-            //        this.alerts.error(err)
-            //    }
-            //})
 
             const promise = isStart ? client.createMatch(matchOpts) : client.joinMatch(matchId)
             this.emit('clientWaitStart', client)
@@ -859,9 +855,7 @@ class Menu extends EventEmitter {
         } catch (err) {
 
             if (err.isMatchCanceledError) {
-                if (!this.alerts.getErrors().find(it => err)) {
-                    this.alerts.error(err)
-                }
+                this.alerts.error(err)
                 return
             }
 

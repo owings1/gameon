@@ -1208,7 +1208,7 @@ describe('-', () => {
                         menu2.logger.console.log = noop
                     }
 
-                    const fakeInquirer = {prompt: () => new Promise(resolve => {})}
+                    //const fakeInquirer = {prompt: () => new Promise(resolve => {})}
 
                     // We could call at any time, but we don't want to double call.
                     var count = 0
@@ -1220,7 +1220,8 @@ describe('-', () => {
                             player.loglevel = -1
                         }
                         player.output = new NullOutput
-                        player.inquirer = fakeInquirer
+                        player.inquirer.opt.output = new NullOutput
+                        //player.inquirer = fakeInquirer
                         player.drawBoard = noop
                         player.on('firstRoll', () => {
                             if (++count == 2) {

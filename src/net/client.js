@@ -59,8 +59,14 @@ function trimMessageData(data) {
         return data
     }
     const trimmed = {...data}
+    if (data.secret) {
+        trimmed.secret = '***'
+    }
     if (data.password) {
         trimmed.password = '***'
+    }
+    if (data.passwordEncrypted) {
+        trimmed.passwordEncrypted = '***'
     }
     if (data.token) {
         trimmed.token = '***'
@@ -95,14 +101,8 @@ function trimMessageData(data) {
  *    - unhandledMessage
  *    - matchCanceled
  *    - responseError
- *   
- *  If you listen on matchCanceled, the code must be able to 
- *  handle null return values from matchRequest.
+ * 
  *
- *  The unhandledMessage event means there was nothing waiting a message.
- *
- *  The responseError should only be used for testing since it will
- *  break a lot of code expecting a response, e.g. handshake, createMatch, etc.
  */
 class Client extends EventEmitter {
 
@@ -140,7 +140,7 @@ class Client extends EventEmitter {
      *
      * @returns Object
      */
-    async connect() {
+    connect() {
 
         if (this.conn && this.conn.connected) {
             return
@@ -148,7 +148,7 @@ class Client extends EventEmitter {
 
         this.isClosing = false
 
-        await new Promise((resolve, reject) => {
+        return new Promise((resolve, reject) => {
 
             this.socketClient
                 .removeAllListeners('connectFailed')
@@ -168,7 +168,7 @@ class Client extends EventEmitter {
                     //  ❯ ECONNRESET, syscall: read, errno: -54
                     //  ❯ EPIPE, syscall: write, errno: -32
                     this.logger.debug('conn.error', err)
-                    this.logger.debug('cancelMatch.from.conn.onError')
+                    this.logger.debug('cancelMatch.from.conn.error')
                     const isHandled = this.cancelMatch(err)
                     if (!this.isClosing) {
                         this.logger.error(err)
@@ -218,9 +218,12 @@ class Client extends EventEmitter {
                     }
                     this.handleMessage(data)
                 })
-                resolve()
-                // In case we reject afterward, probably a noop.
-                reject = err => this.emit('error', err)
+
+                this.handshake().then(() => {
+                    resolve()
+                    // In case we reject afterward, probably a noop.
+                    reject = err => this.emit('error', err)
+                }).catch(reject)
             })
 
             try {
@@ -229,8 +232,6 @@ class Client extends EventEmitter {
                 reject(err)
             }
         })
-
-        return await this.handshake()
     }
 
     /**
@@ -293,11 +294,6 @@ class Client extends EventEmitter {
         const req = {action: 'createMatch', total, opts}
         let res = await this.sendAndWaitForResponse(req, 'matchCreated')
 
-        // Corner case of a generic responseError being handled
-        if (res instanceof Error) {
-            throw res
-        }
-
         const {id, match} = res
 
         this.matchId = id
@@ -310,12 +306,6 @@ class Client extends EventEmitter {
         this.logger.info('Waiting for opponent to join')
 
         res = await this.waitForResponse('opponentJoined')
-
-        // If matchCanceled is handled, then an error is returned. This can
-        // happen if the server shuts down while waiting.
-        if (res instanceof Error) {
-            throw res
-        }
 
         this.logger.info('Opponent joined', id)
         this.emit('opponentJoined', this.match)
@@ -342,11 +332,6 @@ class Client extends EventEmitter {
         const req = {action: 'joinMatch', id}
         let res = await this.sendAndWaitForResponse(req, 'matchJoined')
 
-        // Corner case of a generic responseError being handled.
-        if (res instanceof Error) {
-            throw res
-        }
-
         const {match} = res
 
         this.matchId = id
@@ -369,9 +354,12 @@ class Client extends EventEmitter {
      * @param string The play action.
      * @param object (optional) Additional request data.
      *
-     * @emits response
-     * @emits matchCanceled
-     * @emits responseError
+     * @emits matchRequest
+     * @emits matchResponse
+     *
+     * @event matchCanceled
+     * @event responseError
+     * @event response
      *
      * @throws ClientError
      * @throws GameError.MatchCanceledError
@@ -397,9 +385,9 @@ class Client extends EventEmitter {
      * @param object The request data.
      * @param string (optional) The expected action of the response.
      *
-     * @emits response
-     * @emits matchCanceled
-     * @emits responseError
+     * @event response
+     * @event matchCanceled
+     * @event responseError
      *
      * @throws ClientError
      * @throws GameError.MatchCanceledError
@@ -429,26 +417,16 @@ class Client extends EventEmitter {
      *    or, if the response action is matchCanceled, a MatchCanceledError.
      *
      *  ❯ For a MatchCanceledError, the matchCanceled event is emitted. If there
-     *    is an attached listener, the error is returned. An exception to this
-     *    is when the expected action is `opponentJoined`, which can happen in
-     *    the case of a server shutdown. In that case, the error is thrown.
+     *    is no attached listener, the responseError event is emitted.
      *
-     *  ❯ Otherwise, the responseError event is emitted. If there is an attached
-     *    listener, then null is returned.
+     *  ❯ If the error has the attribute isClientShouldClose, the client is closed.
      *
-     *  ❯ Otherwise, the error is thrown.
-     *
-     *    ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
-     *    ┃ NB: The responseError event is primarily for testing purposes. ┃
-     *    ┃     Attaching a listener on this event can cause unpredictable ┃
-     *    ┃     program behavior.                                          ┃
-     *    ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+     *  ❯ Then the error is thrown.
      *
      * @async
      *
      * @param string (optional) The expected action of the response.
      *
-     * @emits response
      * @emits matchCanceled
      * @emits responseError
      *
@@ -487,28 +465,20 @@ class Client extends EventEmitter {
 
         try {
 
+            let isHandled = false
             if (err.isMatchCanceledError) {
                 this.logger.debug('cancelMatch.from.waitForResponse')
-                let isHandled = this.cancelMatch(err)
-                // A MatchCanceledError can happen before opponentJoined in the case
-                // of a server shutdown.
-                if (action == 'opponentJoined') {
-                    throw err
-                }
-                // Return the error if there is an active match and a matchCanceled
-                // listener.
-                if (isHandled) {
-                    return err
-                }
+                isHandled = this.cancelMatch(err)
             }
 
-            // This is for testing only, not recoverable in most cases.
-            if (this.emit('responseError', err, data)) {
-                this.logger.error(err)
-                return null
+            if (!isHandled) {
+                // This is for debugging.
+                if (this.emit('responseError', err, data)) {
+                    this.logger.warn(err)
+                } else {
+                    this.logger.error(err)
+                }
             }
-
-            this.logger.warn(err)
 
             throw err
 
@@ -627,7 +597,7 @@ class Client extends EventEmitter {
             this.logger.warn('Unhandled message from server', err)
 
             // Since this is recoverable, we emit an error instead of throwing.
-            // Very interesting: this exits the process even on tests, no matter
+            // Interesting: this exits the process even on tests, no matter
             // whether we throw or emit.
             //throw err
             this.emit('error', err)
@@ -635,7 +605,7 @@ class Client extends EventEmitter {
         } finally {
 
             if (err && err.isClientShouldClose) {
-                this.logger.debbug('handleMessage.isClientShouldClose')
+                this.logger.debug('handleMessage.isClientShouldClose')
                 this.close(err)
             }
         }

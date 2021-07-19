@@ -335,11 +335,14 @@ describe('-', () => {
                 t2.output = new NullOutput
             })
 
-            afterEach(async () => {
-                await Util.destroyAll([r1, r2, t1, t2])
+            afterEach(() => {
+                Util.destroyAll([r1, r2, t1, t2])
             })
 
             it('should play RedWinWith66 for white first move 6,1 then red 6,6', async () => {
+                //t1.loglevel = 4
+                //t2.loglevel = 4
+                //coordinator.loglevel = 4
                 board.setStateString(States.RedWinWith66)
                 rolls = [[6, 1]]
                 t1.rollTurn = turn => turn.setRoll([6, 6])

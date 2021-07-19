@@ -77,7 +77,7 @@ const Listeners = {
 
         const listenersMap = {
             matchCanceled: [
-                this.cancelPrompt.bind(this)
+                //this.cancelPrompt.bind(this)
             ]
           , matchResponse: []
         }

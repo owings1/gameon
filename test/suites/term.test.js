@@ -787,7 +787,7 @@ describe('TermPlayer', () => {
 
             // We expect TermPlayer to add 1 listener
             const exp = {
-                matchCanceled : counts0.matchCanceled + 1
+                matchCanceled : counts0.matchCanceled //+ 1
               , matchResponse : counts0.matchResponse + 1
             }
 

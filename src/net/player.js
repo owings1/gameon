@@ -33,6 +33,11 @@ const {White, Red} = Constants
 const ClientListeners = {
 
     matchCanceled: function(err) {
+        this.logger.debug('client.event.matchCanceled')
+        if (this.opponent) {
+            this.logger.debug('emitting matchCanceled on opponent')
+            this.opponent.emit('matchCanceled', err)
+        }
         this.emit('matchCanceled', err)
     }
 
@@ -40,11 +45,12 @@ const ClientListeners = {
         // Set this earlier than the base player. In the case that matchCanceled
         // is emitted before matchStart, the base player will be able to call
         // match.cancel().
-        this.logger.debug('matchCreated')
+        this.logger.debug('client.event.matchCreated')
         this.thisMatch = match
     }
 
   , matchResponse: function(req, res) {
+        this.logger.debug('client.event.matchResponse')
         this.emit('matchResponse', req, res)
     }
 }

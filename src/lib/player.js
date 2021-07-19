@@ -55,6 +55,18 @@ const Listeners = {
         // NB: If matchCanceled is emitted before matchStart, then this will not help.
         if (this.thisMatch) {
             this.thisMatch.cancel(err)
+            this.opponent = null
+            this.thisMatch = null
+            this.thisGame = null
+        }
+    }
+
+  , matchEnd: function(err) {
+        this.logger.debug('event.matchEnd')
+        if (this.thisMatch) {
+            this.opponent = null
+            this.thisMatch = null
+            this.thisGame = null
         }
     }
 }
@@ -100,6 +112,7 @@ class Player extends EventEmitter {
     }
 
     destroy() {
+        this.logger.debug('destroy')
         Object.entries(Listeners).forEach(([event, listener]) => {
             this.removeListener(event, listener)
         })
