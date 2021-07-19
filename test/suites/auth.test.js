@@ -43,6 +43,8 @@ const {ucfirst, update} = Util
 
 describe('-', () => {
 
+    const loglevel = 0
+
     beforeEach(function () {
         this.fixture = {}
     })
@@ -178,8 +180,6 @@ describe('-', () => {
     })
 
     describe('Directory', () => {
-
-        const loglevel = 0
 
         beforeEach(function () {
             const auth = Auth.create({authType: 'directory', authDir: tmpDir()})
@@ -542,121 +542,48 @@ describe('-', () => {
 
             const s3_prefix = 'test/' + +new Date + '/'
 
-            function newAuth() {
-                const opts = {authType: 's3', s3_bucket, s3_prefix}
-                const auth = Auth.create(opts)
-                auth.logger.loglevel = 1
-                return auth
-            }
+            beforeEach(function () {
+                const auth = Auth.create({authType: 's3', s3_bucket, s3_prefix})
+                auth.loglevel = loglevel
+                this.cleanUsers = []
+                this.fixture = {
+                    auth
+                  , s3: auth.impl.s3
+                }
+            })
 
-            var s3
-
-            before(() => {
-                s3 = new AWS.S3()
+            afterEach(async function () {
+                for (let username of this.cleanUsers) {
+                    try {
+                        await this.fixture.auth.deleteUser(username)
+                    } catch (err) {
+                        console.error('Failed to delete user', username, err)
+                    }
+                }
             })
 
             describe('#createUser', function () {
 
-                it('should create user', async () => {
-                    const auth = newAuth()
+                it('should create user', async function () {
+                    const {auth} = this.fixture
                     const username = 'nobody1@nowhere.example'
                     const password = 'a7CGQSdV'
                     await auth.createUser(username, password, true)
-                    // cleanup
-                    await auth.deleteUser(username)
-                })
-            })
-
-            describe('#readUser', function () {
-
-                it('should read user case insensitive', async function () {
-                    const auth = newAuth()
-                    const username = 'nobody2@nowhere.example'
-                    const password = '2SnMTw6M'
-                    await auth.createUser(username, password, true)
-                    try {
-                        const user = await auth.readUser(username.toUpperCase())
-                        expect(user.username).to.equal(username)
-                    } finally {
-                        // cleanup
-                        await auth.deleteUser(username)
-                    }
-                })
-
-                it('should throw UserNotFoundError', async function () {
-                    const auth = newAuth()
-                    const username = 'nobody3@nowhere.example'
-                    const err = await getError(() => auth.readUser(username))
-                    expect(err.name).to.equal('UserNotFoundError')
-                })
-
-                it('should throw InternalError caused by SyntaxError when malformed json', async function () {
-                    const auth = newAuth()
-                    const username = 'nobody-syntax-err@nowhere.example'
-                    const password = 'VBvUa7TX'
-                    await auth.createUser(username, password, true)
-                    try {
-                        // hack object
-                        await auth.impl.s3.putObject({
-                            Bucket : s3_bucket,
-                            Key : auth.impl._userKey(username),
-                            Body: Buffer.from('{]')
-                        }).promise()
-                        const err = await getError(() => auth.readUser(username))
-                        expect(err.name).to.equal('InternalError')
-                        expect(err.cause.name).to.equal('SyntaxError')
-                    } finally {
-                        // cleanup
-                        await auth.deleteUser(username)
-                    }
-                })
-            })
-
-            describe('#userExists', function () {
-
-                it('should return true for created user', async function () {
-                    const auth = newAuth()
-                    const username = 'nobody4@nowhere.example'
-                    const password = 'gB3tbM96'
-                    await auth.createUser(username, password, true)
-                    try {
-                        const result = await auth.userExists(username)
-                        expect(result).to.equal(true)
-                    } finally {
-                        // cleanup
-                        await auth.deleteUser(username)
-                    }
-                })
-
-                it('should return false for non existent', async function () {
-                    const auth = newAuth()
-                    const username = 'nobody5@nowhere.example'
-                    const result = await auth.userExists(username)
-                    expect(result).to.equal(false)
-                })
-
-                it('should throw InternalError with cause BadRequest when bucket is bad', async function () {
-                    const auth = newAuth()
-                    const username = 'bad-bucket@nowhere.example'
-                    // hack opts to produce error
-                    auth.impl.opts.s3_bucket = '!badbucket'
-                    const err = await getError(() => auth.userExists(username))
-                    expect(err.name).to.equal('InternalError')
-                    expect(err.cause.name).to.equal('BadRequest')
+                    this.cleanUsers.push(username)
                 })
             })
 
             describe('#deleteUser', () => {
 
                 it('should throw UserNotFoundError for bad user', async function () {
-                    const auth = newAuth()
+                    const {auth} = this.fixture
                     const username = 'bad-delete-user@nowhere.example'
                     const err = await getError(() => auth.deleteUser(username))
                     expect(err.name).to.equal('UserNotFoundError')
                 })
 
                 it('should throw InvalidBucketName when bucket is bad', async function () {
-                    const auth = newAuth()
+                    const {auth} = this.fixture
                     const username = 'bad-bucket@nowhere.example'
                     // hack opts to produce error
                     auth.impl.opts.s3_bucket = '!badbucket'
@@ -666,9 +593,57 @@ describe('-', () => {
                 })
             })
 
+            describe('#listAllUsers', () => {
+
+                it('should throw InternalError with cause NotImplementedError', async function () {
+                    const {auth} = this.fixture
+                    const err = await getError(() => auth.listAllUsers())
+                    expect(err.name).to.equal('InternalError')
+                    expect(err.cause.name).to.equal('NotImplementedError')
+                })
+            })
+
+            describe('#readUser', function () {
+
+                it('should read user case insensitive', async function () {
+                    const {auth} = this.fixture
+                    const username = 'nobody2@nowhere.example'
+                    const password = '2SnMTw6M'
+                    const user = await auth.createUser(username, password, true)
+                    this.cleanUsers.push(username)
+                    expect(user.username).to.equal(username)
+                })
+
+                it('should throw UserNotFoundError', async function () {
+                    const {auth} = this.fixture
+                    const username = 'nobody3@nowhere.example'
+                    const err = await getError(() => auth.readUser(username))
+                    expect(err.name).to.equal('UserNotFoundError')
+                })
+
+                it('should throw InternalError caused by SyntaxError when malformed json', async function () {
+                    const {auth, s3} = this.fixture
+                    const username = 'nobody-syntax-err@nowhere.example'
+                    const password = 'VBvUa7TX'
+                    await auth.createUser(username, password, true)
+                    this.cleanUsers.push(username)
+                    // hack object
+                    const params = {
+                        Bucket : s3_bucket
+                      , Key    : auth.impl._userKey(username)
+                      , Body   : Buffer.from('{]')
+                    }
+                    await s3.putObject(params).promise()
+                    const err = await getError(() => auth.readUser(username))
+                    expect(err.name).to.equal('InternalError')
+                    expect(err.cause.name).to.equal('SyntaxError')
+                })
+            })
+
             describe('#updateUser', () => {
+
                 it('should throw InvalidBucketName when bucket is bad', async function () {
-                    const auth = newAuth()
+                    const {auth} = this.fixture
                     const username = 'bad-bucke-update-user@nowhere.example'
                     // hack opts to produce error
                     auth.impl.opts.s3_bucket = '!badbucket'
@@ -678,16 +653,36 @@ describe('-', () => {
                 })
             })
 
-            describe('#listAllUsers', () => {
-                it('should throw InternalError with cause NotImplementedError', async function () {
-                    const auth = newAuth()
-                    const err = await getError(() => auth.listAllUsers())
+            describe('#userExists', function () {
+
+                it('should return true for created user', async function () {
+                    const {auth} = this.fixture
+                    const username = 'nobody4@nowhere.example'
+                    const password = 'gB3tbM96'
+                    await auth.createUser(username, password, true)
+                    this.cleanUsers.push(username)
+                    const result = await auth.userExists(username)
+                    expect(result).to.equal(true)
+                })
+
+                it('should return false for non existent', async function () {
+                    const {auth} = this.fixture
+                    const username = 'nobody5@nowhere.example'
+                    const result = await auth.userExists(username)
+                    expect(result).to.equal(false)
+                })
+
+                it('should throw InternalError with cause BadRequest when bucket is bad', async function () {
+                    const {auth} = this.fixture
+                    const username = 'bad-bucket@nowhere.example'
+                    // hack opts to produce error
+                    auth.impl.opts.s3_bucket = '!badbucket'
+                    const err = await getError(() => auth.userExists(username))
                     expect(err.name).to.equal('InternalError')
-                    expect(err.cause.name).to.equal('NotImplementedError')
+                    expect(err.cause.name).to.equal('BadRequest')
                 })
             })
         }
-        
     }
 
     if (process.env.TEST_AUTH_S3_BUCKET) {

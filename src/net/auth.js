@@ -878,6 +878,7 @@ class Auth {
         try {
             return await cb()
         } catch (err) {
+            //console.log(err)
             if (!err.isAuthError && !err.isInternalError) {
                 throw new InternalError(err)
             }

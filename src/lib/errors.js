@@ -58,7 +58,7 @@ class BaseError extends Error {
             this.cause = message
         }
         if (message instanceof Error) {
-            this.message = message.message
+            this.message = message.message || message.code
         }
         addProps(this)
         const names = [this.name]

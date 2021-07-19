@@ -138,7 +138,7 @@ class Client extends EventEmitter {
      *
      * @throws ClientError
      *
-     * @returns Object
+     * @returns undefined
      */
     connect() {
 
