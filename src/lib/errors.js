@@ -145,6 +145,9 @@ class ClientError extends BaseError {
             args.push(cause)
             causeName = cause.name
         }
+        if (data.attrs) {
+            args.push({attrs: data.attrs})
+        }
         let err
         if (data.name in Errors) {
             err = new Errors[data.name](...args)

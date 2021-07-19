@@ -35,7 +35,11 @@ describe('-', () => {
     const Client = requireSrc('net/client')
     const Server = requireSrc('net/server')
 
-    const {Red, White} = requireSrc('lib/constants')
+    const {ucfirst, update} = requireSrc('lib/util')
+
+    const Errors = requireSrc('lib/errors')
+
+    const {Red, White, MatchCancelRef} = requireSrc('lib/constants')
 
     const loglevel = 1
 
@@ -48,10 +52,14 @@ describe('-', () => {
         const serverUrl = 'http://localhost:' + server.port
 
         this.objects = {
-            server
-          , client1 : new Client({serverUrl})
+            client1 : new Client({serverUrl})
           , client2 : new Client({serverUrl})
+          , server
         }
+
+        Object.entries(this.objects).forEach(([name, obj]) => {
+            obj.logger.name = ucfirst(name)
+        })
 
         this.setLoglevel = n => {
             Object.values(this.objects).forEach(it => {
@@ -199,6 +207,37 @@ describe('-', () => {
             this.setLoglevel(0)
             client.handleMessage({action: 'fooo'})
         })
+
+        it('should emit responseError on malformed JSON message from server', function (done) {
+            const {client, server} = this.fixture
+            client.once('responseError', err => {
+                done()
+            })
+            client.connect().then(() => {
+                Object.values(server.socketServer.conns)[0].sendUTF('{]')
+            })
+        })
+
+        it('should not throw when no responseError listener on malformed message', async function () {
+            const {client, server} = this.fixture
+            await client.connect()
+            client.loglevel = -1
+            Object.values(server.socketServer.conns)[0].sendUTF('{]')
+        })
+
+        it('should close when server sends error with isClientShouldClose', async function () {
+            const {client, server} = this.fixture
+            client.loglevel = 0
+            const err = new Errors.RequestError('test', {attrs: {isClientShouldClose: true}})
+            let caught
+            client.on('error', err => {
+                caught = err
+            })
+            await client.connect()
+            server.sendMessage(Object.values(server.socketServer.conns), err)
+            await new Promise(resolve => setTimeout(resolve, 30))
+            expect(client.isConnected).to.equal(false)
+        })
     })
 
     describe('#matchParams', () => {
@@ -217,11 +256,37 @@ describe('-', () => {
     })
 
     describe('#matchRequest', () => {
+
         it('should pass for nextGame', async function () {
+
             const {client1, client2} = this.fixture
             const match = await this.createMatch()
             client2.matchRequest('nextGame')
             await client1.matchRequest('nextGame')
+        })
+
+        it('should throw and close client when sever cancels because of shutdown', async function () {
+
+            const {client1, client2, server} = this.fixture
+            const match = await this.createMatch()
+
+            // We need a handler on client2, could also be on unhandledMessage
+            client2.on('matchCanceled', () => {})
+            // We don't need a handler here, but it prevents an error message,
+            // and also covers an extra code branch.
+            client1.on('matchCanceled', () => {})
+
+            const prom = client1.matchRequest('nextGame')
+
+            // Let the server receive the matchRequest before canceling,
+            // otherwise we get a MatchNotFound warning.
+            await new Promise(resolve => setTimeout(resolve))
+            server.cancelMatchId(match.id, MatchCancelRef.serverShutdown)
+
+            const err = await getError(() => prom)
+
+            expect(err.isMatchCanceledError).to.equal(true)
+            expect(client1.isConnected).to.equal(false)
         })
     })
 
@@ -310,16 +375,16 @@ describe('-', () => {
 
         it('should throw error when response has isError=true', async function () {
             const {client, server} = this.fixture
-            const p = getError(() => client.waitForResponse('test'))
+            const prom = getError(() => client.waitForResponse('test'))
             const conns = Object.values(server.socketServer.conns)
             server.sendMessage(conns, {isError: true, error: 'testErrorMessage'})
-            const err = await p
+            const err = await prom
             expect(err.message).to.equal('testErrorMessage')
         })
 
         it('should throw error when response has mismatched action', async function () {
             const {client, server} = this.fixture
-            this.setLoglevel(0)
+            this.setLoglevel(-1)
             const prom = getError(() => client.waitForResponse('test'))
             const conns = Object.values(server.socketServer.conns)
             server.sendMessage(conns, {action: 'testErrorMessage'})
@@ -336,6 +401,17 @@ describe('-', () => {
             const err = await prom
             expect(err.name).to.equal('MatchCanceledError')
             expect(err.message).to.equal('testReason')
+        })
+
+        it('should close when server sends error with isClientShouldClose', async function () {
+            const {client, server} = this.fixture
+            await client.connect()
+            const err = new Errors.RequestError('test', {attrs: {isClientShouldClose: true}})
+            const prom = client.waitForResponse()
+            server.sendMessage(Object.values(server.socketServer.conns), err)
+            const caught = await getError(() => prom)
+            await new Promise(resolve => setTimeout(resolve, 30))
+            expect(Boolean(client.conn && client.conn.connected)).to.equal(false)
         })
     })
 })

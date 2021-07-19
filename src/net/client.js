@@ -40,6 +40,7 @@ const {
   , secret1
   , stripLeadingSlash
   , stripTrailingSlash
+  , trimMessageData
   , update
   , wsToHttp
 } = Util
@@ -53,36 +54,6 @@ const {
   , UnexpectedResponseError
   , UnhandledMessageError
 } = Errors
-
-function trimMessageData(data) {
-    if (!data) {
-        return data
-    }
-    const trimmed = {...data}
-    if (data.secret) {
-        trimmed.secret = '***'
-    }
-    if (data.password) {
-        trimmed.password = '***'
-    }
-    if (data.passwordEncrypted) {
-        trimmed.passwordEncrypted = '***'
-    }
-    if (data.token) {
-        trimmed.token = '***'
-    }
-    if (data.turn) {
-        trimmed.turn = {...data.turn}
-        if (data.turn.allowedMoveIndex) {
-            update(trimmed.turn, {
-                allowedEndStates: '[trimmed]'
-              , allowedMoveIndex: '[trimmed]'
-              , endStatesToSeries: '[trimmed]'
-            })
-        }
-    }
-    return trimmed
-}
 
 /**
  * Events:
@@ -142,13 +113,14 @@ class Client extends EventEmitter {
      */
     connect() {
 
-        if (this.conn && this.conn.connected) {
-            return
-        }
-
-        this.isClosing = false
-
         return new Promise((resolve, reject) => {
+
+            if (this.isConnected) {
+                resolve()
+                return
+            }
+
+            this.isClosing = false
 
             this.socketClient
                 .removeAllListeners('connectFailed')
@@ -443,51 +415,53 @@ class Client extends EventEmitter {
 
         const data = await this.waitForMessage()
 
-        if (data.isError) {
-            this.logger.debug('data.isError', 'throwing')
-            throw ClientError.forData(data)
-        }
-
-        if (!action || data.action == action) {
-            this.logger.debug('action met', action)
-            return data
-        }
-
-        let err
-
-        if (data.action == 'matchCanceled') {
-            err = new MatchCanceledError(data.reason, {attrs: data.attrs})
-        } else {
-            err = new UnexpectedResponseError(
-                `Expecting response ${action}, but got ${data.action} instead`
-            )
-        }
-
         try {
 
-            let isHandled = false
-            if (err.isMatchCanceledError) {
-                this.logger.debug('cancelMatch.from.waitForResponse')
-                isHandled = this.cancelMatch(err)
+            if (data.isError) {
+                this.logger.debug('data.isError', 'throwing')
+                throw ClientError.forData(data)
             }
 
-            if (!isHandled) {
-                // This is for debugging.
-                if (this.emit('responseError', err, data)) {
-                    this.logger.warn(err)
-                } else {
-                    this.logger.error(err)
+            if (!action || data.action == action) {
+                this.logger.debug('action met', action)
+                return data
+            }
+
+            if (data.action == 'matchCanceled') {
+                throw new MatchCanceledError(data.reason, {attrs: data.attrs})
+            }
+
+            throw new UnexpectedResponseError(
+                `Expecting response ${action}, but got ${data.action} instead`
+            )
+
+        } catch (err) {
+
+            try {
+
+                if (err.isMatchCanceledError) {
+
+                    this.logger.debug('cancelMatch.from.waitForResponse')
+
+                    if (!this.cancelMatch(err)) {
+
+                        // This is for debugging.
+                        if (this.emit('responseError', err, data)) {
+                            this.logger.warn(err)
+                        } else {
+                            this.logger.error(err)
+                        }
+                    }
+                }
+
+            } finally {
+                if (err.isClientShouldClose) {
+                    this.logger.debug('waitForResponse.isClientShouldClose')
+                    this.close(err)
                 }
             }
 
             throw err
-
-        } finally {
-
-            if (err.isClientShouldClose) {
-                this.logger.debug('waitForResponse.isClientShouldClose')
-                this.close(err)
-            }
         }
     }
 
@@ -648,8 +622,13 @@ class Client extends EventEmitter {
         return isHandled
     }
 
+    /**
+     * Clear the current match properties.
+     *
+     * @returns self
+     */
     clearCurrentMatch() {
-        update(this, {
+        return update(this, {
             match   : null
           , matchId : null
           , color   : null
@@ -696,6 +675,10 @@ class Client extends EventEmitter {
         this.serverSocketUrl = httpToWs(serverUrl)
         this.serverHttpUrl = stripTrailingSlash(wsToHttp(serverUrl))
         return this
+    }
+
+    get isConnected() {
+        return Boolean(this.conn && this.conn.connected)
     }
 
     /**

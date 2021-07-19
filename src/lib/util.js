@@ -181,7 +181,6 @@ class Util {
 
     static destroyAll(obj) {
         Object.values(obj).forEach(it => it.destroy())
-        //return Promise.all(Object.values(obj).map(it => it.destroy()))
     }
 
     // from:  https://stackoverflow.com/questions/60369148/how-do-i-replace-deprecated-crypto-createcipher-in-nodejs
@@ -319,7 +318,7 @@ class Util {
 
     static intRange(a, b) {
         const range = []
-        for (var i = a; i <= b; i++) {
+        for (let i = a; i <= b; ++i) {
             range.push(i)
         }
         return range
@@ -407,15 +406,15 @@ class Util {
     // values with cb.
     static mapValues(obj, cb) {
         return Object.fromEntries(
-            Object.entries(obj).map(([k, v]) =>
-                [k, cb(v)]
+            Object.entries(obj).map(
+                ([k, v]) => [k, cb(v)]
             )
         )
     }
 
     static nmap(n, cb) {
         const arr = []
-        for (var i = 0; i < n; ++i) {
+        for (let i = 0; i < n; ++i) {
             arr.push(cb(i))
         }
         return arr
@@ -423,7 +422,7 @@ class Util {
 
     static ntimes(n, cb) {
         let ret
-        for (var i = 0; i < n; ++i) {
+        for (let i = 0; i < n; ++i) {
             ret = cb(i)
         }
         return ret
@@ -600,6 +599,36 @@ class Util {
     static timestamp(date) {
         date = date || new Date
         return Math.floor(+date / 1000)
+    }
+
+    static trimMessageData(data) {
+        if (!data) {
+            return data
+        }
+        const trimmed = {...data}
+        if (data.secret) {
+            trimmed.secret = '***'
+        }
+        if (data.password) {
+            trimmed.password = '***'
+        }
+        if (data.passwordEncrypted) {
+            trimmed.passwordEncrypted = '***'
+        }
+        if (data.token) {
+            trimmed.token = '***'
+        }
+        if (data.turn) {
+            trimmed.turn = {...data.turn}
+            if (data.turn.allowedMoveIndex) {
+                Util.update(trimmed.turn, {
+                    allowedEndStates: '[trimmed]'
+                  , allowedMoveIndex: '[trimmed]'
+                  , endStatesToSeries: '[trimmed]'
+                })
+            }
+        }
+        return trimmed
     }
 
     static get tstamp() {
@@ -1068,11 +1097,20 @@ const {
   , UnresolvedDependencyError
 } = Errors
 
+Util.update(Util, {
+    Counter
+  , DependencyHelper
+  , Profiler
+  , Timer
+  , StringBuilder
+  , StyleHelper
+})
+/*
 Util.Counter          = Counter
 Util.DependencyHelper = DependencyHelper
 Util.Profiler         = Profiler
 Util.Timer            = Timer
 Util.StringBuilder    = StringBuilder
 Util.StyleHelper      = StyleHelper
-
+*/
 module.exports = Util
