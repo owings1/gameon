@@ -28,6 +28,7 @@ const isPrintOnly = false
 
 const onlys = [
     null
+    //, 'Auth'
     //, 'BoardAnalyzer'
     //, 'Client'
     //, 'Coordinator'
@@ -37,7 +38,7 @@ const onlys = [
     //, 'Logger'
     //, 'Menu'
     //, 'Moves'
-    //, 'Net'
+    //, 'NetPlayer'
     //, 'Player'
     //, 'Robot'
     //, 'Tables'
@@ -48,6 +49,7 @@ const onlys = [
 ]
 const skips = [
     null
+    //, 'Auth'
     //, 'BoardAnalyzer'
     //, 'Client'
     //, 'Coordinator'
@@ -57,7 +59,7 @@ const skips = [
     //, 'Logger'
     //, 'Menu'
     //, 'Moves'
-    //, 'Net'
+    //, 'NetPlayer'
     //, 'Player'
     //, 'Robot'
     //, 'Tables'

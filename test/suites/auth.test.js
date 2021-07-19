@@ -1,5 +1,5 @@
 /**
- * gameon - test suite - net classes
+ * gameon - test suite - Auth
  *
  * Copyright (C) 2020-2021 Doug Owings
  *
@@ -41,7 +41,7 @@ const fse = require('fs-extra')
 
 const {ucfirst, update} = Util
 
-describe.only('-', () => {
+describe('-', () => {
 
     beforeEach(function () {
         this.fixture = {}

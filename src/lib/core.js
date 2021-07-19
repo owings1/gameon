@@ -210,7 +210,7 @@ class Match {
         this.cancelError = err
         this.isFinished = true
         if (this.thisGame) {
-            this.thisGame.cancel()
+            this.thisGame.cancel(err)
         }
         return this
     }
@@ -363,6 +363,7 @@ class Game {
         this.finalValue = null
         this.isFinished = false
         this.isCanceled = false
+        this.cancelError = null
         this.isPass     = false
         this.winner     = null
 
@@ -403,6 +404,9 @@ class Game {
      */
     double() {
         if (this.isFinished) {
+            if (this.cancelError) {
+                throw this.cancelError
+            }
             throw new GameFinishedError('The game is already over')
         }
         if (!this.thisTurn) {
@@ -427,6 +431,9 @@ class Game {
     firstTurn() {
 
         if (this.isFinished) {
+            if (this.cancelError) {
+                throw this.cancelError
+            }
             throw new GameFinishedError('The game is already over')
         }
         if (this.thisTurn) {
@@ -458,6 +465,9 @@ class Game {
      */
     nextTurn() {
         if (this.isFinished) {
+            if (this.cancelError) {
+                throw this.cancelError
+            }
             throw new GameFinishedError('The game is already over')
         }
         if (!this.thisTurn) {
@@ -505,15 +515,16 @@ class Game {
     /**
      * @returns self
      */
-    cancel() {
+    cancel(err) {
         if (this.checkFinished()) {
             return this
         }
         this.isCanceled = true
+        this.cancelError = err
         this.isFinished = true
         this.endState = this.board.state28()
         if (this.thisTurn) {
-            this.thisTurn.cancel()
+            this.thisTurn.cancel(err)
             this.turnHistory.push(this.thisTurn.meta())
         }
         return this
@@ -672,6 +683,7 @@ class Turn {
         this.endState         = null
         this.faces            = null
         this.isCanceled       = false
+        this.cancelError      = null
         this.isCantMove       = false
         this.isDoubleDeclined = false
         this.isDoubleOffered  = false
@@ -963,13 +975,14 @@ class Turn {
     /**
      * @returns self
      */
-    cancel() {
+    cancel(err) {
         if (this.isFinished) {
             return this
         }
         this.endState = this.board.state28()
         this.isFinished = true
         this.isCanceled = true
+        this.cancelError = err
 
         this.boardCache = {}
         this.builder = null
@@ -1001,6 +1014,9 @@ class Turn {
      */
     assertNotFinished() {
         if (this.isFinished) {
+            if (this.cancelError) {
+                throw this.cancelError
+            }
             if (this.isCanceled) {
                 throw new TurnCanceledError(['turn has been canceled for', this.color])
             }

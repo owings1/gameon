@@ -44,6 +44,7 @@ function requireSrc(p) {
 
 const Util = requireSrc('lib/util')
 const Core = requireSrc('lib/core')
+const Robot = requireSrc('robot/player')
 
 const fs     = require('fs')
 const globby = require('globby')
@@ -97,6 +98,11 @@ function fetchBoard(name) {
 function noop() {
 
 }
+
+function newRando(...args) {
+    return Robot.ConfidenceRobot.getDefaultInstance('RandomRobot', ...args)
+}
+
 
 class GetErrorError extends Error {
     constructor(...args) {
@@ -186,6 +192,7 @@ module.exports = {
   , httpFixture
   , makeRandomMoves
   , MockPrompter
+  , newRando
   , noop
   , normState
   , NullOutput
