@@ -25,17 +25,19 @@
 const Test = require('../util')
 
 const {
-    expect
+    append
+  , destroyAll
+  , expect
+  , fetchBoard
   , getError
-  , makeRandomMoves
   , MockPrompter
   , newRando
-  , noop
   , NullOutput
   , requireSrc
   , tmpDir
   , tmpFile
   , States
+  , update
 } = Test
 
 const fs  = require('fs')
@@ -45,32 +47,50 @@ const {resolve} = require('path')
 
 describe('-', () => {
 
-    const Constants   = requireSrc('lib/constants')
-    const Core        = requireSrc('lib/core')
     const Coordinator = requireSrc('lib/coordinator')
-    const Dice        = requireSrc('lib/dice')
     const Player      = requireSrc('lib/player')
+
     const Robot       = requireSrc('robot/player')
-    const Util        = requireSrc('lib/util')
+    const TermPlayer  = requireSrc('term/player')
 
-    const {append, update} = Util
-    const {White, Red, PointOrigins} = Constants
-    const {Match, Game} = Core
+    const Dice = requireSrc('lib/dice')
+    const {White, Red, PointOrigins} = requireSrc('lib/constants')
+    const {Match, Game} = requireSrc('lib/core')
 
-    const loglevel = 1
+    const loglevel = 1//4
 
     class MockPlayer extends Player {
 
         constructor(color) {
             super(color)
             this.moves = []
+            this.doubleOptions = []
+            this.doubleRejects = []
         }
 
         async playRoll(turn, game, match) {
-            for (var i = 0; i < turn.allowedMoveCount; i++) {
+            for (let i = 0; i < turn.allowedMoveCount; ++i) {
                 turn.move(...this.moves.shift())
             }
         }
+
+        async turnOption(turn, game, match) {
+            const isDouble = this.doubleOptions.shift()
+            if (isDouble) {
+                turn.setDoubleOffered()
+            }
+        }
+
+        async decideDouble(turn, game, match) {
+            const isReject = this.doubleRejects.shift()
+            if (isReject) {
+                turn.setDoubleDeclined()
+            }
+        }
+    }
+
+    function pointMove(color, point, face) {
+        return [PointOrigins[color][point], face]
     }
 
     beforeEach(function () {
@@ -87,14 +107,28 @@ describe('-', () => {
               , Red   : new MockPlayer(Red)
             }
         }
+        this.setRolls = function(arr) {
+            this.fixture.rolls = arr
+        }
+        this.addRolls = function(arr) {
+            append(this.fixture.rolls, arr)
+        }
+        this.addRoll = function(roll) {
+            this.fixture.rolls.push(roll)
+        }
+        this.load = function (name) {
+            this.fixture.board.setStateString(fetchBoard(name).state28())
+        }
+        this.objects = []
         Object.values(this.fixture.players).forEach(player => {
+            this.objects.push(player)
             player.loglevel = loglevel
         })
         coord.loglevel = loglevel
     })
 
     afterEach(async function () {
-        Util.destroyAll(this.fixture.players)
+        destroyAll(this.objects)
         await fse.remove(this.fixture.recordDir)
     })
 
@@ -244,276 +278,396 @@ describe('-', () => {
     describe('#runGame', () => {
 
         beforeEach(function () {
-            this.fixture.rolls = [[2, 1], [6, 5]]
             const game = new Game({roller: this.fixture.roller})
-            update(this.fixture, {
-                game
-              , board: game.board
+            update(this.fixture, {game, board: game.board})
+        })
+
+        describe('EitherOneMoveWin', () => {
+
+            beforeEach(function () {
+                this.load('EitherOneMoveWin')
+            })
+
+            describe('White rolls 2,1 moves 1:2', () => {
+
+                beforeEach(function () {
+                    this.setRolls([[2, 1]])
+                    const {players} = this.fixture
+                    append(players.White.moves, [
+                        pointMove(White, 1, 2)
+                    ])
+                })
+
+                it('White should win with 1 point', async function () {
+                    const {players, coord, game} = this.fixture
+                    await coord.runGame(players, game)
+                    expect(game.getWinner()).to.equal(White)
+                    expect(game.finalValue).to.equal(1)
+                })
             })
         })
 
-        it('should run EitherOneMoveWin with 2,1 first roll white to win', async function () {
-            const {board, players, coord, game} = this.fixture
-            this.fixture.rolls = [[2, 1]]
-            board.setStateString(States.EitherOneMoveWin)
-            players.White.moves.push([23, 2])
-            await coord.runGame(players, game)
-            expect(game.getWinner()).to.equal(White)
-        })
+        describe('Either65Win', () => {
 
-        it('should run Either65Win with 2,1 first roll, next roll 6,5 red to win', async function () {
-            const {board, players, coord, game} = this.fixture
-            board.setStateString(States.Either65Win)
-            players.White.moves = [
-                [PointOrigins[White][6], 2],
-                [PointOrigins[White][5], 1]
-            ]
-            players.Red.moves = [
-                [PointOrigins[Red][6], 6],
-                [PointOrigins[Red][5], 5]
-            ]
-            await coord.runGame(players, game)
-            expect(game.getWinner()).to.equal(Red)
-        })
+            beforeEach(function () {
+                this.load('Either65Win')
+            })
 
-        it('should run Either65Win with 2,1 first roll, red double, white decline, red win with 1 point', async function () {
-            const {board, players, coord, game} = this.fixture
-            board.setStateString(States.Either65Win)
-            players.White.moves = [
-                [PointOrigins[White][6], 2],
-                [PointOrigins[White][5], 1]
-            ]
-            players.Red.turnOption = turn => turn.setDoubleOffered()
-            players.White.decideDouble = turn => turn.setDoubleDeclined()
-            await coord.runGame(players, game)
-            expect(game.getWinner()).to.equal(Red)
-            expect(game.finalValue).to.equal(1)
-        })
+            describe('White rolls 2,1, moves 6:2, 5:1', () => {
 
-        it('should run Either65Win with 2,1 first roll, next roll 6,5 red to win and not call red turnOption with isCrawford=true', async function () {
-            const {board, players, coord, game} = this.fixture
-            game.opts.isCrawford = true
-            board.setStateString(States.Either65Win)
-            players.White.moves = [
-                [PointOrigins[White][6], 2],
-                [PointOrigins[White][5], 1]
-            ]
-            players.Red.moves = [
-                [PointOrigins[Red][6], 6],
-                [PointOrigins[Red][5], 5]
-            ]
-            players.Red.turnOption = () => {throw new Error}
-            await coord.runGame(players, game)
-            expect(game.getWinner()).to.equal(Red)
-        })
+                beforeEach(function () {
+                    this.setRolls([[2, 1]])
+                    const {players} = this.fixture
+                    append(players.White.moves, [
+                        pointMove(White, 6, 2),
+                        pointMove(White, 5, 1)
+                    ])
+                })
 
-        it('should run Either65Win with 2,1 first roll, red double, white accept, red rolls 6,5 to win finalValue 2', async function () {
-            const {board, players, coord, game} = this.fixture
-            board.setStateString(States.Either65Win)
-            players.White.moves = [
-                [PointOrigins[White][6], 2],
-                [PointOrigins[White][5], 1]
-            ]
-            players.Red.moves = [
-                [PointOrigins[Red][6], 6],
-                [PointOrigins[Red][5], 5]
-            ]
-            players.Red.turnOption = turn => turn.setDoubleOffered()
-            await coord.runGame(players, game)
-            expect(game.getWinner()).to.equal(Red)
-            expect(game.finalValue).to.equal(2)
+                describe('Red doubles', () => {
+
+                    beforeEach(function () {
+                        const {players} = this.fixture
+                        players.Red.doubleOptions.push(true)
+                    })
+
+                    describe('White declines', () => {
+
+                        beforeEach(function () {
+                            const {players} = this.fixture
+                            players.White.doubleRejects.push(true)
+                        })
+
+                        it('Red should win with 1 point', async function () {
+                            const {players, coord, game} = this.fixture
+                            await coord.runGame(players, game)
+                            expect(game.getWinner()).to.equal(Red)
+                            expect(game.finalValue).to.equal(1)
+                        })
+                    })
+
+                    describe('White accepts', function () {
+
+                        describe('Red rolls 6,5, moves 6:6, 5:5', () => {
+
+                            beforeEach(function () {
+                                this.addRoll([6, 5])
+                                const {players} = this.fixture
+                                append(players.Red.moves, [
+                                    pointMove(Red, 6, 6),
+                                    pointMove(Red, 5, 5)
+                                ])
+                            })
+
+                            it('Red should win with 2 points', async function () {
+                                const {players, coord, game} = this.fixture
+                                await coord.runGame(players, game)
+                                expect(game.getWinner()).to.equal(Red)
+                                expect(game.finalValue).to.equal(2)
+                            })
+                        })
+                    })
+                })
+
+                describe('Red rolls 6,5, moves 6:6, 5:5', () => {
+
+                    beforeEach(function () {
+                        this.addRoll([6, 5])
+                        const {players} = this.fixture
+                        append(players.Red.moves, [
+                            pointMove(Red, 6, 6),
+                            pointMove(Red, 5, 5)
+                        ])
+                    })
+
+                    it('Red should win with 1 point', async function () {
+                        const {players, coord, game} = this.fixture
+                        await coord.runGame(players, game)
+                        expect(game.getWinner()).to.equal(Red)
+                        expect(game.finalValue).to.equal(1)
+                    })
+
+                    it('should not call Red turnOption with isCrawford=true', async function () {
+                        const {players, coord, game} = this.fixture
+                        game.opts.isCrawford = true
+                        players.Red.turnOption = () => {throw new Error}
+                        await coord.runGame(players, game)
+                    })
+                })
+            })
         })
 
         describe('TermPlayer', () => {
 
-            const TermPlayer = requireSrc('term/player')
-
             beforeEach(function () {
                 const t1 = new TermPlayer(White)
                 const t2 = new TermPlayer(Red)
+                append(this.objects, [t1, t2])
                 t1.loglevel = loglevel
                 t2.loglevel = loglevel
                 t1.output = new NullOutput
                 t2.output = new NullOutput
-                update(this.fixture, {t1, t2})
+                const r1 = []
+                const r2 = []
+                t1.prompt = MockPrompter(r1)
+                t2.prompt = MockPrompter(r2)
+                this.fixture.responses = {
+                    White : r1
+                  , Red   : r2
+                }
+                this.fixture.players = {
+                    White : t1
+                  , Red   : t2
+                }
             })
 
-            afterEach(function () {
-                const {t1, t2} = this.fixture
-                Util.destroyAll([t1, t2])
+            describe('Initial', () => {
+
+                beforeEach(function () {
+                    this.setRolls([[6, 1]])
+                })
+
+                describe('White rolls 6,1, moves 13:, 8:', () => {
+
+                    beforeEach(function () {
+                        this.setRolls([[6, 1]])
+                        const {responses} = this.fixture
+                        append(responses.White, [
+                            {origin: '13'},
+                            {origin: '8'},
+                            {finish: 'f'}
+                        ])
+                    })
+
+                    describe('Red doubles', () => {
+
+                        beforeEach(function () {
+                            const {responses} = this.fixture
+                            append(responses.Red, [
+                                {action: 'd'}
+                            ])
+                        })
+
+                        describe('White declines', () => {
+
+                            beforeEach(function () {
+                                const {responses} = this.fixture
+                                append(responses.White, [
+                                    {accept: 'n'}
+                                ])
+                            })
+
+                            it('Red should win with 1 point', async function () {
+                                const {players, coord, game} = this.fixture
+                                await coord.runGame(players, game)
+                                expect(game.getWinner()).to.equal(Red)
+                                expect(game.finalValue).to.equal(1)
+                            })
+                        })
+                    })
+                })
             })
 
-            it('should play RedWinWith66 for white first move 6,1 then red 6,6', async function () {
-                const {t1, t2, board, coord, game} = this.fixture
-                this.fixture.rolls = [[6, 1]]
-                board.setStateString(States.RedWinWith66)
-                t1.rollTurn = turn => turn.setRoll([6, 6])
-                t2.rollTurn = turn => turn.setRoll([6, 6])
-                t1.prompt = MockPrompter([
-                    // white's first turn
-                    {origin: '13'},
-                    {face:    '6'},
-                    {origin:  '8'},
-                    {finish:  'f'}
-                ])
-                t2.prompt = MockPrompter([
-                    // red's turn
-                    {action: 'r'},
-                    {origin: '6'},
-                    {origin: '6'},
-                    {origin: '6'},
-                    {origin: '6'},
-                    {finish: 'f'}
-                ])
-                await coord.runGame({White: t1, Red: t2}, game)
-                expect(game.winner).to.equal(Red)
+            describe('RedWinWith66', () => {
+
+                beforeEach(function () {
+                    this.load('RedWinWith66')
+                })
+
+                describe('White rolls 6,1, moves 13:6, 8:', () => {
+
+                    beforeEach(function () {
+                        this.setRolls([[6, 1]])
+                        const {responses} = this.fixture
+                        append(responses.White, [
+                            {origin: '13'},
+                            {face:    '6'},
+                            {origin:  '8'},
+                            {finish:  'f'}
+                        ])
+                    })
+
+                    describe('Red doubles', () => {
+
+                        beforeEach(function () {
+                            const {responses} = this.fixture
+                            append(responses.Red, [
+                                {action: 'd'}
+                            ])
+                        })
+
+                        describe('White accepts', () => {
+
+                            beforeEach(function () {
+                                const {responses} = this.fixture
+                                append(responses.White, [
+                                    {accept: 'y'}
+                                ])
+                            })
+
+                            describe('Red rolls 6,6, moves 6:, 6:, 6:, 6:', () => {
+
+                                beforeEach(function () {
+                                    const {responses} = this.fixture
+                                    this.addRoll([6, 6])
+                                    append(responses.Red, [
+                                        {origin: '6'},
+                                        {origin: '6'},
+                                        {origin: '6'},
+                                        {origin: '6'},
+                                        {finish: 'f'}
+                                    ])
+                                })
+
+                                it('Red should win backgammon with 8 points', async function () {
+                                    const {players, coord, game} = this.fixture
+                                    await coord.runGame(players, game)
+                                    expect(game.getWinner()).to.equal(Red)
+                                    expect(game.finalValue).to.equal(8)
+                                })
+                            })
+
+                            describe('Red rolls 6,5, moves 6:', () => {
+
+                                beforeEach(function () {
+                                    this.addRoll([6, 5])
+                                    const {responses} = this.fixture
+                                    append(responses.Red, [
+                                        {origin: '6'},
+                                        {finish: 'f'}
+                                    ])
+                                })
+
+                                describe('White rolls 1,2, moves 24:2, 24:', () => {
+
+                                    beforeEach(function () {
+                                        this.addRoll([1, 2])
+                                        const {responses} = this.fixture
+                                        append(responses.White, [
+                                            {action:  'r'},
+                                            {origin: '24'},
+                                            {face:    '2'},
+                                            {origin: '24'},
+                                            {finish:  'f'}
+                                        ])
+                                    })
+
+                                    describe('Red rolls (no-option) 6,6, moves 6:, 6:, 6:', () => {
+
+                                        beforeEach(function () {
+                                            this.addRoll([6, 6])
+                                            const {responses} = this.fixture
+                                            append(responses.Red, [
+                                                {origin: '6'},
+                                                {origin: '6'},
+                                                {origin: '6'},
+                                                {finish: 'f'}
+                                            ])
+                                        })
+
+                                        it('Red should win doubled backgammon with 8 points', async function () {
+                                            const {players, coord, game} = this.fixture
+                                            await coord.runGame(players, game)
+                                            expect(game.cubeValue).to.equal(2)
+                                            expect(game.finalValue).to.equal(8)
+                                        })
+                                    })
+                                })
+                            })
+                        })
+                    })
+
+                    describe('Red rolls 6, 6, moves 6:, 6:, 6:, 6:', () => {
+
+                        beforeEach(function () {
+                            this.addRoll([6, 6])
+                            const {responses} = this.fixture
+                            append(responses.Red, [
+                                {action: 'r'},
+                                {origin: '6'},
+                                {origin: '6'},
+                                {origin: '6'},
+                                {origin: '6'},
+                                {finish: 'f'}
+                            ])  
+                        })
+
+                        it('Red should win backgammon with 4 points', async function () {
+                            const {players, coord, game} = this.fixture
+                            await coord.runGame(players, game)
+                            expect(game.getWinner()).to.equal(Red)
+                            expect(game.finalValue).to.equal(4)
+                        })
+                    })
+                })
             })
 
-            it('should end with white refusing double on second turn', async function () {
-                const {t1, t2, board, coord, game} = this.fixture
-                this.fixture.rolls = [[6, 1]]
-                t1.prompt = MockPrompter([
-                    // white's first turn
-                    {origin: '13'},
-                    {origin: '8'},
-                    {finish: 'f'},
-                    {accept: 'n'}
-                ])
-                t2.prompt = MockPrompter([
-                    // red's turn
-                    {action: 'd'}
-                ])
-                await coord.runGame({White: t1, Red: t2}, game)
-                expect(game.winner).to.equal(Red)
-            })
-
-            it('should play RedWinWith66 for white first move 6,1 then red double, white accept, red rolls 6,6 backgammon', async function () {
-                const {t1, t2, board, coord, game} = this.fixture
-                this.fixture.rolls = [[6, 1]]
-                board.setStateString(States.RedWinWith66)
-                t1.rollTurn = turn => turn.setRoll([6, 6])
-                t2.rollTurn = turn => turn.setRoll([6, 6])
-                t1.prompt = MockPrompter([
-                    // white's first turn
-                    {origin: '13'},
-                    {face: '6'},
-                    {origin: '8'},
-                    {finish: 'f'},
-                    {accept: 'y'}
-                ])
-                t2.prompt = MockPrompter([
-                    // red's turn
-                    {action: 'd'},
-                    {origin: '6'},
-                    {origin: '6'},
-                    {origin: '6'},
-                    {origin: '6'},
-                    {finish: 'f'}
-                ])
-                await coord.runGame({White: t1, Red: t2}, game)
-                expect(game.winner).to.equal(Red)
-                expect(game.cubeValue).to.equal(2)
-                expect(game.finalValue).to.equal(8)
-            })
-
-            it('should play RedWinWith66, white 6,1, red double, white accept, red 6,5, white 1,2, red cant double 6,6, backgammon', async function () {
-                const {t1, t2, board, coord, game} = this.fixture
-                this.fixture.rolls = [
-                    [6, 1],
-                    [6, 5],
-                    [1, 2],
-                    [6, 6]
-                ]
-                board.setStateString(States.RedWinWith66)
-                t1.prompt = MockPrompter([
-                    // white's first turn
-                    {origin: '13'},
-                    {face:    '6'},
-                    {origin:  '8'},
-                    {finish:  'f'},
-                    // accept
-                    {accept:  'y'},
-                    // white's turn
-                    {action:  'r'},
-                    {origin: '24'},
-                    {face:    '2'},
-                    {origin: '24'},
-                    {finish:  'f'}
-                ])
-                t2.prompt = MockPrompter([
-                    // red's turn
-                    {action: 'd'},
-                    {origin: '6'},
-                    {finish: 'f'},
-                    // red's turn
-                    {origin: '6'},
-                    {origin: '6'},
-                    {origin: '6'},
-                    {finish: 'f'}
-                ])
-                await coord.runGame({White: t1, Red: t2}, game)
-                expect(game.winner).to.equal(Red)
-                expect(game.cubeValue).to.equal(2)
-                expect(game.finalValue).to.equal(8)
-            })
         })
     })
 
     describe('#runMatch', () => {
 
         beforeEach(function () {
-
-            const r1 = newRando(White)
-            const r2 = newRando(Red)
-            this.fixture.rolls = [[2, 1]]
             update(this.fixture, {
                 match: new Match(1, {roller: this.fixture.roller})
-              , r1
-              , r2
             })
         })
 
-        afterEach(async function () {
-            const {r1, r2} = this.fixture
-            Util.destroyAll([r1, r2])
-            await fse.remove(this.fixture.recordDir)
-        })
+        describe('EitherOneMoveWin', () => {
 
-        it('should run EitherOneMoveWin with 2,1 first roll white to win', async function () {
-            const {players, coord, match} = this.fixture
-            players.White.on('gameStart', game => {
-                game.board.setStateString(States.EitherOneMoveWin)
+            beforeEach(function () {
+                this.fixture.match.opts.startState = States.EitherOneMoveWin
             })
-            players.White.moves.push([23, 2])
-            await coord.runMatch(match, players.White, players.Red)
-            expect(match.getWinner()).to.equal(White)
-        })
 
-        it('should run EitherOneMoveWin with isRecord=true and record match to expected file', async function () {
-            const {players, coord, match} = this.fixture
-            players.White.on('gameStart', game => {
-                game.board.setStateString(States.EitherOneMoveWin)
+            describe('RandomRobot', () => {
+
+                beforeEach(function () {
+                    const r1 = newRando(White)
+                    const r2 = newRando(Red)
+                    append(this.objects, [r1, r2])
+                    update(this.fixture, {
+                        players: {
+                           White: r1
+                         , Red  : r2
+                        }
+                    })
+                })
+
+                it('should play 3 point match', async function () {
+                    const {coord, match, players} = this.fixture
+                    match.total = 3
+                    await coord.runMatch(match, players)
+                    expect(match.hasWinner()).to.equal(true)
+                })
             })
-            players.White.moves.push([23, 2])
-            coord.opts.isRecord = true
-            await coord.runMatch(match, players.White, players.Red)
 
-            const matchDir = coord.getMatchDir(match)
-            const matchFile = resolve(matchDir, 'match.json')
-            const gameFile = resolve(matchDir, 'game_1.json')
-            expect(fs.existsSync(matchFile)).to.equal(true)
-            expect(fs.existsSync(gameFile)).to.equal(true)
-        })
+            describe('White rolls 2,1, moves 1:2', () => {
 
-        it('should play 3 point match with mock runGame', async function () {
-            const {coord, match, r1, r2} = this.fixture
-            match.total = 3
-            coord.runGame = (players, game) => {
-                game.board.setStateString(States.EitherOneMoveWin)
-                makeRandomMoves(game.firstTurn(), true)
-            }
-            await coord.runMatch(match, r1, r2)
-            expect(match.hasWinner()).to.equal(true)
+                beforeEach(function () {
+                    this.setRolls([[2, 1]])
+                    const {players} = this.fixture
+                    append(players.White.moves, [
+                        pointMove(White, 1, 2)
+                    ])
+                })
+
+                it('White should win', async function () {
+                    const {players, coord, match} = this.fixture
+                    await coord.runMatch(match, players.White, players.Red)
+                    expect(match.getWinner()).to.equal(White)
+                })
+
+                it('record match to expected file with isRecord=true', async function () {
+                    const {players, coord, match} = this.fixture
+                    coord.opts.isRecord = true
+                    await coord.runMatch(match, players.White, players.Red)
+                    const matchDir = coord.getMatchDir(match)
+                    const matchFile = resolve(matchDir, 'match.json')
+                    const gameFile = resolve(matchDir, 'game_1.json')
+                    expect(fs.existsSync(matchFile)).to.equal(true)
+                    expect(fs.existsSync(gameFile)).to.equal(true)
+                })
+            })
         })
     })
 })
