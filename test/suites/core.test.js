@@ -22,12 +22,11 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-const TestUtil = require('../util')
+const Test = require('../util')
 
 const {
     expect,
     getError,
-    getErrorAsync,
     makeRandomMoves,
     randomElement,
     requireSrc,
@@ -35,7 +34,7 @@ const {
     States,
     States28,
     Structures
-} = TestUtil
+} = Test
 
 const Constants = requireSrc('lib/constants')
 const Core = requireSrc('lib/core')
@@ -65,23 +64,28 @@ describe('Match', () => {
 
         it('should set isCanceled when not already finished', () => {
             const match = new Match(1)
-            match.cancel()
+            const err = new Error
+            match.cancel(err)
             expect(match.isCanceled).to.equal(true)
+            expect(match.cancelError).to.equal(err)
         })
 
         it('should set isCanceled on thisGame', () => {
             const match = new Match(1)
+            const err = new Error
             const game = match.nextGame()
-            match.cancel()
+            match.cancel(err)
             expect(match.thisGame.isCanceled).to.equal(true)
+            expect(match.thisGame.cancelError).to.equal(err)
         })
 
         it('should not set isCanceled when already finished', () => {
             const match = new Match(1)
             // force
             match.isFinished = true
-            match.cancel()
+            match.cancel(new Error)
             expect(match.isCanceled).to.equal(false)
+            expect(Boolean(match.cancelError)).to.equal(false)
         })
     })
 
@@ -280,14 +284,16 @@ describe('Game', () => {
 
         it('should set isCanceled when not isFinished', () => {
             const game = new Game
-            game.cancel()
+            const err = new Error
+            game.cancel(err)
             expect(game.isCanceled).to.equal(true)
+            expect(game.cancelError).to.equal(err)
         })
 
         it('should add thisTurn to turn history', () => {
             const game = new Game
             const turn = game.firstTurn()
-            game.cancel()
+            game.cancel(new Error)
             expect(game.turnHistory).to.have.length(1)
             expect(game.turnHistory[0].uuid).to.equal(turn.uuid)
         })
@@ -627,9 +633,11 @@ describe('Turn', () => {
 
         it('should set isCanceled when not already finished', () => {
             const turn = new Turn(Board.setup(), White)
+            const err = new Error
             turn.roll()
-            turn.cancel()
+            turn.cancel(err)
             expect(turn.isCanceled).to.equal(true)
+            expect(turn.cancelError).to.equal(err)
         })
     })
 
