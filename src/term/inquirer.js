@@ -188,6 +188,7 @@ class Prompt extends Inquirer.ui.Prompt {
         super.close()
         if (this.activePrompt && this.activePrompt.screen) {
             const {screen} = this.activePrompt
+            clearInterval(screen.spinnerId)
             if (typeof screen.done == 'function') {
                 screen.done()
             }

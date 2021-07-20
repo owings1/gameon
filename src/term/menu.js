@@ -106,7 +106,7 @@ const {
   , PlayChoiceMap
 } = Constants.Menu
 
-const ResizeTimoutMs = 200
+const ResizeTimoutMs = 100
 
 const InterruptCancelEvent = {
     interrupt: true
@@ -1024,8 +1024,8 @@ class Menu extends EventEmitter {
         if (!this.settings.termEnabled) {
             return
         }
-        clearTimeout(this.resizeTimeout)
-        this.resizeTime = setTimeout(() => {
+        clearTimeout(this.resizeTimeoutId)
+        this.resizeTimeoutId = setTimeout(() => {
             const {prompter} = this
             if (!prompter || !prompter.ui) {
                 return
