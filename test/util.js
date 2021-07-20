@@ -182,7 +182,7 @@ class NullOutput extends stream.Writable {
 }
 
 const {httpFixture, getUrlParams, parseCookies} = require('./util/http-util')
-const MockPrompter = require('./util/mock-prompter')
+
 module.exports = {
     expect
   , fetchBoard
@@ -191,7 +191,7 @@ module.exports = {
   , getUrlParams
   , httpFixture
   , makeRandomMoves
-  , MockPrompter
+  , MockPrompter : require('./util/mock-prompter')
   , newRando
   , noop
   , normState
@@ -206,4 +206,5 @@ module.exports = {
   , suites
   , tmpDir
   , tmpFile
+  , update : Util.update
 }

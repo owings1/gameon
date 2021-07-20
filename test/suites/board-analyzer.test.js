@@ -22,45 +22,37 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-const TestUtil = require('../util')
+const Test = require('../util')
 
 const {
     expect
   , fetchBoard
   , getError
-  , getErrorAsync
-  , makeRandomMoves
-  , randomElement
   , requireSrc
-  , Rolls
-} = TestUtil
-
-const Constants = requireSrc('lib/constants')
-const Core = requireSrc('lib/core')
-const Dice = requireSrc('lib/dice')
-const Util = requireSrc('lib/util')
-
-const {White, Red} = Constants
-const {Match, Game, Board, Turn, Piece} = Core
+  , update
+} = Test
 
 describe('-', () => {
 
-    var board
-    var analyzer
+    const {Board, Piece} = requireSrc('lib/core')
+    const {White, Red}   = requireSrc('lib/constants')
 
-    beforeEach(() => {
-        board = new Board
-        analyzer = board.analyzer
+    beforeEach(function () {
+        this.load = function (name) {
+            this.fixture.board.setStateString(fetchBoard(name).state28())
+        }
+        const board = new Board
+        this.fixture = {board, analyzer: board.analyzer}
     })
 
-    function load(name) {
-        board.setStateString(fetchBoard(name).state28())
-    }
+    describe('#blotOrigins', function () {
 
-    describe('#blotOrigins', () => {
+        beforeEach(function () {
+            this.fixture.board.setup()
+        })
 
-        it('should return empty on initial with identical list on cache', () => {
-            board.setup()
+        it('should return empty on initial with identical list on cache', function () {
+            const {analyzer} = this.fixture
             const r1 = analyzer.blotOrigins(White)
             const r2 = analyzer.blotOrigins(White)
             expect(Array.isArray(r1)).to.equal(true)
@@ -71,163 +63,195 @@ describe('-', () => {
 
     describe('#blots', () => {
 
-        var blots
+        beforeEach(function () {
+            this.fixture.board.setup()
+        })
 
-        it('should return empty for initial setup', () => {
-            board.setup()
-            const result = analyzer.blots(White)
-            expect(result).to.have.length(0)
+        describe('Initial', () => {
+
+            it('should return empty for initial setup', function () {
+                const {analyzer} = this.fixture
+                const result = analyzer.blots(White)
+                expect(result).to.have.length(0)
+            })
         })
 
         describe('Initial > White 0:1', () => {
 
-            beforeEach(() => {
-                board.setup()
+            beforeEach(function () {
+                const {board, analyzer} = this.fixture
                 board.move(White, 0, 1)
-                blots = analyzer.blots(White)
+                const blots = analyzer.blots(White)
                 blots.sort((a, b) => a.point - b.point)
+                update(this.fixture, {blots})
             })
 
-            it('should have two blots, p23, p24', () => {
+            it('should have two blots, p23, p24', function () {
+                const {blots} = this.fixture
                 expect(blots).to.have.length(2)
                 expect(blots[0].point).to.equal(23)
                 expect(blots[1].point).to.equal(24)
             })
 
-            it('first blot should have 2 direct shots', () => {
+            it('first blot should have 2 direct shots', function () {
+                const {blots} = this.fixture
                 expect(blots[0].directCount).to.equal(2)
             })
 
-            it('second blot should have 1 direct shot', () => {
+            it('second blot should have 1 direct shot', function () {
+                const {blots} = this.fixture
                 expect(blots[1].directCount).to.equal(1)
             })
 
-            it('first blot should have 1 indirect shot', () => {
+            it('first blot should have 1 indirect shot', function () {
+                const {blots} = this.fixture
                 expect(blots[0].indirectCount).to.equal(1)
             })
 
-            it('second blot should have 1 indirect shot', () => {
+            it('second blot should have 1 indirect shot', function () {
+                const {blots} = this.fixture
                 expect(blots[1].indirectCount).to.equal(1)
             })
 
-            it('first blot should have minDistance 4', () => {
+            it('first blot should have minDistance 4', function () {
+                const {blots} = this.fixture
                 expect(blots[0].minDistance).to.equal(4)
             })
 
-            it('second blot should have minDistance 5', () => {
+            it('second blot should have minDistance 5', function () {
+                const {blots} = this.fixture
                 expect(blots[1].minDistance).to.equal(5)
             })
         })
 
         describe('EngagedWithBar', () => {
 
-            var blot
-
-            beforeEach(() => {
-                load('EngagedWithBar')
-                blots = analyzer.blots(White)
-                blot = blots[0]
+            beforeEach(function () {
+                this.load('EngagedWithBar')
+                const {analyzer} = this.fixture
+                const blots = analyzer.blots(White)
+                const blot = blots[0]
+                update(this.fixture, {blots, blot})
             })
 
-            it('should have 1 blot, p1', () => {
+            it('should have 1 blot, p1', function () {
+                const {blots, blot} = this.fixture
                 expect(blots).to.have.length(1)
                 expect(blot.point).to.equal(1)
             })
 
-            it('blot should have 1 direct shot, 0 indirect', () => {
+            it('blot should have 1 direct shot, 0 indirect', function () {
+                const {blot} = this.fixture
                 expect(blot.directCount).to.equal(1)
                 expect(blot.indirectCount).to.equal(0)
             })
 
-            it('blot should have minDistance 1', () => {
+            it('blot should have minDistance 1', function () {
+                const {blot} = this.fixture
                 expect(blot.minDistance).to.equal(1)
             })
         })
 
         describe('BlotsIndBar1', () => {
 
-            var blot
-
-            beforeEach(() => {
-                load('BlotsIndBar1')
-                blots = analyzer.blots(White)
-                blot = blots[0]
+            beforeEach(function () {
+                this.load('BlotsIndBar1')
+                const {analyzer} = this.fixture
+                const blots = analyzer.blots(White)
+                const blot = blots[0]
+                update(this.fixture, {blots, blot})
             })
 
-            it('should have 1 blot, p7', () => {
+            it('should have 1 blot, p7', function () {
+                const {blots, blot} = this.fixture
                 expect(blots).to.have.length(1)
                 expect(blot.point).to.equal(7)
             })
 
-            it('blot should have 0 direct shots, 1 indirect', () => {
+            it('blot should have 0 direct shots, 1 indirect', function () {
+                const {blot} = this.fixture
                 expect(blot.directCount).to.equal(0)
                 expect(blot.indirectCount).to.equal(1)
             })
 
-            it('blot should have minDistance 7', () => {
+            it('blot should have minDistance 7', function () {
+                const {blot} = this.fixture
                 expect(blot.minDistance).to.equal(7)
             })
         })
 
         describe('BlotsDisengaged', () => {
 
-            beforeEach(() => {
-                load('BlotsDisengaged')
-                blots = analyzer.blots(White, false)
+            beforeEach(function () {
+                this.load('BlotsDisengaged')
+                const {analyzer} = this.fixture
+                const blots = analyzer.blots(White, false)
+                const blot = blots[0]
+                update(this.fixture, {blots, blot})
             })
 
-            it('should be empty', () => {
+            it('should be empty', function () {
+                const {blots} = this.fixture
                 expect(blots).to.have.length(0)
             })
         })
 
         describe('BlotsOutOfRange', () => {
 
-            beforeEach(() => {
-                load('BlotsOutOfRange')
-                blots = analyzer.blots(White, false)
+            beforeEach(function () {
+                this.load('BlotsOutOfRange')
+                const {analyzer} = this.fixture
+                const blots = analyzer.blots(White, false)
+                update(this.fixture, {blots})
             })
 
-            it('should be empty', () => {
+            it('should be empty', function () {
+                const {blots} = this.fixture
                 expect(blots).to.have.length(0)
             })
         })
 
         describe('BlotsMany1', () => {
 
-            beforeEach(() => {
-                load('BlotsMany1')
+            beforeEach(function () {
+                this.load('BlotsMany1')
             })
 
             describe('White', () => {
 
-                beforeEach(() => {
-                    blots = analyzer.blots(White)
+                beforeEach(function () {
+                    const {analyzer} = this.fixture
+                    const blots = analyzer.blots(White)
                     blots.sort((a, b) => a.point - b.point)
+                    update(this.fixture, {blots})
                 })
 
-                it('should have 3 blots, p10, p22, p24', () => {
+                it('should have 3 blots, p10, p22, p24', function () {
+                    const {blots} = this.fixture
                     expect(blots).to.have.length(3)
                     expect(blots[0].point).to.equal(10)
                     expect(blots[1].point).to.equal(22)
                     expect(blots[2].point).to.equal(24)
                 })
 
-                it('blot 1 should have 1 direct, 1 indirect, minDistance 3', () => {
+                it('blot 1 should have 1 direct, 1 indirect, minDistance 3', function () {
+                    const {blots} = this.fixture
                     const blot = blots[0]
                     expect(blot.directCount).to.equal(1)
                     expect(blot.indirectCount).to.equal(1)
                     expect(blot.minDistance).to.equal(3)
                 })
 
-                it('blot 2 should have 3 direct, 1 indirect, minDistance 3', () => {
+                it('blot 2 should have 3 direct, 1 indirect, minDistance 3', function () {
+                    const {blots} = this.fixture
                     const blot = blots[1]
                     expect(blot.directCount).to.equal(3)
                     expect(blot.indirectCount).to.equal(1)
                     expect(blot.minDistance).to.equal(3)
                 })
 
-                it('blot 3 should have 1 direct, 2 indirect, minDistance 5', () => {
+                it('blot 3 should have 1 direct, 2 indirect, minDistance 5', function () {
+                    const {blots} = this.fixture
                     const blot = blots[2]
                     expect(blot.directCount).to.equal(1)
                     expect(blot.indirectCount).to.equal(2)
@@ -237,33 +261,39 @@ describe('-', () => {
 
             describe('Red', () => {
 
-                beforeEach(() => {
-                    blots = analyzer.blots(Red)
+                beforeEach(function () {
+                    const {analyzer} = this.fixture
+                    const blots = analyzer.blots(Red)
                     blots.sort((a, b) => a.point - b.point)
+                    update(this.fixture, {blots})
                 })
 
-                it('should have 3 blots, p9, p18, p24', () => {
+                it('should have 3 blots, p9, p18, p24', function () {
+                    const {blots} = this.fixture
                     expect(blots).to.have.length(3)
                     expect(blots[0].point).to.equal(9)
                     expect(blots[1].point).to.equal(18)
                     expect(blots[2].point).to.equal(24)
                 })
 
-                it('blot 1 should have 1 direct, 1 indirect, minDistance 6', () => {
+                it('blot 1 should have 1 direct, 1 indirect, minDistance 6', function () {
+                    const {blots} = this.fixture
                     const blot = blots[0]
                     expect(blot.directCount).to.equal(1)
                     expect(blot.indirectCount).to.equal(1)
                     expect(blot.minDistance).to.equal(6)
                 })
 
-                it('blot 2 should have 3 direct, 0 indirect, minDistance 1', () => {
+                it('blot 2 should have 3 direct, 0 indirect, minDistance 1', function () {
+                    const {blots} = this.fixture
                     const blot = blots[1]
                     expect(blot.directCount).to.equal(3)
                     expect(blot.indirectCount).to.equal(0)
                     expect(blot.minDistance).to.equal(1)
                 })
 
-                it('blot 3 should have 1 direct, 2 indirect, minDistance 5', () => {
+                it('blot 3 should have 1 direct, 2 indirect, minDistance 5', function () {
+                    const {blots} = this.fixture
                     const blot = blots[2]
                     expect(blot.directCount).to.equal(1)
                     expect(blot.indirectCount).to.equal(2)
@@ -274,24 +304,27 @@ describe('-', () => {
 
         describe('BlotsMinSkip1', () => {
 
-            beforeEach(() => {
-                load('BlotsMinSkip1')
+            beforeEach(function () {
+                this.load('BlotsMinSkip1')
             })
 
-            it('Red should have 0 blots for isIncludeAll=false', () => {
+            it('Red should have 0 blots for isIncludeAll=false', function () {
+                const {analyzer} = this.fixture
                 const blots = analyzer.blots(Red, false)
                 blots.sort((a, b) => a.point - b.point)
                 expect(blots).to.have.length(0)
             })
 
-            it('Red should have 1 blot on point 3 for isIncludeAll=true', () => {
+            it('Red should have 1 blot on point 3 for isIncludeAll=true', function () {
+                const {analyzer} = this.fixture
                 const blots = analyzer.blots(Red, true)
                 blots.sort((a, b) => a.point - b.point)
                 expect(blots).to.have.length(1)
                 expect(blots[0].point).to.equal(3)
             })
 
-            it('White should have 4 blots on points 9, 11, 12, 16 with isIncludeAll=true', () => {
+            it('White should have 4 blots on points 9, 11, 12, 16 with isIncludeAll=true', function () {
+                const {analyzer} = this.fixture
                 const blots = analyzer.blots(White, true)
                 blots.sort((a, b) => a.point - b.point)
                 expect(blots).to.have.length(4)
@@ -301,7 +334,8 @@ describe('-', () => {
                 expect(blots[3].point).to.equal(16)
             })
 
-            it('White should have no blots when isIncludeAll=false', () => {
+            it('White should have no blots when isIncludeAll=false', function () {
+                const {analyzer} = this.fixture
                 const blots = analyzer.blots(White, false)
                 expect(blots).to.have.length(0)
             })
@@ -309,11 +343,12 @@ describe('-', () => {
 
         describe('BlotsMinSkip2', () => {
 
-            beforeEach(() => {
-                load('BlotsMinSkip2')
+            beforeEach(function () {
+                this.load('BlotsMinSkip2')
             })
 
-            it('White should have 7 blots on points 7, 9, 11, 12, 16, 17, 21 with isIncludeAll=true', () => {
+            it('White should have 7 blots on points 7, 9, 11, 12, 16, 17, 21 with isIncludeAll=true', function () {
+                const {analyzer} = this.fixture
                 const blots = analyzer.blots(White, true)
                 blots.sort((a, b) => a.point - b.point)
                 expect(blots).to.have.length(7)
@@ -326,7 +361,8 @@ describe('-', () => {
                 expect(blots[6].point).to.equal(21)
             })
 
-            it('White should have 1 blot on point 21 with isIncludeAll=false', () => {
+            it('White should have 1 blot on point 21 with isIncludeAll=false', function () {
+                const {analyzer} = this.fixture
                 const blots = analyzer.blots(White, false)
                 expect(blots).to.have.length(1)
                 expect(blots[0].point).to.equal(21)
@@ -335,11 +371,12 @@ describe('-', () => {
 
         describe('BlotsMinSkip3', () => {
 
-            beforeEach(() => {
-                load('BlotsMinSkip3')
+            beforeEach(function () {
+                this.load('BlotsMinSkip3')
             })
 
-            it('Red should have 5 blots on points 2, 3, 7, 12, 13 with isIncludeAll=true', () => {
+            it('Red should have 5 blots on points 2, 3, 7, 12, 13 with isIncludeAll=true', function () {
+                const {analyzer} = this.fixture
                 const blots = analyzer.blots(Red, true)
                 blots.sort((a, b) => a.point - b.point)
                 expect(blots).to.have.length(5)
@@ -350,7 +387,8 @@ describe('-', () => {
                 expect(blots[4].point).to.equal(13)
             })
 
-            it('Red should have 4 blots on points 2, 3, 7, 12 with isIncludeAll=false', () => {
+            it('Red should have 4 blots on points 2, 3, 7, 12 with isIncludeAll=false', function () {
+                const {analyzer} = this.fixture
                 const blots = analyzer.blots(Red, false)
                 blots.sort((a, b) => a.point - b.point)
                 expect(blots).to.have.length(4)
@@ -363,11 +401,12 @@ describe('-', () => {
 
         describe('BlotsMaxSkip1', () => {
 
-            beforeEach(() => {
-                load('BlotsMaxSkip1')
+            beforeEach(function () {
+                this.load('BlotsMaxSkip1')
             })
 
-            it('White whould have 3 blots on points 12, 13, 22 with isIncludeAll=true', () => {
+            it('White whould have 3 blots on points 12, 13, 22 with isIncludeAll=true', function () {
+                const {analyzer} = this.fixture
                 const blots = analyzer.blots(White, true)
                 blots.sort((a, b) => a.point - b.point)
                 expect(blots).to.have.length(3)
@@ -376,7 +415,8 @@ describe('-', () => {
                 expect(blots[2].point).to.equal(22)
             })
 
-            it('White should have 1 blot on point 22 with minDistance 1 with isIncludeAll=false', () => {
+            it('White should have 1 blot on point 22 with minDistance 1 with isIncludeAll=false', function () {
+                const {analyzer} = this.fixture
                 const blots = analyzer.blots(White, false)
                 expect(blots).to.have.length(1)
                 expect(blots[0].point).to.equal(22)
@@ -386,11 +426,12 @@ describe('-', () => {
 
         describe('BlotsMaxSkip2', () => {
 
-            beforeEach(() => {
-                load('BlotsMaxSkip2')
+            beforeEach(function () {
+                this.load('BlotsMaxSkip2')
             })
 
-            it('White whould have 4 blots on points 7, 13, 15, 16 with isIncludeAll=true', () => {
+            it('White whould have 4 blots on points 7, 13, 15, 16 with isIncludeAll=true', function () {
+                const {analyzer} = this.fixture
                 const blots = analyzer.blots(White, true)
                 blots.sort((a, b) => a.point - b.point)
                 expect(blots).to.have.length(4)
@@ -400,7 +441,8 @@ describe('-', () => {
                 expect(blots[3].point).to.equal(16)
             })
 
-            it('White should have 1 blot on point 7 with minDistance 6, directCount 1 and indirectCount 1 with isIncludeAll=false', () => {
+            it('White should have 1 blot on point 7 with minDistance 6, directCount 1 and indirectCount 1 with isIncludeAll=false', function () {
+                const {analyzer} = this.fixture
                 const blots = analyzer.blots(White, false)
                 expect(blots).to.have.length(1)
                 expect(blots[0].point).to.equal(7)
@@ -412,18 +454,19 @@ describe('-', () => {
 
         describe('CornerCase', () => {
 
-            it('should not barf on a sparse board with isIncludeAll=false', () => {
-                load('OneWhitePiece')
-                const result = analyzer.blots(White, false)
-                expect(Array.isArray(result)).to.equal(true)
-                expect(result).to.have.length(0)
+            it('should not barf on a sparse board with isIncludeAll=false', function () {
+                const {analyzer} = this.fixture
+                const blots = analyzer.blots(White, false)
+                expect(Array.isArray(blots)).to.equal(true)
+                expect(blots).to.have.length(0)
             })
         })
     })
 
     describe('#hasBar', () => {
 
-        it('should return true for white with one on bar', () => {
+        it('should return true for white with one on bar', function () {
+            const {board, analyzer} = this.fixture
             board.pushBar(White)
             const result = analyzer.hasBar(White)
             expect(result).to.equal(true)
@@ -432,7 +475,8 @@ describe('-', () => {
 
     describe('#isAllHome', () => {
 
-        it('should return true when red has 15 in home', () => {
+        it('should return true when red has 15 in home', function () {
+            const {board, analyzer} = this.fixture
             for (var i = 0; i < 15; i++) {
                 board.pushHome(Red)
             }
@@ -443,31 +487,36 @@ describe('-', () => {
 
     describe('#isDisengaged', () => {
 
-        it('should return false for Initial', () => {
+        it('should return false for Initial', function () {
+            const {board, analyzer} = this.fixture
             board.setup()
             const result = analyzer.isDisengaged()
             expect(result).to.equal(false)
         })
 
-        it('should return true for Either65Win', () => {
-            load('Either65Win')
+        it('should return true for Either65Win', function () {
+            this.load('Either65Win')
+            const {analyzer} = this.fixture
             const result = analyzer.isDisengaged()
             expect(result).to.equal(true)
         })
 
-        it('should return true for WhiteGammon1', () => {
-            load('WhiteGammon1')
+        it('should return true for WhiteGammon1', function () {
+            this.load('WhiteGammon1')
+            const {analyzer} = this.fixture
             const result = analyzer.isDisengaged()
             expect(result).to.equal(true)
         })
 
-        it('should return false for EngagedWithBar', () => {
-            load('EngagedWithBar')
+        it('should return false for EngagedWithBar', function () {
+            this.load('EngagedWithBar')
+            const {analyzer} = this.fixture
             const result = analyzer.isDisengaged()
             expect(result).to.equal(false)
         })
 
-        it('should return true for empty board', () => {
+        it('should return true for empty board', function () {
+            const {analyzer} = this.fixture
             const result = analyzer.isDisengaged()
             expect(result).to.equal(true)
         })
@@ -475,18 +524,21 @@ describe('-', () => {
 
     describe('#maxOriginOccupied', () => {
 
-        it('should return -Infinity on empty board', () => {
+        it('should return -Infinity on empty board', function () {
+            const {analyzer} = this.fixture
             const result = analyzer.maxOriginOccupied(White)
             expect(result).to.equal(-Infinity)
         })
 
-        it('should return 18 for White on initial', () => {
+        it('should return 18 for White on initial', function () {
+            const {board, analyzer} = this.fixture
             board.setup()
             const result = analyzer.maxOriginOccupied(White)
             expect(result).to.equal(18)
         })
 
-        it('should return 23 for Red on initial', () => {
+        it('should return 23 for Red on initial', function () {
+            const {board, analyzer} = this.fixture
             board.setup()
             const result = analyzer.maxOriginOccupied(Red)
             expect(result).to.equal(23)
@@ -495,7 +547,8 @@ describe('-', () => {
 
     describe('#maxPointOccupied', () => {
 
-        it('should return -Infinity on empty board for each color', () => {
+        it('should return -Infinity on empty board for each color', function () {
+            const {analyzer} = this.fixture
             const r1 = analyzer.maxPointOccupied(White)
             const r2 = analyzer.maxPointOccupied(Red)
             expect(r1).to.equal(-Infinity)
@@ -505,22 +558,25 @@ describe('-', () => {
 
     describe('#mayBearoff', () => {
 
-        it('should return false for white with one on bar', () => {
+        it('should return false for white with one on bar', function () {
+            const {board, analyzer} = this.fixture
             board.pushBar(White)
             const result = analyzer.mayBearoff(White)
             expect(result).to.equal(false)
         })
 
-        it('should return true for red with none on bar and 15 on 0', () => {
-            for (var i = 0; i < 15; ++i) {
+        it('should return true for red with none on bar and 15 on 0', function () {
+            const {board, analyzer} = this.fixture
+            for (let i = 0; i < 15; ++i) {
                 board.pushOrigin(0, Red)
             }
             const result = analyzer.mayBearoff(Red)
             expect(result).to.equal(true)
         })
 
-        it('should return false for red with none on bar and 1 on 0 and 14 on 23', () => {
-            for (var i = 0; i < 14; ++i) {
+        it('should return false for red with none on bar and 1 on 0 and 14 on 23', function () {
+            const {board, analyzer} = this.fixture
+            for (let i = 0; i < 14; ++i) {
                 board.pushOrigin(23, Red)
             }
             board.pushOrigin(0, Red)
@@ -528,7 +584,8 @@ describe('-', () => {
             expect(result).to.equal(false)
         })
 
-        it('should hit maxPoint cache (coverage)', () => {
+        it('should hit maxPoint cache (coverage)', function () {
+            const {board, analyzer} = this.fixture
             board.setup()
             analyzer.cache['maxPointOccupied.White'] = 6
             const result = analyzer.mayBearoff(White)
@@ -538,18 +595,21 @@ describe('-', () => {
 
     describe('#minOriginOccupied', () => {
 
-        it('should return Infinity on empty board', () => {
+        it('should return Infinity on empty board', function () {
+            const {analyzer} = this.fixture
             const result = analyzer.minOriginOccupied(White)
             expect(result).to.equal(Infinity)
         })
 
-        it('should return 0 for White on initial', () => {
+        it('should return 0 for White on initial', function () {
+            const {board, analyzer} = this.fixture
             board.setup()
             const result = analyzer.minOriginOccupied(White)
             expect(result).to.equal(0)
         })
 
-        it('should return 5 for Red on initial', () => {
+        it('should return 5 for Red on initial', function () {
+            const {board, analyzer} = this.fixture
             board.setup()
             const result = analyzer.minOriginOccupied(Red)
             expect(result).to.equal(5)
@@ -558,14 +618,16 @@ describe('-', () => {
 
     describe('#minPointOccupied', () => {
 
-        it('should return Infinity on empty board for each color', () => {
+        it('should return Infinity on empty board for each color', function () {
+            const {analyzer} = this.fixture
             const r1 = analyzer.minPointOccupied(White)
             const r2 = analyzer.minPointOccupied(Red)
             expect(r1).to.equal(Infinity)
             expect(r2).to.equal(Infinity)
         })
 
-        it('should return 6 on initial for each color', () => {
+        it('should return 6 on initial for each color', function () {
+            const {board, analyzer} = this.fixture
             board.setup()
             const r1 = analyzer.minPointOccupied(White)
             const r2 = analyzer.minPointOccupied(Red)
@@ -573,7 +635,8 @@ describe('-', () => {
             expect(r2).to.equal(6)
         })
 
-        it('should return from cache when populated', () => {
+        it('should return from cache when populated', function () {
+            const {analyzer} = this.fixture
             analyzer.cache['minPointOccupied.White'] = 1
             const result = analyzer.minPointOccupied(White)
             expect(result).to.equal(1)
@@ -582,74 +645,103 @@ describe('-', () => {
 
     describe('#nthPieceOnOrigin', () => {
 
-        it('should return empty for 2 on initial', () => {
-            board.setup()
-            const result = analyzer.nthPieceOnOrigin(2, 0)
-            expect(!!result).to.equal(false)
-        })
+        describe('Initial', () => {
 
-        it('should return White for 0,1 on initial', () => {
-            board.setup()
-            const result = analyzer.nthPieceOnOrigin(0, 1)
-            expect(result).to.equal(White)
-        })
+            beforeEach(function () {
+                this.fixture.board.setup()
+            })
 
-        it('should return empty for 0,2 on initial', () => {
-            board.setup()
-            const result = analyzer.nthPieceOnOrigin(0, 2)
-            expect(!!result).to.equal(false)
+            it('should return empty for 2 on initial', function () {
+                const {analyzer} = this.fixture
+                const result = analyzer.nthPieceOnOrigin(2, 0)
+                expect(!!result).to.equal(false)
+            })
+
+            it('should return White for 0,1 on initial', function () {
+                const {analyzer} = this.fixture
+                const result = analyzer.nthPieceOnOrigin(0, 1)
+                expect(result).to.equal(White)
+            })
+
+            it('should return empty for 0,2 on initial', function () {
+                const {analyzer} = this.fixture
+                const result = analyzer.nthPieceOnOrigin(0, 2)
+                expect(!!result).to.equal(false)
+            })
         })
     })
 
     describe('#originOccupier', () => {
 
-        it('should return White for 0 on Initial', () => {
-            board.setup()
-            const result = analyzer.originOccupier(0)
-            expect(result).to.equal(White)
-        })
+        describe('Initial', () => {
 
-        it('should return Red for 23 on Initial', () => {
-            board.setup()
-            const result = analyzer.originOccupier(23)
-            expect(result).to.equal(Red)
-        })
+            beforeEach(function () {
+                this.fixture.board.setup()
+            })
 
-        it('should return empty for 2 on Initial', () => {
-            board.setup()
-            const result = analyzer.originOccupier(1)
-            expect(!!result).to.equal(false)
+            it('should return White for 0', function () {
+                const {analyzer} = this.fixture
+                const result = analyzer.originOccupier(0)
+                expect(result).to.equal(White)
+            })
+
+            it('should return Red for 23', function () {
+                const {analyzer} = this.fixture
+                const result = analyzer.originOccupier(23)
+                expect(result).to.equal(Red)
+            })
+
+            it('should return empty for 2', function () {
+                const {analyzer} = this.fixture
+                const result = analyzer.originOccupier(1)
+                expect(!!result).to.equal(false)
+            })
         })
     })
 
 	describe('#originsOccupied', () => {
 
-		it('should return [5,7,12,23] for red on setup', () => {
-			board.setup()
-			const result = board.analyzer.originsOccupied(Red)
-			const exp = [5, 7, 12, 23]
-			expect(result).to.jsonEqual(exp)
-		})
+        describe('Initial', () => {
+
+            beforeEach(function () {
+                this.fixture.board.setup()
+            })
+
+    		it('should return [5,7,12,23] for Red', function () {
+                const {analyzer} = this.fixture
+    			const exp = [5, 7, 12, 23]
+    			const result = analyzer.originsOccupied(Red)
+    			expect(result).to.jsonEqual(exp)
+    		})
+        })
 	})
 
     describe('#piecesOnPoint', () => {
 
-        it('should return 5 for white 6 for initial state', () => {
-            board.setup()
-            const result = analyzer.piecesOnPoint(White, 6)
-            expect(result).to.equal(5)
-        })
+        describe('Initial', () => {
 
-        it('should return 5 for red 6 for initial state', () => {
-            board.setup()
-            const result = analyzer.piecesOnPoint(Red, 6)
-            expect(result).to.equal(5)
+            beforeEach(function () {
+                this.fixture.board.setup()
+            })
+
+            it('should return 5 for White 6', function () {
+                const {analyzer} = this.fixture
+                const result = analyzer.piecesOnPoint(White, 6)
+                expect(result).to.equal(5)
+            })
+
+            it('should return 5 for Red 6 for', function () {
+                const {analyzer} = this.fixture
+                const result = analyzer.piecesOnPoint(Red, 6)
+                expect(result).to.equal(5)
+            })
         })
     })
 
     describe('#pipCount', () => {
 
-        it('should return 0 for White on blank board', () => {
+        it('should return 0 for White on blank board', function () {
+            const {analyzer} = this.fixture
             const result = analyzer.pipCount(White)
             expect(result).to.equal(0)
         })
@@ -657,17 +749,32 @@ describe('-', () => {
 
     describe('#pipCounts', () => {
 
-        it('should return 167 for each at initial state', () => {
-            board.setup()
-            const result = analyzer.pipCounts()
-            expect(result.Red).to.equal(167)
-            expect(result.White).to.equal(167)
+        describe('Initial', () => {
+
+            beforeEach(function () {
+                this.fixture.board.setup()
+            })
+
+            it('should return 167 for each', function () {
+                const {analyzer} = this.fixture
+                const result = analyzer.pipCounts()
+                expect(result.Red).to.equal(167)
+                expect(result.White).to.equal(167)
+            })
         })
     })
 
     describe('#pointsHeld', () => {
 
-        it('should return expected at initial state for each color, sorted in point order', () => {
+        it('should return empty list on empty board', function () {
+            const {analyzer} = this.fixture
+            const result = analyzer.pointsHeld(White)
+            expect(Array.isArray(result)).to.equal(true)
+            expect(result).to.have.length(0)
+        })
+
+        it('should return expected at initial state for each color, sorted in point order', function () {
+            const {analyzer, board} = this.fixture
             board.setup()
             const exp = [6, 8, 13, 24]
             const r1 = analyzer.pointsHeld(White)
@@ -676,13 +783,8 @@ describe('-', () => {
             expect(r2).to.jsonEqual(exp)
         })
 
-        it('should return empty list on empty board', () => {
-            const result = analyzer.pointsHeld(White)
-            expect(Array.isArray(result)).to.equal(true)
-            expect(result).to.have.length(0)
-        })
-
-        it('should return expected from new cache after White 0:1', () => {
+        it('should return expected from new cache after White 0:1', function () {
+            const {analyzer, board} = this.fixture
             const exp = [6, 8, 13]
             board.setup()
             analyzer.pointsHeld(White)
@@ -696,46 +798,77 @@ describe('-', () => {
 
     describe('#pointsOccupied', () => {
 
-        it('should be sorted and return expected for White at initial state', () => {
-            board.setup()
-            const exp = [6, 8, 13, 24]
-            const result = analyzer.pointsOccupied(White)
-            expect(result).to.jsonEqual(exp)
-        })
+        describe('Initial', () => {
 
-        it('should be sorted and return expected for Red at initial state', () => {
-            board.setup()
-            const exp = [6, 8, 13, 24]
-            const result = analyzer.pointsOccupied(Red)
-            expect(result).to.jsonEqual(exp)
+            beforeEach(function () {
+                this.fixture.board.setup()
+            })
+
+            it('should be sorted and return expected for White', function () {
+                const {analyzer} = this.fixture
+                const exp = [6, 8, 13, 24]
+                const result = analyzer.pointsOccupied(White)
+                expect(result).to.jsonEqual(exp)
+            })
+
+            it('should be sorted and return expected for Red', function () {
+                const {analyzer} = this.fixture
+                const exp = [6, 8, 13, 24]
+                const result = analyzer.pointsOccupied(Red)
+                expect(result).to.jsonEqual(exp)
+            })
         })
     })
 
     describe('#primes', () => {
 
-        it('should return 1 prime of size 5 for white for White5PointPrime1', () => {
-            load('White5PointPrime1')
-            const result = analyzer.primes(White)
-            expect(result).to.have.length(1)
-            expect(result[0].size).to.equal(5)
+        describe('White5PointPrime1', () => {
+
+            beforeEach(function () {
+                this.load('White5PointPrime1')
+            })
+
+            it('should return 1 prime of size 5 for White', function () {
+                const {analyzer} = this.fixture
+                const result = analyzer.primes(White)
+                expect(result).to.have.length(1)
+                expect(result[0].size).to.equal(5)
+            })
         })
 
-        it('should retun 2 primes of size 3 for red for RedTwo3Primes1', () => {
-            load('RedTwo3Primes1')
-            const result = analyzer.primes(Red)
-            expect(result).to.have.length(2)
-            expect(result[0].size).to.equal(3)
-            expect(result[1].size).to.equal(3)
+        describe('RedTwo3Primes1', () => {
+
+            beforeEach(function () {
+                this.load('RedTwo3Primes1')
+            })
+
+            it('should retun 2 primes of size 3 for Red', function () {
+                const {analyzer} = this.fixture
+                const result = analyzer.primes(Red)
+                expect(result).to.have.length(2)
+                expect(result[0].size).to.equal(3)
+                expect(result[1].size).to.equal(3)
+            })
         })
     })
 
     describe('#validateLegalBoard', () => {
+
+        beforeEach(function () {
+            this.getValErrorAssertState = function () {
+                const {analyzer} = this.fixture
+                const err = getError(() => analyzer.validateLegalBoard())
+                expect(err.isIllegalStateError).to.equal(true)
+                return err
+            }
+        })
 
         const legalsKeys = [
             'Initial',
             'Bearoff1Start',
             'RedHasWon'
         ]
+
         const illegalsKeys = [
             'Blank',
             'WhiteCornerCase16',
@@ -744,13 +877,13 @@ describe('-', () => {
         ]
 
         legalsKeys.forEach(name => {
-            it(`should validate ${name}`, () => {
+            it(`should validate ${name}`, function () {
                 fetchBoard(name).analyzer.validateLegalBoard()
             })
         })
 
         illegalsKeys.forEach(name => {
-            it(`should invalidate ${name} with illegal state error`, () => {
+            it(`should invalidate ${name} with illegal state error`, function () {
                 const err = getError(() =>
                     fetchBoard(name).analyzer.validateLegalBoard()
                 )
@@ -758,36 +891,35 @@ describe('-', () => {
             })
         })
 
-        function getValErrorAssertState() {
-            const err = getError(() => analyzer.validateLegalBoard())
-            expect(err.isIllegalStateError).to.equal(true)
-            return err
-        }
-
-        it('should throw when board has extra slot', () => {
+        it('should throw when board has extra slot', function () {
+            const {board} = this.fixture
             board.slots.push([])
-            getValErrorAssertState()
+            this.getValErrorAssertState()
         })
 
-        it('should throw with different colors on origin', () => {
+        it('should throw with different colors on origin', function () {
+            const {board} = this.fixture
             board.pushOrigin(0, White)
             board.pushOrigin(0, Red)
-            getValErrorAssertState()
+            this.getValErrorAssertState()
         })
 
-        it('should throw with invalid object on origin', () => {
+        it('should throw with invalid object on origin', function () {
+            const {board} = this.fixture
             board.slots[0].push({color: 'foo'})
-            getValErrorAssertState()
+            this.getValErrorAssertState()
         })
 
-        it('should throw when a white piece is on the red home', () => {
+        it('should throw when a white piece is on the red home', function () {
+            const {board} = this.fixture
             board.pushHome(Red, new Piece(White))
-            getValErrorAssertState()
+            this.getValErrorAssertState()
         })
 
-        it('should throw when a white piece is on the red bar', () => {
+        it('should throw when a white piece is on the red bar', function () {
+            const {board} = this.fixture
             board.pushBar(Red, new Piece(White))
-            getValErrorAssertState()
+            this.getValErrorAssertState()
         })
     })
 })
