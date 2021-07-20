@@ -242,7 +242,7 @@
                 params.action = action
                 params.id = this.id
                 params.color = this.color
-                return await this.client.sendAndWaitForResponse(params, action)
+                return await this.client._sendAndWaitForResponse(params, action)
             }
         }
 
@@ -264,7 +264,7 @@
                 await this.connect()
 
                 clientLog('Creating new match')
-                const {match} = await this.sendAndWaitForResponse({action: 'createMatch', total, opts}, 'matchCreated')
+                const {match} = await this._sendAndWaitForResponse({action: 'createMatch', total, opts}, 'matchCreated')
                 clientLog('Created new match', match.id)
 
                 clientLog('Waiting for opponent to join')
@@ -279,7 +279,7 @@
                 await this.connect()
 
                 clientLog('Joining match', id)
-                const {match} = await this.sendAndWaitForResponse({action: 'joinMatch', id}, 'matchJoined')
+                const {match} = await this._sendAndWaitForResponse({action: 'joinMatch', id}, 'matchJoined')
                 clientLog('Joined match', id)
 
                 return match
@@ -316,7 +316,7 @@
 
             async handshake() {
                 const {token} = this
-                const res = await this.sendAndWaitForResponse({action: 'establishSecret', token}, 'acknowledgeSecret')
+                const res = await this._sendAndWaitForResponse({action: 'establishSecret', token}, 'acknowledgeSecret')
                 clientLog('Socket handshake success')
                 this.isHandshake = true
                 return res

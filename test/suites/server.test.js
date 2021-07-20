@@ -286,7 +286,7 @@ describe('-', () => {
                     this.setLoglevel(-1)
                     await client.connect()
                     const err = await getError(() =>
-                        client.sendAndWaitForResponse({secret: null})
+                        client._sendAndWaitForResponse({secret: null})
                     )
                     expect(err.isHandshakeError).to.equal(true)
                 })
@@ -296,7 +296,7 @@ describe('-', () => {
                     this.setLoglevel(-1)
                     await bareConn(client)
                     const err = await getError(() =>
-                        client.sendAndWaitForResponse({secret: 'abc'})
+                        client._sendAndWaitForResponse({secret: 'abc'})
                     )
                     expect(err.isHandshakeError).to.equal(true)
                 })
@@ -309,7 +309,7 @@ describe('-', () => {
                         await bareConn(client)
                         const req = {secret: 'abcdefghijklmnopqrstuvw', action: 'establishSecret'}
                         const err = await getError(() =>
-                            client.sendAndWaitForResponse(req)
+                            client._sendAndWaitForResponse(req)
                         )
                         expect(err.isHandshakeError).to.equal(true)
                     })
@@ -320,7 +320,7 @@ describe('-', () => {
                         await client.connect()
                         const req = {secret: Client.generateSecret(), action: 'establishSecret'}
                         const err = await getError(() =>
-                            client.sendAndWaitForResponse(req)
+                            client._sendAndWaitForResponse(req)
                         )
                         expect(err.isHandshakeError).to.equal(true)
                     })
@@ -332,7 +332,7 @@ describe('-', () => {
                         const {client} = this.fixture
                         await client.connect()
                         const req = {action: 'createMatch', total: 1}
-                        const res = await client.sendAndWaitForResponse(req)
+                        const res = await client._sendAndWaitForResponse(req)
                         expect(res.action).to.equal('matchCreated')
                         expect(typeof res.id).to.equal('string')
                         expect(res.id).to.have.length(8)
@@ -360,13 +360,13 @@ describe('-', () => {
                         let promise
                         client1.on('response', ({action, id}) => {
                             if (action == 'matchCreated') {
-                                promise = client2.sendMessage({action: 'joinMatch', id}).waitForResponse()
+                                promise = client2._sendMessage({action: 'joinMatch', id})._waitForResponse()
                             }
                         })
 
-                        await client1.sendMessage({action: 'createMatch', total: 1}).waitForResponse()
+                        await client1._sendMessage({action: 'createMatch', total: 1})._waitForResponse()
 
-                        const res1 = await client1.waitForResponse()
+                        const res1 = await client1._waitForResponse()
                         const res2 = await promise
 
                         expect(res1.action).to.equal('opponentJoined')
@@ -380,7 +380,7 @@ describe('-', () => {
                         await client.connect()
                         const req = {action: 'joinMatch', id: '12345678'}
                         const err = await getError(() =>
-                            client.sendAndWaitForResponse(req)
+                            client._sendAndWaitForResponse(req)
                         )
                         expect(err.isMatchNotFoundError).to.equal(true)
                     })

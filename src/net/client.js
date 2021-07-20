@@ -185,10 +185,10 @@ class Client extends EventEmitter {
                         }
                         return
                     }
-                    this.handleMessage(data)
+                    this._handleMessage(data)
                 })
 
-                this.handshake().then(() => {
+                this._handshake().then(() => {
                     resolve()
                     // In case we reject afterward, probably a noop.
                     reject = err => this.emit('error', err)
@@ -233,10 +233,10 @@ class Client extends EventEmitter {
      *
      * @returns object
      */
-    async handshake() {
+    async _handshake() {
         const {username, password, token} = this
         const req = {action: 'establishSecret', username, password, token}
-        const res = await this.sendAndWaitForResponse(req, 'acknowledgeSecret')
+        const res = await this._sendAndWaitForResponse(req, 'acknowledgeSecret')
         this.logger.log('Server handshake success')
         this.isHandshake = true
         return res
@@ -261,7 +261,7 @@ class Client extends EventEmitter {
 
         const {total} = opts
         const req = {action: 'createMatch', total, opts}
-        let res = await this.sendAndWaitForResponse(req, 'matchCreated')
+        let res = await this._sendAndWaitForResponse(req, 'matchCreated')
 
         const {id, match} = res
 
@@ -274,7 +274,7 @@ class Client extends EventEmitter {
 
         this.logger.info('Waiting for opponent to join')
 
-        res = await this.waitForResponse('opponentJoined')
+        res = await this._waitForResponse('opponentJoined')
 
         this.logger.info('Opponent joined', id)
         this.emit('opponentJoined', this.match)
@@ -299,7 +299,7 @@ class Client extends EventEmitter {
 
         this.logger.info('Joining match', id)
         const req = {action: 'joinMatch', id}
-        let res = await this.sendAndWaitForResponse(req, 'matchJoined')
+        let res = await this._sendAndWaitForResponse(req, 'matchJoined')
 
         const {match} = res
 
@@ -339,7 +339,7 @@ class Client extends EventEmitter {
     async matchRequest(action, params) {
         const req = {...this.matchParams(action), ...params}
         this.emit('matchRequest', req)
-        const res = await this.sendAndWaitForResponse(req, action)
+        const res = await this._sendAndWaitForResponse(req, action)
         this.emit('matchResponse', req, res)
         return res
     }
@@ -364,9 +364,9 @@ class Client extends EventEmitter {
      *
      * @returns object|Error|null
      */
-    sendAndWaitForResponse(req, action = null) {
-        const promise = this.waitForResponse(action)
-        this.sendMessage(req)
+    _sendAndWaitForResponse(req, action = null) {
+        const promise = this._waitForResponse(action)
+        this._sendMessage(req)
         return promise
     }
 
@@ -408,9 +408,9 @@ class Client extends EventEmitter {
      *
      * @returns object|Error|null
      */
-    async waitForResponse(action = null) {
+    async _waitForResponse(action = null) {
 
-        const data = await this.waitForMessage()
+        const data = await this._waitForMessage()
 
         try {
 
@@ -438,7 +438,7 @@ class Client extends EventEmitter {
 
                 if (err.isMatchCanceledError) {
 
-                    this.logger.debug('cancelMatch.from.waitForResponse')
+                    this.logger.debug('cancelMatch.from._waitForResponse')
 
                     if (!this.cancelMatch(err)) {
 
@@ -476,10 +476,10 @@ class Client extends EventEmitter {
      *
      * @returns object
      */
-    waitForMessage() {
+    _waitForMessage() {
 
         return new Promise((resolve, reject) => {
-            if (!this.conn) {
+            if (!this.isConnected) {
                 reject(new ConnectionClosedError('Connection lost'))
                 return
             }
@@ -539,7 +539,7 @@ class Client extends EventEmitter {
      * @emits unhandledMessage
      * @emits error
      */
-    handleMessage(data) {
+    _handleMessage(data) {
 
         this.logger.debug('message', trimMessageData(data))
 
@@ -553,7 +553,7 @@ class Client extends EventEmitter {
             if (data.action == 'matchCanceled') {
                 err = new MatchCanceledError(data.reason, {attrs: data.attrs})
                 // Let the matchCanceled handler take care of the error.
-                this.logger.debug('cancelMatch.from.handleMessage')
+                this.logger.debug('cancelMatch.from._handleMessage')
                 if (this.cancelMatch(err)) {
                     return
                 }
@@ -587,7 +587,7 @@ class Client extends EventEmitter {
      *
      * @returns self
      */
-    sendMessage(req) {
+    _sendMessage(req) {
         req = {secret: this.secret, ...req}
         this.logger.debug('sendMessage', trimMessageData(req))
         this.conn.sendUTF(JSON.stringify(req))

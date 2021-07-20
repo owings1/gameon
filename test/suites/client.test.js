@@ -148,7 +148,7 @@ describe('-', () => {
             })
             client2.on('matchCanceled', err => {})
             this.createMatch().then(() => {
-                client1.handleMessage({action: 'matchCanceled', reason: 'testing'})
+                client1._handleMessage({action: 'matchCanceled', reason: 'testing'})
             }).catch(done)
         })
 
@@ -163,7 +163,7 @@ describe('-', () => {
                 }
                 done()
             })
-            client.handleMessage({action: exp})
+            client._handleMessage({action: exp})
         })
 
         it('should emit unhandledMessage on matchCanceled with handler but no active match', function (done) {
@@ -177,7 +177,7 @@ describe('-', () => {
                 }
                 done()
             })
-            client.handleMessage({action: 'matchCanceled', reason: 'giggles'})
+            client._handleMessage({action: 'matchCanceled', reason: 'giggles'})
         })
 
         it('should emit error with MatchCanceledError no other handler', function (done) {
@@ -191,7 +191,7 @@ describe('-', () => {
                 done()
             })
             this.setLoglevel(0)
-            client.handleMessage({action: 'matchCanceled', reason: 'giggles'})
+            client._handleMessage({action: 'matchCanceled', reason: 'giggles'})
         })
 
         it('should emit error with ClientError when no other handler', function (done) {
@@ -205,7 +205,7 @@ describe('-', () => {
                 done()
             })
             this.setLoglevel(0)
-            client.handleMessage({action: 'fooo'})
+            client._handleMessage({action: 'fooo'})
         })
 
         it('should emit responseError on malformed JSON message from server', function (done) {
@@ -301,34 +301,34 @@ describe('-', () => {
         })
     })
 
-    describe('#sendAndWaitForResponse', () => {
+    describe('#_sendAndWaitForResponse', () => {
 
         it('should throw when waitForResponse throws (coverage)', async function () {
             const {client} = this.fixture
             const e = new Error
-            client.waitForResponse = () => {throw e}
-            const err = await getError(() => client.sendAndWaitForResponse())
+            client._waitForResponse = () => {throw e}
+            const err = await getError(() => client._sendAndWaitForResponse())
             expect(err).to.equal(e)
         })
 
         it('should throw when sendMessage throws (coverage)', async function () {
             const {client} = this.fixture
             const e = new Error
-            client.waitForResponse = () => {}
-            client.sendMessage = () => {throw e}
-            const err = await getError(() => client.sendAndWaitForResponse())
+            client._waitForResponse = () => {}
+            client._sendMessage = () => {throw e}
+            const err = await getError(() => client._sendAndWaitForResponse())
             expect(err).to.equal(e)
         })
     })
 
-    describe('#waitForMessage', () => {
+    describe('#_waitForMessage', () => {
 
         it('should reject with ConnectionClosedError when conn is lost', async function () {
             const {client} = this.fixture
             const conn = client.conn
             client.conn = null
             try {
-                const err = await getError(() => client.waitForMessage())
+                const err = await getError(() => client._waitForMessage())
                 expect(err.name).to.equal('ConnectionClosedError')
             } finally {
                 client.conn = conn
@@ -338,8 +338,8 @@ describe('-', () => {
         it('should throw ParallelRequestError for duplicate calls', async function () {
             const {client} = this.fixture
             await client.connect()
-            client.waitForMessage()
-            const err = await getError(() => client.waitForMessage())
+            client._waitForMessage()
+            const err = await getError(() => client._waitForMessage())
             expect(err.isParallelRequestError).to.equal(true)
         })
 
@@ -375,7 +375,7 @@ describe('-', () => {
 
         it('should throw error when response has isError=true', async function () {
             const {client, server} = this.fixture
-            const prom = getError(() => client.waitForResponse('test'))
+            const prom = getError(() => client._waitForResponse('test'))
             const conns = Object.values(server.socketServer.conns)
             server.sendMessage(conns, {isError: true, error: 'testErrorMessage'})
             const err = await prom
@@ -385,7 +385,7 @@ describe('-', () => {
         it('should throw error when response has mismatched action', async function () {
             const {client, server} = this.fixture
             this.setLoglevel(-1)
-            const prom = getError(() => client.waitForResponse('test'))
+            const prom = getError(() => client._waitForResponse('test'))
             const conns = Object.values(server.socketServer.conns)
             server.sendMessage(conns, {action: 'testErrorMessage'})
             const err = await prom
@@ -395,7 +395,7 @@ describe('-', () => {
         it('should throw MatchCanceledError for response action=matchCanceled with reason as message', async function () {
             const {client, server} = this.fixture
             this.setLoglevel(-1)
-            const prom = getError(() => client.waitForResponse('test'))
+            const prom = getError(() => client._waitForResponse('test'))
             const conns = Object.values(server.socketServer.conns)
             server.sendMessage(conns, {action: 'matchCanceled', reason: 'testReason'})
             const err = await prom
@@ -407,7 +407,7 @@ describe('-', () => {
             const {client, server} = this.fixture
             await client.connect()
             const err = new Errors.RequestError('test', {attrs: {isClientShouldClose: true}})
-            const prom = client.waitForResponse()
+            const prom = client._waitForResponse()
             server.sendMessage(Object.values(server.socketServer.conns), err)
             const caught = await getError(() => prom)
             await new Promise(resolve => setTimeout(resolve, 30))
