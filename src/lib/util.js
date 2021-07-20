@@ -353,7 +353,7 @@ class Util {
             parts.push(e.key.name)
             return parts.join('-')
         }
-        if (e.value == null) {
+        if (e.value == null && e.key.name) {
             return e.key.name
         }
         if (e.key.name && e.key.name.length > 1) {
@@ -399,6 +399,9 @@ class Util {
         if (!chr.length) {
             throw new InvalidCharError(`Unrepeatable character: '${chr}'`)
         }
+        if (n == Infinity) {
+            throw new ArgumentError('Refusing to go to infinity')
+        }
         return ''.padEnd(n, chr)
     }
 
@@ -413,6 +416,9 @@ class Util {
     }
 
     static nmap(n, cb) {
+        if (n == Infinity) {
+            throw new ArgumentError('Refusing to go to infinity')
+        }
         const arr = []
         for (let i = 0; i < n; ++i) {
             arr.push(cb(i))
@@ -421,6 +427,9 @@ class Util {
     }
 
     static ntimes(n, cb) {
+        if (n == Infinity) {
+            throw new ArgumentError('Refusing to go to infinity')
+        }
         let ret
         for (let i = 0; i < n; ++i) {
             ret = cb(i)
@@ -441,6 +450,9 @@ class Util {
         if (!chr.length) {
             throw new InvalidCharError(`Unrepeatable character: '${chr}'`)
         }
+        if (n == Infinity) {
+            throw new ArgumentError('Refusing to go to infinity')
+        }
         while (Util.stripAnsi(str).length < n) {
             str += chr
         }
@@ -451,6 +463,9 @@ class Util {
     static padStart(str, n, chr) {
         if (!chr.length) {
             throw new InvalidCharError(`Unrepeatable character: '${chr}'`)
+        }
+        if (n == Infinity) {
+            throw new ArgumentError('Refusing to go to infinity')
         }
         while (Util.stripAnsi(str).length < n) {
             str = chr + str
@@ -1085,7 +1100,8 @@ class StyleHelper {
 }
 
 const {
-    CircularDependencyError
+    ArgumentError
+  , CircularDependencyError
   , DependencyError
   , IllegalStateError
   , IncompatibleKeysError
@@ -1105,12 +1121,5 @@ Util.update(Util, {
   , StringBuilder
   , StyleHelper
 })
-/*
-Util.Counter          = Counter
-Util.DependencyHelper = DependencyHelper
-Util.Profiler         = Profiler
-Util.Timer            = Timer
-Util.StringBuilder    = StringBuilder
-Util.StyleHelper      = StyleHelper
-*/
+
 module.exports = Util

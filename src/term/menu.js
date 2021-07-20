@@ -106,7 +106,7 @@ const {
   , PlayChoiceMap
 } = Constants.Menu
 
-const ResizeTimoutMs = 100
+const ResizeTimoutMs = 200
 
 const InterruptCancelEvent = {
     interrupt: true
@@ -180,7 +180,20 @@ class Menu extends EventEmitter {
                   , pad    : str => this.theme.alert.box(str)
                   , erase  : str => this.theme.alert.screen(str)
                 }
-          })
+            })
+          , screen: new TermBox({
+                top         : 1
+              , minWidth    : this.term.width
+              , maxWidth    : this.term.width
+              , minHeight   : this.term.height
+              , maxHeight   : this.term.height
+              , term        : this.term
+              , isBorder    : true
+              , borderStyle : 'solid'
+              , format : {
+                    border: str => this.theme.menu.screen.border(str)
+                }
+            })
         }
     }
 
@@ -1195,12 +1208,19 @@ class Menu extends EventEmitter {
     writeMenuBackground() {
         Object.values(this.boxes).forEach(box => box.status.reset())
         const chlk = this.theme.menu
-        const str = chlk.screen(nchars(this.term.width, ' '))
+        const str = chlk.screen(nchars(this.term.width - 0, ' '))
 
         this.term.saveCursor()
-            .writeArea(1, 1, 1, this.term.height, str)
+            .writeArea(1, 1, 1, this.term.height - 0, str)
             .restoreCursor()
 
+        update(this.boxes.screen.opts, {
+            minWidth  : this.term.width
+          , maxWidth  : this.term.width
+          , minHeight : this.term.height
+          , maxHeight : this.term.height
+        })
+        this.boxes.screen.drawBorder()
         this.hasMenuBackground = true
     }
 

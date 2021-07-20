@@ -99,7 +99,7 @@ class RequestError extends BaseError {
             } else {
                 err.cause = body.error
             }
-            err.message += ' (' + [err.cause.name, err.cause.message].filter(it => it).join(': ') + ')'
+            err.message += ' (' + [err.cause.name, err.cause.message].filter(Boolean).join(': ') + ')'
         }
         return err
     }
@@ -122,6 +122,14 @@ class ClientError extends BaseError {
         error.message = message
         error.responseHeaders = lines.slice(1)
         return error
+    }
+
+    // From WebSocketClient:
+    //  ❯ You must specify a full WebSocket URL, including protocol.
+    //  ❯ You must specify a full WebSocket URL, including hostname. Relative URLs are not supported.
+    //  ❯ Protocol list contains invalid character ...
+    static forConnectThrowsError(err) {
+        return new ClientError(new ArgumentError(err.message))
     }
 
     static forData(data, fallbackMessage) {

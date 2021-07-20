@@ -432,7 +432,7 @@ class Coordinator {
                     this.logger.debug('matchCanceled unhandled by', name, ...eminfo)
                 }
                 return [name, eminfo, emitter]
-            }).filter(it => it).map(([name, eminfo, emitter]) => {
+            }).filter(Boolean).map(([name, eminfo, emitter]) => {
                 try {
                     emitter.emit('error', err)
                     this.logger.debug('generic error handled by', name, ...eminfo)
@@ -441,7 +441,7 @@ class Coordinator {
                     this.logger.warn('generic error unhandled by', name, ...eminfo)
                     return [name, eminfo, e]
                 }
-            }).filter(it => it)
+            }).filter(Boolean)
             if (!emErrs.length) {
                 return
             }

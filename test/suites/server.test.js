@@ -241,7 +241,7 @@ describe('-', () => {
 
                 it('should throw MatchNotFoundError for non-existent match', function () {
                     const {server} = this.fixture
-                    const secret = Client.generateSecret()
+                    const secret = new Client().secret
                     const req = {color: White, id: '12345678', secret}
                     const err = getError(() =>
                         server.getMatchForRequest(req)
@@ -318,7 +318,7 @@ describe('-', () => {
                         const {client} = this.fixture
                         this.setLoglevel(-1)
                         await client.connect()
-                        const req = {secret: Client.generateSecret(), action: 'establishSecret'}
+                        const req = {secret: new Client().secret, action: 'establishSecret'}
                         const err = await getError(() =>
                             client._sendAndWaitForResponse(req)
                         )

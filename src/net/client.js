@@ -75,6 +75,8 @@ const {
 class Client extends EventEmitter {
 
     /**
+     * Constructor
+     *
      * @param object (optional) The credentials, serverUrl, username, password.
      */
     constructor(credentials) {
@@ -90,7 +92,7 @@ class Client extends EventEmitter {
         this.password = password
 
         this.socketClient = new WsClient
-        this.secret = Client.generateSecret()
+        this.secret = secret1()
 
         this.token = null
         this.conn = null
@@ -102,6 +104,8 @@ class Client extends EventEmitter {
     }
 
     /**
+     * Connect to the socket server.
+     *
      * @async
      *
      * @throws ClientError
@@ -198,7 +202,7 @@ class Client extends EventEmitter {
             try {
                 this.socketClient.connect(this.serverSocketUrl)
             } catch (err) {
-                reject(err)
+                reject(ClientError.forConnectThrowsError(err))
             }
         })
     }
@@ -227,22 +231,10 @@ class Client extends EventEmitter {
     }
 
     /**
-     * @async
+     * Create a new match. Sends a `createMatch` request to the server. Emits
+     * the matchCreated event once the server creates the match. Emits the
+     * opponentJoined event when the opponent joins, and returns the match.
      *
-     * @throws ClientError
-     *
-     * @returns object
-     */
-    async _handshake() {
-        const {username, password, token} = this
-        const req = {action: 'establishSecret', username, password, token}
-        const res = await this._sendAndWaitForResponse(req, 'acknowledgeSecret')
-        this.logger.log('Server handshake success')
-        this.isHandshake = true
-        return res
-    }
-
-    /**
      * @async
      *
      * @param object The match options, which must include `total`.
@@ -343,6 +335,111 @@ class Client extends EventEmitter {
         this.emit('matchResponse', req, res)
         return res
     }
+
+    /**
+     *
+     * @param Error
+     *
+     * @returns boolean Whether a reject handler was called.
+     */
+    cancelWaiting(err) {
+        if (this.messageReject) {
+            this.logger.debug('cancelWaiting.rejecting')
+            this.messageReject(err)
+            return true
+        }
+        this.logger.debug('cancelWaiting.nothing.waiting')
+        return false
+    }
+
+    /**
+     * Emit matchCanceled if there is an active match, and clear the current
+     * match properties.
+     *
+     * @param Error The error to pass to the matchCanceled event
+     *
+     * @returns boolean Whether there was an active match AND a listener attached
+     */
+    cancelMatch(err) {
+        if (!this.match) {
+            this.logger.log('No match to cancel')
+            return false
+        }
+        let isHandled = false
+        try {
+            isHandled = this.emit('matchCanceled', err)
+        } finally {
+            this.clearCurrentMatch()
+        }
+        if (isHandled) {
+            this.logger.debug('matchCanceled', 'handled')
+        }
+        return isHandled
+    }
+
+    /**
+     * Clear the current match properties.
+     *
+     * @returns self
+     */
+    clearCurrentMatch() {
+        return update(this, {
+            match   : null
+          , matchId : null
+          , color   : null
+        })
+    }
+
+    /**
+     *
+     * @param object|string
+     *
+     * @returns object
+     */
+    matchParams(params) {
+        if (typeof params == 'string') {
+            params = {action: params}
+        }
+        return {id: this.matchId, color: this.color, ...params}
+    }
+
+    /**
+     * @param string|null The server URL.
+     *
+     * @returns self
+     */
+    setServerUrl(serverUrl) {
+        this.serverSocketUrl = httpToWs(serverUrl)
+        this.serverHttpUrl = stripTrailingSlash(wsToHttp(serverUrl))
+        return this
+    }
+
+    /**
+     * Getter for isConnected (boolean)
+     */
+    get isConnected() {
+        return Boolean(this.conn && this.conn.connected)
+    }
+
+    /**
+     * Getter for loglevel (integer)
+     */
+    get loglevel() {
+        return this.logger.loglevel
+    }
+
+    /**
+     * Setter for loglevel (integer)
+     */
+    set loglevel(n) {
+        this.logger.loglevel = n
+    }
+
+    /**
+     * ┏━━━━━━━━━━━━━━━━━┓
+     * ┃ Private Methods ┃
+     * ┗━━━━━━━━━━━━━━━━━┛
+     */
 
     /**
      * Send a message, then wait for a response, optionally of a specific action.
@@ -515,22 +612,6 @@ class Client extends EventEmitter {
     }
 
     /**
-     *
-     * @param Error
-     *
-     * @returns boolean Whether a reject handler was called.
-     */
-    cancelWaiting(err) {
-        if (this.messageReject) {
-            this.logger.debug('cancelWaiting.rejecting')
-            this.messageReject(err)
-            return true
-        }
-        this.logger.debug('cancelWaiting.nothing.waiting')
-        return false
-    }
-
-    /**
      * Message event handler.
      *
      * @param object
@@ -595,91 +676,19 @@ class Client extends EventEmitter {
     }
 
     /**
-     * Emit matchCanceled if there is an active match, and clear the current
-     * match properties.
+     * @async
      *
-     * @param Error The error to pass to the matchCanceled event
-     *
-     * @returns boolean Whether there was an active match AND a listener attached
-     */
-    cancelMatch(err) {
-        if (!this.match) {
-            this.logger.log('No match to cancel')
-            return false
-        }
-        let isHandled = false
-        try {
-            isHandled = this.emit('matchCanceled', err)
-        } finally {
-            this.clearCurrentMatch()
-        }
-        if (isHandled) {
-            this.logger.debug('matchCanceled', 'handled')
-        }
-        return isHandled
-    }
-
-    /**
-     * Clear the current match properties.
-     *
-     * @returns self
-     */
-    clearCurrentMatch() {
-        return update(this, {
-            match   : null
-          , matchId : null
-          , color   : null
-        })
-    }
-
-    /**
-     *
-     * @param object|string
+     * @throws ClientError
      *
      * @returns object
      */
-    matchParams(params) {
-        if (typeof params == 'string') {
-            params = {action: params}
-        }
-        return {id: this.matchId, color: this.color, ...params}
-    }
-
-    /**
-     * @param string|null The server URL.
-     *
-     * @returns self
-     */
-    setServerUrl(serverUrl) {
-        this.serverSocketUrl = httpToWs(serverUrl)
-        this.serverHttpUrl = stripTrailingSlash(wsToHttp(serverUrl))
-        return this
-    }
-
-    get isConnected() {
-        return Boolean(this.conn && this.conn.connected)
-    }
-
-    /**
-     * Getter for loglevel (integer).
-     */
-    get loglevel() {
-        return this.logger.loglevel
-    }
-
-    /**
-     * Setter for loglevel (integer).
-     */
-    set loglevel(n) {
-        this.logger.loglevel = n
-    }
-
-    /**
-     *
-     * @returns string
-     */
-    static generateSecret() {
-        return secret1()
+    async _handshake() {
+        const {username, password, token} = this
+        const req = {action: 'establishSecret', username, password, token}
+        const res = await this._sendAndWaitForResponse(req, 'acknowledgeSecret')
+        this.logger.log('Server handshake success')
+        this.isHandshake = true
+        return res
     }
 }
 

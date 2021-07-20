@@ -99,8 +99,8 @@ class TermBox {
         top  += isBorder + pad
         left += isBorder + pad
 
-        const termHeightAdj = term.height - b2 - pad2 - (top - 1)
-        const termWidthAdj = term.width - b2 - pad2 - (left - 1)
+        const termHeightAdj = term.height - isBorder - pad - (top - 1)
+        const termWidthAdj = term.width - isBorder - pad - (left - 1)
 
         const minHeight = Math.min(termHeightAdj, opts.minHeight)
         const maxHeight = Math.min(termHeightAdj, opts.maxHeight)

@@ -52,7 +52,9 @@ const BuiltIn = {
           , 'alert.error.level.color'      : 'red'
           , 'alert.warn.level.color'       : 'yellow'
 
-          , 'menu.screen.background' : 'grey dim'
+          , 'menu.screen.background'   : 'grey dim'
+          , 'menu.screen.border.color' : 'white'
+
           , 'menu.box.border.background'  : 'cyan'
           , 'menu.box.border.color'       : 'black'
 
@@ -79,8 +81,10 @@ const BuiltIn = {
 
           , 'alert.error.message.color' : 'pink'
 
-          , 'menu.screen.background' : 'yellow'
+          , 'menu.screen.background'   : 'yellow'
+          , 'menu.screen.border.color' : 'orange'
           , 'menu.box.border.background'  : 'red'
+          , 'menu.box.border.color'       : 'grey'
 
           , 'prompt.answer.color'               : 'blue'
           , 'prompt.input.color'                : 'green'
@@ -141,6 +145,8 @@ const Categories = [
   , 'alert.error.message'
 
   , 'menu.screen'
+  , 'menu.screen.border'
+
   , 'menu.box'
   , 'menu.box.border'
 
@@ -201,7 +207,9 @@ const CategoryAliases = {
   , 'diff.plus'  : 'text'
   , 'diff.minus' : 'text'
 
-  , 'menu.screen'     : 'text'
+  , 'menu.screen'        : 'text'
+  , 'menu.screen.border' : 'text'
+
   , 'menu.box'        : 'text'
   , 'menu.box.border' : 'menu.box'
 
@@ -277,6 +285,7 @@ const KeyAliases = {
   , 'prompt.choice.paren.selected.color'       : 'prompt.choice.paren.color'
   , 'prompt.choice.paren.selected.background'  : 'prompt.choice.number.selected.background'
 
+  , 'menu.screen.border.background' : 'menu.screen.background'
   //, 'menu.box.border.background' : 'menu.screen.background'
 }
 

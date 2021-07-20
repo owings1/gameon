@@ -50,7 +50,6 @@ class Email {
           , fromAddress    : env.EMAIL_FROM_ADDRESS || DefaultEmailFromAddress
           , connectTimeout : +env.EMAIL_CONNECTTIMEOUT || 60 * 1000
           , logAllMessages : !!env.EMAIL_LOGALLMESSAGES
-          , loggerPrefix   : null
         }
     }
 
@@ -66,8 +65,7 @@ class Email {
     constructor(impl, opts) {
         this.impl = impl
         this.opts = Util.defaults(Email.defaults(process.env), opts)
-        const loggerName = [this.opts.loggerPrefix, this.constructor.name].filter(it => it).join('.')
-        this.logger = new Logger(loggerName, {server: true})
+        this.logger = new Logger(this.constructor.name, {server: true})
     }
 
     // standard is SES sendEmail structure

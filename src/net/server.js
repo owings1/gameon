@@ -171,7 +171,9 @@ class Server {
     }
 
     /**
+     * @param boolean (optional)
      *
+     * @returns self
      */
     close(isSkipLog) {
         if (!isSkipLog) {
@@ -289,6 +291,7 @@ class Server {
             })
         }
     }
+
     /**
      * @async
      *
@@ -296,7 +299,6 @@ class Server {
      */
     fetchMetrics() {
         return this.promRegistry.metrics()
-        //return prom.register.metrics()
     }
 
     /**

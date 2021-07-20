@@ -24,18 +24,14 @@
  */
 const Test = require('../util')
 const {
-    expect
+    destroyAll
+  , expect
   , getError
   , newRando
   , requireSrc
+  , ucfirst
+  , update
 } = Test
-
-const Constants = requireSrc('lib/constants')
-const Util      = requireSrc('lib/util')
-
-const {Red, White} = Constants
-
-const {destroyAll, ucfirst} = Util
 
 describe('NetPlayer', () => {
 
@@ -45,6 +41,8 @@ describe('NetPlayer', () => {
     const Client      = requireSrc('net/client')
     const Server      = requireSrc('net/server')
     const NetPlayer   = requireSrc('net/player')
+
+    const {Red, White} = requireSrc('lib/constants')
 
     beforeEach(async function () {
 
@@ -131,6 +129,35 @@ describe('NetPlayer', () => {
         for (let cleaner of this.cleans) {
             await cleaner()
         }
+    })
+
+    it('should set loglevel to 0', function () {
+        // coverage for loglevel getter
+        const {client} = this.fixture
+        const player = new NetPlayer(client, Red)
+        this.cleans.push(() => destroyAll([player]))
+        player.loglevel = 0
+        expect(player.loglevel).to.equal(0)
+    })
+
+    it('should emit matchCanceled on opponent if server shuts down before opponent joins', function (done) {
+        const {client1, client2, server} = this.fixture
+        const p1 = new NetPlayer(client1, White)
+        const p2 = new NetPlayer(client2, White)
+        this.cleans.push(() => destroyAll([p1, p2]))
+        p1.opponent = p2
+        p2.once('matchCanceled', () => done())
+        client1.once('matchCreated', () => server.close())
+        client1.createMatch({total: 1}).catch(err => {})
+    })
+
+    it('should not barf when no opponent if server shuts down before opponent joins', function (done) {
+        // coverage
+        const {client, server} = this.fixture
+        const p1 = new NetPlayer(client, White)
+        this.cleans.push(() => destroyAll([p1]))
+        client.once('matchCreated', () => server.close())
+        client.createMatch({total: 1}).catch(err => done())
     })
 
     it('should play robot v robot over net', async function () {

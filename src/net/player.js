@@ -139,18 +139,18 @@ class NetPlayer extends Base {
 
     async rollTurn(turn, game, match) {
         const res = await this.client.matchRequest('rollTurn')
-        if (this._checkCanceled(turn, game, match)) {
-            return
-        }
+        //if (this._checkCanceled(turn, game, match)) {
+        //    return
+        //}
         this.dice = res.dice
         turn.roll()
     }
 
     async turnOption(turn, game, match) {
         const res = await this.client.matchRequest('turnOption')
-        if (this._checkCanceled(turn, game, match)) {
-            return
-        }
+        //if (this._checkCanceled(turn, game, match)) {
+        //    return
+        //}
         if (res.isDouble) {
             turn.setDoubleOffered()
         }
@@ -158,9 +158,9 @@ class NetPlayer extends Base {
 
     async decideDouble(turn, game, match) {
         const res = await this.client.matchRequest('doubleResponse')
-        if (this._checkCanceled(turn, game, match)) {
-            return
-        }
+        //if (this._checkCanceled(turn, game, match)) {
+        //    return
+        //}
         if (!res.isAccept) {
             turn.setDoubleDeclined()
         }
@@ -168,9 +168,9 @@ class NetPlayer extends Base {
 
     async playRoll(turn, game, match) {
         const res = await this.client.matchRequest('playRoll')
-        if (this._checkCanceled(turn, game, match)) {
-            return
-        }
+        //if (this._checkCanceled(turn, game, match)) {
+        //    return
+        //}
         res.moves.forEach(move => turn.move(move.origin, move.face))
     }
 
@@ -184,55 +184,24 @@ class NetPlayer extends Base {
     }
 
     async gameStart(game, match, players) {
-        if (this._checkCanceled(null, game, match)) {
-            return
-        }
+        //if (this._checkCanceled(null, game, match)) {
+        //    return
+        //}
         await this.client.matchRequest('nextGame')
-        if (this._checkCanceled(null, game, match)) {
-            return
-        }
+        //if (this._checkCanceled(null, game, match)) {
+        //    return
+        //}
         game.opts.roller = () => this.dice
         const res = await this.client.matchRequest('firstTurn')
-        if (this._checkCanceled(null, game, match)) {
-            return
-        }
+        //if (this._checkCanceled(null, game, match)) {
+        //    return
+        //}
         this.dice = res.dice
         this.opponent.rollTurn = async (turn, game, match) => {
             await this.rollTurn(turn, game, match)
         }
-        /*
-        return new Promise((resolve, reject) => {
-
-            this.client.matchRequest('nextGame').then(() => {
-
-                if (this._checkCanceled(null, game, match)) {
-                    resolve()
-                    return
-                }
-
-                game.opts.roller = () => this.dice
-
-                this.client.matchRequest('firstTurn').then(res => {
-
-                    if (this._checkCanceled(null, game, match)) {
-                        resolve()
-                        return
-                    }
-
-                    this.dice = res.dice
-
-                    this.opponent.rollTurn = async (turn, game, match) => {
-                        await this.rollTurn(turn, game, match)
-                    }
-
-                    resolve()
-
-                }).catch(reject)
-
-            }).catch(reject)
-        })
-        */
     }
+
     destroy() {
         Object.entries(Listeners).forEach(([event, listener]) =>
             this.removeListener(event, listener)
@@ -243,20 +212,20 @@ class NetPlayer extends Base {
         super.destroy()
     }
 
-    _checkCanceled(turn, game, match) {
-        let canceled = false
-        if (match && match.isCanceled) {
-            canceled = 'match'
-        } else if (game && game.isCanceled) {
-            canceled = 'game'
-        } else if (turn && turn.isCanceled) {
-            canceled = 'turn'
-        }
-        if (canceled) {
-            this.logger.warn('The', canceled, 'has been canceled, abandoning turn.')
-        }
-        return canceled
-    }
+    //_checkCanceled(turn, game, match) {
+    //    let canceled = false
+    //    if (match && match.isCanceled) {
+    //        canceled = 'match'
+    //    } else if (game && game.isCanceled) {
+    //        canceled = 'game'
+    //    } else if (turn && turn.isCanceled) {
+    //        canceled = 'turn'
+    //    }
+    //    if (canceled) {
+    //        this.logger.warn('The', canceled, 'has been canceled, abandoning turn.')
+    //    }
+    //    return canceled
+    //}
 }
 
 module.exports = NetPlayer

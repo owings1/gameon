@@ -27,7 +27,8 @@ const {
     expect,
     getError,
     getErrorAsync,
-    requireSrc
+    requireSrc,
+    update
 } = TestUtil
 
 const Util = requireSrc('lib/util')
@@ -37,6 +38,10 @@ const chalk = require('chalk')
 const os    = require('os')
 
 describe('Util', () => {
+
+    beforeEach(function () {
+        this.fixture = {}
+    })
 
     describe('#append', () => {
 
@@ -154,6 +159,46 @@ describe('Util', () => {
         })
     })
 
+    describe('#createHash', () => {
+
+        it('should return hash object updated with text when no digest passed', function () {
+            const res = Util.createHash('md5', '123')
+            const exp = '202cb962ac59075b964b07152d234b70'
+            expect(res.digest('hex')).to.equal(exp)
+        })
+    })
+
+    describe('#decrypt1', () => {
+
+        beforeEach(function () {
+            update(this.fixture, {
+                key: '202cb962ac59075b964b07152d234b70'
+            })
+        })
+
+        it('should throw ArgumentError for text with length 5', function () {
+            const {key} = this.fixture
+            const err = getError(() => Util.decrypt1('asdf', key))
+            expect(err.isArgumentError).to.equal(true)
+        })
+
+        it('should throw ArgumentError for key with length 5', function () {
+            const {key} = this.fixture
+            const badKey = '12345'
+            const enc = Util.encrypt1('sample', key)
+            const err = getError(() => Util.decrypt1(enc, badKey))
+            expect(err.isArgumentError).to.equal(true)
+        })
+
+        it('should throw ArgumentError for text with iv length 17', function () {
+            const {key} = this.fixture
+            const enc = Util.encrypt1('sample', key)
+            const input = 'a0' + enc
+            const err = getError(() => Util.decrypt1(input, key))
+            expect(err.isArgumentError).to.equal(true)
+        })
+    })
+
     describe('#defaults', () => {
 
         it('should return only keys from first param', () => {
@@ -178,6 +223,21 @@ describe('Util', () => {
             const exp = {a:2, b:4}
             const result = Util.defaults(defaults, opts1, opts2, opts3)
             expect(result).to.jsonEqual(exp)
+        })
+    })
+
+    describe('#ensure', () => {
+
+        it('should add property bar if not present', function () {
+            const obj = {}
+            Util.ensure(obj, {bar: 1})
+            expect(obj.bar).to.equal(1)
+        })
+
+        it('should not overwrite property with null value', function () {
+            const obj = {foo: null}
+            Util.ensure(obj, {foo: 1})
+            expect(obj.foo).to.equal(null)
         })
     })
 
@@ -254,6 +314,33 @@ describe('Util', () => {
             const res = Util.isEmptyObject({})
             expect(res).to.equal(true)
         })
+
+        it('should return true for null', function () {
+            const res = Util.isEmptyObject(null)
+            expect(res).to.equal(true)
+        })
+    })
+
+    describe('#keypressName', () => {
+
+        const expCases = [
+            ['escape'      , {key: {name: 'escape'}}]
+          , ['foo'         , {key: {name: 'foo'}}]
+          , ['bob'         , {value: '1', key: {name: 'bob'}}]
+          , ['ctrl-delete' , {key: {ctrl: true, name: 'delete'}}]
+          , ['a'           , {value: 'a', key: {}}]
+          , [''            , {key: {}}]
+        ]
+
+        expCases.forEach(([exp, input]) => {
+
+            const desc = JSON.stringify(input)
+
+            it(`should return ${exp} for ${desc}`, function () {
+                const res = Util.keypressName(input)
+                expect(res).to.equal(exp)
+            })
+        })
     })
 
     describe('#keyValuesTrue', () => {
@@ -281,6 +368,27 @@ describe('Util', () => {
             const res = Util.mapValues({a: 1, b: 2}, value => value + 1)
             const exp = {a: 2, b: 3}
             expect(res).to.jsonEqual(exp)
+        })
+    })
+
+    describe('#ntimes', () => {
+
+        it('should increment variable by 2 5 times', function () {
+            let v = 0
+            Util.ntimes(5, () => v += 2)
+            expect(v).to.equal(10)
+        })
+
+        it('should not do anything 0 times', function () {
+            let v = 0
+            Util.ntimes(0, () => v += 2)
+            expect(v).to.equal(0)
+        })
+
+        it('should not do anything -1 times', function () {
+            let v = 0
+            Util.ntimes(-1, () => v += 2)
+            expect(v).to.equal(0)
         })
     })
 
