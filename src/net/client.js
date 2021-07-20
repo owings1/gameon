@@ -28,8 +28,6 @@ const Logger    = require('../lib/logger')
 const {Match}   = require('../lib/core')
 const Util      = require('../lib/util')
 
-const fetch = require('node-fetch')
-
 const {EventEmitter} = require('events')
 const WsClient       = require('websocket').client
 
@@ -38,7 +36,6 @@ const {White, Red} = Constants
 const {
     httpToWs
   , secret1
-  , stripLeadingSlash
   , stripTrailingSlash
   , trimMessageData
   , update
@@ -633,24 +630,6 @@ class Client extends EventEmitter {
           , matchId : null
           , color   : null
         })
-    }
-
-    /**
-     * @async
-     *
-     * @param string
-     * @param object
-     *
-     * @returns node-fetch.Response
-     */
-    postJson(uri, data) {
-        const url = [this.serverHttpUrl, stripLeadingSlash(uri)].join('/')
-        const params = {
-            method  : 'post'
-          , headers : {'content-type': 'application/json'}
-          , body    : JSON.stringify(data)
-        }
-        return fetch(url, params)
     }
 
     /**

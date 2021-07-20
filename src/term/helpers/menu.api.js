@@ -28,6 +28,8 @@ const Logger = require('../../lib/logger')
 
 const {RequestError} = Errors
 
+const fetch = require('node-fetch')
+
 class MenuApiHelper {
 
     constructor(term) {
@@ -80,10 +82,17 @@ class MenuApiHelper {
         return this._handleRequest(serverUrl, 'change-password', data)
     }
 
-    async _handleRequest(serverUrl, uri, data) {
-        uri = '/api/v1/' + uri
+    async _handleRequest(serverUrl, uri, data) {        
+        const params = {
+            method  : 'POST'
+          , headers : {'content-type': 'application/json'}
+          , body    : JSON.stringify(data)
+        }
+        uri = 'api/v1/' + uri
         return this.term.noCursor(async () => {
-            const res = await this.client.setServerUrl(serverUrl).postJson(uri, data)
+            this.client.setServerUrl(serverUrl)
+            const url = [this.client.serverHttpUrl, uri].join('/')
+            const res = await fetch(url, params)
             const body = await res.json()
             if (!res.ok) {
                 this.logger.debug(body)

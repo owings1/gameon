@@ -225,7 +225,7 @@ describe('-', () => {
         })
 
         it('should generate state with s, g', async function () {
-            this.timeout(4000)
+            this.timeout(20000)
             lab.prompt = MockPrompter([
                 {input: 's'},
                 {state: 'g'},
