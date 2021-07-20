@@ -26,13 +26,13 @@ const TestUtil = require('../util')
 const {
     expect,
     getError,
-    getErrorAsync,
     parseKey,
     requireSrc,
     MockPrompter,
     noop,
     NullOutput,
     States28,
+    update,
     tmpDir
 } = TestUtil
 
@@ -54,35 +54,36 @@ describe('-', () => {
 
     const {RequestError, MatchCanceledError} = Errors
 
-    var player
-    var menu
-
-    var configDir
-    var settingsFile
-    var credentialsFile
-    var labConfigFile
-    var authDir
-    var server
-
-    beforeEach(async () => {
-        authDir = tmpDir()
-        configDir = tmpDir()
-        server = new Server({
+    beforeEach(async function () {
+        const dirs = {
+            auth  : tmpDir()
+          , config: tmpDir()
+        }
+        const server = new Server({
             authType: 'directory',
-            authDir
+            authDir: dirs.auth
         })
-        server.loglevel = 0
-        settingsFile = resolve(configDir, 'settings.json')
-        credentialsFile = resolve(configDir, 'credentials.json')
-        labConfigFile = resolve(configDir, 'lab.json')
-        menu = new Menu(configDir)
-        menu.loglevel = 1
+        const files = Object.fromEntries(
+            ['settings', 'credentials', 'lab'].map(name =>
+                [name, resolve(dirs.config, name +  '.json')]
+            )
+        )
+        const menu = new Menu(dirs.config)
         menu.eraseScreen = noop
+        this.fixture = {
+            dirs
+          , files
+          , menu
+          , server
+          , auth  : server.auth
+        }
+        server.loglevel = 0
+        menu.loglevel = 1
     })
 
-    afterEach(async () => {
-        await fse.remove(authDir)
-        await fse.remove(configDir)
+    afterEach(async function () {
+        await Promise.all(Object.values(this.fixture.dirs).map(dir => fse.remove(dir)))
+        this.fixture.server.close()
     })
 
     function newThrowingCoordinator(err) {
@@ -94,12 +95,14 @@ describe('-', () => {
 
         describe('#mainMenu', () => {
 
-            it('should quit', async () => {
+            it('should quit', function () {
+                const {menu} = this.fixture
                 menu.prompt = MockPrompter({choice: 'quit'})
-                await menu.mainMenu()
+                return menu.mainMenu()
             })
 
-            it('should go to play menu, new local match menu, then come back, then quit', async () => {
+            it('should go to play menu, new local match menu, then come back, then quit', function () {
+                const {menu} = this.fixture
                 menu.prompt = MockPrompter([
                     {choice: 'play'},
                     {choice: 'playHumans'},
@@ -107,58 +110,60 @@ describe('-', () => {
                     {choice: 'quit'},
                     {choice: 'quit'}
                 ])
-                await menu.mainMenu()
+                return menu.mainMenu()
             })
 
-            it('should go to settings menu then done then quit', async () => {
+            it('should go to settings menu then done then quit', function () {
+                const {menu} = this.fixture
                 menu.prompt = MockPrompter([
                     {choice: 'settings'},
                     {choice: 'done'},
                     {choice: 'quit'}
                 ])
-                await menu.mainMenu()
+                return menu.mainMenu()
             })
 
-            it('should go to account menu then quit', async () => {
+            it('should go to account menu then quit', function () {
+                const {menu} = this.fixture
                 menu.prompt = MockPrompter([
                     {choice: 'account'},
                     {choice: 'done'},
                     {choice: 'quit'}
                 ])
-                await menu.mainMenu()
+                return menu.mainMenu()
             })
 
             // not clear this should be the spec, maybe a better error
-            it.skip('should do nothing for unknown choice then quit', async () => {
+            it.skip('should do nothing for unknown choice then quit', function () {
+                const {menu} = this.fixture
                 menu.prompt = MockPrompter([
                     {choice: 'foo'},
                     {choice: 'quit'}
                 ])
-                await menu.mainMenu()
+                return menu.mainMenu()
             })
 
-            it('should run lab and quit', async () => {
+            it('should run lab and quit', function () {
+                const {menu} = this.fixture
                 menu.prompt = MockPrompter([
                     {choice: 'lab'},
                     {choice: 'quit'}
                 ])
                 menu.runLab = noop
-                await menu.mainMenu()
+                return menu.mainMenu()
             })
         })
 
         describe('#playMenu', () => {
 
-            beforeEach(async () => {
+            beforeEach(async function () {
+                const {menu, server} = this.fixture
                 await server.listen()
                 menu.credentials.serverUrl = 'http://localhost:' + server.port
             })
 
-            afterEach(async () => {
-                server.close()
-            })
-
-            it('should invalidate match id abcd with joinOnline, then quit', async () => {
+            it('should invalidate match id abcd with joinOnline, then quit', async function () {
+                const {menu} = this.fixture
                 menu.alerter.loglevel = -1
                 menu.prompt = MockPrompter([
                     {choice: 'joinOnline'},
@@ -168,7 +173,8 @@ describe('-', () => {
                 await menu.playMenu()
             })
 
-            it('should alert warning/error then done when joinOnline throws BadCredentialsError', async () => {
+            it('should alert warning/error then done when joinOnline throws BadCredentialsError', async function () {
+                const {menu} = this.fixture
                 menu.credentials.username = 'nobody@nowhere.example'
                 menu.credentials.password = menu.encryptPassword('s9GLdoe9')
                 menu.prompt = MockPrompter([
@@ -186,7 +192,8 @@ describe('-', () => {
                 expect(logObj.message.toLowerCase()).to.contain('authentication')
             })
 
-            it('should alert error then done for joinOnline when matchMenu throws MatchCanceledError', async () => {
+            it('should alert error then done for joinOnline when matchMenu throws MatchCanceledError', async function () {
+                const {menu} = this.fixture
                 const exp = new MatchCanceledError
                 menu.matchMenu = () => {
                     throw exp
@@ -200,7 +207,8 @@ describe('-', () => {
                 expect(menu.alerts.lastError).to.equal(exp)
             })
 
-            it('should return true for choice back', async () => {
+            it('should return true for choice back', async function () {
+                const {menu} = this.fixture
                 menu.prompt = MockPrompter([
                     {choice: 'back'}
                 ])
@@ -208,7 +216,8 @@ describe('-', () => {
                 expect(res).to.equal(true)
             })
 
-            it('should continue when matchMenu returns true', async () => {
+            it('should continue when matchMenu returns true', async function () {
+                const {menu} = this.fixture
                 menu.prompt = MockPrompter([
                     {choice: 'playRobot'},
                     {choice: 'quit'}
@@ -220,7 +229,8 @@ describe('-', () => {
 
         describe('#matchMenu', () => {
 
-            it('should set match total to 5', async () => {
+            it('should set match total to 5', async function () {
+                const {menu} = this.fixture
                 menu.prompt = MockPrompter([
                     {choice: 'total'},
                     {total: '5'},
@@ -230,16 +240,18 @@ describe('-', () => {
                 expect(menu.settings.matchOpts.total).to.equal(5)
             })
 
-            it('should invalidate total=-1', async () => {
+            it('should invalidate total=-1', async function () {
+                const {menu} = this.fixture
                 menu.prompt = MockPrompter([
                     {choice: 'total'},
                     {total: '-1'}
                 ])
-                const err = await getErrorAsync(() => menu.matchMenu('playHumans'))
+                const err = await getError(() => menu.matchMenu('playHumans'))
                 expect(err.message).to.contain('Validation failed for total')
             })
 
-            it('should set isJacoby to true', async () => {
+            it('should set isJacoby to true', async function () {
+                const {menu} = this.fixture
                 menu.prompt = MockPrompter([
                     {choice: 'isJacoby'},
                     {isJacoby: true},
@@ -249,7 +261,8 @@ describe('-', () => {
                 expect(menu.settings.matchOpts.isJacoby).to.equal(true)
             })
 
-            it('should set isCrawford to false', async () => {
+            it('should set isCrawford to false', async function () {
+                const {menu} = this.fixture
                 menu.prompt = MockPrompter([
                     {choice: 'isCrawford'},
                     {isCrawford: false},
@@ -259,22 +272,25 @@ describe('-', () => {
                 expect(menu.settings.matchOpts.isCrawford).to.equal(false)
             })
 
-            it('should quit', async () => {
+            it('should quit', async function () {
+                const {menu} = this.fixture
                 menu.prompt = MockPrompter([
                     {choice: 'quit'}
                 ])
                 await menu.matchMenu('playHumans')
             })
 
-            it('should quit for back', async () => {
+            it('should quit for back', async function () {
+                const {menu} = this.fixture
                 menu.prompt = MockPrompter([
                     {choice: 'back'}
                 ])
                 await menu.matchMenu('playHumans')
             })
 
-            it('should go to startOnlineMatch with startOnline and mock method, then quit', async () => {
-                var isCalled = false
+            it('should go to startOnlineMatch with startOnline and mock method, then quit', async function () {
+                const {menu} = this.fixture
+                let isCalled = false
                 menu.prompt = MockPrompter([
                     {choice: 'start'},
                     {choice: 'quit'}
@@ -284,8 +300,9 @@ describe('-', () => {
                 expect(isCalled).to.equal(true)
             })
 
-            it('should go to playRobot with playRobot and mock method, then quit', async () => {
-                var isCalled = false
+            it('should go to playRobot with playRobot and mock method, then quit', async function () {
+                const {menu} = this.fixture
+                let isCalled = false
                 menu.prompt = MockPrompter([
                     {choice: 'start'},
                     {choice: 'quit'}
@@ -295,8 +312,9 @@ describe('-', () => {
                 expect(isCalled).to.equal(true)
             })
 
-            it('should go to playRobots with playRobots and mock method, then quit', async () => {
-                var isCalled = false
+            it('should go to playRobots with playRobots and mock method, then quit', async function () {
+                const {menu} = this.fixture
+                let isCalled = false
                 menu.prompt = MockPrompter([
                     {choice: 'start'},
                     {choice: 'quit'}
@@ -306,8 +324,9 @@ describe('-', () => {
                 expect(isCalled).to.equal(true)
             })
 
-            it('should go to playHumans with playHumans mock method, then quit', async () => {
-                var isCalled = false
+            it('should go to playHumans with playHumans mock method, then quit', async function () {
+                const {menu} = this.fixture
+                let isCalled = false
                 menu.prompt = MockPrompter([
                     {choice: 'start'},
                     {choice: 'quit'}
@@ -317,7 +336,8 @@ describe('-', () => {
                 expect(isCalled).to.equal(true)
             })
 
-            it('should go to advanced for playRobot', async () => {
+            it('should go to advanced for playRobot', async function () {
+                const {menu} = this.fixture
                 menu.prompt = MockPrompter([
                     {choice: 'advanced'},
                     {startState: '', rollsFile: ''},
@@ -329,53 +349,49 @@ describe('-', () => {
 
         describe('#accountMenu', () => {
 
-            beforeEach(async () => {
+            beforeEach(async function () {
+                const {menu, server} = this.fixture
                 await server.listen()
                 menu.credentials.serverUrl = 'http://localhost:' + server.port
             })
 
-            afterEach(async () => {
-                server.close()
-            })
-
-            async function makeUser(username, password, isConfirm = true) {
-                username = username || 'nobody@nowhere.example'
-                password = password || '8QwuU68W'
-                return await server.auth.createUser(username, password, true) 
-            }
-
-            it('should sign up, log in and confirm user', async () => {
+            it('should sign up, log in and confirm user', async function () {
+                const {menu, auth} = this.fixture
                 const username = 'nobody@nowhere.example'
                 const password = '9Axf5kAR'
                 menu.prompt = MockPrompter([
                     {choice: 'createAccount'},
                     {username, password, passwordConfirm: password},
-                    {key: () => parseKey(server.api.auth.email.impl.lastEmail)},
+                    {key: () => parseKey(auth.email.impl.lastEmail)},
                     {choice: 'done'}
                 ])
                 await menu.accountMenu()
-                const user = await server.auth.readUser(username)
+                const user = await auth.readUser(username)
                 expect(user.confirmed).to.equal(true)
             })
 
-            it('should send forget password and reset for confirmed user', async () => {
-                const {username, password} = await makeUser(null, '8QwuU68W')
+            it('should send forget password and reset for confirmed user', async function () {
+                const {menu, auth} = this.fixture
+                const username = 'nobody@nowhere.example'
+                const password = '8QwuU68W'
+                await auth.createUser(username, password, true)
                 const oldPassword = '2q2y9K7V'
                 menu.prompt = MockPrompter([
                     {choice: 'forgotPassword'},
                     {username},
-                    {resetKey: () => parseKey(server.api.auth.email.impl.lastEmail), password, passwordConfirm: password},
+                    {resetKey: () => parseKey(auth.email.impl.lastEmail), password, passwordConfirm: password},
                     {choice: 'done'}
                 ])
                 await menu.accountMenu()
-                await server.auth.authenticate(username, password)
+                await auth.authenticate(username, password)
             })
 
-            it('should change password and authenticate', async () => {
+            it('should change password and authenticate', async function () {
+                const {menu, auth} = this.fixture
                 const username = 'nobody@nowhere.example'
                 const oldPassword = '9YWS8b8F'
                 const newPassword = '37GbrWAZ'
-                await server.auth.createUser(username, oldPassword, true)
+                await auth.createUser(username, oldPassword, true)
                 menu.credentials.username = username
                 menu.prompt = MockPrompter([
                     {choice: 'changePassword'},
@@ -383,10 +399,11 @@ describe('-', () => {
                     {choice: 'done'}
                 ])
                 await menu.accountMenu()
-                await server.auth.authenticate(username, newPassword)
+                await auth.authenticate(username, newPassword)
             })
 
-            it('should clear credentials', async () => {
+            it('should clear credentials', async function () {
+                const {menu} = this.fixture
                 menu.credentials.username = 'nobody@nowhere.example'
                 menu.credentials.password = menu.encryptPassword('qN3zUpVh')
                 menu.prompt = MockPrompter([
@@ -398,7 +415,8 @@ describe('-', () => {
                 expect(!!menu.credentials.password).to.equal(false)
             })
 
-            it('should change username', async () => {
+            it('should change username', async function () {
+                const {menu} = this.fixture
                 const username = 'nobody@nowhere.example'
                 menu.prompt = MockPrompter([
                     {choice: 'username'},
@@ -409,7 +427,8 @@ describe('-', () => {
                 expect(menu.credentials.username).to.equal(username)
             })
 
-            it('should change and encrypt password', async () => {
+            it('should change and encrypt password', async function () {
+                const {menu} = this.fixture
                 const password = '6yahTQ8H'
                 menu.prompt = MockPrompter([
                     {choice: 'password'},
@@ -420,7 +439,8 @@ describe('-', () => {
                 expect(menu.decryptPassword(menu.credentials.password)).to.equal(password)
             })
 
-            it('should change serverUrl', async () => {
+            it('should change serverUrl', async function () {
+                const {menu} = this.fixture
                 const serverUrl = 'http://nowhere.example'
                 menu.prompt = MockPrompter([
                     {choice: 'serverUrl'},
@@ -431,10 +451,11 @@ describe('-', () => {
                 expect(menu.credentials.serverUrl).to.equal(serverUrl)
             })
 
-            it('should prompt forgot password then done when key not entered', async () => {
+            it('should prompt forgot password then done when key not entered', async function () {
+                const {menu, auth} = this.fixture
                 const username = 'nobody@nowhere.example'
                 const password = 'd4PUxRs2'
-                await server.auth.createUser(username, password, true)
+                await auth.createUser(username, password, true)
                 menu.prompt = MockPrompter([
                     {choice: 'forgotPassword'},
                     {username},
@@ -444,13 +465,14 @@ describe('-', () => {
                 await menu.accountMenu()
             })
 
-            it('should alert error and done when promptForgotPassword throws', async () => {
+            it('should alert error and done when promptForgotPassword throws', async function () {
+                const {menu, auth} = this.fixture
                 const err = new Error('testMessage')
                 menu.loglevel = -1
                 menu.promptForgotPassword = () => { throw err }
                 const username = 'nobody@nowhere.example'
                 const password = 'd4PUxRs2'
-                await server.auth.createUser(username, password, true)
+                await auth.createUser(username, password, true)
                 menu.prompt = MockPrompter([
                     {choice: 'forgotPassword'},
                     {choice: 'done'}
@@ -459,7 +481,8 @@ describe('-', () => {
                 expect(menu.alerts.lastError).to.equal(err)
             })
 
-            it('should alert BadCredentialsError and done when password entered and login fails', async () => {
+            it('should alert BadCredentialsError and done when password entered and login fails', async function () {
+                const {menu} = this.fixture
                 menu.loglevel = -1
                 menu.credentials.username = 'nobody2@nowhere.example'
                 const password = 'JUzrDc5k'
@@ -472,13 +495,14 @@ describe('-', () => {
                 expect(menu.alerts.lastError.isBadCredentialsError).to.equal(true)
             })
 
-            it('should alert BadCredentialsError then done on incorrect password for change-password', async () => {
+            it('should alert BadCredentialsError then done on incorrect password for change-password', async function () {
+                const {menu, auth} = this.fixture
                 menu.loglevel = -1
                 const username = 'nobody@nowhere.example'
                 const oldPassword = 'C7pUaA3c'
                 const badPassword = 'etzF4Y8L'
                 const password = 'fVvqK99g'
-                await server.auth.createUser(username, oldPassword, true)
+                await auth.createUser(username, oldPassword, true)
                 menu.credentials.username = username
                 menu.credentials.password = menu.encryptPassword(oldPassword)
                 menu.prompt = MockPrompter([
@@ -493,7 +517,8 @@ describe('-', () => {
 
         describe('#settingsMenu', () => {
 
-            it('should set robot delay to 4 then done', async () => {
+            it('should set robot delay to 4 then done', async function () {
+                const {menu} = this.fixture
                 menu.prompt = MockPrompter([
                     {choice: 'delay'},
                     {delay: '4'},
@@ -503,17 +528,19 @@ describe('-', () => {
                 expect(menu.settings.delay).to.equal(4)
             })
 
-            it('should invalidate robot delay foo', async () => {
+            it('should invalidate robot delay foo', async function () {
+                const {menu} = this.fixture
                 menu.prompt = MockPrompter([
                     {choice: 'delay'},
                     {delay: 'foo'},
                     {choice: 'done'}
                 ])
-                const err = await getErrorAsync(() => menu.settingsMenu())
+                const err = await getError(() => menu.settingsMenu())
                 expect(err.message).to.contain('Validation failed for delay')
             })
 
-            it('should go to robotConfgs then done', async () => {
+            it('should go to robotConfgs then done', async function () {
+                const {menu} = this.fixture
                 menu.prompt = MockPrompter([
                     {choice: 'robotConfigs'},
                     {choice: 'done'},
@@ -522,7 +549,8 @@ describe('-', () => {
                 await menu.settingsMenu()
             })
 
-            it('should go to robotsMenu for isCustomRobot=true', async () => {
+            it('should go to robotsMenu for isCustomRobot=true', async function () {
+                const {menu} = this.fixture
                 menu.prompt = MockPrompter([
                     {choice: 'isCustomRobot'},
                     {isCustomRobot: true},
@@ -532,7 +560,8 @@ describe('-', () => {
                 await menu.settingsMenu()
             })
 
-            it('should set theme to Default', async () => {
+            it('should set theme to Default', async function () {
+                const {menu} = this.fixture
                 menu.prompt = MockPrompter([
                     {choice: 'theme'},
                     {theme: 'Default'},
@@ -543,7 +572,8 @@ describe('-', () => {
 
             describe('coverage', () => {
 
-                it('isCustomRobot=true robots non-empty', async () => {
+                it('isCustomRobot=true robots non-empty', async function () {
+                    const {menu} = this.fixture
                     await menu.ensureSettingsLoaded()
                     menu.settings.robots = Menu.robotsDefaults()
                     menu.prompt = MockPrompter([
@@ -555,7 +585,8 @@ describe('-', () => {
                     await menu.settingsMenu()
                 })
 
-                it('isCustomRobot=true recordDir empty', async () => {
+                it('isCustomRobot=true recordDir empty', async function () {
+                    const {menu} = this.fixture
                     await menu.ensureSettingsLoaded()
                     menu.settings.recordDir = null
                     menu.settings.robots = Menu.robotsDefaults()
@@ -568,7 +599,8 @@ describe('-', () => {
                     await menu.settingsMenu()
                 })
 
-                it('settingsChoices.theme.choices', () => {
+                it('settingsChoices.theme.choices', function () {
+                    const {menu} = this.fixture
                     const choices = menu.q.settingsChoices()
                     const question = choices.find(choice => choice.value == 'theme').question
                     const res = question.choices()
@@ -579,7 +611,8 @@ describe('-', () => {
 
         describe('#robotMenu', () => {
 
-            it('should reset RunningRobot moveWeight', async () => {
+            it('should reset RunningRobot moveWeight', async function () {
+                const {menu} = this.fixture
                 await menu.ensureSettingsLoaded()
                 menu.settings.robots = Menu.robotsDefaults()
                 const exp = menu.settings.robots.RunningRobot.moveWeight
@@ -594,14 +627,16 @@ describe('-', () => {
 
         describe('#robotsMenu', () => {
 
-            it('should run and done', async () => {
+            it('should run and done', async function () {
+                const {menu} = this.fixture
                 menu.prompt = MockPrompter([
                     {choice: 'done'}
                 ])
                 await menu.robotsMenu()
             })
 
-            it('should reset config, select RandomRobot and done', async () => {
+            it('should reset config, select RandomRobot and done', async function () {
+                const {menu} = this.fixture
                 menu.prompt = MockPrompter([
                     {choice: 'reset'},
                     {choice: 'RandomRobot'},
@@ -611,7 +646,8 @@ describe('-', () => {
                 await menu.robotsMenu()
             })
 
-            it('should set RandomRobot moveWeight to 1', async () => {
+            it('should set RandomRobot moveWeight to 1', async function () {
+                const {menu} = this.fixture
                 menu.prompt = MockPrompter([
                     {choice: 'RandomRobot'},
                     {choice: 'moveWeight'},
@@ -623,7 +659,8 @@ describe('-', () => {
                 expect(menu.settings.robots.RandomRobot.moveWeight).to.equal(1)
             })
 
-            it('should set RandomRobot moveWeight to 1 then reset', async () => {
+            it('should set RandomRobot moveWeight to 1 then reset', async function () {
+                const {menu} = this.fixture
                 const defaults = Robot.ConfidenceRobot.getClassMeta('RandomRobot').defaults
                 menu.prompt = MockPrompter([
                     {choice: 'RandomRobot'},
@@ -637,7 +674,8 @@ describe('-', () => {
                 expect(menu.settings.robots.RandomRobot.moveWeight).to.equal(defaults.moveWeight)
             })
 
-            it('should set RandomRobot version to v2', async () => {
+            it('should set RandomRobot version to v2', async function () {
+                const {menu} = this.fixture
                 const defaults = Robot.ConfidenceRobot.getClassMeta('RandomRobot').defaults
                 menu.prompt = MockPrompter([
                     {choice: 'RandomRobot'},
@@ -654,7 +692,8 @@ describe('-', () => {
                 expect(choices).to.contain('v2')
             })
 
-            it('should set RandomRobot doubleWeight to 1', async () => {
+            it('should set RandomRobot doubleWeight to 1', async function () {
+                const {menu} = this.fixture
                 menu.prompt = MockPrompter([
                     {choice: 'RandomRobot'},
                     {choice: 'doubleWeight'},
@@ -674,7 +713,8 @@ describe('-', () => {
 
         describe('#decryptPassword', () => {
 
-            it('should return empty string for undefined', () => {
+            it('should return empty string for undefined', function () {
+                const {menu} = this.fixture
                 const res = menu.decryptPassword(undefined)
                 expect(res).to.equal('')
             })
@@ -682,32 +722,31 @@ describe('-', () => {
 
         describe('#doLogin', () => {
 
-            beforeEach(async () => {
+            beforeEach(async function () {
+                const {menu, server} = this.fixture
                 await server.listen()
                 menu.credentials.serverUrl = 'http://localhost:' + server.port
             })
 
-            afterEach(async () => {
-                await server.close()
-            })
-
-            it('should throw cause BadCredentialsError for bad confirmKey', async () => {
+            it('should throw cause BadCredentialsError for bad confirmKey', async function () {
+                const {menu, auth} = this.fixture
                 menu.loglevel = 0
                 const username = 'nobody@nowhere.example'
                 const password = 'r2tW5aUn'
                 const confirmKey = 'bad-confirm-key'
                 menu.credentials.username = username
                 menu.credentials.password = menu.encryptPassword(password)
-                await server.auth.createUser(username, password)
+                await auth.createUser(username, password)
                 menu.prompt = MockPrompter([{key: confirmKey}])
-                const err = await getErrorAsync(() => menu.doLogin())
+                const err = await getError(() => menu.doLogin())
                 expect(err.cause.name).to.equal('BadCredentialsError')
             })
         })
 
         describe('#encryptPassword', () => {
 
-            it('should return empty string for undefined', () => {
+            it('should return empty string for undefined', function () {
+                const {menu} = this.fixture
                 const res = menu.encryptPassword(undefined)
                 expect(res).to.equal('')
             })
@@ -724,13 +763,15 @@ describe('-', () => {
 
         describe('#getMatchOpts', () => {
 
-            it('should set start state for advancedOpts', async () => {
+            it('should set start state for advancedOpts', async function () {
+                const {menu} = this.fixture
                 const defaults = Menu.settingsDefaults().matchOpts
                 const res = await menu.getMatchOpts(defaults, {startState: States28.WhiteCantMove})
                 expect(res.startState).to.equal(States28.WhiteCantMove)
             })
 
-            it('should set roller for advancedOpts rollsFile', async () => {
+            it('should set roller for advancedOpts rollsFile', async function () {
+                const {menu} = this.fixture
                 const defaults = Menu.settingsDefaults().matchOpts
                 const res = await menu.getMatchOpts(defaults, {
                     rollsFile: resolve(__dirname, '../rolls.json')
@@ -741,7 +782,8 @@ describe('-', () => {
 
         describe('#q.passwordConfirm', () => {
 
-            it('question should invalidate non-matching password', () => {
+            it('question should invalidate non-matching password', function () {
+                const {menu} = this.fixture
                 const question = menu.q.passwordConfirm()
                 const res = question.validate('asdf', {password:'fdsa'})
                 expect(res.toLowerCase()).to.contain('password').and.to.contain('match')
@@ -750,7 +792,8 @@ describe('-', () => {
 
         describe('#joinOnlineMatch', () => {
 
-            it('should call runMatch with mock method and mock client', async () => {
+            it('should call runMatch with mock method and mock client', async function () {
+                const {menu} = this.fixture
                 var isCalled = false
                 menu.newClient = () => ({connect : noop, joinMatch: noop, close: noop, on: noop, removeListener: noop})
                 menu.newCoordinator = () => ({runMatch: () => isCalled = true})
@@ -761,8 +804,9 @@ describe('-', () => {
 
         describe('#loadCredentials', () => {
 
-            it('should replace obsolete server url', async () => {
-                fse.writeJsonSync(credentialsFile, {serverUrl: 'ws://bg.dougowings.net:8080'})
+            it('should replace obsolete server url', async function () {
+                const {menu, files} = this.fixture
+                await fse.writeJson(files.credentials, {serverUrl: 'ws://bg.dougowings.net:8080'})
                 const exp = Menu.getDefaultServerUrl()
                 await menu.loadCredentials()
                 expect(menu.credentials.serverUrl).to.equal(exp)
@@ -770,7 +814,8 @@ describe('-', () => {
 
             describe('coverage', () => {
 
-                it('configDir=null', async () => {
+                it('configDir=null', async function () {
+                    const {menu} = this.fixture
                     menu.configDir = null
                     await menu.loadCredentials()
                 })
@@ -779,45 +824,49 @@ describe('-', () => {
 
         describe('#loadCustomThemes', () => {
 
-            beforeEach(() => {
+            beforeEach(function () {
+
                 ThemeHelper.clearCustom()
+
+                this.writeTheme = async function writeTheme(name, config) {
+                    const {menu} = this.fixture
+                    const themesDir = menu.getThemesDir()
+                    const file = resolve(themesDir, name + '.json')
+                    await fse.ensureDir(themesDir)
+                    await fse.writeJson(file, config, {spaces: 2})
+                }
+
+                this.writeThemeRaw = async function writeThemeRaw(name, data) {
+                    const {menu} = this.fixture
+                    const themesDir = menu.getThemesDir()
+                    const file = resolve(themesDir, name + '.json')
+                    await fse.ensureDir(themesDir)
+                    fs.writeFileSync(file, data)
+                }
             })
 
-            async function writeTheme(name, config) {
-                const themesDir = menu.getThemesDir()
-                const file = resolve(themesDir, name + '.json')
-                await fse.ensureDir(themesDir)
-                await fse.writeJson(file, config, {spaces: 2})
-            }
-
-            async function writeThemeRaw(name, data) {
-                const themesDir = menu.getThemesDir()
-                const file = resolve(themesDir, name + '.json')
-                await fse.ensureDir(themesDir)
-                fs.writeFileSync(file, data)
-            }
-
-            it('should load basic theme', async () => {
-                await writeTheme('Test', {
+            it('should load basic theme', async function () {
+                const {menu} = this.fixture
+                await this.writeTheme('Test', {
                     styles: {
                         'text.color': 'white'
                     }
                 })
-
                 const result = await menu.loadCustomThemes()
                 expect(result.length).to.equal(1)
                 expect(result[0]).to.equal('Test')
             })
 
-            it('should load dependencies', async () => {
-                await writeTheme('t1', {
+            it('should load dependencies', async function () {
+                const {menu} = this.fixture
+                await this.writeTheme('t1', {
                     extends: ['t2'],
                     styles: {'text.color': 'white'}
                 })
-                await writeTheme('t2', {
+                await this.writeTheme('t2', {
                     extends: ['Default']
                 })
-                menu.logger.loglevel = 1
+                menu.loglevel = 1
                 const result = await menu.loadCustomThemes()
                 expect(result.length).to.equal(2)
                 result.sort((a, b) => a.localeCompare(b))
@@ -825,8 +874,9 @@ describe('-', () => {
                 expect(result[1]).to.equal('t2')
             })
 
-            it('should return empty after second call', async () => {
-                await writeTheme('Test', {
+            it('should return empty after second call', async function () {
+                const {menu} = this.fixture
+                await this.writeTheme('Test', {
                     styles: {
                         'text.color': 'white'
                     }
@@ -839,28 +889,31 @@ describe('-', () => {
                 expect(result.length).to.equal(0)
             })
 
-            it('should not load bad json, but load the rest', async () => {
-                await writeThemeRaw('TestBad', 'p')
-                await writeTheme('TestGood', {extends: ['Default']})
-                menu.logger.loglevel = -1
+            it('should not load bad json, but load the rest', async function () {
+                const {menu} = this.fixture
+                await this.writeThemeRaw('TestBad', 'p')
+                await this.writeTheme('TestGood', {extends: ['Default']})
+                menu.loglevel = -1
                 const result = await menu.loadCustomThemes()
                 expect(result.length).to.equal(1)
                 expect(result[0]).to.equal('TestGood')
             })
 
-            it('should not load bad dependencies, but load the rest', async () => {
-                await writeTheme('TestGood', {extends: ['Default']})
-                await writeTheme('TestBad', {extends: ['Nothing']})
-                menu.logger.loglevel = -1
+            it('should not load bad dependencies, but load the rest', async function () {
+                const {menu} = this.fixture
+                await this.writeTheme('TestGood', {extends: ['Default']})
+                await this.writeTheme('TestBad', {extends: ['Nothing']})
+                menu.loglevel = -1
                 const result = await menu.loadCustomThemes()
                 expect(result.length).to.equal(1)
                 expect(result[0]).to.equal('TestGood')
             })
 
-            it('should not load bad config, but load the rest', async () => {
-                await writeTheme('TestGood', {extends: ['Default']})
-                await writeTheme('TestBad', {styles: {'text.color': 'asdflkasd'}})
-                menu.logger.loglevel = -1
+            it('should not load bad config, but load the rest', async function () {
+                const {menu} = this.fixture
+                await this.writeTheme('TestGood', {extends: ['Default']})
+                await this.writeTheme('TestBad', {styles: {'text.color': 'asdflkasd'}})
+                menu.loglevel = -1
                 const result = await menu.loadCustomThemes()
                 expect(result.length).to.equal(1)
                 expect(result[0]).to.equal('TestGood')
@@ -868,12 +921,14 @@ describe('-', () => {
 
             describe('coverage', () => {
 
-                it('configDir=null', async () => {
+                it('configDir=null', async function () {
+                    const {menu} = this.fixture
                     menu.configDir = null
                     await menu.loadCustomThemes()
                 })
 
-                it('ensureThemesLoaded', async () => {
+                it('ensureThemesLoaded', async function () {
+                    const {menu} = this.fixture
                     await menu.loadCustomThemes()
                     await menu.ensureThemesLoaded()
                 })
@@ -884,14 +939,16 @@ describe('-', () => {
 
             describe('coverage', () => {
 
-                it('configDir=null', async () => {
+                it('configDir=null', async function () {
+                    const {menu} = this.fixture
                     menu.configDir = null
                     const res = await menu.loadLabConfig()
                     expect(!!res).to.equal(false)
                 })
 
-                it('bad json', async () => {
-                    fs.writeFileSync(labConfigFile, 'asdf')
+                it('bad json', async function () {
+                    const {menu, files} = this.fixture
+                    fs.writeFileSync(files.lab, 'asdf')
                     menu.logger.loglevel = -1
                     const res = await menu.loadLabConfig()
                     expect(!!res).to.equal(false)
@@ -901,27 +958,32 @@ describe('-', () => {
 
         describe('#loadSettings', () => {
 
-            it('should merge settingsFile if specified', async () => {
-                fse.writeJsonSync(settingsFile, {matchOpts: {total: 5}})
+            it('should merge settingsFile if specified', async function () {
+                const {menu, files} = this.fixture
+                await fse.writeJson(files.settings, {matchOpts: {total: 5}})
                 await menu.loadSettings()
                 const result = menu.settings
                 expect(result.matchOpts.total).to.equal(5)
             })
 
-            it('should normalize opts file if not exists', async () => {
-                fse.removeSync(settingsFile)
+            it('should normalize opts file if not exists', async function () {
+                const {menu, files} = this.fixture
+                await fse.remove(files.settings)
                 await menu.loadSettings()
-                const content = fs.readFileSync(settingsFile, 'utf-8')
+                const content = fs.readFileSync(files.settings, 'utf-8')
                 JSON.parse(content)
             })
 
             describe('coverage', () => {
-                it('configDir=null', async () => {
+
+                it('configDir=null', async function () {
+                    const {menu} = this.fixture
                     menu.configDir = null
                     await menu.loadSettings()
                 })
             
-                it('isCustomRobot=true, robots={}', async () => {
+                it('isCustomRobot=true, robots={}', async function () {
+                    const {menu} = this.fixture
                     menu.settings.isCustomRobot = true
                     menu.settings.robots = {}
                     await menu.loadSettings()
@@ -931,7 +993,8 @@ describe('-', () => {
 
         describe('#newCoordinator', () => {
 
-            it('should return new coordinator', () => {
+            it('should return new coordinator', function () {
+                const {menu} = this.fixture
                 const coordinator = menu.newCoordinator()
                 expect(coordinator.constructor.name).to.equal('Coordinator')
             })
@@ -939,7 +1002,8 @@ describe('-', () => {
 
         describe('#newRobot', () => {
 
-            it('should not throw when isCustomRobot', () => {
+            it('should not throw when isCustomRobot', function () {
+                const {menu} = this.fixture
                 menu.settings.isCustomRobot = true
                 menu.newRobot()
             })
@@ -947,14 +1011,16 @@ describe('-', () => {
 
         describe('#playHumans', () => {
 
-            it('should call runMatch for mock coordinator', async () => {
+            it('should call runMatch for mock coordinator', async function () {
+                const {menu} = this.fixture
                 var isCalled = false
                 menu.newCoordinator = () => ({runMatch: () => isCalled = true})
                 await menu.playHumans(menu.settings.matchOpts)
                 expect(isCalled).to.equal(true)
             })
 
-            it('should alert match canceled but not throw for mock coodinator', async () => {
+            it('should alert match canceled but not throw for mock coodinator', async function () {
+                const {menu} = this.fixture
                 const err = new MatchCanceledError
                 menu.newCoordinator = () => newThrowingCoordinator(err)
                 menu.loglevel = -1
@@ -963,24 +1029,27 @@ describe('-', () => {
                 expect(menu.alerts.lastError).to.equal(err)
             })
 
-            it('should throw on non-match-canceled for mock coodinator', async () => {
+            it('should throw on non-match-canceled for mock coodinator', async function () {
+                const {menu} = this.fixture
                 const exp = new Error
                 menu.newCoordinator = () => newThrowingCoordinator(exp)
-                const err = await getErrorAsync(() => menu.playHumans(menu.settings.matchOpts))
+                const err = await getError(() => menu.playHumans(menu.settings.matchOpts))
                 expect(err).to.equal(exp)
             })
         })
 
         describe('#playRobot', () => {
 
-            it('should call runMatch for mock coordinator', async () => {
+            it('should call runMatch for mock coordinator', async function () {
+                const {menu} = this.fixture
                 var isCalled = false
                 menu.newCoordinator = () => ({runMatch: () => isCalled = true})
                 await menu.playRobot(menu.settings.matchOpts)
                 expect(isCalled).to.equal(true)
             })
 
-            it('should cancel match on interrupt', async () => {
+            it('should cancel match on interrupt', async function () {
+                const {menu} = this.fixture
                 menu.logger.console.log = noop
                 menu.once('beforeMatchStart', (match, players) => {
                     menu.loglevel = 0
@@ -1003,7 +1072,8 @@ describe('-', () => {
 
         describe('#playRobots', () => {
 
-            it('should call runMatch for mock coordinator', async () => {
+            it('should call runMatch for mock coordinator', async function () {
+                const {menu} = this.fixture
                 var isCalled = false
                 menu.newCoordinator = () => {return {runMatch: () => isCalled = true}}
                 await menu.playRobots(menu.settings.matchOpts)
@@ -1015,7 +1085,8 @@ describe('-', () => {
 
             // coverage tricks
 
-            it.skip('should call inquirer.prompt', () => {
+            it.skip('should call inquirer.prompt', function () {
+                const {menu} = this.fixture
                 var q
                 menu.inquirer = {prompt: questions => q = questions}
                 menu.prompt()
@@ -1025,14 +1096,15 @@ describe('-', () => {
 
         describe('#promptChangePassword', () => {
 
-            it('should throw when api.changePassword throws and clear password', async () => {
+            it('should throw when api.changePassword throws and clear password', async function () {
+                const {menu} = this.fixture
                 const exp = new Error
                 menu.api.changePassword = () => {throw exp}
                 const newPassword = 'asdf,k(8khDJJ)'
                 menu.prompt = MockPrompter([
                     {oldPassword: 'asdf(8dflLL)', newPassword, passwordConfirm: newPassword}
                 ])
-                const err = await getErrorAsync(() => menu.promptChangePassword())
+                const err = await getError(() => menu.promptChangePassword())
                 expect(err).to.equal(exp)
                 expect(!!menu.credentials.password).to.equal(false)
             })
@@ -1040,7 +1112,8 @@ describe('-', () => {
 
         describe('#promptMatchAdvancedOpts', () => {
 
-            it('should populate valid rolls file', async () => {
+            it('should populate valid rolls file', async function () {
+                const {menu} = this.fixture
                 const advancedOpts = {}
                 menu.prompt = MockPrompter([
                     {startState: '', rollsFile: resolve(__dirname, '../rolls.json')}
@@ -1049,7 +1122,8 @@ describe('-', () => {
                 expect(res.rollsFile).to.contain('rolls.json')
             })
 
-            it('should populate valid start state', async () => {
+            it('should populate valid start state', async function () {
+                const {menu} = this.fixture
                 const advancedOpts = {}
                 menu.prompt = MockPrompter([
                     {startState: States28.Initial, rollsFile: ''}
@@ -1058,12 +1132,13 @@ describe('-', () => {
                 expect(res.startState).to.equal(States28.Initial)
             })
 
-            it('should invalidate bad start state', async () => {
+            it('should invalidate bad start state', async function () {
+                const {menu} = this.fixture
                 const advancedOpts = {}
                 menu.prompt = MockPrompter([
                     {startState: 'asdf', rollsFile: ''}
                 ])
-                const err = await getErrorAsync(() => menu.promptMatchAdvancedOpts(advancedOpts))
+                const err = await getError(() => menu.promptMatchAdvancedOpts(advancedOpts))
                 expect(err instanceof Error).to.equal(true)
             })
         })
@@ -1072,25 +1147,28 @@ describe('-', () => {
 
             describe('coverage', () => {
 
-                it('override interactive', async () => {
+                it('override interactive', async function () {
+                    const {menu} = this.fixture
                     menu.once('beforeRunLab', lab => {
                         lab.interactive = noop
                     })
                     await menu.runLab()
                 })
 
-                it('override interactive labConfig', async () => {
+                it('override interactive labConfig', async function () {
+                    const {menu, dirs} = this.fixture
                     menu.once('beforeRunLab', lab => {
                         lab.interactive = noop
                     })
-                    await fse.writeJson(resolve(configDir, 'lab.json'), {
+                    await fse.writeJson(resolve(dirs.config, 'lab.json'), {
                         lastState: States28.Initial,
                         persp: 'White'
                     })
                     await menu.runLab()
                 })
 
-                it('override runCommand', async () => {
+                it('override runCommand', async function () {
+                    const {menu} = this.fixture
                     menu.once('beforeRunLab', lab => {
                         lab.runCommand = noop
                     })
@@ -1103,7 +1181,8 @@ describe('-', () => {
 
             describe('coverage', () => {
 
-                it('configDir=null', async () => {
+                it('configDir=null', async function () {
+                    const {menu} = this.fixture
                     menu.configDir = null
                     await menu.saveCredentials()
                 })
@@ -1114,7 +1193,8 @@ describe('-', () => {
 
             describe('coverage', () => {
 
-                it('configDir=null', async () => {
+                it('configDir=null', async function () {
+                    const {menu} = this.fixture
                     menu.configDir = null
                     await menu.saveLabConfig()
                 })
@@ -1123,14 +1203,16 @@ describe('-', () => {
 
         describe('#saveSettings', () => {
 
-            it('should write default settings', async () => {
+            it('should write default settings', async function () {
+                const {menu, files} = this.fixture
                 const settings = Menu.settingsDefaults()
                 await menu.saveSettings()
-                const result = JSON.parse(fs.readFileSync(settingsFile))
+                const result = JSON.parse(fs.readFileSync(files.settings))
                 expect(result).to.jsonEqual(settings)
             })
 
-            it('should not throw when configDir=null', async () => {
+            it('should not throw when configDir=null', async function () {
+                const {menu} = this.fixture
                 menu.configDir = null
                 await menu.saveSettings()
             })
@@ -1140,11 +1222,9 @@ describe('-', () => {
 
             describe('server', () => {
 
-                var menu1
-                var menu2
-
-                beforeEach(async () => {
-                    menu1 = menu
+                beforeEach(async function () {
+                    const {menu, server} = this.fixture
+                    const menu1 = menu
                     await server.listen()
                     const username = 'nobody@nowhere.example'
                     const password = '9YWS8b8F'
@@ -1166,14 +1246,11 @@ describe('-', () => {
                     )
                     menu1.on('clientWaitStart', client => client.logger.name = 'Client1')
                     menu2.on('clientWaitStart', client => client.logger.name = 'Client2')
+                    update(this.fixture, {menu1, menu2})
                 })
 
-                afterEach(async () => {
-                    await new Promise(resolve => setTimeout(resolve, 200))
-                    server.close()
-                })
-
-                it('should cancel waiting on capture interrupt', async () => {
+                it('should cancel waiting on capture interrupt', async function () {
+                    const {menu} = this.fixture
                     menu.logger.console.log = noop
                     var isCalled = false
                     menu.once('clientWaitStart', () => {
@@ -1186,7 +1263,8 @@ describe('-', () => {
                     expect(!!menu.captureInterrupt).to.equal(false)
                 })
 
-                it('should let menu2 join then cancel on interrupt', done => {
+                it('should let menu2 join then cancel on interrupt', function (done) {
+                    const {menu1, menu2, server} = this.fixture
 
                     const finish = () => {
                         menu1.captureInterrupt()
@@ -1243,7 +1321,8 @@ describe('-', () => {
                 })
             })
 
-            it('should call runMatch with mock method and mock client', async () => {
+            it('should call runMatch with mock method and mock client', async function () {
+                const {menu} = this.fixture
                 var isCalled = false
                 menu.newClient = () => ({connect : noop, createMatch: noop, close: noop, on: noop, removeListener: noop})
                 menu.newCoordinator = () => ({runMatch: () => isCalled = true})
@@ -1257,14 +1336,14 @@ describe('-', () => {
 
         describe('#forResponse', () => {
 
-            it('should set case to error in body', () => {
+            it('should set case to error in body', function () {
                 const res = {status: 500}
                 const body = {error: {name: 'TestError', message: 'test error message'}}
                 const err = RequestError.forResponse(res, body)
                 expect(err.cause.name).to.equal('TestError')
             })
 
-            it('should construct without body', () => {
+            it('should construct without body', function () {
                 const res = {status: 500}
                 const err = RequestError.forResponse(res)
             })
@@ -1273,7 +1352,8 @@ describe('-', () => {
     })
 
     describe('Alerts', () => {
-        it('should have alert with error', () => {
+        it('should have alert with error', function () {
+            const {menu} = this.fixture
             const exp = new Error('test')
             menu.alerts.error(exp)
             const res = menu.alerts.getErrors()[0]
@@ -1284,13 +1364,12 @@ describe('-', () => {
 
     describe('BoxStatus', () => {
 
-        var stat
-
-        beforeEach(() => {
-            stat = new BoxStatus
+        beforeEach(function () {
+            this.fixture.stat = new BoxStatus
         })
 
-        it('should track line height plus render height after answered with less height', () => {
+        it('should track line height plus render height after answered with less height', function () {
+            const {stat} = this.fixture
             stat.emit('render', {width: 1, indent: 0, height: 10})
             stat.emit('line', {width: 1, indent: 0})
             stat.emit('answered', {width: 1, indent: 0, height: 2})

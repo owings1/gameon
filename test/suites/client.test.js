@@ -133,7 +133,68 @@ describe('-', () => {
         })
     })
 
-    describe('#handleMessage', () => {
+    describe('#matchParams', () => {
+
+        it('should return action for string', function () {
+            const {client} = this.fixture
+            const result = client.matchParams('testAction')
+            expect(result.action).to.equal('testAction')
+        })
+
+        it('should return action for action', function () {
+            const {client} = this.fixture
+            const result = client.matchParams({action: 'testAction'})
+            expect(result.action).to.equal('testAction')
+        })
+    })
+
+    describe('#matchRequest', () => {
+
+        it('should pass for nextGame', async function () {
+
+            const {client1, client2} = this.fixture
+            const match = await this.createMatch()
+            client2.matchRequest('nextGame')
+            await client1.matchRequest('nextGame')
+        })
+
+        it('should throw and close client when sever cancels because of shutdown', async function () {
+
+            const {client1, client2, server} = this.fixture
+            const match = await this.createMatch()
+
+            // We need a handler on client2, could also be on unhandledMessage
+            client2.on('matchCanceled', () => {})
+            // We don't need a handler here, but it prevents an error message,
+            // and also covers an extra code branch.
+            client1.on('matchCanceled', () => {})
+
+            const prom = client1.matchRequest('nextGame')
+
+            // Let the server receive the matchRequest before canceling,
+            // otherwise we get a MatchNotFound warning.
+            await new Promise(resolve => setTimeout(resolve))
+            server.cancelMatchId(match.id, MatchCancelRef.serverShutdown)
+
+            const err = await getError(() => prom)
+
+            expect(err.isMatchCanceledError).to.equal(true)
+            expect(client1.isConnected).to.equal(false)
+        })
+    })
+
+    describe('#createMatch', () => {
+
+        it('should return match with same uuids', async function () {
+            const {client} = this.fixture
+            const match = await this.createMatch()
+            expect(client.match.uuid)
+                .to.have.length(36).and
+                .to.equal(match.uuid)
+        })
+    })
+
+    describe('#_handleMessage', () => {
 
         it('should emit matchCanceled with active match and handler', function (done) {
             const {client1, client2} = this.fixture
@@ -240,67 +301,6 @@ describe('-', () => {
         })
     })
 
-    describe('#matchParams', () => {
-
-        it('should return action for string', function () {
-            const {client} = this.fixture
-            const result = client.matchParams('testAction')
-            expect(result.action).to.equal('testAction')
-        })
-
-        it('should return action for action', function () {
-            const {client} = this.fixture
-            const result = client.matchParams({action: 'testAction'})
-            expect(result.action).to.equal('testAction')
-        })
-    })
-
-    describe('#matchRequest', () => {
-
-        it('should pass for nextGame', async function () {
-
-            const {client1, client2} = this.fixture
-            const match = await this.createMatch()
-            client2.matchRequest('nextGame')
-            await client1.matchRequest('nextGame')
-        })
-
-        it('should throw and close client when sever cancels because of shutdown', async function () {
-
-            const {client1, client2, server} = this.fixture
-            const match = await this.createMatch()
-
-            // We need a handler on client2, could also be on unhandledMessage
-            client2.on('matchCanceled', () => {})
-            // We don't need a handler here, but it prevents an error message,
-            // and also covers an extra code branch.
-            client1.on('matchCanceled', () => {})
-
-            const prom = client1.matchRequest('nextGame')
-
-            // Let the server receive the matchRequest before canceling,
-            // otherwise we get a MatchNotFound warning.
-            await new Promise(resolve => setTimeout(resolve))
-            server.cancelMatchId(match.id, MatchCancelRef.serverShutdown)
-
-            const err = await getError(() => prom)
-
-            expect(err.isMatchCanceledError).to.equal(true)
-            expect(client1.isConnected).to.equal(false)
-        })
-    })
-
-    describe('#createMatch', () => {
-
-        it('should return match with same uuids', async function () {
-            const {client} = this.fixture
-            const match = await this.createMatch()
-            expect(client.match.uuid)
-                .to.have.length(36).and
-                .to.equal(match.uuid)
-        })
-    })
-
     describe('#_sendAndWaitForResponse', () => {
 
         it('should throw when waitForResponse throws (coverage)', async function () {
@@ -367,7 +367,7 @@ describe('-', () => {
         })
     })
 
-    describe('#waitForResponse', () => {
+    describe('#_waitForResponse', () => {
 
         beforeEach(async function () {
             await this.fixture.client.connect()
