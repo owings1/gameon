@@ -998,11 +998,13 @@ class TermHelper {
 
     // Always return stdout even if disabled.
     get stdout() {
-        return this.term.stdout
+        return this._output || this.term.stdout
+        //return this.term.stdout
     }
 
     set stdout(strm) {
-        this.term.stdout = strm
+        this._output = strm
+        //this.term.stdout = strm
     }
 }
 

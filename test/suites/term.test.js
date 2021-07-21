@@ -24,6 +24,7 @@
  */
 const TestUtil = require('../util')
 const {
+    destroyAll,
     expect,
     getError,
     getErrorAsync,
@@ -59,7 +60,7 @@ const Server      = requireSrc('net/server')
 const NetPlayer   = requireSrc('net/player')
 const Util        = requireSrc('lib/util')
 
-const {destroyAll, update} = Util
+const {update} = Util
 
 const {White, Red} = Constants
 const {Match, Game, Board, Turn} = Core
@@ -810,31 +811,45 @@ describe('TermPlayer', () => {
 
 describe('Robot', () => {
 
+    beforeEach(function () {
+        const players = {
+            White : new TermPlayer.Robot(newRando(White), {delay: 0})
+          , Red   : new TermPlayer.Robot(newRando(Red), {delay: 0})
+        }
+        Object.values(players).forEach(player => {
+            player.loglevel = 1
+            player.output = new NullOutput
+        })
+        this.fixture = {players}
+    })
+
+    afterEach(function () {
+        destroyAll(Object.values(this.fixture.players))
+    })
+
     it('should play robot v robot double after 3 turns', async function () {
         this.timeout(1000)
-        const white = new TermPlayer.Robot(newRando(White), {delay: 0})
-        const red = new TermPlayer.Robot(newRando(Red), {delay: 0})
-        white.logger.loglevel = 1
-        red.logger.loglevel = 1
-        white.logger.stdout = {write: () => {}}
-        red.logger.stdout = {write: () => {}}
-        white.robot.turnOption = (turn, game) => {
-            if (game.getTurnCount() > 3) {
-                turn.setDoubleOffered()
+        const {players} = this.fixture
+        update(players.White.robot, {
+            turnOption : (turn, game) => {
+                if (game.getTurnCount() > 3) {
+                    turn.setDoubleOffered()
+                }
             }
-        }
-        red.robot.turnOption = (turn, game) => {
-            if (game.getTurnCount() > 3) {
-                turn.setDoubleOffered()
+          , decideDouble: turn => turn.setDoubleDeclined()
+        })
+        update(players.Red.robot, {
+            turnOption : (turn, game) => {
+                if (game.getTurnCount() > 3) {
+                    turn.setDoubleOffered()
+                }
             }
-        }
-        white.robot.decideDouble = turn => turn.setDoubleDeclined()
-        red.robot.decideDouble = turn => turn.setDoubleDeclined()
+          , decideDouble : turn => turn.setDoubleDeclined()
+        })
         const match = new Match(1, {isCrawford: false})
         const coordinator = new Coordinator
-        await coordinator.runMatch(match, white, red)
+        await coordinator.runMatch(match, players)
         expect(match.checkFinished()).to.equal(true)
-        await destroyAll([white, red])
     })
 
     describe('#delay', () => {

@@ -29,7 +29,8 @@ const {
     getErrorAsync,
     requireSrc,
     MockPrompter,
-    noop
+    noop,
+    NullOutput
 } = TestUtil
 
 const {Table, TableHelper} = requireSrc('term/tables')
@@ -61,12 +62,10 @@ describe('TableHelper', () => {
         describe('#interactive', () => {
 
             var helper
-            var outstr
 
             beforeEach(() => {
-                outstr = ''
                 helper = new TableHelper
-                helper.logger.writeStdout = str => outstr += str
+                helper.output = new NullOutput
             })
 
             it('should quit', async () => {
