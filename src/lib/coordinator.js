@@ -30,7 +30,6 @@
  * ┃ ┃                                                                             ┃ ┃
  * ┃ ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛ ┃
  * ┣━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┫
- * ┣━━━━━━━━━━━━━━━━━╋━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┫
  * ┃                 ┃                                                               ┃
  * ┃ matchCanceled   ┃  Emitted when cancelMatch() is called on the coordinator.     ┃
  * ┃                 ┃  The match is first canceled with match.cancel(). The error   ┃
@@ -47,7 +46,6 @@
  * ┃      ┗ * ━ * ━ * ━ * ━ * ━ * ━ * ━ * ━ * ━ * ━ * ━ * ━ * ━ * ━ * ━ * ━ * ┛      ┃
  * ┃                                                                                 ┃
  * ┣━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┫
- * ┣━━━━━━━━━━━━━━━━━╋━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┫
  * ┃                 ┃                                                               ┃
  * ┃ matchStart      ┃  Before any action on a new match.                            ┃
  * ┃                 ┃                                                               ┃
@@ -142,14 +140,13 @@
  * ┗━━━━━━━━━━━━━━━━━┻━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
  */
 const Constants = require('./constants')
-const Errors    = require('./errors')
 const Logger    = require('./logger')
 const Util      = require('./util')
 
 const fse  = require('fs-extra')
 const path = require('path')
 
-const {InvalidDirError} = Errors
+const {InvalidDirError} = require('./errors')
 
 const {
     append
@@ -162,7 +159,9 @@ const {
 class Coordinator {
 
     /**
-     * @returns Object
+     * Get the default options.
+     *
+     * @returns {object} The default options
      */
     static defaults() {
         return {
@@ -173,6 +172,10 @@ class Coordinator {
     }
 
     /**
+     * Constructor
+     *
+     * @param {object} (optional) The options
+     *
      * @throws ArgumentError.InvalidDirError
      */
     constructor(opts) {
@@ -190,22 +193,33 @@ class Coordinator {
     }
 
     /**
+     * Run a match.
+     *
      * @async
      *
+     * @param {Match} The match to run
+     * @param {object{color: Player}|array[Player]|Player} The players of the
+     *        match, or the White player.
+     * @param {Player} (optional) The Red player, if the White player was
+     *        passed as the first argument.
+     *
      * @throws Error
+     *
+     * @returns {undefined}
      */
-    async runMatch(match, white, red) {
+    async runMatch(match, ...players) {
 
-        const players = Coordinator.buildPlayers(white, red)
+        players = Coordinator.buildPlayers(...players)
 
         this.checkCancel(match)
 
-        await this.emitAll(players, 'matchStart', match, players)
-        this.checkCancel(match)
+        await this.emitWaitAndCheck(players, 'matchStart', match, players)
 
+        let gamePad
+        let matchDir
         if (this.opts.isRecord) {
-            var matchDir = this.getMatchDir(match)
-            var gamePad = (match.total * 2 - 1).toString().length
+            matchDir = this.getMatchDir(match)
+            gamePad = (match.total * 2 - 1).toString().length
         }
 
         let gameCount = 0
@@ -216,15 +230,14 @@ class Coordinator {
 
             this.checkCancel(match)
 
-            await this.emitAll(players, 'beforeNextGame', match, players)
-            this.checkCancel(match)
+            await this.emitWaitAndCheck(players, 'beforeNextGame', match, players)
 
             await this.runGame(players, match.nextGame(), match)
             this.checkCancel(match, match.thisGame)
 
             if (this.opts.isRecord) {
-                var numStr = gameCount.toString().padStart(gamePad, '0')
-                var gameFile = path.resolve(matchDir, 'game_' + numStr + '.json')
+                const numStr = gameCount.toString().padStart(gamePad, '0')
+                const gameFile = path.resolve(matchDir, 'game_' + numStr + '.json')
                 await this.recordGame(match.thisGame, gameFile)
             }
 
@@ -235,7 +248,7 @@ class Coordinator {
         if (match.isCanceled) {
             this.logger.warn('The match was canceled')
         } else {
-            await this.emitAll(players, 'matchEnd', match)
+            await this.emitAndWait(players, 'matchEnd', match)
         }
 
         if (this.opts.isRecord) {
@@ -245,118 +258,118 @@ class Coordinator {
     }
 
     /**
+     * Run a game.
+     *
      * @async
      *
+     * @param {object{color: Player}} Players object
+     * @param {Game} The game to run
+     * @param {Match} (optional) The match of the game
+     *
      * @throws Error
+     *
+     * @returns undefined
      */
     async runGame(players, game, match) {
 
         this.checkCancel(match, game)
 
-        await this.emitAll(players, 'gameStart', game, match, players)
-        this.checkCancel(match, game)
+        await this.emitWaitAndCheck(players, 'gameStart', game, match, players)
 
         const firstTurn = game.firstTurn()
 
-        await this.emitAll(players, 'firstRoll', firstTurn, game, match)
-        this.checkCancel(match, game, firstTurn)
+        await this.emitWaitAndCheck(players, 'firstRoll', firstTurn, game, match)
 
-        await this.emitAll(players, 'afterRoll', firstTurn, game, match)
-        this.checkCancel(match, game, firstTurn)
+        await this.emitWaitAndCheck(players, 'afterRoll', firstTurn, game, match)
 
         await players[firstTurn.color].playRoll(firstTurn, game, match)
         this.checkCancel(match, game, firstTurn)
 
         firstTurn.finish()
 
-        await this.emitAll(players, 'turnEnd', firstTurn, game, match)
-        this.checkCancel(match, game, firstTurn)
+        await this.emitWaitAndCheck(players, 'turnEnd', firstTurn, game, match)
 
         while (!game.checkFinished()) {
 
-            let turn = game.nextTurn()
+            const turn = game.nextTurn()
 
-            await this.emitAll(players, 'turnStart', turn, game, match)
-            this.checkCancel(match, game, turn)
+            await this.emitWaitAndCheck(players, 'turnStart', turn, game, match)
 
-            try {
-                if (game.canDouble(turn.color)) {
+            if (game.canDouble(turn.color)) {
 
-                    await this.emitAll(players, 'beforeOption', turn, game, match)
-                    this.checkCancel(match, game, turn)
+                await this.emitWaitAndCheck(players, 'beforeOption', turn, game, match)
 
-                    await players[turn.color].turnOption(turn, game, match)
-                    this.checkCancel(match, game, turn)
+                await players[turn.color].turnOption(turn, game, match)
+                this.checkCancel(match, game, turn)
 
-                    await this.emitAll(players, 'afterOption', turn, game, match)
-                    this.checkCancel(match, game, turn)
-                }
+                await this.emitWaitAndCheck(players, 'afterOption', turn, game, match)
+            }
 
+            if (turn.isDoubleOffered) {
+
+                await this.emitWaitAndCheck(players, 'doubleOffered', turn, game, match)
+
+                await players[turn.opponent].decideDouble(turn, game, match)
+                this.checkCancel(match, game, turn)
+            }
+
+            if (turn.isDoubleDeclined) {
+                await this.emitWaitAndCheck(players, 'doubleDeclined', turn, game, match)
+            } else {
                 if (turn.isDoubleOffered) {
-
-                    await this.emitAll(players, 'doubleOffered', turn, game, match)
-                    this.checkCancel(match, game, turn)
-
-                    await players[turn.opponent].decideDouble(turn, game, match)
-                    this.checkCancel(match, game, turn)
+                    game.double()
+                    await this.emitWaitAndCheck(players, 'doubleAccepted', turn, game, match)
                 }
 
-                if (turn.isDoubleDeclined) {
-                    await this.emitAll(players, 'doubleDeclined', turn, game, match)
-                    this.checkCancel(match, game, turn)
-                } else {
-                    if (turn.isDoubleOffered) {
-                        game.double()
-                        await this.emitAll(players, 'doubleAccepted', turn, game, match)
-                        this.checkCancel(match, game, turn)
-                    }
+                await players[turn.color].rollTurn(turn, game, match)
+                this.checkCancel(match, game, turn)
 
-                    await players[turn.color].rollTurn(turn, game, match)
-                    this.checkCancel(match, game, turn)
+                await this.emitWaitAndCheck(players, 'afterRoll', turn, game, match)
 
-                    await this.emitAll(players, 'afterRoll', turn, game, match)
-                    this.checkCancel(match, game, turn)
-
-                    await players[turn.color].playRoll(turn, game, match)
-                    this.checkCancel(match, game, turn)
-                }
-            } catch (err) {
-                if (err.isTurnCanceledError) {
-                    this.checkCancel(match, game, turn)
-                }
-                throw err
+                await players[turn.color].playRoll(turn, game, match)
+                this.checkCancel(match, game, turn)
             }
 
             turn.finish()
 
             if (!turn.isCanceled) {
-                await this.emitAll(players, 'turnEnd', turn, game, match)
-                this.checkCancel(match, game, turn)
+                await this.emitWaitAndCheck(players, 'turnEnd', turn, game, match)
             }
         }
 
         if (game.isCanceled) {
             this.logger.warn('The game was canceled')
         } else {
-            await this.emitAll(players, 'gameEnd', game, match)
-            this.checkCancel(match, game)
+            await this.emitWaitAndCheck(players, 'gameEnd', game, match)
         }
     }
 
     /**
+     * Cancel a match.
+     *
      * @async
      *
+     * @param {Match} The match to cancel
+     * @param {object{color: Player}|array[Player]} The players
+     * @param {Error} The reason the match is canceled
+     *
      * @throws Error
+     *
+     * @returns {undefined}
      */
-    async cancelMatch(match, players, err) {
-        //match._cancelingCoordinator = this
-        //match._coordinatorCancelError = err
+    cancelMatch(match, players, err) {
         match.cancel(err)
-        await this.emitAll(players, 'matchCanceled', err, match)
+        return this.emitAndWait(players, 'matchCanceled', err, match)
     }
 
     /**
+     * Check all arguments for isCanceled property, and throw the cancelError.
+     *
+     * @param ...{any} Objects to check for isCanceled
+     *
      * @throws Error
+     *
+     * @returns {undefined}
      */
     checkCancel(...args) {
         for (let i = 0; i < args.length; ++i) {
@@ -367,9 +380,17 @@ class Coordinator {
     }
 
     /**
+     * Record match information to a file.
+     *
      * @async
      *
+     * @param {Match} The match to record
+     * @param {string} Output file
+     * @param {object{color: Player}} The players of the match
+     *
      * @throws Error
+     *
+     * @returns {undefined}
      */
     async recordMatch(match, file, players) {
         const dir = path.dirname(file)
@@ -386,9 +407,16 @@ class Coordinator {
     }
 
     /**
+     * Record game information to a file.
+     *
      * @async
      *
+     * @param {Game} The game to record
+     * @param {string} The output file
+     *
      * @throws Error
+     *
+     * @returns {undefined}
      */
     async recordGame(game, file) {
         const dir = path.dirname(file)
@@ -402,60 +430,96 @@ class Coordinator {
     }
 
     /**
-     * @async
+     * Emit an event on all the players, await any holds, and check for canceled.
+     *
+     * @param {object{color: Player}|array[Player]} The players to emit
+     * @param {string} Event name
+     * @param ...{any} Arguments for the listener
      *
      * @throws Error
+     *
+     * @returns {undefined}
      */
-    async emitAll(emitters, ...args) {
-        const event = args[0]
-        this.logger.debug('emitAll', event)
-        const emittersArr = Object.values(emitters)
+    async emitWaitAndCheck(players, event, ...args) {
+        await this.emitAndWait(players, event, ...args)
+        this.checkCancel(...args)
+    }
+
+    /**
+     * Emit an event on all the players, and await any holds.
+     *
+     * @async
+     *
+     * @param {object{color: Player}|array[Player]} The players to emit
+     * @param {string} Event name
+     * @param {...any} Arguments for the listener
+     *
+     * @throws Error
+     *
+     * @returns {undefined}
+     */
+    async emitAndWait(players, event, ...args) {
+        this.logger.debug('emitAndWait', event)
+        const emitters = Object.values(players)
         try {
             const holds = []
-            for (let i = 0; i < emittersArr.length; ++i) {
-                emittersArr[i].emit(...args)
-                append(holds, castToArray(emittersArr[i].holds).splice(0))
+            for (let i = 0; i < emitters.length; ++i) {
+                emitters[i].emit(event, ...args)
+                append(holds, castToArray(emitters[i].holds).splice(0))
             }
-            for (let j = 0; j < holds.length; ++j) {
-                await holds[j]
-            }
+            await Promise.all(holds)
         } catch (err) {
-            this.logger.debug('emitAll.catch', event, err.name)
-            const emErrs = emittersArr.map((emitter, i) => {
-                const name = emitter.name || emitter.constructor.name
-                const eminfo = ['emitter', i + 1, 'of', emittersArr.length]
+            this.logger.debug('emitAndWait.catch', event, err.name)
+            const errors = emitters.map((emitter, i) => {
+                // If the error is a MatchCanceledError, emit the `matchCanceled`
+                // event on the players. If a player has an attached listener,
+                // consider the error handled.
+                const {name} = emitter
+                const info = ['emitter', i + 1, 'of', emitters.length]
                 if (err.isMatchCanceledError) {
                     if (emitter.emit('matchCanceled', err)) {
-                        this.logger.debug('matchCanceled handled by', name, ...eminfo)
+                        this.logger.debug('emitAndWait.matchCanceled.handled', name, ...info)
                         return false
                     }
-                    this.logger.debug('matchCanceled unhandled by', name, ...eminfo)
+                    this.logger.debug('emitAndWait.matchCanceled.unhandled', name, ...info)
                 }
-                return [name, eminfo, emitter]
-            }).filter(Boolean).map(([name, eminfo, emitter]) => {
+                return [name, info, emitter]
+            }).filter(Boolean).map(([name, info, emitter]) => {
+                // Emit a generic `error` for any error not already handled. If
+                // a player does not have an attached listener, catch the error
+                // for throwing later
                 try {
                     emitter.emit('error', err)
-                    this.logger.debug('generic error handled by', name, ...eminfo)
+                    this.logger.debug('emitAndWait.error.handled', name, ...info)
                     return false
-                } catch (e) {
-                    this.logger.warn('generic error unhandled by', name, ...eminfo)
-                    return [name, eminfo, e]
+                } catch (err) {
+                    this.logger.warn('emitAndWait.error.unhandled', name, ...info)
+                    return [name, info, err]
                 }
             }).filter(Boolean)
-            if (!emErrs.length) {
+            if (!errors.length) {
                 return
             }
-            emErrs.forEach(([name, eminfo, e]) => {
-                this.logger.error(
-                    `Error on event ${event} unhandled by ${name}`, ...eminfo, e
-                )
+            errors.forEach(([name, info, e], i) => {
+                if (i > 0 || e !== err) {
+                    // Skip logging if there is only one error and it is the
+                    // same as the original error, since it will be thrown at
+                    // the end.
+                    this.logger.error(
+                        `Error on event ${event} unhandled by ${name}`, ...info, e
+                    )
+                }
             })
             throw err
         }
     }
 
     /**
-     * @returns string
+     * Get the directory to record match information.
+     *
+     * @param {Match}
+     *
+     * @returns {string}
      */
     getMatchDir(match) {
         const dateString = fileDateString(match.createDate).substring(0, 19)
@@ -465,31 +529,41 @@ class Coordinator {
     }
 
     /**
-     * @returns integer
+     * Getter for loglevel (integer)
      */
     get loglevel() {
         return this.logger.loglevel
     }
 
     /**
-     *
+     * Setter for loglevel (integer)
      */
     set loglevel(n) {
         this.logger.loglevel = n
     }
 
     /**
-     * @returns Object {string: Player}
+     * Build the players object from the arguments.
+     *
+     * @param {object{color: Player}|array[Player]|Player} The players of the
+     *        match, or the White player.
+     * @param {Player} (optional) The Red player, if the White player was
+     *        passed as the first argument.
+     *
+     * @returns {object} Players map {White: Player, Red: Player}
      */
     static buildPlayers(white, red) {
         const players = {}
         if (Array.isArray(white)) {
+            // One argument, array of players [white, red]
             players.White = white[0]
             players.Red = white[1]
         } else if (white.isPlayer) {
+            // Each argument is a player, white, red
             players.White = white
             players.Red = red
         } else {
+            // One argument, object {color: Player}
             players.White = white.White
             players.Red = white.Red
         }

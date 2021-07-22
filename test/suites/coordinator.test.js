@@ -56,6 +56,7 @@ describe('-', () => {
     const Dice = requireSrc('lib/dice')
     const {White, Red, PointOrigins} = requireSrc('lib/constants')
     const {Match, Game} = requireSrc('lib/core')
+    const {MatchCanceledError} = requireSrc('lib/errors')
 
     const loglevel = 1//4
 
@@ -188,7 +189,7 @@ describe('-', () => {
         })
     })
 
-    describe('#emitAll', () => {
+    describe('#emitAndWait', () => {
 
         it('should await promises in holds', async function () {
             const {players, coord} = this.fixture
@@ -199,7 +200,7 @@ describe('-', () => {
                     resolve()
                 }, 10)
             }))
-            await coord.emitAll([players.White], 'foo')
+            await coord.emitAndWait([players.White], 'foo')
             expect(isCalled).to.equal(true)
         })
 
@@ -212,7 +213,7 @@ describe('-', () => {
                     resolve()
                 }, 10)
             }))
-            await coord.emitAll([players.White], 'foo')
+            await coord.emitAndWait([players.White], 'foo')
             expect(isCalled).to.equal(true)
             expect(players.White.holds).to.have.length(0)
         })
@@ -221,8 +222,57 @@ describe('-', () => {
             const {players, coord} = this.fixture
             let isCalled = false
             players.White.on('testEvent', () => isCalled = true)
-            await coord.emitAll(players, 'testEvent')
+            await coord.emitAndWait(players, 'testEvent')
             expect(isCalled).to.equal(true)
+        })
+
+        it('should throw error when listener throws', async function () {
+            const {players, coord} = this.fixture
+            coord.loglevel = -1
+            const exp = new Error
+            players.White.on('testEvent', () => { throw exp })
+            const err = await getError(() => coord.emitAndWait(players, 'testEvent'))
+            expect(err).to.equal(exp)
+        })
+
+        it('should throw error when hold rejects', async function () {
+            const {players, coord} = this.fixture
+            coord.loglevel = -1
+            const exp = new Error
+            players.White.on('testEvent', function () {
+                this.holds.push(new Promise((resolve, reject) => reject(exp)))
+            })
+            const err = await getError(() => coord.emitAndWait(players, 'testEvent'))
+            expect(err).to.equal(exp)
+        })
+
+        it('should not throw MatchCanceledError when there is a listener on matchCanceled', function (done) {
+            const {players, coord} = this.fixture
+            coord.loglevel = -1
+            const exp = new MatchCanceledError
+            players.White.on('testEvent', function () {
+                this.holds.push(new Promise((resolve, reject) => reject(exp)))
+            })
+            players.White.on('matchCanceled', function (err) {
+                expect(err).to.equal(exp)
+                done()
+            })
+            coord.emitAndWait(players, 'testEvent')
+        })
+
+        it('should emit error and not throw MatchCanceledError when there is no listener on matchCanceled', function (done) {
+            const {players, coord} = this.fixture
+            coord.loglevel = -1
+            players.White.removeAllListeners()
+            const exp = new MatchCanceledError
+            players.White.on('testEvent', function () {
+                this.holds.push(new Promise((resolve, reject) => reject(exp)))
+            })
+            players.White.on('error', function (err) {
+                expect(err).to.equal(exp)
+                done()
+            })
+            coord.emitAndWait(players, 'testEvent')
         })
     })
 
