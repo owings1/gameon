@@ -22,11 +22,12 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
+const Errors = require('./errors')
+
 const chalk       = require('chalk')
 const cliWidth    = require('cli-width')
 const crypto      = require('crypto')
 const emailval    = require('email-validator')
-const Errors      = require('./errors')
 const os          = require('os')
 const path        = require('path')
 const stringWidth = require('string-width')
@@ -59,49 +60,47 @@ class Util {
         return false
     }
 
-   /**
-    * From inquirer/lib/utils/screen-manager.
-    *
-    * See https://github.com/SBoudrias/Inquirer.js/blob/master/packages/inquirer/lib/utils/screen-manager.js
-    *
-    * ---------------------------------------------------------------
-    *
-    * Copyright (c) 2012 Simon Boudrias
-    *
-    * Permission is hereby granted, free of charge, to any person
-    * obtaining a copy of this software and associated documentation
-    * files (the "Software"), to deal in the Software without
-    * restriction, including without limitation the rights to use,
-    * copy, modify, merge, publish, distribute, sublicense, and/or sell
-    * copies of the Software, and to permit persons to whom the
-    * Software is furnished to do so, subject to the following
-    * conditions:
-    *
-    * The above copyright notice and this permission notice shall be
-    * included in all copies or substantial portions of the Software.
-    *
-    * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
-    * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
-    * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
-    * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
-    * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
-    * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
-    * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
-    * OTHER DEALINGS IN THE SOFTWARE.
-    */
+    /**
+     * @param {array} The lines to chunk
+     * @param {integer} The max width
+     * @return {array} One array of chunked lines for each input line
+     */
     static breakLines(lines, width) {
-        if (!Number.isInteger(width) || width < 1) {
+        if (!Number.isInteger(width) || width < 2) {
             // Allow for width Infinity, protect againt NaN or < 1, still make a copy.
             return lines.slice(0)
         }
-        // Break lines who're longer than the width so we can normalize the natural line
-        // returns behavior across terminals.
-        const regex = new RegExp('(?:(?:\\033[[0-9;]*m)*.?){1,' + width + '}', 'g')
+        // Matches all consecutive ANSI sequences from the beginning of the string.
+        const ansiRegex = /^(\x1B([[0-9;]*m)?)+/
         return lines.map(line => {
-            const chunk = line.match(regex)
-            // Last match is always empty
-            chunk.pop()
-            return chunk || ''
+            const chunk = []
+            let thisLine = ''
+            for (let i = 0; i < line.length; ++i) {
+                const ansiMatch = line.substr(i).match(ansiRegex)
+                if (ansiMatch) {
+                    // Add all consecutive ANSI controls, since they do not increase the
+                    // width. This also prevents an extra line at the end if it is just a
+                    // closing color code.
+                    const ansiLength = ansiMatch[0].length
+                    thisLine += line.substr(i, ansiLength)
+                    i += ansiLength
+                }
+                // We could try to optimize here by grabbing more than just the next
+                // character, but we would have to be prepared to backtrack if we end
+                // up exceeding the width.
+                const nextChar = line[i] || ''
+                if (Util.stringWidth(thisLine + nextChar) > width) {
+                    // If adding the next character to the line would exceed the width,
+                    // then start a new line.
+                    chunk.push(thisLine)
+                    thisLine = ''
+                }
+                thisLine += nextChar
+            }
+            if (thisLine) {
+                chunk.push(thisLine)
+            }
+            return chunk
         })
     }
 
@@ -287,9 +286,9 @@ class Util {
         return str.replace(/\.[^/.]+$/, '')
     }
 
-   /**
-    * From inquirer/lib/utils/screen-manager. See breakLines() above.
-    */
+    /**
+     * From inquirer/lib/utils/screen-manager.
+     */
     static forceLineReturn(content, width) {
         return Util.breakLines(content.split('\n'), width).flat().join('\n')
     }

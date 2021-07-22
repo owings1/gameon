@@ -25,7 +25,6 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 ## Third-Party Notices
 
-
 ### Inquirer.js
 
 **MIT License**
@@ -40,7 +39,7 @@ Code adapted and modified.
 
 - [src/lib/term/inquirer.js](src/lib/term/inquirer.js)
 - [src/lib/term/prompts.js](src/lib/term/prompts.js)
-- [src/lib/util.js](src/lib/util.js) (`breakLines()` and `forceLineReturn()`)
+- [src/lib/util.js](src/lib/util.js) (`forceLineReturn()`)
 - [src/lib/term/helpers/prompt.features.js](src/lib/term/helpers/prompt.features.js)
 - [src/lib/term/helpers/prompt.methods.js](src/lib/term/helpers/prompt.methods.js)
 

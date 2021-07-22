@@ -106,7 +106,7 @@ const {
   , PlayChoiceMap
 } = Constants.Menu
 
-const ResizeTimoutMs = 100
+const ResizeTimoutMs = 300
 
 const InterruptCancelEvent = {
     interrupt: true
@@ -146,7 +146,8 @@ class Menu extends EventEmitter {
 
         this.q = new Questions(this)
 
-        this.on('resize', this.handleResize.bind(this))
+        this.handleResize = this.handleResize.bind(this)
+        this.on('resize', this.handleResize)
 
         this.boxes = {
             menu   : new TermBox({
@@ -183,10 +184,6 @@ class Menu extends EventEmitter {
             })
           , screen: new TermBox({
                 top         : 1
-              , minWidth    : this.term.width
-              , maxWidth    : this.term.width
-              , minHeight   : this.term.height
-              , maxHeight   : this.term.height
               , term        : this.term
               , isBorder    : true
               , borderStyle : 'solid'
@@ -1024,8 +1021,15 @@ class Menu extends EventEmitter {
         if (!this.settings.termEnabled) {
             return
         }
-        clearTimeout(this.resizeTimeoutId)
+        if (this.resizeTimeoutId) {
+            clearTimeout(this.resizeTimeoutId)
+        } else {
+            if (this.prompter) {
+                this.eraseScreen()
+            }
+        }
         this.resizeTimeoutId = setTimeout(() => {
+            this.resizeTimeoutId = null
             const {prompter} = this
             if (!prompter || !prompter.ui) {
                 return
@@ -1476,7 +1480,7 @@ class Menu extends EventEmitter {
                 this.logger.warn(err)
             }
         }
-        this.removeAllListeners()
+        this.removeListener('resize', this.handleResize)
     }
 
     static settingsDefaults() {

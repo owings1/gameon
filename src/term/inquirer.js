@@ -406,8 +406,6 @@ class ScreenManager extends ScreenBase {
     }
 }
 
-
-
 class Separator extends Inquirer.Separator {
 
     constructor(chr, size) {

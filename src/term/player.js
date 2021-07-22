@@ -610,6 +610,9 @@ class TermPlayer extends Base {
                     try {
                         this.logger.debug('promptReject.ui.close')
                         this.prompter.ui.close()
+                        console.log(this.prompter.ui.rl.eventNames())
+                        console.log(this.prompter.ui.rl.listenerCount('line'))
+                        //console.log(this.prompter.ui.rl.listeners('line'))
                     } catch (e) {
                         this.logger.error('Failed to close UI', e)
                     }
