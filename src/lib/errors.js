@@ -193,8 +193,6 @@ class ThemeError      extends BaseError {}
 // ArgumentError
 class DuplicateColumnError  extends ArgumentError {}
 class DuplicateKeyError     extends ArgumentError {}
-class IncompatibleKeysError extends ArgumentError {}
-class InvalidCharError      extends ArgumentError {}
 class InvalidColorError     extends ArgumentError {}
 class InvalidColumnError    extends ArgumentError {}
 class InvalidDirError       extends ArgumentError {}
@@ -311,10 +309,8 @@ const Errors = {
   , IllegalBareoffError
   , IllegalMoveError
   , IllegalStateError
-  , IncompatibleKeysError
   , InternalError
   , InvalidActionError
-  , InvalidCharError
   , InvalidColorError
   , InvalidColumnError
   , InvalidDirError

@@ -22,32 +22,62 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-const Errors = require('./errors')
-
-const chalk       = require('chalk')
 const cliWidth    = require('cli-width')
 const crypto      = require('crypto')
 const emailval    = require('email-validator')
 const os          = require('os')
 const path        = require('path')
+const roundTo     = require('round-to')
 const stringWidth = require('string-width')
 const stripAnsi   = require('strip-ansi')
 const uuid        = require('uuid')
 
+const {
+    ArgumentError
+  , ProgrammerError
+  , PromptActiveError
+} = require('./errors')
+
+const StringBuilder = require('./util/string-builder')
+
 class Util {
 
+    /**
+     * Append all values to an array.
+     *
+     * @param {array} The array to push to
+     * @param {array} The values to push
+     *
+     * @throws TypeError
+     *
+     * @returns {array} The input array
+     */
     static append(arr, values) {
         values.forEach(value => arr.push(value))
         return arr
     }
 
+    /**
+     * 
+     * @param {array}
+     * @param {integer}
+     * @param {integer}
+     * @param {integer}
+     * @param {integer} (optional)
+     *
+     * @throws TypeError
+     *
+     * @returns {boolean}
+     */
     static arrayIncrement(arr, inc, min, max, place) {
-        const precision = Util.countDecimalPlaces(inc)
+        const precision = inc == Math.floor(inc)
+            ? 0
+            : inc.toString().split('.')[1].length
         if (typeof place == 'undefined') {
             place = arr.length - 1
         }
         if (arr[place] + inc <= max) {
-            arr[place] = Util.roundTo(arr[place] + inc, precision)
+            arr[place] = roundTo(arr[place] + inc, precision)
             return true
         }
         if (place == 0) {
@@ -61,8 +91,10 @@ class Util {
     }
 
     /**
+     *
      * @param {array} The lines to chunk
      * @param {integer} The max width
+     *
      * @return {array} One array of chunked lines for each input line
      */
     static breakLines(lines, width) {
@@ -104,17 +136,33 @@ class Util {
         })
     }
 
+    /**
+     * 
+     * @param {any}
+     *
+     * @returns {array}
+     */
     static castToArray(val) {
         if (Array.isArray(val)) {
             return val
         }
         const arr = []
-        if (val !== null && typeof(val) != 'undefined') {
+        if (val !== null && typeof val != 'undefined') {
             arr.push(val)
         }
         return arr
     }
 
+    /**
+     * Break up an array into chunks.
+     *
+     * @param {array} The array to chunk
+     * @param {integer} The number of chunks
+     *
+     * @throws TypeError
+     *
+     * @returns {array} The array of chunks
+     */
     static chunkArray(arr, numChunks) {
         const chunks = Util.intRange(1, numChunks).map(() => [])
         let c = 0
@@ -128,19 +176,30 @@ class Util {
         return chunks
     }
 
-    static get cliWidth() {
-        return cliWidth
+    /**
+     * Get the terminal width.
+     *
+     * @param {object} (optional) The options
+     *
+     * @returns {integer} The width
+     */
+    static cliWidth(opts) {
+        return cliWidth(opts)
     }
 
-    // adapted from: https://stackoverflow.com/a/17369245
-    static countDecimalPlaces(num) {
-        if (Math.floor(num.valueOf()) === num.valueOf()) {
-            return 0
-        }
-        // the || 0 was never called in tests, and it so far seems unnecessary
-        return num.toString().split('.')[1].length //|| 0
-    }
-
+    /**
+     * Create a crypto Hash object, optionally update it, and optionally return
+     * a digest string.
+     *
+     * @param {string} The hash type to pass to `crypto.createHash()`
+     * @param {string|Buffer|TypedArray|DataView} (optional) Data to update
+     * @param {string} (optional) The digest type to return. If not specified,
+     *        the Hash object is returned
+     *
+     * @returns {Hash|string} The Hash object, or digest
+     *
+     * See: https://nodejs.org/api/crypto.html#crypto_hash_update_data_inputencoding
+     */
     static createHash(type, input, digest) {
         const hash = crypto.createHash(type)
         if (input == null) {
@@ -153,7 +212,18 @@ class Util {
         return hash.digest(digest)
     }
 
-    // from:  https://stackoverflow.com/questions/60369148/how-do-i-replace-deprecated-crypto-createcipher-in-nodejs
+    /**
+     * Adapted from: https://stackoverflow.com/a/60370205/
+     * 
+     * @license CC-BY-SA 4.0 https://creativecommons.org/licenses/by-sa/4.0/
+     *
+     * @param {string}
+     * @param {string}
+     *
+     * @throws ArgumentError
+     *
+     * @returns {string}
+     */
     static decrypt1(text, key) {
         if (!text || text.length < 41) {
             throw new ArgumentError('Invalid text argument')
@@ -172,17 +242,76 @@ class Util {
         return decrypted.toString()
     }
 
+    /**
+     * Adapted from: http://vancelucas.com/blog/stronger-encryption-and-decryption-in-node-js/
+     *
+     * @license CC-BY 3.0 https://creativecommons.org/licenses/by/3.0/us/
+     * @param {string}
+     * @param {string}
+     *
+     * @throws ArgumentError
+     *
+     * @returns {string}
+     */
+    static decrypt2(text, key) {
+        if (!text || text.length < 41) {
+            throw new ArgumentError('Invalid text argument')
+        }
+        if (!key || key.length != 32) {
+            throw new ArgumentError('Invalid key argument')
+        }
+        const textParts = text.split(':')
+        const iv = Buffer.from(textParts.shift(), 'hex')
+        if (iv.length != 16) {
+            throw new ArgumentError('Invalid IV length')
+        }
+        const encryptedText = Buffer.from(textParts.join(':'), 'hex')
+        const decipher = crypto.createDecipheriv('aes-256-ctr', Buffer.from(key), iv)
+        let decrypted = decipher.update(encryptedText)
+
+        decrypted = Buffer.concat([decrypted, decipher.final()])
+
+        return decrypted.toString()
+    }
+    /**
+     *
+     * @param {object}
+     * @param ...{object} (optional)
+     *
+     * @returns {object}
+     */
     static defaults(defaults, ...opts) {
         let obj = {...defaults}
         opts.forEach(opts => obj = {...obj, ...opts})
         return Util.propsFrom(obj, defaults)
     }
 
+    /**
+     * Call the `destroy()` method on all values of the given parameter.
+     *
+     * @param {array|object} The collection whose values to destroy
+     *
+     * @throws TypeError
+     *
+     * @returns {self}
+     */
     static destroyAll(obj) {
         Object.values(obj).forEach(it => it.destroy())
+        return Util
     }
 
-    // from:  https://stackoverflow.com/questions/60369148/how-do-i-replace-deprecated-crypto-createcipher-in-nodejs
+    /**
+     * Adapted from: https://stackoverflow.com/a/60370205/
+     * 
+     * @license CC-BY-SA 4.0 https://creativecommons.org/licenses/by-sa/4.0/
+     *
+     * @param {string}
+     * @param {string}
+     *
+     * @throws ArgumentError
+     *
+     * @returns {string}
+     */
     static encrypt1(text, key) {
         if (!text || !text.length) {
             throw new ArgumentError('Invalid text argument')
@@ -196,7 +325,44 @@ class Util {
         return [iv.toString('hex'), encrypted.toString('hex')].join(':')
     }
 
+    /**
+     * Adapted from: http://vancelucas.com/blog/stronger-encryption-and-decryption-in-node-js/
+     *
+     * @license CC-BY 3.0 https://creativecommons.org/licenses/by/3.0/us/
+     * @param {string}
+     * @param {string}
+     *
+     * @throws ArgumentError
+     *
+     * @returns {string}
+     */
+    static encrypt2(text, key) {
+        if (!text || !text.length) {
+            throw new ArgumentError('Invalid text argument')
+        }
+        if (!key || key.length != 32) {
+            throw new ArgumentError('Invalid key argument')
+        }
+        const iv = crypto.randomBytes(16)
+        const cipher = crypto.createCipheriv('aes-256-ctr', Buffer.from(key), iv)
+        let encrypted = cipher.update(text)
+
+        encrypted = Buffer.concat([encrypted, cipher.final()])
+
+        return iv.toString('hex') + ':' + encrypted.toString('hex')
+    }
+    /**
+     * Update the target object with the defaults if the key does not yet exist.
+     *
+     * @param {object} The target object to update
+     * @param {object} The defaults to use
+     *
+     * @throws TypeError
+     *
+     * @returns {object} The target object
+     */
     static ensure(target, defaults) {
+        target = target || {}
         Object.entries(defaults).forEach(([name, method]) => {
             if (!(name in target)) {
                 target[name] = method
@@ -205,6 +371,16 @@ class Util {
         return target
     }
 
+    /**
+     * Catch an error from executing the given callback, and return the error
+     * message, or `false` if the error message is empty, or `true` if no error
+     * occurs.
+     *
+     * @param {function} The callback to execute
+     *
+     * @returns {boolean|string} The string error message or `false` for empty
+     *          message, or `true` if no error was thrown.
+     */
     static errMessage(cb) {
         try {
             cb()
@@ -214,11 +390,37 @@ class Util {
         return true
     }
 
+    /**
+     * Escape special regex characters in a string.
+     *
+     * Copied from: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Guide/Regular_Expressions#using_special_characters
+     *
+     * @license MPL 2.0 https://www.mozilla.org/en-US/MPL/
+     *
+     * @param {string} The string to escape
+     *
+     * @throws TypeError
+     *
+     * @returns {string} The escaped string
+     */
     static escapeRegex(str) {
-        // from: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Guide/Regular_Expressions#Using_Special_Characters
         return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
     }
 
+    /**
+     * Copy methods from the prototype of one class to another.
+     *
+     * @param {class} The target class
+     * @param {class} The source class
+     * @param {object} (optional) Options, `overrides`, `optionals`, each
+     *        either a boolean (for all) or array of method names. The string
+     *        '*' as a name signifies all.
+     *
+     * @throws ProgrammerError
+     * @throws TypeError
+     *
+     * @returns {class} The target class
+     */
     static extendClass(TargetClass, SourceClass, opts) {
 
         opts = opts || {}
@@ -255,6 +457,15 @@ class Util {
         return TargetClass
     }
 
+    /**
+     * Generate a readable date string safe for using as a filename.
+     *
+     * @param {Date} (optional) The date reference, default is current date.
+     *
+     * @throws TypeError
+     *
+     * @returns {string} The result string
+     */
     static fileDateString(date) {
         date = date || new Date
         const b = new StringBuilder
@@ -278,25 +489,66 @@ class Util {
         return b.join('_')
     }
 
+    /**
+     * Get the basename of the file path, without the extension.
+     *
+     * @param {string} The input path string
+     *
+     * @throws TypeError
+     *
+     * @returns {string} The basename without the extension
+     */
     static filenameWithoutExtension(str) {
         return Util.filepathWithoutExtension(path.basename(str))
     }
 
+    /**
+     * Get the file path without the extension.
+     *
+     * @param {string} The input path string
+     *
+     * @throws TypeError
+     *
+     * @returns {string} The path without the extension
+     */
     static filepathWithoutExtension(str) {
         return str.replace(/\.[^/.]+$/, '')
     }
 
     /**
      * From inquirer/lib/utils/screen-manager.
+     *
+     * @param {string}
+     * @param {integer}
+     *
+     * @throws TypeError
+     *
+     * @returns {string}
      */
     static forceLineReturn(content, width) {
         return Util.breakLines(content.split('\n'), width).flat().join('\n')
     }
 
-    static get hash() {
-        return Util.createHash
+    /**
+     * Alias for `createHash()`
+     *
+     * @see `createHash()`
+     */
+    static hash(...args) {
+        return Util.createHash(...args)
     }
 
+    /**
+     * Replace os home dir at the start of a string with ~.
+     *
+     * @param {string} The input path string
+     *
+     * @throws TypeError
+     *
+     * @returns {string} The result string
+     *
+     * @see `tildeHome()`
+     */
     static homeTilde(str) {
         if (str == null) {
             return str
@@ -308,6 +560,17 @@ class Util {
         return '~' + str.substring(homeDir.length)
     }
 
+    /**
+     * Normalize an http(s) URL to a websocket URL.
+     *
+     * @param {string} The URL string to normalized
+     *
+     * @throws TypeError
+     *
+     * @returns {string} The normalized string
+     *
+     * @see `wsToHttp()`
+     */
     static httpToWs(str) {
         if (!str) {
             return str
@@ -315,7 +578,21 @@ class Util {
         return str.replace(/^(http)/, 'ws')
     }
 
+    /**
+     * Create an array of integers for the given range (inclusive).
+     *
+     * @param {integer} The range start
+     * @param {integer} The range end
+     *
+     * @throws ArgumentError
+     * @throws TypeError
+     *
+     * @returns {array} The range array
+     */
     static intRange(a, b) {
+        if (Number.isFinite(b) && !Number.isFinite(a)) {
+            throw new ArgumentError('Refusing to go to infinity')
+        }
         const range = []
         for (let i = a; i <= b; ++i) {
             range.push(i)
@@ -323,26 +600,60 @@ class Util {
         return range
     }
 
+    /**
+     * Check whether both the `username` and `password` keys are non-empty, and
+     * optionally the `serverUrl` key.
+     *
+     * @param {object} The credentials object to check
+     * @param {boolean} (optional) Whether to also check for `serverUrl`
+     *
+     * @throws TypeError
+     *
+     * @returns {boolean} Whether the keys are non-empty
+     */
     static isCredentialsFilled(credentials, isServer) {
         return Boolean(
             credentials.username && credentials.password && (!isServer || credentials.serverUrl)
         )
     }
 
+    /**
+     * Check whether to parameter is null, or an empty object.
+     *
+     * @param {any} The input to check
+     *
+     * @returns {boolean} Whether the input is null or an empty object
+     */
     static isEmptyObject(obj) {
         if (obj == null) {
             return true
         }
-        for (var k in obj) {
+        for (const k in obj) {
             return false
         }
         return true
     }
 
+    /**
+     * Check whether the input is a valid email address.
+     *
+     * @param {any} The input to check
+     *
+     * @returns {boolean} Whether the input is a valid email
+     */
     static isValidEmail(str) {
         return emailval.validate(str)
     }
 
+    /**
+     * Get the normalized keypress name from an event object.
+     *
+     * @param {object} The keypress event object
+     *
+     * @throws TypeError
+     *
+     * @returns {string} The normalized keypress name
+     */
     static keypressName(e) {
         if (e.key.name == 'escape') {
             return e.key.name
@@ -361,10 +672,28 @@ class Util {
         return e.value || ''
     }
 
+    /**
+     * Return an object with the same keys, with `true` as all values.
+     *
+     * @param {object} The input object
+     *
+     * @throws TypeError
+     *
+     * @returns {object} The result object
+     */
     static keyValuesTrue(input) {
         return Object.fromEntries(Object.values(input).map(value => [value, true]))
     }
 
+    /**
+     * Create a plain object from an Error, suitable for serialization.
+     *
+     * @param {Error} The input error
+     *
+     * @throws TypeError
+     *
+     * @returns {object} The result object
+     */
     static makeErrorObject(err, depth = 1) {
         const obj = {
             isError : true
@@ -394,18 +723,17 @@ class Util {
         return obj
     }
 
-    static nchars(n, chr) {
-        if (!chr.length) {
-            throw new InvalidCharError(`Unrepeatable character: '${chr}'`)
-        }
-        if (n == Infinity) {
-            throw new ArgumentError('Refusing to go to infinity')
-        }
-        return ''.padEnd(n, chr)
-    }
-
-    // returns a new object with the same keys, transforming
-    // values with cb.
+    /**
+     * Return a new object with the same keys, transforming values with the
+     * given callback.
+     *
+     * @param {object} The input object
+     * @param {function} The callback, to transform the value
+     *
+     * @throws TypeError
+     *
+     * @returns {object} The result object
+     */
     static mapValues(obj, cb) {
         return Object.fromEntries(
             Object.entries(obj).map(
@@ -414,8 +742,40 @@ class Util {
         )
     }
 
+    /**
+     * Create a string of length n from the input character.
+     *
+     * @param {integer} The desired length
+     * @param {string} The character to repeat
+     *
+     * @throws ArgumentError
+     * @throws TypeError
+     *
+     * @returns {string} The result string
+     */
+    static nchars(n, chr) {
+        if (!chr.length) {
+            throw new ArgumentError(`Unrepeatable character: '${chr}'`)
+        }
+        if (!Number.isFinite(n)) {
+            throw new ArgumentError('Refusing to go to infinity')
+        }
+        return ''.padEnd(n, chr)
+    }
+
+    /**
+     * Map the range from 0 for n (exclusive) by the given callback.
+     *
+     * @param {integer} The range limit
+     * @param {function} The callback to execute
+     *
+     * @throws ArgumentError
+     * @throws TypeError
+     *
+     * @returns {array} The collection of the return values
+     */
     static nmap(n, cb) {
-        if (n == Infinity) {
+        if (!Number.isFinite(n)) {
             throw new ArgumentError('Refusing to go to infinity')
         }
         const arr = []
@@ -425,8 +785,19 @@ class Util {
         return arr
     }
 
+    /**
+     * Run the callback n times.
+     *
+     * @param {integer} The number of times to run the callback
+     * @param {function} The callback to execute
+     *
+     * @throws ArgumentError
+     * @throws TypeError
+     *
+     * @returns {any} Return value of last callback
+     */
     static ntimes(n, cb) {
-        if (n == Infinity) {
+        if (!Number.isFinite(n)) {
             throw new ArgumentError('Refusing to go to infinity')
         }
         let ret
@@ -436,7 +807,19 @@ class Util {
         return ret
     }
 
-    // ansi safe
+    /**
+     * Pad a string, left or right, ANSI-safe.
+     *
+     * @param {string} The string to pad
+     * @param {string} Alignment, 'left' or 'right', default 'right'
+     * @param {integer} Required string width.
+     * @param {string} (optional) Pad string, default space.
+     *
+     * @throws ArgumentError
+     * @throws TypeError
+     *
+     * @returns {string} The padded string
+     */
     static pad(str, align, width, chr = ' ') {
         if (align == 'right') {
             return Util.padStart(str, width, chr)
@@ -444,34 +827,64 @@ class Util {
         return Util.padEnd(str, width, chr)
     }
 
-    // ansi safe
+    /**
+     * Pad the end of a string, ANSI-safe.
+     *
+     * @param {string} The string to pad
+     * @param {integer} The min width required
+     * @param {string} The character to pad with
+     *
+     * @throws ArgumentError
+     * @throws TypeError
+     *
+     * @returns {string} The padded string
+     */
     static padEnd(str, n, chr) {
         if (!chr.length) {
-            throw new InvalidCharError(`Unrepeatable character: '${chr}'`)
+            throw new ArgumentError(`Unrepeatable character: '${chr}'`)
         }
-        if (n == Infinity) {
+        if (!Number.isFinite(n)) {
             throw new ArgumentError('Refusing to go to infinity')
         }
-        while (Util.stripAnsi(str).length < n) {
+        while (Util.stringWidth(str) < n) {
             str += chr
         }
         return str
     }
 
-    // ansi safe
+    /**
+     * Pad the start of a string, ANSI-safe.
+     *
+     * @param {string} The string to pad
+     * @param {integer} The min width required
+     * @param {string} The character to pad with
+     *
+     * @throws ArgumentError
+     * @throws TypeError
+     *
+     * @returns {string} The padded string
+     */
     static padStart(str, n, chr) {
         if (!chr.length) {
-            throw new InvalidCharError(`Unrepeatable character: '${chr}'`)
+            throw new ArgumentError(`Unrepeatable character: '${chr}'`)
         }
-        if (n == Infinity) {
+        if (!Number.isFinite(n)) {
             throw new ArgumentError('Refusing to go to infinity')
         }
-        while (Util.stripAnsi(str).length < n) {
+        while (Util.stringWidth(str) < n) {
             str = chr + str
         }
         return str
     }
 
+    /**
+     * @param {object}
+     * @param {array|object}
+     *
+     * @throws TypeError
+     *
+     * @returns {object}
+     */
     static propsFrom(obj, keys) {
         keys = Array.isArray(keys) ? keys : Object.keys(keys)
         obj = obj || {}
@@ -482,11 +895,32 @@ class Util {
         return ret
     }
 
+    /**
+     * Get a random element from an array.
+     *
+     * @param {array} The input array
+     *
+     * @throws TypeError
+     *
+     * @returns {any} The value of a random index of the array
+     */
     static randomElement(arr) {
         const i = Math.floor(Math.random() * arr.length)
         return arr[i]
     }
 
+    /**
+     * Check if the first argument is not empty, and if so, reject with a new
+     * `PromptActiveError` by calling the reject argument if passed, else by
+     * throwing.
+     *
+     * @param {any} The object to test
+     * @param {function} (optional) The reject function.
+     *
+     * @throws PromptActiveError
+     *
+     * @returns {boolean} Whether the reject function was called
+     */
     static rejectDuplicatePrompter(prompter, reject = null) {
         if (!prompter) {
             return false
@@ -504,47 +938,61 @@ class Util {
         throw err
     }
 
-    // from: https://stackoverflow.com/a/15762794
-    static roundTo(n, digits) {
-        let isNegative = false
-        if (typeof digits == 'undefined') {
-            digits = 0
-        }
-        if (n < 0) {
-            isNegative = true
-            n = n * -1
-        }
-        const multiplicator = Math.pow(10, digits)
-        n = parseFloat((n * multiplicator).toFixed(11))
-        n = (Math.round(n) / multiplicator).toFixed(2)
-        if (isNegative) {
-            n = (n * -1).toFixed(2)
-        }
-        return +n
-    }
-
+    /**
+     * Generate a new secret string.
+     *
+     * @returns {string} The new secret string
+     */
     static secret1() {
-        return crypto.createHash('sha256').update(Util.uuid()).digest('hex')
+        return Util.createHash('sha256', Util.uuid(), 'hex')
     }
 
+    /**
+     * Compare two numbers for sorting ascending.
+     *
+     * @param {number} The left-hand number.
+     * @param {number} The right-hand number.
+     *
+     * @returns {number} The comparison result
+     */
     static sortNumericAsc(a, b) {
         return a - b
     }
 
+    /**
+     * Compare two numbers for sorting descending.
+     *
+     * @param {number} The left-hand number.
+     * @param {number} The right-hand number.
+     *
+     * @returns {number} The comparison result
+     */
     static sortNumericDesc(a, b) {
         return b - a
     }
 
-    // Join space
+    /**
+     * Join arguments on space character.
+     *
+     * @param ...{any} The arguments to join
+     *
+     * @returns {string} The joined string
+     */
     static sp(...args) {
         return args.join(' ')
     }
 
+    /**
+     * @param {object}
+     * @param {boolean} (optional)
+     *
+     * @returns {object}
+     */
     static spreadScore(obj, isInverse) {
         const iobj = {}
         let size = 0
         let minRaw = Infinity
-        for (var k in obj) {
+        for (const k in obj) {
             iobj[k] = isInverse ? -obj[k] : obj[k]
             if (iobj[k] < minRaw) {
                 minRaw = iobj[k]
@@ -553,12 +1001,12 @@ class Util {
         }
         const normObj = {}
         let scale = 0
-        for (var k in obj) {
+        for (const k in obj) {
             normObj[k] = iobj[k] - minRaw
             scale += normObj[k]
         }
         const spreadObj = {}
-        for (var k in obj) {
+        for (const k in obj) {
             if (scale == 0) {
                 // all values are equal
                 spreadObj[k] = 1 / size
@@ -569,10 +1017,26 @@ class Util {
         return spreadObj
     }
 
-    static get stripAnsi() {
-        return stripAnsi
+    /**
+     * Strip all ANSI escape sequences from a string.
+     *
+     * @param {string} The input string
+     *
+     * @returns {string} The result string
+     */
+    static stripAnsi(str) {
+        return stripAnsi(str)
     }
 
+    /**
+     * Strips one forward slash from the start of a string, if any.
+     *
+     * @param {string} The input string
+     *
+     * @throws TypeError
+     *
+     * @returns {string} The result string
+     */
     static stripLeadingSlash(str) {
         if (str && str[0] == '/') {
             return str.substring(1)
@@ -580,6 +1044,15 @@ class Util {
         return str
     }
 
+    /**
+     * Strips one forward slash from the end of a string, if any.
+     *
+     * @param {string} The input string
+     *
+     * @throws TypeError
+     *
+     * @returns {string} The result string
+     */
     static stripTrailingSlash(str) {
         if (str && str[str.length - 1] == '/') {
             return str.substring(0, str.length - 1)
@@ -587,19 +1060,42 @@ class Util {
         return str
     }
 
-    static get stringWidth() {
-        return stringWidth
+    /**
+     * Get the width of the string, ignoring ANSI codes, and accounting for
+     * multi-byte characters.
+     *
+     * @param {string} The input string
+     *
+     * @returns {integer} The string width
+     */
+    static stringWidth(str) {
+        return stringWidth(str)
     }
 
-    // ansi safe
-    static get strlen() {
-        return stringWidth
-    }
-
+    /**
+     * Sum all numbers in the array.
+     *
+     * @param {array} The input array
+     *
+     * @throws TypeError
+     *
+     * @returns {integer} The result sum
+     */
     static sumArray(arr) {
         return arr.reduce((acc, cur) => acc + cur, 0)
     }
 
+    /**
+     * Replace ~ at the start of a string with the os home dir.
+     *
+     * @param {string} The input path string
+     *
+     * @throws TypeError
+     *
+     * @returns {string} The result string
+     *
+     * @see `homeTilde()`
+     */
     static tildeHome(str) {
         if (str == null) {
             return str
@@ -610,11 +1106,25 @@ class Util {
         return os.homedir() + str.substring(1)
     }
 
+    /**
+     * Get UNIX timestamp (seconds).
+     *
+     * @param {Date} (optional) The date reference. Default is the current date.
+     *
+     * @returns {integer} The UNIX timestamp
+     */
     static timestamp(date) {
         date = date || new Date
         return Math.floor(+date / 1000)
     }
 
+    /**
+     * Prune data object for logging.
+     *
+     * @param {object} The input data
+     *
+     * @returns {object} The cleaned data
+     */
     static trimMessageData(data) {
         if (!data) {
             return data
@@ -645,10 +1155,28 @@ class Util {
         return trimmed
     }
 
-    static get tstamp() {
-        return Util.timestamp
+    /**
+     * Alias for `timestamp()`
+     *
+     * @param {Date} (optional) The date reference. Default is the current date.
+     *
+     * @returns {integer} The UNIX timestamp
+     *
+     * @see `timestamp()`
+     */
+    static tstamp(date) {
+        return Util.timestamp(date)
     }
 
+    /**
+     * Capitalize the first letter of a string.
+     *
+     * @param {string} The input string
+     *
+     * @throws TypeError
+     *
+     * @returns {string} The result string
+     */
     static ucfirst(str) {
         if (str == null || !str.length) {
             return str
@@ -656,20 +1184,57 @@ class Util {
         return str.substring(0, 1).toUpperCase() + str.substring(1)
     }
 
+    /**
+     * Returns an array with all the unique integers of the input array.
+     *
+     * @param {array} The input array
+     *
+     * @throws TypeError
+     *
+     * @returns {array} The unique numbers
+     */
     static uniqueInts(arr) {
-        return Util.uniquePrimitives(arr).map(it => +it)
+        const map = {}
+        arr.forEach(it => map[+it] = true)
+        return Object.keys(map).map(Number)
     }
 
+    /**
+     * Returns an array with all the unique strings of the input array.
+     *
+     * @param {array} The input array
+     *
+     * @throws TypeError
+     *
+     * @returns {array} The unique strings
+     */
     static uniqueStrings(arr) {
-        return Util.uniquePrimitives(arr).map(it => '' + it)
+        return Util.uniquePrimitives(arr).map(String)
     }
 
+    /**
+     * Returns an array with all the unique primitives of the input array.
+     *
+     * @param {array} The input array
+     *
+     * @throws TypeError
+     *
+     * @returns {array} The unique primitives
+     */
     static uniquePrimitives(arr) {
         const map = {}
-        arr.forEach(it => map[it] = true)
-        return Object.keys(map)
+        arr.forEach(it => map[it] = it)
+        return Object.values(map)
     }
 
+    /**
+     * Update an object with new values.
+     *
+     * @param {object} The target object to update
+     * @param {object} The source object with the new values
+     *
+     * @returns {object} The target object
+     */
     static update(target, source) {
         target = target || {}
         source = source || {}
@@ -679,10 +1244,26 @@ class Util {
         return target
     }
 
+    /**
+     * Generate a UUID.
+     *
+     * @returns {string} The new UUID
+     */
     static uuid() {
         return uuid.v4()
     }
 
+    /**
+     * Normalize websocket URL to an http(s) URL.
+     *
+     * @param {string} The URL string to normalized
+     *
+     * @throws TypeError
+     *
+     * @returns {string} The normalized string
+     *
+     * @see `httpToWs()`
+     */
     static wsToHttp(str) {
         if (!str) {
             return str
@@ -691,316 +1272,11 @@ class Util {
     }
 }
 
-class Counter {
-
-    constructor(name) {
-        this.isCounter = true
-        this.name = name || 'Counter' + CounterCounter.inc().value
-        this.value = 0
-    }
-
-    inc(amount = 1) {
-        this.value += amount
-        return this
-    }
-
-    zero() {
-        this.value = 0
-        return this
-    }
-
-    // for parallel api with timer
-    getCount() {
-        return this.value
-    }
-}
-
-const CounterCounter = new Counter('CounterCounter')
-const TimerCounter   = new Counter('TimerCounter')
-
-class Timer {
-
-    // For more resolution, see https://stackoverflow.com/a/18197438/794513
-
-    constructor(name) {
-        this.isTimer = true
-        this.name = name || 'Timer' + TimerCounter.inc().value
-        this.startTime = null
-        this.isRunning = false
-        this.elapsed = 0
-        this.startCount = 0
-        this.average = null
-    }
-
-    start() {
-        if (this.isRunning) {
-            throw new IllegalStateError('Timer already started')
-        }
-        this.startTime = +new Date
-        this.isRunning = true
-        this.startCount += 1
-        return this
-    }
-
-    stop() {
-        if (!this.isRunning) {
-            throw new IllegalStateError('Timer not started')
-        }
-        this.elapsed += +new Date - this.startTime
-        this.average = this.elapsed / this.startCount
-        this.isRunning = false
-        return this
-    }
-
-    reset() {
-        this.elapsed = 0
-        this.startCount = 0
-        this.average = null
-        return this
-    }
-
-    // for parallel api with counter
-    getCount() {
-        return this.startCount
-    }
-}
-
-class Profiler {
-
-    static getDefaultInstance() {
-        return DefaultProfiler
-    }
-
-    static createEnabled() {
-        return new Profiler
-    }
-
-    static createDisabled() {
-        const profiler = new Profiler
-        profiler.enabled = false
-        return profiler
-    }
-
-    constructor() {
-        this.timers = {}
-        this.counters = {}
-        this.enabled = true
-    }
-
-    start(name) {
-        if (!this.enabled) {
-            return
-        }
-        if (!this.timers[name]) {
-            this.timers[name] = new Timer(name)
-        }
-        this.timers[name].start()
-        return this
-    }
-
-    stop(name) {
-        if (!this.enabled) {
-            return
-        }
-        this.timers[name].stop()
-        return this
-    }
-
-    reset(name) {
-        if (!this.enabled) {
-            return
-        }
-        this.timers[name].reset()
-        return this
-    }
-
-    resetAll() {
-        if (!this.enabled) {
-            return
-        }
-        for (var name in this.timers) {
-            this.reset(name)
-        }
-        for (var name in this.counters) {
-            this.zero(name)
-        }
-        return this
-    }
-
-    inc(name, amount) {
-        if (!this.enabled) {
-            return
-        }
-        if (!this.counters[name]) {
-            this.counters[name] = new Counter(name)
-        }
-        this.counters[name].inc(amount)
-        return this
-    }
-
-    zero(name) {
-        if (!this.enabled) {
-            return
-        }
-        this.counters[name].zero()
-        return this
-    }
-}
-
-const DefaultProfiler = Profiler.createDisabled()
-
-class StringBuilder {
-
-    constructor(...args) {
-        this.arr = []
-        this.add(...args)
-    }
-
-    add(...args) {
-        for (var i = 0, ilen = args.length; i < ilen; ++i) {
-            var arg = args[i]
-            if (arg instanceof StringBuilder) {
-                this.arr.push(arg.toString())
-            } else {
-                this.arr.push(arg)
-            }
-        }
-        return this
-    }
-
-    sp(...args) {
-        return this.add(args.join(' '))
-    }
-
-    replace(...args) {
-        const b = new StringBuilder(...args)
-        this.arr = b.arr
-        return this
-    }
-
-    length() {
-        return this.toString().length
-    }
-
-    join(sep) {
-        return this.arr.join(sep)
-    }
-
-    toString() {
-        return this.arr.join('')
-    }
-}
-
-class DependencyHelper {
-
-    constructor(roots) {
-        this.resolved = {}
-        this.unresolved = {}
-        this.added = {}
-        this.order = []
-        if (roots) {
-            roots.forEach(name => this.resolved[name] = true)
-        }
-    }
-
-    add(name, dependencies) {
-
-        if (this.added[name]) {
-            throw new DependencyError(`Duplicate name: ${name}`)
-        }
-        this.added[name] = true
-
-        this.unresolved[name] = {}
-
-        if (dependencies) {
-            dependencies.forEach(dependency => {
-                if (!this.resolved[dependency]) {
-                    if (this.unresolved[dependency] && this.unresolved[dependency][name]) {
-                        throw new CircularDependencyError(`Circular dependecy: ${name} <-> ${dependency}`)
-                    }
-                    this.unresolved[name][dependency] = true
-                }
-            })
-        }
-
-        if (!Object.keys(this.unresolved[name]).length) {
-            if (!this.resolved[name]) {
-                this.resolved[name] = true
-                this.order.push(name)
-            }
-            delete this.unresolved[name]
-        }
-    }
-
-    resolve() {
-
-        const missing = {}
-
-        for (var name in this.unresolved) {
-            for (var dependency in this.unresolved[name]) {
-                if (!this.added[dependency]) {
-                    missing[dependency] = true
-                }
-            }
-        }
-        if (Object.keys(missing).length) {
-            throw new MissingDependencyError(`Missing dependencies: ${Object.keys(missing).join(', ')}`)
-        }
-
-        do {
-            var count = this._resolveLoop()
-        } while (count > 0)
-
-        const unresolvedNames = Object.keys(this.unresolved)
-        if (unresolvedNames.length) {
-            throw new UnresolvedDependencyError(`Unmet dependecies for: ${unresolvedNames.join(', ')}`)
-        }
-
-        return this.order
-    }
-
-    _resolveLoop() {
-
-        var count = 0
-
-        Object.keys(this.unresolved).forEach(name => {
-
-            Object.keys(this.unresolved[name]).forEach(dependency => {
-                if (this.resolved[dependency]) {
-                    count += 1
-                    delete this.unresolved[name][dependency]
-                }
-            })
-
-            if (!Object.keys(this.unresolved[name]).length) {
-                this.resolved[name] = true
-                this.order.push(name)
-                delete this.unresolved[name]
-            }
-        })
-
-        return count
-    }
-}
-
-const {
-    ArgumentError
-  , CircularDependencyError
-  , DependencyError
-  , IllegalStateError
-  , IncompatibleKeysError
-  , InvalidCharError
-  , MissingDependencyError
-  , ProgrammerError
-  , PromptActiveError
-  , UnresolvedDependencyError
-} = Errors
-
 Util.update(Util, {
-    Counter
-  , DependencyHelper
-  , Profiler
-  , Timer
+    Counter          : require('./util/counter')
+  , DependencyHelper : require('./util/dependency-helper')
+  , Profiler         : require('./util/profiler')
+  , Timer            : require('./util/timer')
   , StringBuilder
 })
 

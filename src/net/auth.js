@@ -56,8 +56,8 @@ const {
 } = Errors
 
 const {
-    decrypt1
-  , encrypt1
+    decrypt2
+  , encrypt2
   , hash
   , isValidEmail
   , tstamp
@@ -789,7 +789,7 @@ class Auth {
      * @returns string The encrypted password
      */
     encryptPassword(password) {
-        return EncryptedFlagPrefix + encrypt1(password, this.saltMd5)
+        return EncryptedFlagPrefix + encrypt2(password, this.saltMd5)
     }
 
     /**
@@ -802,7 +802,7 @@ class Auth {
      * @returns string The decrypted password
      */
     decryptPassword(passwordEncrypted) {
-        return decrypt1(passwordEncrypted.substring(EncryptedFlagPrefix.length), this.saltMd5)
+        return decrypt2(passwordEncrypted.substring(EncryptedFlagPrefix.length), this.saltMd5)
     }
 
     /**

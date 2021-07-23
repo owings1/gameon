@@ -45,7 +45,7 @@ const {
   , mapValues
   , nchars
   , pad
-  , strlen
+  , stringWidth
   , sumArray
 } = Util
 
@@ -359,7 +359,7 @@ class Table {
     }
 
     calculatePost() {
-        this.outerWidth = strlen(this.lines[0])
+        this.outerWidth = stringWidth(this.lines[0])
         return this
     }
 
@@ -548,8 +548,8 @@ class Table {
     calculateColumnWidths() {
         this.showColumns.forEach((column, i) => {
             column.width = Math.max(
-                strlen(column.title)
-              , ...this.rows.map(row => strlen(row[i]))
+                stringWidth(column.title)
+              , ...this.rows.map(row => stringWidth(row[i]))
             )
         })
     }
@@ -564,7 +564,7 @@ class Table {
             return
         }
         // check if footers/title will fit
-        const extrasWidth = Math.max(...footerLines.map(strlen), strlen(title))
+        const extrasWidth = Math.max(...footerLines.map(stringWidth), stringWidth(title))
         const deficit = extrasWidth - this.innerWidth
         if (deficit <= 0) {
             return

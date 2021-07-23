@@ -1437,11 +1437,11 @@ class Menu extends EventEmitter {
     }
 
     encryptPassword(password) {
-        return password ? Util.encrypt1(password, this.chash) : ''
+        return password ? Util.encrypt2(password, this.chash) : ''
     }
 
     decryptPassword(password) {
-        return password ? Util.decrypt1(password, this.chash) : ''
+        return password ? Util.decrypt2(password, this.chash) : ''
     }
 
     robotsDefaults() {

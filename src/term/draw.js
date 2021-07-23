@@ -34,7 +34,7 @@ const TermKit     = require('terminal-kit')
 const {RobotDelegator} = Robot
 const {StringBuilder}  = Util
 
-const {nchars, sp, stripAnsi, strlen, ucfirst} = Util
+const {nchars, sp, stripAnsi, stringWidth, ucfirst} = Util
 
 const {Board, Match, Turn} = Core
 
@@ -227,7 +227,7 @@ class DrawHelper {
         const {chars} = this
 
         const afterStr = this.afterPieceRowString(depth, cubePart, owner).toString()
-        const pad = this.AfterWidth - strlen(afterStr)
+        const pad = this.AfterWidth - stringWidth(afterStr)
 
         const b = new StringBuilder
 
@@ -301,7 +301,7 @@ class DrawHelper {
 
         b.add(cubeStr)
 
-        const pad = this.AfterWidth - strlen(cubeStr.toString())
+        const pad = this.AfterWidth - stringWidth(cubeStr.toString())
 
         b.add(this.sideLog(pad))
         b.add(Chars.br)
@@ -321,7 +321,7 @@ class DrawHelper {
             var cubeStr = Chars.empty
         }
 
-        const pad = this.AfterWidth - strlen(cubeStr.toString())
+        const pad = this.AfterWidth - stringWidth(cubeStr.toString())
 
         return new StringBuilder(
             chlk.border(chars.pipe)
@@ -348,7 +348,7 @@ class DrawHelper {
         }
         if (this.logs[n]) {
             var message = this.logs[this.logs.length - n - 1]
-            if (strlen(message) > this.maxLogWidth) {
+            if (stringWidth(message) > this.maxLogWidth) {
                 message = chlk.log(
                     stripAnsi(message).substring(0, this.maxLogWidth)
                 )
@@ -360,7 +360,7 @@ class DrawHelper {
         return new StringBuilder(
             chlk.outside(nchars(pad, Chars.sp))
           , message
-          , chlk.log(nchars(maxWidth - strlen(message), Chars.sp))
+          , chlk.log(nchars(maxWidth - stringWidth(message), Chars.sp))
         )
     }
 

@@ -27,12 +27,13 @@ const {
     expect,
     getError,
     getErrorAsync,
+    noop,
     requireSrc,
     update
 } = TestUtil
 
 const Util = requireSrc('lib/util')
-const {Profiler, Counter, Timer, DependencyHelper, StringBuilder} = Util
+const {Profiler, Counter, Timer, StringBuilder} = Util
 
 const chalk = require('chalk')
 const os    = require('os')
@@ -99,6 +100,15 @@ describe('Util', () => {
         })
     })
 
+    describe('#breakLines', () => {
+
+        it('should return 1 chunk with size 0 for empty string', function () {
+            const res = Util.breakLines([''], 80)
+            expect(res.length).to.equal(1)
+            expect(res[0].length).to.equal(0)
+        })
+    })
+
     describe('#castToArray', () => {
 
         it('should return singleton [1] for input 1', () => {
@@ -138,24 +148,6 @@ describe('Util', () => {
         it('should chunk [1, 2] to [1], [2]', () => {
             const res = Util.chunkArray([1, 2], 2)
             expect(res).to.jsonEqual([[1], [2]])
-        })
-    })
-
-    describe('#countDecimalPlaces', () => {
-
-        it('should return 0 for 1', () => {
-            const res = Util.countDecimalPlaces(1)
-            expect(res).to.equal(0)
-        })
-
-        it('should return 1 for 1.1', () => {
-            const res = Util.countDecimalPlaces(1.1)
-            expect(res).to.equal(1)
-        })
-
-        it('should return 2 for 1.11', () => {
-            const res = Util.countDecimalPlaces(1.11)
-            expect(res).to.equal(2)
         })
     })
 
@@ -199,6 +191,23 @@ describe('Util', () => {
         })
     })
 
+    describe('#encrypt2', () => {
+
+        beforeEach(function () {
+            update(this.fixture, {
+                key: '202cb962ac59075b964b07152d234b70'
+            })
+        })
+
+        it('should be compatible with decrypt1', function () {
+            const {key} = this.fixture
+            const text = 'test-input'
+            const enc = Util.encrypt2(text, key)
+            const res = Util.decrypt1(enc, key)
+            expect(res).to.equal(text)
+        })
+    })
+
     describe('#defaults', () => {
 
         it('should return only keys from first param', () => {
@@ -223,6 +232,30 @@ describe('Util', () => {
             const exp = {a:2, b:4}
             const result = Util.defaults(defaults, opts1, opts2, opts3)
             expect(result).to.jsonEqual(exp)
+        })
+    })
+
+    describe('#encrypt1', () => {
+
+        beforeEach(function () {
+            update(this.fixture, {
+                key: '202cb962ac59075b964b07152d234b70'
+            })
+        })
+
+        it('should throw ArgumentError for key with length 5', function () {
+            const {key} = this.fixture
+            const badKey = '12345'
+            const text = 'some-text'
+            const err = getError(() => Util.encrypt1(text, badKey))
+            expect(err.isArgumentError).to.equal(true)
+        })
+
+        it('should throw ArgumentError for text with length 0', function () {
+            const {key} = this.fixture
+            const input = ''
+            const err = getError(() => Util.encrypt1(input, key))
+            expect(err.isArgumentError).to.equal(true)
         })
     })
 
@@ -269,6 +302,83 @@ describe('Util', () => {
             })
         })
     
+    })
+
+    describe('#extendClass', () => {
+    
+        it('should allow explicit override', () => {
+            class Source {
+                foo() {return 1}
+            }
+            class Target {
+                foo() {return 0}
+            }
+            Util.extendClass(Target, Source, {overrides: ['foo']})
+            const inst = new Target
+            const res = inst.foo()
+            expect(res).to.equal(1)
+        })
+
+        it('should allow wildcard override', () => {
+            class Source {
+                foo() {return 1}
+            }
+            class Target {
+                foo() {return 0}
+            }
+            Util.extendClass(Target, Source, {overrides: '*'})
+            const inst = new Target
+            const res = inst.foo()
+            expect(res).to.equal(1)
+        })
+
+        it('should allow override with true', () => {
+            class Source {
+                foo() {return 1}
+            }
+            class Target {
+                foo() {return 0}
+            }
+            Util.extendClass(Target, Source, {overrides: true})
+            const inst = new Target
+            const res = inst.foo()
+            expect(res).to.equal(1)
+        })
+
+        it('should throw ProgrammerError without override', () => {
+            class Source {
+                foo() {return 1}
+            }
+            class Target {
+                foo() {return 0}
+            }
+            const err = getError(() => Util.extendClass(Target, Source))
+            expect(err.isProgrammerError).to.equal(true)
+        })
+
+        it('should throw ProgrammerError with overrides=false', () => {
+            class Source {
+                foo() {return 1}
+            }
+            class Target {
+                foo() {return 0}
+            }
+            const err = getError(() => Util.extendClass(Target, Source, {overrides: false}))
+            expect(err.isProgrammerError).to.equal(true)
+        })
+
+        it('should support explicit optionals', () => {
+            class Source {
+                foo() {return 1}
+            }
+            class Target {
+                foo() {return 0}
+            }
+            Util.extendClass(Target, Source, {optionals: ['foo']})
+            const inst = new Target
+            const res = inst.foo()
+            expect(res).to.equal(0)
+        })
     })
 
     describe('#fileDateString', () => {
@@ -360,6 +470,42 @@ describe('Util', () => {
             const result = Util.makeErrorObject(err)
             expect(result.name).to.equal('Error')
         })
+
+        it('should include own property foo, and exclude prototype property bar', function () {
+            class TestError extends Error {
+                constructor(...args) {
+                    super(...args)
+                    this.foo = 1
+                }
+            }
+            TestError.prototype.bar = 2
+            const err = new TestError
+            const result = Util.makeErrorObject(err)
+            expect(err.bar).to.equal(2)
+            expect(result.foo).to.equal(1)
+            expect(Object.keys(result)).to.not.contain('bar')
+        })
+
+        it('should recurse with props from error as property', function () {
+            const err = new Error('testMessage')
+            err.a = new Error('subError')
+            err.a.foo = 1
+            const result = Util.makeErrorObject(err)
+            expect(result.a.error).to.equal('subError')
+            expect(result.a.foo).to.equal(1)
+        })
+
+        it('should recurse depth 2 without props from error as property', function () {
+            const err = new Error('testMessage')
+            err.a = new Error('subError')
+            err.a.b = new Error('subSubError')
+            err.a.b.foo = 1
+            err.a.b.name = null
+            const result = Util.makeErrorObject(err)
+            expect(result.a.error).to.equal('subError')
+            expect(result.a.b.name).to.equal('Error')
+            expect(Boolean(result.a.b.foo)).to.equal(false)
+        })
     })
 
     describe('#mapValues', () => {
@@ -371,7 +517,51 @@ describe('Util', () => {
         })
     })
 
+    describe('#nchars', () => {
+
+        it('should throw ArgumentError for empty', function () {
+            const err = getError(() => Util.nchars(5, ''))
+            expect(err.isArgumentError).to.equal(true)
+        })
+
+        it('should throw ArgumentError for Infinity', function () {
+            const err = getError(() => Util.nchars(Infinity, ' '))
+            expect(err.isArgumentError).to.equal(true)
+        })
+
+        it('should repeat char 8 times', function () {
+            const exp = 'cccccccc'
+            const res = Util.nchars(8, 'c')
+            expect(res).to.equal(exp)
+        })
+    })
+
+    describe('#nmap', () => {
+
+        it('should throw ArgumentError for Infinity', function () {
+            const err = getError(() => Util.nmap(Infinity, noop))
+            expect(err.isArgumentError).to.equal(true)
+        })
+
+        it('should repeat accumulate callback values', function () {
+            const exp = [3, 4, 5, 6]
+            const res = Util.nmap(4, value => value + 3)
+            expect(res).to.jsonEqual(exp)
+        })
+    })
+
     describe('#ntimes', () => {
+
+        it('should throw ArgumentError for Infinity', function () {
+            const err = getError(() => Util.ntimes(Infinity, noop))
+            expect(err.isArgumentError).to.equal(true)
+        })
+
+        it('should repeat callback 4 times', function () {
+            let counter = 0
+            const res = Util.ntimes(4, () => counter += 1)
+            expect(counter).to.equal(4)
+        })
 
         it('should increment variable by 2 5 times', function () {
             let v = 0
@@ -413,6 +603,32 @@ describe('Util', () => {
         })
     })
 
+    describe('#padEnd', () => {
+
+        it('should throw ArgumentError for Infinity', function () {
+            const err = getError(() => Util.padEnd('x', Infinity, 'x'))
+            expect(err.isArgumentError).to.equal(true)
+        })
+
+        it('should throw ArgumentError for empty', function () {
+            const err = getError(() => Util.padEnd('x', 5, ''))
+            expect(err.isArgumentError).to.equal(true)
+        })
+    })
+
+    describe('#padStart', () => {
+
+        it('should throw ArgumentError for Infinity', function () {
+            const err = getError(() => Util.padStart('x', Infinity, 'x'))
+            expect(err.isArgumentError).to.equal(true)
+        })
+
+        it('should throw ArgumentError for empty', function () {
+            const err = getError(() => Util.padStart('x', 5, ''))
+            expect(err.isArgumentError).to.equal(true)
+        })
+    })
+
     describe('#propsFrom', () => {
 
         it('should filter keys from array as second param', () => {
@@ -445,7 +661,40 @@ describe('Util', () => {
         })
     })
 
-    describe('#roundTo', () => {
+    describe('#rejectDuplicatePrompter', () => {
+
+        beforeEach(function () {
+            this.prompter = {
+                ui: {
+                    activePrompt: {
+                        opt: {
+                            name: 'test'
+                        }
+                    }
+                }
+            }
+        })
+
+        it('should throw PromptActiveError if prompter not empty and no reject passed', function () {
+            const err = getError(() => Util.rejectDuplicatePrompter(this.prompter))
+            expect(err.isPromptActiveError).to.equal(true)
+        })
+
+        it('should reject with PromptActiveError if prompter not empty and reject passed', function (done) {
+            Util.rejectDuplicatePrompter(this.prompter, err => {
+                expect(err.isPromptActiveError).to.equal(true)
+                done()
+            })
+        })
+
+        it('should throw PromptActiveError for non-empty prompter even if no activePrompt property', function () {
+            const err = getError(() => Util.rejectDuplicatePrompter({}))
+            expect(err.isPromptActiveError).to.equal(true)
+        })
+    })
+
+    // removing...
+    describe.skip('#roundTo', () => {
 
         it('should return 1 for 1,undefined', () => {
             const res = Util.roundTo(1)
@@ -545,6 +794,19 @@ describe('Util', () => {
         })
     })
 
+    describe('#stringWidth', () => {
+
+        it('should return 0 for null', () => {
+            const res = Util.stringWidth(null)
+            expect(res).to.equal(0)
+        })
+
+        it('should return 4 for chalked input', () => {
+            const res = Util.stringWidth(chalk.green('asdf'))
+            expect(res).to.equal(4)
+        })
+    })
+
     describe('#stripLeadingSlash', () => {
 
         it('should return asdf for asdf', () => {
@@ -568,19 +830,6 @@ describe('Util', () => {
         it('should return asdf for asdf/', () => {
             const res = Util.stripTrailingSlash('asdf/')
             expect(res).to.equal('asdf')
-        })
-    })
-
-    describe('#strlen', () => {
-
-        it('should return 0 for null', () => {
-            const res = Util.strlen(null)
-            expect(res).to.equal(0)
-        })
-
-        it('should return 4 for chalked input', () => {
-            const res = Util.strlen(chalk.green('asdf'))
-            expect(res).to.equal(4)
         })
     })
 
@@ -613,6 +862,14 @@ describe('Util', () => {
         })
     })
 
+    describe('#trimMessageData', () => {
+
+        it('should return self for empty data', function () {
+            const res = Util.trimMessageData(null)
+            expect(res).to.equal(null)
+        })
+    })
+
     describe('#ucfirst', () => {
 
         it('should return null for null', () => {
@@ -639,6 +896,13 @@ describe('Util', () => {
             const result = Util.uniqueInts(input)
             expect(result).to.jsonEqual(exp)
         })
+
+        it('should return [1,2,3,NaN] for [1,1,2,3,a,a]', function () {
+            const input = [1, 1, 2, 3, 'a', 'a']
+            const exp = [1, 2, 3, NaN]
+            const result = Util.uniqueInts(input)
+            expect(result).to.jsonEqual(exp)
+        })
     })
 
     describe('#uniqueStrings', () => {
@@ -647,6 +911,14 @@ describe('Util', () => {
             const input = ['a', 'a', 'b']
             const result = Util.uniqueStrings(input)
             expect(result).to.jsonEqual(['a', 'b'])
+        })
+    })
+
+    describe('#update', () => {
+
+        it('should return object for null as target', function () {
+            const res = Util.update(null, {a: 1})
+            expect(res).to.jsonEqual({a: 1})
         })
     })
 
@@ -775,6 +1047,8 @@ describe('Timer', () => {
 })
 
 describe('DependencyHelper', () => {
+
+    const DependencyHelper = requireSrc('lib/util/dependency-helper')
 
     it('should throw MissingDependencyError', () => {
 
