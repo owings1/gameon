@@ -76,7 +76,7 @@ FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
 OTHER DEALINGS IN THE SOFTWARE.
 ```
 
-### `encrypt/decrypt`
+### `encrypt/decrypt` by Vance Lucas
 
 **CC-BY 3.0 License**
 
