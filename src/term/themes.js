@@ -26,6 +26,8 @@ const Constants = require('../lib/constants')
 const Errors    = require('../lib/errors')
 const Util      = require('../lib/util')
 
+const StyleHelper = require('./helpers/styles')
+
 const fse    = require('fs-extra')
 const globby = require('globby')
 const path   = require('path')
@@ -36,7 +38,6 @@ const {DefaultThemeName} = Constants
 
 const {
     DependencyHelper
-  , StyleHelper
 } = Util
 
 const {

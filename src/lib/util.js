@@ -983,121 +983,6 @@ class DependencyHelper {
     }
 }
 
-class StyleHelper {
-
-    // Examples:
-    //
-    //    isBackground=false:
-    //          '#ffffff bold' --> ['hex', '#ffffff', 'bold']
-    //          'blue dim'     --> ['keyword', 'blue', 'dim']
-    //
-    //    isBackground=true:
-    //          'orange'         -->  ['bgKeyword', 'orange']
-    //          'red bright'     -->  ['bgRedBright']
-    //          '#ffffff'        -->  ['bgHex', '#ffffff']
-    //          '#ffffff bright' -->  ['bgHex', '#ffffff']
-    //
-    static buildDefFromStyle(value, isBackground) {
-
-        if (value == 'default') {
-            return []
-        }
-
-        const [color, mod] = value.split(' ')
-        const isHex        = StyleHelper.isValidHexColor(color)
-
-        if (isBackground) {
-            if (isHex) {
-                return ['bgHex', color]
-            }
-            var builtInName = 'bg' + Util.ucfirst(color)
-            if (mod) {
-                builtInName += Util.ucfirst(mod)
-            }
-            if (chalk[builtInName]) {
-                return [builtInName]
-            }
-            return ['bgKeyword', color]
-        }
-
-        const def = [isHex ? 'hex' : 'keyword', color]
-        if (mod) {
-            def.push(mod)
-        }
-
-        return def
-    }
-
-    // construct chalk callables, returns array [combined, fg, bg]
-    static buildChalkListFromDefs(fgDef, bgDef) {
-
-        var theChalk = chalk
-
-        var fgChalk
-        var bgChalk
-
-        if (bgDef) {
-            if (bgDef.length) {
-                if (bgDef.length == 1) {
-                    // native chalk method, e.g. bgRed or bgRedBright
-                    theChalk = theChalk[bgDef[0]]
-                } else {
-                    // hex or keyword construct
-                    theChalk = theChalk[bgDef[0]](bgDef[1])
-                }
-            }
-            bgChalk = theChalk
-        }
-        if (fgDef) {
-            if (fgDef.length) {
-                // always a hex or keyword construct
-                theChalk = theChalk[fgDef[0]](fgDef[1])
-                if (fgDef[2]) {
-                    // modifier property, e.g. bold or dim
-                    theChalk = theChalk[fgDef[2]]
-                }
-            }
-            fgChalk = theChalk
-        }
-
-        return [theChalk, fgChalk, bgChalk]
-    }
-
-    // get single chalk callable from def
-    static buildChalkFromDef(def, isBackground) {
-        const args = []
-        if (isBackground) {
-            args[1] = def
-        } else {
-            args[0] = def
-        }
-        return StyleHelper.buildChalkListFromDefs(...args)[0]
-    }
-
-    // get single chalk callable from style
-    static buildChalkFromStyle(style, isBackground) {
-        const def = StyleHelper.buildDefFromStyle(style, isBackground)
-        return StyleHelper.buildChalkFromDef(def, isBackground)
-    }
-
-    static getChalk(style, isBackground) {
-        try {
-            const theChalk = StyleHelper.buildChalkFromStyle(style, isBackground)
-            theChalk('')
-            return theChalk
-        } catch (err) {
-            throw new StyleError("Unchalkable style: '" + style + "': " + err.message, err)
-        }
-    }
-
-    static isValidHexColor(value) {
-        if (value[0] != '#') {
-            return false
-        }
-        return !isNaN(parseInt('0x' + value.substring(1)))
-    }
-}
-
 const {
     ArgumentError
   , CircularDependencyError
@@ -1108,7 +993,6 @@ const {
   , MissingDependencyError
   , ProgrammerError
   , PromptActiveError
-  , StyleError
   , UnresolvedDependencyError
 } = Errors
 
@@ -1118,7 +1002,6 @@ Util.update(Util, {
   , Profiler
   , Timer
   , StringBuilder
-  , StyleHelper
 })
 
 module.exports = Util
