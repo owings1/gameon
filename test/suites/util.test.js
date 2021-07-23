@@ -160,7 +160,7 @@ describe('Util', () => {
         })
     })
 
-    describe('#decrypt1', () => {
+    describe('#decrypt2', () => {
 
         beforeEach(function () {
             update(this.fixture, {
@@ -170,41 +170,24 @@ describe('Util', () => {
 
         it('should throw ArgumentError for text with length 5', function () {
             const {key} = this.fixture
-            const err = getError(() => Util.decrypt1('asdf', key))
+            const err = getError(() => Util.decrypt2('asdf', key))
             expect(err.isArgumentError).to.equal(true)
         })
 
         it('should throw ArgumentError for key with length 5', function () {
             const {key} = this.fixture
             const badKey = '12345'
-            const enc = Util.encrypt1('sample', key)
-            const err = getError(() => Util.decrypt1(enc, badKey))
+            const enc = Util.encrypt2('sample', key)
+            const err = getError(() => Util.decrypt2(enc, badKey))
             expect(err.isArgumentError).to.equal(true)
         })
 
         it('should throw ArgumentError for text with iv length 17', function () {
             const {key} = this.fixture
-            const enc = Util.encrypt1('sample', key)
+            const enc = Util.encrypt2('sample', key)
             const input = 'a0' + enc
-            const err = getError(() => Util.decrypt1(input, key))
+            const err = getError(() => Util.decrypt2(input, key))
             expect(err.isArgumentError).to.equal(true)
-        })
-    })
-
-    describe('#encrypt2', () => {
-
-        beforeEach(function () {
-            update(this.fixture, {
-                key: '202cb962ac59075b964b07152d234b70'
-            })
-        })
-
-        it('should be compatible with decrypt1', function () {
-            const {key} = this.fixture
-            const text = 'test-input'
-            const enc = Util.encrypt2(text, key)
-            const res = Util.decrypt1(enc, key)
-            expect(res).to.equal(text)
         })
     })
 
@@ -235,7 +218,7 @@ describe('Util', () => {
         })
     })
 
-    describe('#encrypt1', () => {
+    describe('#encrypt2', () => {
 
         beforeEach(function () {
             update(this.fixture, {
@@ -247,14 +230,14 @@ describe('Util', () => {
             const {key} = this.fixture
             const badKey = '12345'
             const text = 'some-text'
-            const err = getError(() => Util.encrypt1(text, badKey))
+            const err = getError(() => Util.encrypt2(text, badKey))
             expect(err.isArgumentError).to.equal(true)
         })
 
         it('should throw ArgumentError for text with length 0', function () {
             const {key} = this.fixture
             const input = ''
-            const err = getError(() => Util.encrypt1(input, key))
+            const err = getError(() => Util.encrypt2(input, key))
             expect(err.isArgumentError).to.equal(true)
         })
     })

@@ -213,36 +213,6 @@ class Util {
     }
 
     /**
-     * Adapted from: https://stackoverflow.com/a/60370205/
-     * 
-     * @license CC-BY-SA 4.0 https://creativecommons.org/licenses/by-sa/4.0/
-     *
-     * @param {string}
-     * @param {string}
-     *
-     * @throws ArgumentError
-     *
-     * @returns {string}
-     */
-    static decrypt1(text, key) {
-        if (!text || text.length < 41) {
-            throw new ArgumentError('Invalid text argument')
-        }
-        if (!key || key.length != 32) {
-            throw new ArgumentError('Invalid key argument')
-        }
-        const textParts = text.split(':')
-        const iv = Buffer.from(textParts.shift(), 'hex')
-        if (iv.length != 16) {
-            throw new ArgumentError('Invalid IV length')
-        }
-        const encryptedText = Buffer.from(textParts.join(':'), 'hex')
-        const decipher = crypto.createDecipheriv('aes-256-ctr', Buffer.from(key), iv)
-        const decrypted = Buffer.concat([decipher.update(encryptedText), decipher.final()])
-        return decrypted.toString()
-    }
-
-    /**
      * Adapted from: http://vancelucas.com/blog/stronger-encryption-and-decryption-in-node-js/
      *
      * @license CC-BY 3.0 https://creativecommons.org/licenses/by/3.0/us/
@@ -301,34 +271,10 @@ class Util {
     }
 
     /**
-     * Adapted from: https://stackoverflow.com/a/60370205/
-     * 
-     * @license CC-BY-SA 4.0 https://creativecommons.org/licenses/by-sa/4.0/
-     *
-     * @param {string}
-     * @param {string}
-     *
-     * @throws ArgumentError
-     *
-     * @returns {string}
-     */
-    static encrypt1(text, key) {
-        if (!text || !text.length) {
-            throw new ArgumentError('Invalid text argument')
-        }
-        if (!key || key.length != 32) {
-            throw new ArgumentError('Invalid key argument')
-        }
-        const iv = crypto.randomBytes(16)
-        const cipher = crypto.createCipheriv('aes-256-ctr', Buffer.from(key), iv)
-        const encrypted = Buffer.concat([cipher.update(text), cipher.final()])
-        return [iv.toString('hex'), encrypted.toString('hex')].join(':')
-    }
-
-    /**
      * Adapted from: http://vancelucas.com/blog/stronger-encryption-and-decryption-in-node-js/
      *
      * @license CC-BY 3.0 https://creativecommons.org/licenses/by/3.0/us/
+     *
      * @param {string}
      * @param {string}
      *
