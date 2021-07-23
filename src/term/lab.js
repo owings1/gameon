@@ -145,7 +145,7 @@ class LabHelper {
             }
 
             if (inputLc == '?') {
-                this.output.write(LabHelper.commandHelp() + '\n')
+                this.println(LabHelper.commandHelp())
                 continue
             }
 
@@ -167,7 +167,7 @@ class LabHelper {
         switch (cmd) {
 
             case 'i':
-                this.output.write(this.boardInfo() + '\n')
+                this.println(stringify(this.boardInfo()))
                 break
 
             case 's':
@@ -221,12 +221,12 @@ class LabHelper {
             case 'x':
                 this.opts.breadthTrees = !this.opts.breadthTrees
                 var treeStyle = this.opts.breadthTrees ? 'breadth' : 'depth'
-                this.logger.info('Using', treeStyle, 'trees')
+                this.println(`Using ${treeStyle} trees`)
                 break
 
             default:
                 this.logger.warn('Invalid command', input)
-                this.output.write(LabHelper.commandHelp() + '\n')
+                this.println(LabHelper.commandHelp())
                 break
         }
     }
@@ -273,7 +273,7 @@ class LabHelper {
         }
 
         if (newState == board.state28()) {
-            this.logger.info('No change')
+            this.println('No change')
             return
         }
 
@@ -298,7 +298,6 @@ class LabHelper {
     async diceCommand(isRobot, param) {
 
         const {board} = this
-        const cons = this.logger.console
 
         const parseInput = value => {
             return value.split(',').map(it => parseInt(it.trim()))
@@ -321,7 +320,7 @@ class LabHelper {
         const turn = new Turn(board, this.persp, this.opts).setRoll(dice)
 
         if (turn.isCantMove) {
-            cons.log('No moves for', this.persp, 'with', dice.join())
+            this.output.write(`No moves for ${this.persp} with ${dice.join()}\n`)
             return
         }
 
@@ -344,8 +343,7 @@ class LabHelper {
         const log = (...args) => {
             b.sp(...args)
             b.add('\n')
-            this.output.write(args.join(' ') + '\n')
-            //cons.log(...args)
+            this.println(...args)
         }
 
         const hr = nchars(39, Chars.table.dash)
@@ -374,7 +372,6 @@ class LabHelper {
 
     async showRobotTurn(turn) {
 
-        const cons = this.logger.console
         const robot = this.newRobot(turn.color)
 
         robot.isStoreLastResult = true
@@ -417,7 +414,6 @@ class LabHelper {
 
         const {theme} = this
         const chlk = theme.table
-        const cons = this.logger.console
 
         const indent = 2
 
@@ -429,19 +425,16 @@ class LabHelper {
             b.sp(...args)
             b.add('\n')
             if (count < 21) {
-                this.output.write(''.padEnd(indent, ' '))
-                this.output.write(args.join(' ') + '\n')
-                //cons.log(''.padEnd(indent - 1, ' '), ...args)
+                let str = ''.padEnd(indent, ' ')
+                this.output.write(str)
+                this.println(...args)
             }
             if (count == 21 && !hasDotDotDotted) {
                 hasDotDotDotted = true
-                this.output.write('\n\n')
+                this.println()
                 this.output.write('    ')
-                this.output.write(rankList.length - 20 + ' more ...')
-                this.output.write('\n\n')
-                //cons.log()
-                //cons.log('   ', rankList.length - 20, 'more ....')
-                //cons.log()
+                this.println('' + rankList.length - 20, ' more ...')
+                this.println()
             }
         }
 
@@ -532,11 +525,13 @@ class LabHelper {
         tables.forEach(table => {
             count += 1
             if (lastRank != table.rank) {
-                log()
+                log('')
                 log(hr)
-                log()
+                log('')
             }
-            table.lines.forEach(line => log(line))
+            table.lines.forEach(line => {
+                log(line)
+            })
             lastRank = table.rank
         })
 
@@ -549,7 +544,6 @@ class LabHelper {
 
         const {theme} = this
         const chlk = theme.table
-        const cons = this.logger.console
 
         const indent = 2
 
@@ -558,9 +552,7 @@ class LabHelper {
             b.sp(...args)
             b.add('\n')
             this.output.write(''.padEnd(indent, ' '))
-            this.output.write(args.join(' '))
-            this.output.write('\n')
-            //cons.log(''.padEnd(indent - 1, ' '), ...args)
+            this.println(...args)
         }
 
         const moveDesc = move => this.moveParts(move).join(chlk.row.dim(Chars.arrow.right))
@@ -660,7 +652,7 @@ class LabHelper {
                 matches.push(match.meta())
             }
         } finally {
-            await destroyAll(players)
+            destroyAll(players)
         }
 
         const scores = {Red: 0, White: 0}
@@ -670,10 +662,8 @@ class LabHelper {
         })
 
         const diff = scores[this.persp] - scores[Opponent[this.persp]]
-        this.output.write('scores: ' + stringify(scores) + '\n')
-        this.output.write('diff: ' + this.chalkDiff(diff) + '\n')
-        //this.logger.info('scores', scores)
-        //this.logger.info('diff:', this.chalkDiff(diff))
+        this.println('scores:', stringify(scores))
+        this.println('diff:', this.chalkDiff(diff))
     }
 
     async placeCommand() {
@@ -979,12 +969,10 @@ class LabHelper {
     }
 
     newRobot(...args) {
-        if (!this.opts.isCustomRobot || isEmptyObject(this.opts.robots)) {
-            var robot = RobotDelegator.forDefaults(...args)
-        } else {
-            var robot = RobotDelegator.forSettings(this.opts.robots, ...args)
+        if (this.opts.isCustomRobot && !isEmptyObject(this.opts.robots)) {
+            return RobotDelegator.forSettings(this.opts.robots, ...args)
         }
-        return robot
+        return RobotDelegator.forDefaults(...args)
     }
 
     async writeLastResult() {
@@ -1119,6 +1107,11 @@ class LabHelper {
 
     set output(strm) {
         this.term.stdout = strm
+        this.inquirer.opt.output = strm
+    }
+
+    println(...args) {
+        this.output.write((args.length ? args.join(' ') : '') + '\n')
     }
 
     static commandHelp() {

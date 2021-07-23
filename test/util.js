@@ -171,9 +171,8 @@ class NullOutput extends stream.Writable {
         this.raw = ''
     }
 
-    _write(chunk, encoding, done) {
+    write(chunk) {
         this.raw += chunk
-        done()
     }
 
     get lines() {

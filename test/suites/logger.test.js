@@ -102,30 +102,4 @@ describe('-', () => {
             expect(isCalled).to.equal(true)
         })
     })
-
-    describe.skip('#getStdout', () => {
-
-        it('should return process.stdout if not set', () => {
-            const logger = new Logger
-            const result = logger.getStdout()
-            expect(result).to.equal(process.stdout)
-        })
-
-        it('should return what is set', () => {
-            const logger = new Logger
-            logger.stdout = 1
-            const result = logger.getStdout()
-            expect(result).to.equal(1)
-        })
-    })
-
-    describe.skip('#writeStdout', () => {
-        it('should call write method on logger.stdout with str as argument', () => {
-            const logger = new Logger
-            var s
-            logger.stdout = {write: str => s = str}
-            logger.writeStdout('foo')
-            expect(s).to.equal('foo')
-        })
-    })
 })

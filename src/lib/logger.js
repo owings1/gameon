@@ -50,7 +50,7 @@ const TypeColor = {
 class Logger {
 
     static defaults() {
-        return {server: false, named: false, raw: false, theme: null/*, maxWidth: Infinity*/}
+        return {server: false, named: false, raw: false, theme: null}
     }
 
     constructor(name, opts) {
@@ -62,17 +62,10 @@ class Logger {
         } else {
             this.theme = Themes.getDefaultInstance()
         }
-        Logger.logify(this, this.opts)
+        this.console = console
+        this.loglevel = Levels[process.env.LOG_LEVEL || 'info']
+        this.init()
     }
-
-    //getStdout() {
-    //    return this.stdout || process.stdout
-    //}
-    //
-    //writeStdout(str) {
-    //    this.getStdout().write(str)
-    //    return this
-    //}
 
     getMessageForError(err) {
         return [err.name || err.constructor.name, err.message].join(': ')
@@ -83,85 +76,54 @@ class Logger {
         return this.info(...args)
     }
 
-    static logify(obj, opts) {
-        opts = {...opts}
-        Logging(obj, {format: Logger.formatter(obj)})
+    init() {
 
-        obj.loglevel = Levels[process.env.LOG_LEVEL || 'info']
+        Logging(this, {format: this.format.bind(this)})
 
-        obj.console = console
-        obj._parentError = obj.error
-        obj._parentWarn = obj.warn
-        obj.error = (...args) => {
+        const {warn, error} = this
+
+        this.error = (...args) => {
             args = args.map(arg => {
                 if (arg instanceof Error) {
-                    if ((opts.server && obj.loglevel >= 0) || obj.loglevel > 3) {
-                        obj.console.error(arg)
+                    if ((this.opts.server && this.loglevel >= 0) || this.loglevel > 3) {
+                        this.console.error(arg)
                     }
-                    return obj.getMessageForError(arg)
+                    return this.getMessageForError(arg)
                 }
                 return arg
             })
-            return obj._parentError(...args)
+            return error.call(this, ...args)
         }
-        obj.warn = (...args) => {
+
+        this.warn = (...args) => {
             args = args.map(arg => {
                 if (arg instanceof Error) {
-                    return obj.getMessageForError(arg)
+                    return this.getMessageForError(arg)
                 }
                 return arg
             })
-            return obj._parentWarn(...args)
+            return warn.call(this, ...args)
         }
-        return obj
     }
 
-    formatDefault(ctx) {
-        const type = stripAnsi(ctx.type)
-        return [
-            chalk.grey(type.toUpperCase()),
-            ctx.msg,
-        ].join(' ')
-    }
-
-    formatNamed(ctx) {
-        const type = stripAnsi(ctx.type)
-        return [
-            chalk[TypeColor[type]](type.toUpperCase())
-          , '[' + this.name + ']'
-          , ctx.msg
-        ].join(' ')
-    }
-
-    formatRaw(ctx) {
-        this.lastMessage = ctx.msg
-        return ctx.msg
-    }
-
-    formatServer(ctx) {
-        const type = stripAnsi(ctx.type)
-        return [
-            (new Date()).toISOString()
-          , chalk[TypeColor[type]](type.toUpperCase())
-          , '[' + this.name + ']'
-          , ctx.msg
-        ].join(' ')
-    }
-
-    static formatter(obj) {
-        return ctx => {
-            const {opts} = obj
+    format(ctx) {
+        const parts = []
+        const {opts} = this
+        if (opts.raw) {
+            parts.push(ctx.msg)
+        } else {
+            const type = stripAnsi(ctx.type)
             if (opts.server) {
-                return obj.formatServer(ctx)
+                parts.push((new Date()).toISOString())
             }
-            if (opts.named) {
-                return obj.formatNamed(ctx)
+            if (opts.named || opts.server) {
+                parts.push('[' + this.name + ']')
             }
-            if (opts.raw) {
-                return obj.formatRaw(ctx)
-            }
-            return obj.formatDefault(ctx)
+            parts.push(chalk[TypeColor[type]](type.toUpperCase()))
+            parts.push(ctx.msg)
         }
+        this.lastMessage = ctx.msg
+        return parts.join(' ')
     }
 }
 
