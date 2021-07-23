@@ -24,7 +24,9 @@
  */
 const Test = require('../util')
 const {
-    destroyAll
+    append
+  , clientServer
+  , destroyAll
   , expect
   , getError
   , newRando
@@ -38,7 +40,6 @@ describe('NetPlayer', () => {
     const loglevel = 1
 
     const Coordinator = requireSrc('lib/coordinator')
-    const Client      = requireSrc('net/client')
     const Server      = requireSrc('net/server')
     const NetPlayer   = requireSrc('net/player')
 
@@ -46,29 +47,18 @@ describe('NetPlayer', () => {
 
     beforeEach(async function () {
 
-        const server = new Server
-        server.loglevel = loglevel
-        await server.listen()
+        this.objects = []
 
-        const serverUrl = 'http://localhost:' + server.port
-
-        this.objects = {
-            client1: new Client({serverUrl})
-          , client2: new Client({serverUrl})
-          , server
+        this.servers = {
+            anon : new Server
         }
 
-        this.logThings = []
-        Object.entries(this.objects).forEach(([name, obj]) => {
-            obj.logger.name = ucfirst(name)
-            this.logThings.push(obj)
-        })
+        await clientServer.testInit.call(this, loglevel)
 
-        this.setLoglevel = n => {
-            this.logThings.forEach(obj => obj.loglevel = n)
+        this.fixture = {
+            server : this.servers.anon
+          , ...this.clients.anon
         }
-
-        this.cleans = []
 
         this.eastAndWest = async function eastAndWest(opts) {
 
@@ -96,17 +86,16 @@ describe('NetPlayer', () => {
             Object.entries(res).forEach(([dir, it]) => {
                 Object.values(it.players).forEach(player => {
                     player.logger.name += ucfirst(dir)
-                    this.cleans.push(() => player.destroy())
-                    this.logThings.push(player)
+                    this.objects.push(player)
                 })
                 it.coord.logger.name += ucfirst(dir)
-                this.logThings.push(it.coord)
+                this.objects.push(it.coord)
             })
 
             this.setLoglevel(loglevel)
 
             let promise
-            client1.on('matchCreated', id => {
+            client1.once('matchCreated', id => {
                 promise = client2.joinMatch(id)
             })
             res.west.match = await client1.createMatch(opts)
@@ -116,26 +105,17 @@ describe('NetPlayer', () => {
         }
 
         this.setLoglevel(loglevel)
-        this.fixture = {
-            ...this.objects
-          , client: this.objects.client1
-        }
     })
 
-    afterEach(async function () {
-        Object.values(this.objects).forEach(obj => {
-            obj.close()
-        })
-        for (let cleaner of this.cleans) {
-            await cleaner()
-        }
+    afterEach(function () {
+        this.closeObjects()
     })
 
     it('should set loglevel to 0', function () {
         // coverage for loglevel getter
         const {client} = this.fixture
         const player = new NetPlayer(client, Red)
-        this.cleans.push(() => destroyAll([player]))
+        this.objects.push(player)
         player.loglevel = 0
         expect(player.loglevel).to.equal(0)
     })
@@ -144,7 +124,7 @@ describe('NetPlayer', () => {
         const {client1, client2, server} = this.fixture
         const p1 = new NetPlayer(client1, White)
         const p2 = new NetPlayer(client2, White)
-        this.cleans.push(() => destroyAll([p1, p2]))
+        append(this.objects, [p1, p2])
         p1.opponent = p2
         p2.once('matchCanceled', () => done())
         client1.once('matchCreated', () => server.close())
@@ -155,7 +135,7 @@ describe('NetPlayer', () => {
         // coverage
         const {client, server} = this.fixture
         const p1 = new NetPlayer(client, White)
-        this.cleans.push(() => destroyAll([p1]))
+        this.objects.push(p1)
         client.once('matchCreated', () => server.close())
         client.createMatch({total: 1}).catch(err => done())
     })

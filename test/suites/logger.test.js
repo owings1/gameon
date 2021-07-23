@@ -27,22 +27,24 @@ const {
     expect,
     getError,
     getErrorAsync,
-    requireSrc
+    requireSrc,
 } = TestUtil
 
-const Logger = requireSrc('lib/logger')
-
 describe('-', () => {
+
+    const Logger = requireSrc('lib/logger')
 
     describe('#getFormatServer', () => {
 
         it('should include name in message', () => {
-            const res = Logger.getFormatServer('TestLogger')({type: '[info]', msg: 'hello'})
+            const obj = {name: 'TestLogger'}
+            const res = Logger.getFormatServer(obj)({type: '[info]', msg: 'hello'})
             expect(res).to.contain('TestLogger')
         })
 
-        it('should accept blank name', () => {
-            const res = Logger.getFormatServer()({type: '[info]', msg: 'hello'})
+        it('should accept empty object', () => {
+            const obj = {}
+            const res = Logger.getFormatServer(obj)({type: '[info]', msg: 'hello'})
             expect(res).to.contain('hello')
         })
     })

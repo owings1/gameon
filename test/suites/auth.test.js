@@ -46,7 +46,13 @@ describe('-', () => {
     const loglevel = 0
 
     beforeEach(function () {
-        this.fixture = {}
+        this.lastEmail = function () {
+            return this.auth.email.impl.lastEmail
+        }
+        this.parseKey = function (content) {
+            content = typeof content == 'undefined' ? this.lastEmail() : content
+            return parseKey(content)
+        }
     })
 
     describe('Static', () => {
@@ -62,15 +68,15 @@ describe('-', () => {
 
         describe('#create', () => {
 
-            it('should fail for type directory with no directory specified', function () {
+            it('should throw ArgumentError for type directory with no directory specified', function () {
                 const err = getError(() => { Auth.create({authType: 'directory'}) })
-                expect(err instanceof Error).to.equal(true)
+                expect(err.isArgumentError).to.equal(true)
             })
 
-            it('should fail for type directory with non-existent directory', function () {
+            it('should throw ArgumentError for type directory with non-existent directory', function () {
                 const opts = {authType: 'directory', authDir: '/non-existent'}
                 const err = getError(() => { Auth.create(opts) })
-                expect(err instanceof Error).to.equal(true)
+                expect(err.isArgumentError).to.equal(true)
             })
         })
     })
@@ -78,21 +84,18 @@ describe('-', () => {
     describe('Anonymous', () => {
 
         beforeEach(function () {
-            update(this.fixture, {
-                auth: Auth.create({authType: 'anonymous'})
-            })
+            this.auth = Auth.create({authType: 'anonymous'})
+            this.auth.loglevel = loglevel
         })
 
         describe('#authenticate', () => {
 
             it('should accept blank username/password', async function () {
-                const {auth} = this.fixture
-                await auth.authenticate()
+                await this.auth.authenticate()
             })
 
             it('should return passwordEncrypted when password non-empty', async function () {
-                const {auth} = this.fixture
-                const user = await auth.authenticate(null, 'a')
+                const user = await this.auth.authenticate(null, 'a')
                 expect(user.passwordEncrypted).to.have.length.greaterThan(0)
             })
         })
@@ -111,8 +114,7 @@ describe('-', () => {
             describe(`#${method}`, () => {
 
                 it(`should throw NotImplementedError for ${method}`, async function () {
-                    const {auth} = this.fixture
-                    const err = await getError(() => auth.impl[method]())
+                    const err = await getError(() => this.auth.impl[method]())
                     expect(err.name).to.equal('NotImplementedError')
                 })
             })            
@@ -122,6 +124,7 @@ describe('-', () => {
 
             const passCases = [
                 'nobody@nowhere.example'
+              , 'Kimberly@nowhere.example'
             ]
 
             const throwCases = [
@@ -131,16 +134,16 @@ describe('-', () => {
             ]
 
             passCases.forEach(input => {
-                it(`should pass for ${input}`, function () {
-                    const {auth} = this.fixture
-                    auth.validateUsername(input)
+                const exp = input.toLowerCase()
+                it(`should pass for ${input} and return ${exp}`, function () {
+                    const res = this.auth.validateUsername(input)
+                    expect(res).to.equal(exp)
                 })
             })
 
             throwCases.forEach(([input, desc]) => {
                 it(`should throw ValidateError for ${desc}`, function () {
-                    const {auth} = this.fixture
-                    const err = getError(() => auth.validateUsername(input))
+                    const err = getError(() => this.auth.validateUsername(input))
                     expect(err.name).to.equal('ValidateError')
                 })
             })
@@ -164,15 +167,13 @@ describe('-', () => {
 
             passCases.forEach(input => {
                 it(`should pass for ${input}`, function () {
-                    const {auth} = this.fixture
-                    auth.validatePassword(input)
+                    this.auth.validatePassword(input)
                 })
             })
 
             throwCases.forEach(([input, desc]) => {
                 it(`should throw ValidateError for ${desc}`, function () {
-                    const {auth} = this.fixture
-                    const err = getError(() => auth.validatePassword(input))
+                    const err = getError(() => this.auth.validatePassword(input))
                     expect(err.name).to.equal('ValidateError')
                 })
             })
@@ -182,19 +183,19 @@ describe('-', () => {
     describe('Directory', () => {
 
         beforeEach(function () {
-            const auth = Auth.create({authType: 'directory', authDir: tmpDir()})
-            auth.loglevel = loglevel
-            update(this.fixture, {auth})
+            this.authDir = tmpDir()
+            this.auth = Auth.create({authType: 'directory', authDir: this.authDir})
+            this.auth.loglevel = loglevel
         })
 
         afterEach(async function () {
-            await fse.remove(this.fixture.auth.impl.opts.authDir)
+            await fse.remove(this.authDir)
         })
 
         describe('#authenticate', () => {
 
             it('should pass for created user', async function () {
-                const {auth} = this.fixture
+                const {auth} = this
                 const username = 'nobody@nowhere.example'
                 const password = 'AgJ7jfr9'
                 await auth.createUser(username, password, true)
@@ -202,7 +203,7 @@ describe('-', () => {
             })
 
             it('should throw BadCredentialsError for bad password', async function () {
-                const {auth} = this.fixture
+                const {auth} = this
                 const username = 'nobody@nowhere.example'
                 const password = 'Sfekx6Yx'
                 await auth.createUser(username, password, true)
@@ -211,7 +212,7 @@ describe('-', () => {
             })
 
             it('should throw BadCredentialsError for non-existent user', async function () {
-                const {auth} = this.fixture
+                const {auth} = this
                 const username = 'nobody@nowhere.example'
                 const password = 'Nm4PcTHe'
                 const err = await getError(() => auth.authenticate(username, password))
@@ -219,7 +220,7 @@ describe('-', () => {
             })
 
             it('should throw InternalError when impl throws', async function () {
-                const {auth} = this.fixture
+                const {auth} = this
                 const username = 'nobody@nowhere.example'
                 const password = 'g3AkYhC6'
                 const e = new Error
@@ -230,7 +231,7 @@ describe('-', () => {
             })
 
             it('should throw UserLockedError for user locked', async function () {
-                const {auth} = this.fixture
+                const {auth} = this
                 const username = 'nobody@nowhere.example'
                 const password = 'vu3a8EZm'
                 await auth.createUser(username, password, true)
@@ -240,7 +241,7 @@ describe('-', () => {
             })
 
             it('should pass for user locked then unlocked', async function () {
-                const {auth} = this.fixture
+                const {auth} = this
                 const username = 'nobody@nowhere.example'
                 const password = 'vu3a8EZm'
                 await auth.createUser(username, password, true)
@@ -250,7 +251,7 @@ describe('-', () => {
             })
 
             it('should accept encrypted password', async function () {
-                const {auth} = this.fixture
+                const {auth} = this
                 const username = 'nobody@nowhere.example'
                 const password = 't6jn5Xwa'
                 const user = await auth.createUser(username, password, true)
@@ -258,7 +259,7 @@ describe('-', () => {
             })
 
             it('should throw UserNotConfirmedError for unconfirmed user', async function () {
-                const {auth} = this.fixture
+                const {auth} = this
                 const username = 'nobody@nowhere.example'
                 const password = 'c9dxCZRL'
                 await auth.createUser(username, password)
@@ -270,7 +271,7 @@ describe('-', () => {
         describe('#changePassword', () => {
 
             it('should change password and authenticate', async function () {
-                const {auth} = this.fixture
+                const {auth} = this
                 const username = 'nobody@nowhere.example'
                 const password = 'AjD4eEFn'
                 const newPassword = 'mFUHv2we'
@@ -280,7 +281,7 @@ describe('-', () => {
             })
 
             it('should throw BadCredentialsError for bad old password', async function () {
-                const {auth} = this.fixture
+                const {auth} = this
                 const username = 'nobody@nowhere.example'
                 const password = 'AjD4eEFn'
                 const newPassword = 'mFUHv2we'
@@ -293,20 +294,20 @@ describe('-', () => {
         describe('#confirmUser', () => {
 
             it('should confirm user with key sent in email', async function () {
-                const {auth} = this.fixture
+                const {auth} = this
                 const username = 'nobody@nowhere.example'
                 const password = 'j7VHVRUd'
                 await auth.createUser(username, password)
                 await auth.sendConfirmEmail(username)
                 // parse key from email
-                const confirmKey = parseKey(auth.email.impl.lastEmail)
+                const confirmKey = this.parseKey()
                 await auth.confirmUser(username, confirmKey)
                 const user = await auth.readUser(username)
                 expect(user.confirmed).to.equal(true)
             })
 
             it('should throw BadCredentialsError for bad key', async function () {
-                const {auth} = this.fixture
+                const {auth} = this
                 const username = 'nobody@nowhere.example'
                 const password = 'JkrsX89y'
                 await auth.createUser(username, password)
@@ -316,12 +317,12 @@ describe('-', () => {
             })
 
             it('should throw BadCredentialsError for expired key', async function () {
-                const {auth} = this.fixture
+                const {auth} = this
                 const username = 'nobody@nowhere.example'
                 const password = 'HGLV5gHT'
                 await auth.createUser(username, password)
                 await auth.sendConfirmEmail(username)
-                const confirmKey = parseKey(auth.email.impl.lastEmail)
+                const confirmKey = this.parseKey()
                 // hack expiry setting
                 auth.opts.confirmExpiry = -1
                 const err = await getError(() => auth.confirmUser(username, confirmKey))
@@ -333,15 +334,14 @@ describe('-', () => {
         describe('#createUser', () => {
 
             it('should return user data with username', async function () {
-                const {auth} = this.fixture
                 const username = 'nobody@nowhere.example'
                 const password = 'Daz5zGAZa'
-                const user = await auth.createUser(username, password, true)
+                const user = await this.auth.createUser(username, password, true)
                 expect(user.username).to.equal(username)
             })
 
             it('should throw UserExistsError for duplicate user case insensitive', async function () {
-                const {auth} = this.fixture
+                const {auth} = this
                 const username = 'nobody@nowhere.example'
                 const password = 'Daz5zGAZa'
                 await auth.createUser(username, password, true)
@@ -353,14 +353,13 @@ describe('-', () => {
         describe('#deleteUser', () => {
 
             it('should throw UserNotFoundError', async function () {
-                const {auth} = this.fixture
                 const username = 'nobody@nowhere.example'
-                const err = await getError(() => auth.deleteUser(username))
+                const err = await getError(() => this.auth.deleteUser(username))
                 expect(err.name).to.equal('UserNotFoundError')
             })
 
             it('should delete user, and then user should not exist', async function () {
-                const {auth} = this.fixture
+                const {auth} = this
                 const username = 'nobody@nowhere.example'
                 const password = 'PPt7HKvP'
                 await auth.createUser(username, password, true)
@@ -373,13 +372,12 @@ describe('-', () => {
         describe('#listAllUsers', () => {
 
             it('should return empty list', async function () {
-                const {auth} = this.fixture
-                const result = await auth.listAllUsers()
+                const result = await this.auth.listAllUsers()
                 expect(result).to.have.length(0)
             })
 
             it('should return singleton of created user', async function () {
-                const {auth} = this.fixture
+                const {auth} = this
                 const username = 'nobody@nowhere.example'
                 const password = 'Sa32q9QT'
                 await auth.createUser(username, password, true)
@@ -389,15 +387,15 @@ describe('-', () => {
             })
 
             it('should throw InternalError caused by ENOENT when directory gets nuked', async function () {
-                const {auth} = this.fixture
-                await fse.remove(auth.impl.opts.authDir)
+                const {auth} = this
+                await fse.remove(this.authDir)
                 const err = await getError(() => auth.listAllUsers())
                 expect(err.name).to.equal('InternalError')
                 expect(err.cause.code).to.equal('ENOENT')
             })
 
             it('should return empty after user deleted', async function () {
-                const {auth} = this.fixture
+                const {auth} = this
                 const username = 'nobody@nowhere.example'
                 const password = 'rGnPNs54'
                 await auth.createUser(username, password, true)
@@ -410,7 +408,7 @@ describe('-', () => {
         describe('#parseToken', () => {
 
             it('should return initial value for getToken', function () {
-                const {auth} = this.fixture
+                const {auth} = this
                 const username = 'nobody@nowhere.example'
                 const password = 'gck3fRYu'
                 const res = auth.parseToken(auth.getToken(username, password))
@@ -422,7 +420,7 @@ describe('-', () => {
         describe('#readUser', () => {
 
             it('should return user data with username', async function () {
-                const {auth} = this.fixture
+                const {auth} = this
                 const username = 'nobody@nowhere.example'
                 const password = 'vALkke5N'
                 await auth.createUser(username, password, true)
@@ -431,14 +429,13 @@ describe('-', () => {
             })
 
             it('should throw UserNotFoundError', async function () {
-                const {auth} = this.fixture
                 const username = 'nobody@nowhere.example'
-                const err = await getError(() => auth.readUser(username))
+                const err = await getError(() => this.auth.readUser(username))
                 expect(err.name).to.equal('UserNotFoundError')
             })
 
             it('should throw InternalError cause by SyntaxError when malformed json', async function () {
-                const {auth} = this.fixture
+                const {auth} = this
                 const username = 'nobody@nowhere.example'
                 const password = 'mUad3h8b'
                 await auth.createUser(username, password, true)
@@ -453,19 +450,19 @@ describe('-', () => {
         describe('#resetPassword', () => {
 
             it('should reset password and authenticate', async function () {
-                const {auth} = this.fixture
+                const {auth} = this
                 const username = 'nobody@nowhere.example'
                 const password = 'TGVN4pxL'
                 await auth.createUser(username, password, true)
                 await auth.sendResetEmail(username)
-                const resetKey = parseKey(auth.email.impl.lastEmail)
+                const resetKey = this.parseKey()
                 const newPassword = 'k8hWfxC8'
                 await auth.resetPassword(username, newPassword, resetKey)
                 await auth.authenticate(username, newPassword)
             })
 
             it('should throw BadCredentialsError for bad key', async function () {
-                const {auth} = this.fixture
+                const {auth} = this
                 const username = 'nobody@nowhere.example'
                 const password = 'JkrsX89y'
                 await auth.createUser(username, password, true)
@@ -476,13 +473,13 @@ describe('-', () => {
             })
 
             it('should throw BadCredentialsError for expired key', async function () {
-                const {auth} = this.fixture
+                const {auth} = this
                 const username = 'nobody@nowhere.example'
                 const password = 'HGLV5gHT'
                 await auth.createUser(username, password, true)
                 await auth.sendResetEmail(username)
                 const newPassword = '2vy2WM5c'
-                const confirmKey = parseKey(auth.email.impl.lastEmail)
+                const confirmKey = this.parseKey()
                 // hack expiry setting
                 auth.opts.resetExpiry = -1
                 const err = await getError(() => auth.resetPassword(username, newPassword, confirmKey))
@@ -494,16 +491,18 @@ describe('-', () => {
         describe('#sendConfirmEmail', () => {
 
             it('should set lastEmail in mock email', async function () {
-                const {auth} = this.fixture
+                const {auth} = this
                 const username = 'nobody@nowhere.example'
                 const password = 'mAGP6hsZ'
                 await auth.createUser(username, password)
                 await auth.sendConfirmEmail(username)
-                expect(auth.email.impl.lastEmail.Destination.ToAddresses).to.have.length(1).and.to.contain(username)
+                expect(this.lastEmail().Destination.ToAddresses)
+                    .to.have.length(1).and
+                    .to.contain(username)
             })
 
             it('should throw UserConfirmedError if user confirmed', async function () {
-                const {auth} = this.fixture
+                const {auth} = this
                 const username = 'nobody@nowhere.example'
                 const password = 'QEAY8baN'
                 await auth.createUser(username, password, true)
@@ -515,16 +514,18 @@ describe('-', () => {
         describe('#sendResetEmail', () => {
 
             it('should set lastEmail in mock email', async function () {
-                const {auth} = this.fixture
+                const {auth} = this
                 const username = 'nobody@nowhere.example'
                 const password = 'Q6rzSPnk'
                 await auth.createUser(username, password, true)
                 await auth.sendResetEmail(username)
-                expect(auth.email.impl.lastEmail.Destination.ToAddresses).to.have.length(1).and.to.contain(username)
+                expect(this.lastEmail().Destination.ToAddresses)
+                    .to.have.length(1).and
+                    .to.contain(username)
             })
 
             it('should throw UserNotConfirmedError if user not confirmed', async function () {
-                const {auth} = this.fixture
+                const {auth} = this
                 const username = 'nobody@nowhere.example'
                 const password = 'rwF84M82'
                 await auth.createUser(username, password)
@@ -533,6 +534,12 @@ describe('-', () => {
             })
         })
     })
+
+    if (process.env.TEST_AUTH_S3_BUCKET) {
+        describe('S3', s3Suite(process.env.TEST_AUTH_S3_BUCKET))
+    } else {
+        describe.skip('S3', s3Suite())
+    }
 
     function s3Suite(s3_bucket) {
 
@@ -543,32 +550,29 @@ describe('-', () => {
             const s3_prefix = 'test/' + +new Date + '/'
 
             beforeEach(function () {
-                const auth = Auth.create({authType: 's3', s3_bucket, s3_prefix})
-                auth.loglevel = loglevel
+                this.auth = Auth.create({authType: 's3', s3_bucket, s3_prefix})
+                this.auth.loglevel = loglevel
+                this.impl = this.auth.impl
+                this.s3 = this.impl.s3
                 this.cleanUsers = []
-                this.fixture = {
-                    auth
-                  , s3: auth.impl.s3
-                }
             })
 
-            afterEach(async function () {
-                for (let username of this.cleanUsers) {
-                    try {
-                        await this.fixture.auth.deleteUser(username)
-                    } catch (err) {
-                        console.error('Failed to delete user', username, err)
-                    }
-                }
+            afterEach(function () {
+                return Promise.all(
+                    this.cleanUsers.map(username =>
+                        this.auth.deleteUser(username).catch(err =>
+                            console.error('Failed to delete user', username, err)
+                        )
+                    )
+                )
             })
 
             describe('#createUser', function () {
 
                 it('should create user', async function () {
-                    const {auth} = this.fixture
                     const username = 'nobody1@nowhere.example'
                     const password = 'a7CGQSdV'
-                    await auth.createUser(username, password, true)
+                    await this.auth.createUser(username, password, true)
                     this.cleanUsers.push(username)
                 })
             })
@@ -576,19 +580,18 @@ describe('-', () => {
             describe('#deleteUser', () => {
 
                 it('should throw UserNotFoundError for bad user', async function () {
-                    const {auth} = this.fixture
                     const username = 'bad-delete-user@nowhere.example'
-                    const err = await getError(() => auth.deleteUser(username))
+                    const err = await getError(() => this.auth.deleteUser(username))
                     expect(err.name).to.equal('UserNotFoundError')
                 })
 
-                it('should throw InvalidBucketName when bucket is bad', async function () {
-                    const {auth} = this.fixture
+                it('impl should throw InvalidBucketName when bucket is bad', async function () {
+                    const {impl} = this
                     const username = 'bad-bucket@nowhere.example'
                     // hack opts to produce error
-                    auth.impl.opts.s3_bucket = '!badbucket'
+                    impl.opts.s3_bucket = '!badbucket'
                     // call on impl for coverage
-                    const err = await getError(() => auth.impl.deleteUser(username))
+                    const err = await getError(() => impl.deleteUser(username))
                     expect(err.name).to.equal('InvalidBucketName')
                 })
             })
@@ -596,8 +599,7 @@ describe('-', () => {
             describe('#listAllUsers', () => {
 
                 it('should throw InternalError with cause NotImplementedError', async function () {
-                    const {auth} = this.fixture
-                    const err = await getError(() => auth.listAllUsers())
+                    const err = await getError(() => this.auth.listAllUsers())
                     expect(err.name).to.equal('InternalError')
                     expect(err.cause.name).to.equal('NotImplementedError')
                 })
@@ -606,23 +608,21 @@ describe('-', () => {
             describe('#readUser', function () {
 
                 it('should read user case insensitive', async function () {
-                    const {auth} = this.fixture
                     const username = 'nobody2@nowhere.example'
                     const password = '2SnMTw6M'
-                    const user = await auth.createUser(username, password, true)
+                    const user = await this.auth.createUser(username, password, true)
                     this.cleanUsers.push(username)
                     expect(user.username).to.equal(username)
                 })
 
                 it('should throw UserNotFoundError', async function () {
-                    const {auth} = this.fixture
                     const username = 'nobody3@nowhere.example'
-                    const err = await getError(() => auth.readUser(username))
+                    const err = await getError(() => this.auth.readUser(username))
                     expect(err.name).to.equal('UserNotFoundError')
                 })
 
                 it('should throw InternalError caused by SyntaxError when malformed json', async function () {
-                    const {auth, s3} = this.fixture
+                    const {auth, impl, s3} = this
                     const username = 'nobody-syntax-err@nowhere.example'
                     const password = 'VBvUa7TX'
                     await auth.createUser(username, password, true)
@@ -630,7 +630,7 @@ describe('-', () => {
                     // hack object
                     const params = {
                         Bucket : s3_bucket
-                      , Key    : auth.impl._userKey(username)
+                      , Key    : impl._userKey(username)
                       , Body   : Buffer.from('{]')
                     }
                     await s3.putObject(params).promise()
@@ -642,13 +642,13 @@ describe('-', () => {
 
             describe('#updateUser', () => {
 
-                it('should throw InvalidBucketName when bucket is bad', async function () {
-                    const {auth} = this.fixture
+                it('impl should throw InvalidBucketName when bucket is bad', async function () {
+                    const {impl} = this
                     const username = 'bad-bucke-update-user@nowhere.example'
                     // hack opts to produce error
-                    auth.impl.opts.s3_bucket = '!badbucket'
+                    impl.opts.s3_bucket = '!badbucket'
                     // call on impl for coverage
-                    const err = await getError(() => auth.impl.updateUser(username, {}))
+                    const err = await getError(() => impl.updateUser(username, {}))
                     expect(err.name).to.equal('InvalidBucketName')
                 })
             })
@@ -656,7 +656,7 @@ describe('-', () => {
             describe('#userExists', function () {
 
                 it('should return true for created user', async function () {
-                    const {auth} = this.fixture
+                    const {auth} = this
                     const username = 'nobody4@nowhere.example'
                     const password = 'gB3tbM96'
                     await auth.createUser(username, password, true)
@@ -666,28 +666,21 @@ describe('-', () => {
                 })
 
                 it('should return false for non existent', async function () {
-                    const {auth} = this.fixture
                     const username = 'nobody5@nowhere.example'
-                    const result = await auth.userExists(username)
+                    const result = await this.auth.userExists(username)
                     expect(result).to.equal(false)
                 })
 
                 it('should throw InternalError with cause BadRequest when bucket is bad', async function () {
-                    const {auth} = this.fixture
+                    const {auth, impl} = this
                     const username = 'bad-bucket@nowhere.example'
                     // hack opts to produce error
-                    auth.impl.opts.s3_bucket = '!badbucket'
+                    impl.opts.s3_bucket = '!badbucket'
                     const err = await getError(() => auth.userExists(username))
                     expect(err.name).to.equal('InternalError')
                     expect(err.cause.name).to.equal('BadRequest')
                 })
             })
         }
-    }
-
-    if (process.env.TEST_AUTH_S3_BUCKET) {
-        describe('S3', s3Suite(process.env.TEST_AUTH_S3_BUCKET))
-    } else {
-        describe.skip('S3', s3Suite())
     }
 })

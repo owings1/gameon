@@ -24,6 +24,7 @@
  */
 const Test = require('../util')
 const {
+    clientServer,
     expect,
     getError,
     httpFixture,
@@ -31,7 +32,8 @@ const {
     parseKey,
     requireSrc,
     States,
-    tmpDir
+    tmpDir,
+    update,
 } = Test
 
 const fse = require('fs-extra')
@@ -42,65 +44,39 @@ describe('-', () => {
     const Server = requireSrc('net/server')
 
     const Dice      = requireSrc('lib/dice')
-    const {Match}   = requireSrc('lib/core')
 
-    const {White, Red}      = requireSrc('lib/constants')
-    const {ucfirst, update} = requireSrc('lib/util')
+    const {White, Red} = requireSrc('lib/constants')
 
     const loglevel = 1
 
     beforeEach(async function () {
 
+        this.objects = []
+
         // Create servers.
-        this.objects = {
-            server      : new Server
-          , authServer  : new Server({
+        this.authDir = tmpDir()
+        this.servers = {
+            anon : new Server
+          , auth : new Server({
                 authType: 'directory'
-              , authDir : tmpDir()
+              , authDir : this.authDir
               , sessionInsecure : true
             })
         }
 
-        // Set servers loglevel, logger name, and listen.
-        for (let [name, server] of Object.entries(this.objects)) {
-            server.loglevel = loglevel
-            server.logger.name = ucfirst(name)
-            await server.listen()
-            // Monkey patch for tests
-            server.testUrl = 'http://localhost:' + server.port
-            server.testMetricsUrl = 'http://localhost:' + server.metricsPort
+        await clientServer.testInit.call(this, loglevel)
+
+        // Provide default
+        this.fixture = {
+            server  : this.servers.anon
+          , auth    : this.servers.auth.auth
+          , ...this.clients.anon
         }
-
-        // Create clients. Set loglevel and logger name.
-        Object.entries({
-            client1    : 'server'
-          , client2    : 'server'
-          , authClient : 'authServer'
-        }).forEach(([name, serverName]) => {
-            const server = this.objects[serverName]
-            const client = new Client({serverUrl: server.testUrl})
-            client.loglevel = loglevel
-            client.logger.name = ucfirst(name)
-            this.objects[name] = client
-        })
-
-        this.setLoglevel = n => {
-            Object.values(this.objects).forEach(obj => {
-                obj.loglevel = n
-            })
-        }
-
-        this.fixture = {}
     })
 
-    afterEach(async function() {
-        // Close objects.
-        Object.values(this.objects).forEach(obj => {
-            obj.close()
-        })
-        // Remove authDir.
-        const {auth} = this.objects.authServer
-        await fse.remove(auth.impl.opts.authDir)
+    afterEach(function() {
+        this.closeObjects()
+        return fse.remove(this.authDir)
     })
 
     describe('Static', () => {
@@ -128,40 +104,14 @@ describe('-', () => {
     describe('#constructor', () => {
 
         it('should construct with opt webEnabled=false', function () {
-            const s2 = new Server({webEnabled: false})
-            expect(s2.opts.webEnabled).to.equal(false)
+            const server = new Server({webEnabled: false})
+            expect(server.opts.webEnabled).to.equal(false)
         })
     })
 
     describe('Socket', () => {
 
         describe('Anonymous', () => {
-
-            beforeEach(function () {
-
-                const {server, client1, client2} = this.objects
-
-                update(this.fixture, {
-                    client : client1
-                  , client1
-                  , client2
-                  , server
-                })
-
-                // Returns the server's match instance
-                this.createMatch = async function (opts) {
-                    opts = {total: 1, ...opts}
-                    let promise
-                    let matchId
-                    client1.once('matchCreated', id => {
-                        matchId = id
-                        promise = client2.joinMatch(id)
-                    })
-                    await client1.createMatch(opts)
-                    await promise
-                    return server.matches[matchId]
-                }
-            })
 
             describe('#checkMatchFinished', () => {
 
@@ -645,11 +595,9 @@ describe('-', () => {
         describe('Auth', () => {
 
             beforeEach(function () {
-                const {authServer, authClient} = this.objects
                 update(this.fixture, {
-                    client : authClient
-                  , server : authServer
-                  , auth   : authServer.auth
+                    server : this.servers.auth
+                  , ...this.clients.auth
                 })
             })
 
@@ -676,11 +624,10 @@ describe('-', () => {
 
         beforeEach(function() {
 
-            const {server} = this.objects
-
+            // Provide defaults
             update(this.fixture, {
-                server
-              , baseUrl : server.testUrl
+                //server
+                baseUrl : this.servers.anon.testUrl
               , uri     : ''
               , method  : 'GET'
               , opts    : {}
@@ -694,18 +641,16 @@ describe('-', () => {
         describe('api', () => {
 
             beforeEach(function () {
-                const server = this.objects.authServer
-                const {auth} = server
+                const server = this.servers.auth
                 update(this.fixture, {
                     server
-                  , auth
                   , baseUrl : server.testUrl
                   , uri     : '/api/v1'
                   , method  : 'POST'
                   , json    : true
                 })
 
-                this.lastEmail = () => auth.email.impl.lastEmail
+                this.lastEmail = () => this.fixture.auth.email.impl.lastEmail
             })
 
             describe('POST /api/v1/signup', () => {
@@ -1097,11 +1042,9 @@ describe('-', () => {
             describe('Auth', () => {
 
                 beforeEach(async function () {
-                    const server = this.objects.authServer
-                    const {auth} = server
+                    const server = this.servers.auth
                     update(this.fixture, {
                         server
-                      , auth
                       , baseUrl : server.testUrl
                       , opts    : {redirect: 'manual'}
                     })
@@ -1109,7 +1052,7 @@ describe('-', () => {
                         username: 'fixture@nowhere.example'
                       , password: 'BXQ8Ya2TpZEMm3W3'
                     }
-                    await auth.createUser(...Object.values(user), true)
+                    await server.auth.createUser(...Object.values(user), true)
                     const login = await this.post('/login', user)
                     const cookie = parseCookies(login)
                     update(this.fixture, {cookie, user})
@@ -1169,7 +1112,6 @@ describe('-', () => {
                     })
                 })
 
-        
                 describe('GET /logout', () => {
 
                     beforeEach(function() {

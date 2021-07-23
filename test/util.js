@@ -183,8 +183,10 @@ class NullOutput extends stream.Writable {
 
 const {httpFixture, getUrlParams, parseCookies} = require('./util/http-util')
 
+
 module.exports = {
     append : Util.append
+  , clientServer : require('./util/client-server')
   , destroyAll : Util.destroyAll
   , expect
   , fetchBoard

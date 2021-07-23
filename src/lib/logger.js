@@ -85,7 +85,7 @@ class Logger {
     static logify(obj, opts) {
         opts = {...opts}
         if (opts.server) {
-            var format = Logger.getFormatServer(opts.name)
+            var format = Logger.getFormatServer(obj)
         } else if (opts.named) {
             var format = Logger.getFormatNamed(obj)
         } else if (opts.raw) {
@@ -128,9 +128,9 @@ class Logger {
         return chalk.grey(stripAnsi(ctx.type).toUpperCase()) + ' ' + ctx.msg
     }
 
-    static getFormatServer(name) {
+    static getFormatServer(obj) {
         return ctx => {
-            name = name || ''
+            const name = obj.name || ''
             const type = stripAnsi(ctx.type)
             return [
                 (new Date()).toISOString()

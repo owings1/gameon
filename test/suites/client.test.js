@@ -24,18 +24,18 @@
  */
 const Test = require('../util')
 const {
+    clientServer,
     expect,
     getError,
     makeRandomMoves,
-    requireSrc
+    requireSrc,
+    update,
 } = Test
 
 describe('-', () => {
 
     const Client = requireSrc('net/client')
     const Server = requireSrc('net/server')
-
-    const {ucfirst, update} = requireSrc('lib/util')
 
     const Errors = requireSrc('lib/errors')
 
@@ -45,55 +45,22 @@ describe('-', () => {
 
     beforeEach(async function () {
 
-        const server = new Server
+        this.objects = []
 
-        server.loglevel = loglevel
-        await server.listen()
-        const serverUrl = 'http://localhost:' + server.port
-
-        this.objects = {
-            client1 : new Client({serverUrl})
-          , client2 : new Client({serverUrl})
-          , server
+        this.servers = {
+            anon : new Server
         }
 
-        Object.entries(this.objects).forEach(([name, obj]) => {
-            obj.logger.name = ucfirst(name)
-        })
-
-        this.setLoglevel = n => {
-            Object.values(this.objects).forEach(it => {
-                it.loglevel = n
-            })
-        }
-
-        // Returns the server's match instance
-        this.createMatch = async function (opts) {
-            opts = {total: 1, ...opts}
-            const {client1, client2} = this.fixture
-            let promise
-            let matchId
-            client1.once('matchCreated', id => {
-                matchId = id
-                promise = client2.joinMatch(id)
-            })
-            await client1.createMatch(opts)
-            await promise
-            return server.matches[matchId]
-        }
-
-        this.setLoglevel(loglevel)
+        await clientServer.testInit.call(this, loglevel)
 
         this.fixture = {
-            ...this.objects
-          , client: this.objects.client1
+            server : this.servers.anon
+          , ...this.clients.anon
         }
     })
 
     afterEach(function () {
-        Object.values(this.objects).forEach(it => {
-            it.close()
-        })
+        this.closeObjects()
     })
 
     describe('#connect', () => {
