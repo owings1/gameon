@@ -30,6 +30,7 @@ const {
     requireSrc,
     MockPrompter,
     noop,
+    NullOutput,
     tmpDir,
     States
 } = TestUtil
@@ -64,9 +65,8 @@ describe('-', () => {
           , recordDir
         }
         lab = new Lab(opts)
-        lab.logger.loglevel = 0
-        lab.logger.writeStdout = () => {}
-        lab.logger.console = {log: () => {}}
+        lab.output = new NullOutput
+        lab.loglevel = 0
     })
 
     afterEach(async () => {

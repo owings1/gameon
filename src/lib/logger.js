@@ -65,35 +65,27 @@ class Logger {
         Logger.logify(this, this.opts)
     }
 
-    getStdout() {
-        return this.stdout || process.stdout
-    }
-
-    writeStdout(str) {
-        this.getStdout().write(str)
-        return this
-    }
+    //getStdout() {
+    //    return this.stdout || process.stdout
+    //}
+    //
+    //writeStdout(str) {
+    //    this.getStdout().write(str)
+    //    return this
+    //}
 
     getMessageForError(err) {
         return [err.name || err.constructor.name, err.message].join(': ')
     }
 
+    // Alias for .info
     success(...args) {
         return this.info(...args)
     }
 
     static logify(obj, opts) {
         opts = {...opts}
-        if (opts.server) {
-            var format = Logger.getFormatServer(obj)
-        } else if (opts.named) {
-            var format = Logger.getFormatNamed(obj)
-        } else if (opts.raw) {
-            var format = Logger.getFormatRaw(obj)
-        } else {
-            var format = Logger.format
-        }
-        Logging(obj, {format})
+        Logging(obj, {format: Logger.formatter(obj)})
 
         obj.loglevel = Levels[process.env.LOG_LEVEL || 'info']
 
@@ -124,39 +116,51 @@ class Logger {
         return obj
     }
 
-    static format(ctx) {
-        return chalk.grey(stripAnsi(ctx.type).toUpperCase()) + ' ' + ctx.msg
+    formatDefault(ctx) {
+        const type = stripAnsi(ctx.type)
+        return [
+            chalk.grey(type.toUpperCase()),
+            ctx.msg,
+        ].join(' ')
     }
 
-    static getFormatServer(obj) {
-        return ctx => {
-            const name = obj.name || ''
-            const type = stripAnsi(ctx.type)
-            return [
-                (new Date()).toISOString()
-              , chalk[TypeColor[type]](type.toUpperCase())
-              , '[' + name + ']'
-              , ctx.msg
-            ].join(' ')
-        }
+    formatNamed(ctx) {
+        const type = stripAnsi(ctx.type)
+        return [
+            chalk[TypeColor[type]](type.toUpperCase())
+          , '[' + this.name + ']'
+          , ctx.msg
+        ].join(' ')
     }
 
-    static getFormatNamed(obj) {
-        return ctx => {
-            const name = obj.name || ''
-            const type = stripAnsi(ctx.type)
-            return [
-                chalk[TypeColor[type]](type.toUpperCase())
-              , '[' + name + ']'
-              , ctx.msg
-            ].join(' ')
-        }
+    formatRaw(ctx) {
+        this.lastMessage = ctx.msg
+        return ctx.msg
     }
 
-    static getFormatRaw(obj) {
+    formatServer(ctx) {
+        const type = stripAnsi(ctx.type)
+        return [
+            (new Date()).toISOString()
+          , chalk[TypeColor[type]](type.toUpperCase())
+          , '[' + this.name + ']'
+          , ctx.msg
+        ].join(' ')
+    }
+
+    static formatter(obj) {
         return ctx => {
-            obj.lastMessage = ctx.msg
-            return ctx.msg
+            const {opts} = obj
+            if (opts.server) {
+                return obj.formatServer(ctx)
+            }
+            if (opts.named) {
+                return obj.formatNamed(ctx)
+            }
+            if (opts.raw) {
+                return obj.formatRaw(ctx)
+            }
+            return obj.formatDefault(ctx)
         }
     }
 }

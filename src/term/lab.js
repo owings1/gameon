@@ -82,6 +82,8 @@ function stringify(data, indent = 2) {
     return JSON.stringify(data, null, indent)
 }
 
+const DefaultTerm = new TermHelper(DefaultTermEnabled)
+
 class LabHelper {
 
     static defaults() {
@@ -90,7 +92,7 @@ class LabHelper {
           , recordDir     : null
           , persp         : White
           , theme         : DefaultThemeName
-          , termEnabled   : DefaultTermEnabled
+          , term          : DefaultTerm
           , rollsFile     : null
           , isCustomRobot : false
           , robots        : {}
@@ -111,8 +113,7 @@ class LabHelper {
 
         this.logger = new Logger
         this.theme = Themes.getInstance(this.opts.theme)
-        this.drawer = DrawHelper.forBoard(this.board, this.persp, this.logs, this.opts.theme)
-        this.term = new TermHelper(this.opts.termEnabled)
+        this.drawer = DrawHelper.forBoard(this.board, this.persp, this.logs, this.opts.theme, this.term)
 
         this.inquirer = inquirer.createPromptModule()
     }
@@ -144,7 +145,7 @@ class LabHelper {
             }
 
             if (inputLc == '?') {
-                this.logger.console.log(LabHelper.commandHelp())
+                this.output.write(LabHelper.commandHelp() + '\n')
                 continue
             }
 
@@ -166,7 +167,7 @@ class LabHelper {
         switch (cmd) {
 
             case 'i':
-                this.logger.console.log(this.boardInfo())
+                this.output.write(this.boardInfo() + '\n')
                 break
 
             case 's':
@@ -225,7 +226,7 @@ class LabHelper {
 
             default:
                 this.logger.warn('Invalid command', input)
-                this.logger.console.log(LabHelper.commandHelp())
+                this.output.write(LabHelper.commandHelp() + '\n')
                 break
         }
     }
@@ -343,7 +344,8 @@ class LabHelper {
         const log = (...args) => {
             b.sp(...args)
             b.add('\n')
-            cons.log(...args)
+            this.output.write(args.join(' ') + '\n')
+            //cons.log(...args)
         }
 
         const hr = nchars(39, Chars.table.dash)
@@ -427,13 +429,19 @@ class LabHelper {
             b.sp(...args)
             b.add('\n')
             if (count < 21) {
-                cons.log(''.padEnd(indent - 1, ' '), ...args)
+                this.output.write(''.padEnd(indent, ' '))
+                this.output.write(args.join(' ') + '\n')
+                //cons.log(''.padEnd(indent - 1, ' '), ...args)
             }
             if (count == 21 && !hasDotDotDotted) {
                 hasDotDotDotted = true
-                cons.log()
-                cons.log('   ', rankList.length - 20, 'more ....')
-                cons.log()
+                this.output.write('\n\n')
+                this.output.write('    ')
+                this.output.write(rankList.length - 20 + ' more ...')
+                this.output.write('\n\n')
+                //cons.log()
+                //cons.log('   ', rankList.length - 20, 'more ....')
+                //cons.log()
             }
         }
 
@@ -549,7 +557,10 @@ class LabHelper {
         const log = (...args) => {
             b.sp(...args)
             b.add('\n')
-            cons.log(''.padEnd(indent - 1, ' '), ...args)
+            this.output.write(''.padEnd(indent, ' '))
+            this.output.write(args.join(' '))
+            this.output.write('\n')
+            //cons.log(''.padEnd(indent - 1, ' '), ...args)
         }
 
         const moveDesc = move => this.moveParts(move).join(chlk.row.dim(Chars.arrow.right))
@@ -658,9 +669,11 @@ class LabHelper {
             scores.White += meta.scores.White
         })
 
-        this.logger.info('scores', scores)
         const diff = scores[this.persp] - scores[Opponent[this.persp]]
-        this.logger.info('diff:', this.chalkDiff(diff))
+        this.output.write('scores: ' + stringify(scores) + '\n')
+        this.output.write('diff: ' + this.chalkDiff(diff) + '\n')
+        //this.logger.info('scores', scores)
+        //this.logger.info('diff:', this.chalkDiff(diff))
     }
 
     async placeCommand() {
@@ -960,7 +973,7 @@ class LabHelper {
             } else {
                 this.term.clear()
             }
-            this.logger.writeStdout(output)
+            this.output.write(output)
         }
         return output
     }
@@ -1081,6 +1094,31 @@ class LabHelper {
     // abstracted for coverage only
     parseNumRollouts(param) {
         return parseInt(param) || 100
+    }
+
+    get loglevel() {
+        return this.logger.loglevel
+    }
+
+    set loglevel(n) {
+        this.logger.loglevel = n
+    }
+
+    get term() {
+        return this.opts.term
+    }
+
+    set term(term) {
+        this.opts.term = term
+        this.drawer.term = term
+    }
+
+    get output() {
+        return this.term.stdout
+    }
+
+    set output(strm) {
+        this.term.stdout = strm
     }
 
     static commandHelp() {

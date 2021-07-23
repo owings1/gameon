@@ -896,7 +896,8 @@ class Menu extends EventEmitter {
             var persp = White
             var rollsFile = null
         }
-        const {theme, isCustomRobot, robots, recordDir, termEnabled} = this.settings
+        const {theme, isCustomRobot, robots, recordDir} = this.settings
+        const {term} = this
         const labOpts = {
             board
           , persp
@@ -905,7 +906,7 @@ class Menu extends EventEmitter {
           , robots
           , recordDir
           , rollsFile
-          , termEnabled
+          , term
         }
         const helper = new LabHelper(labOpts)
         this.emit('beforeRunLab', helper)

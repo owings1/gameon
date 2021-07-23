@@ -890,7 +890,7 @@ class TermHelper {
 
     write(str) {
         if (this.enabled) {
-            this.term.stdout.write(str)
+            this.stdout.write(str)
         }
         return this
     }
