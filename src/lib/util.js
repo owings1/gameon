@@ -536,7 +536,7 @@ class Util {
      * @returns {array} The range array
      */
     static intRange(a, b) {
-        if (Number.isFinite(b) && !Number.isFinite(a)) {
+        if (!Number.isFinite(b) && Number.isFinite(a)) {
             throw new ArgumentError('Refusing to go to infinity')
         }
         const range = []
@@ -703,7 +703,7 @@ class Util {
         if (!chr.length) {
             throw new ArgumentError(`Unrepeatable character: '${chr}'`)
         }
-        if (!Number.isFinite(n)) {
+        if (!Number.isFinite(+n)) {
             throw new ArgumentError('Refusing to go to infinity')
         }
         return ''.padEnd(n, chr)
@@ -721,7 +721,7 @@ class Util {
      * @returns {array} The collection of the return values
      */
     static nmap(n, cb) {
-        if (!Number.isFinite(n)) {
+        if (!Number.isFinite(+n)) {
             throw new ArgumentError('Refusing to go to infinity')
         }
         const arr = []
@@ -743,7 +743,7 @@ class Util {
      * @returns {any} Return value of last callback
      */
     static ntimes(n, cb) {
-        if (!Number.isFinite(n)) {
+        if (!Number.isFinite(+n)) {
             throw new ArgumentError('Refusing to go to infinity')
         }
         let ret
@@ -789,7 +789,7 @@ class Util {
         if (!chr.length) {
             throw new ArgumentError(`Unrepeatable character: '${chr}'`)
         }
-        if (!Number.isFinite(n)) {
+        if (!Number.isFinite(+n)) {
             throw new ArgumentError('Refusing to go to infinity')
         }
         while (Util.stringWidth(str) < n) {
@@ -814,7 +814,7 @@ class Util {
         if (!chr.length) {
             throw new ArgumentError(`Unrepeatable character: '${chr}'`)
         }
-        if (!Number.isFinite(n)) {
+        if (!Number.isFinite(+n)) {
             throw new ArgumentError('Refusing to go to infinity')
         }
         while (Util.stringWidth(str) < n) {

@@ -65,6 +65,17 @@ describe('Util', () => {
             min = 0.1
             max = 1.0
         })
+
+        it('should increment [1, 1, 9] to [1, 2, 0]', function () {
+            const arr = [1, 1, 9]
+            const exp = [1, 2, 0]
+            const inc = 1
+            const min = 0
+            const max = 9
+            Util.arrayIncrement(arr, inc, min, max)
+            expect(arr).to.jsonEqual(exp)
+        })
+
         it('should increment [0.1, 0.1, 0.1] to [0.1, 0.1, 0.2] and return true', () => {
             const arr = [0.1, 0.1, 0.1]
             const exp = [0.1, 0.1, 0.2]
@@ -148,6 +159,14 @@ describe('Util', () => {
         it('should chunk [1, 2] to [1], [2]', () => {
             const res = Util.chunkArray([1, 2], 2)
             expect(res).to.jsonEqual([[1], [2]])
+        })
+    })
+
+    describe('#cliWidth', () => {
+
+        it('should return integer', function () {
+            const res = Util.cliWidth()
+            expect(Number.isInteger(res)).to.equal(true)
         })
     })
 
@@ -254,6 +273,11 @@ describe('Util', () => {
             const obj = {foo: null}
             Util.ensure(obj, {foo: 1})
             expect(obj.foo).to.equal(null)
+        })
+
+        it('should return object for null target', function () {
+            const res = Util.ensure(null, {})
+            expect(res).to.jsonEqual({})
         })
     })
 
@@ -401,6 +425,14 @@ describe('Util', () => {
         })
     })
 
+    describe('#intRange', () => {
+
+        it('should throw ArgumentError for a=1, b=Infinity', function () {
+            const err = getError(() => Util.intRange(1, Infinity))
+            expect(err.isArgumentError).to.equal(true)
+        })
+    })
+
     describe('#isEmptyObject', () => {
 
         it('should return true for {}', () => {
@@ -517,6 +549,12 @@ describe('Util', () => {
             const res = Util.nchars(8, 'c')
             expect(res).to.equal(exp)
         })
+
+        it('should interpret true as 1', function () {
+            const exp = 'c'
+            const res = Util.nchars(true, 'c')
+            expect(res).to.equal(exp)
+        })
     })
 
     describe('#nmap', () => {
@@ -529,6 +567,12 @@ describe('Util', () => {
         it('should repeat accumulate callback values', function () {
             const exp = [3, 4, 5, 6]
             const res = Util.nmap(4, value => value + 3)
+            expect(res).to.jsonEqual(exp)
+        })
+
+        it('should interpret true as 1', function () {
+            const exp = [2]
+            const res = Util.nmap(true, value => value + 2)
             expect(res).to.jsonEqual(exp)
         })
     })
@@ -562,6 +606,12 @@ describe('Util', () => {
             let v = 0
             Util.ntimes(-1, () => v += 2)
             expect(v).to.equal(0)
+        })
+
+        it('should interpret true as 1', function () {
+            let v = 0
+            Util.ntimes(true, () => v += 2)
+            expect(v).to.equal(2)
         })
     })
 
