@@ -38,32 +38,16 @@ chai.Assertion.addMethod('jsonEqual', function assertJsonEqual(b) {
     )
 })
 
-function requireSrc(p) {
-    return require('../src/' + p)
-}
-
-const Util = requireSrc('lib/util')
-const Core = requireSrc('lib/core')
-const Robot = requireSrc('robot/player')
+const {Board} = require('../src/lib/core')
+const Robot   = require('../src/robot/player')
+const Util    = require('../src/lib/util')
 
 const fs     = require('fs')
 const globby = require('globby')
 const path   = require('path')
-const stream = require('stream')
 const tmp    = require('tmp')
 
-const {EventEmitter} = require('events')
-
 const States = require('./states')
-const Rolls  = require('./rolls')
-
-const {Board} = Core
-
-const States28 = Object.fromEntries(
-    Object.entries(States).map(([key, value]) =>
-        [key, Board.fromStateString(value).state28()]
-    )
-)
 
 function suites(dir, glob) {
     dir = dir || path.resolve(__dirname, 'suites')
@@ -86,23 +70,6 @@ function suites(dir, glob) {
             ])
     )
 }
-
-function normState(str) {
-    return Board.fromStateString(str).stateString()
-}
-
-function fetchBoard(name) {
-    return Board.fromStateString(States[name])
-}
-
-function noop() {
-
-}
-
-function newRando(...args) {
-    return Robot.ConfidenceRobot.getDefaultInstance('RandomRobot', ...args)
-}
-
 
 class GetErrorError extends Error {
     constructor(...args) {
@@ -131,26 +98,13 @@ function getError(cb) {
     }
 }
 
-function tmpFile() {
-    return tmp.fileSync().name
-}
-
-function tmpDir() {
-    return tmp.dirSync().name
-}
-
-function randomElement(arr) {
-    const i = Math.floor(Math.random() * arr.length)
-    return arr[i]
-}
-
 function makeRandomMoves(turn, isFinish) {
     while (true) {
-        let moves = turn.getNextAvailableMoves()
+        const moves = turn.getNextAvailableMoves()
         if (moves.length == 0) {
             break
         }
-        let move = randomElement(moves)
+        const move = TestUtil.randomElement(moves)
         turn.move(move.origin, move.face)
     }
     if (isFinish) {
@@ -159,56 +113,43 @@ function makeRandomMoves(turn, isFinish) {
     return turn
 }
 
-// parse key from email
-function parseKey(params) {
-    return params.Message.Body.Text.Data.match(/^Key: (.*)$/)[1]
-}
-
-class NullOutput extends stream.Writable {
-
-    constructor(...args) {
-        super(...args)
-        this.raw = ''
-    }
-
-    write(chunk) {
-        this.raw += chunk
-    }
-
-    get lines() {
-        return this.raw.split('\n')
-    }
-}
-
 const {httpFixture, getUrlParams, parseCookies} = require('./util/http-util')
 
+const {NullOutput, ReadlineStub} = require('./util/io')
 
-module.exports = {
-    append : Util.append
-  , clientServer : require('./util/client-server')
-  , destroyAll : Util.destroyAll
-  , expect
-  , fetchBoard
-  , getError
-  , getErrorAsync : getError
-  , getUrlParams
-  , httpFixture
-  , makeRandomMoves
-  , MockPrompter : require('./util/mock-prompter')
-  , newRando
-  , noop
-  , normState
-  , NullOutput
-  , parseCookies
-  , parseKey
-  , randomElement
-  , requireSrc
-  , Rolls
-  , States
-  , States28
-  , suites
-  , tmpDir
-  , tmpFile
-  , ucfirst : Util.ucfirst
-  , update  : Util.update
+const TestUtil = {
+    // methods
+    fetchBoard : name => Board.fromStateString(States[name]),
+    getError,
+    makeRandomMoves,
+    newRando      : (...args) => Robot.ConfidenceRobot.getDefaultInstance('RandomRobot', ...args),
+    noop          : () => {},
+    normState     : str => Board.fromStateString(str).stateString(),
+    parseKey      : params => params.Message.Body.Text.Data.match(/^Key: (.*)$/)[1],
+    randomElement : arr => arr[Math.floor(Math.random() * arr.length)],
+    requireSrc    : p => require('../src/' + p),
+    suites,
+    tmpDir  : () => tmp.dirSync().name,
+    tmpFile : () => tmp.fileSync().name,
+    // transforms
+    States28: Object.fromEntries(Object.entries(States).map(([key, value]) =>
+        [key, Board.fromStateString(value).state28()]
+    )),
+    // passthru requires
+    clientServer : require('./util/client-server'),
+    MockPrompter : require('./util/mock-prompter'),
+    Rolls        : require('./rolls'),
+    expect,
+    getUrlParams,
+    httpFixture,
+    parseCookies,
+    ReadlineStub,
+    NullOutput,
+    States,
+    // Util methods
+    append     : Util.append,
+    destroyAll : Util.destroyAll,
+    ucfirst    : Util.ucfirst,
+    update     : Util.update,
 }
+module.exports = TestUtil

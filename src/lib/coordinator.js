@@ -245,11 +245,12 @@ class Coordinator {
 
         } while (!match.checkFinished())
 
-        if (match.isCanceled) {
-            this.logger.warn('The match was canceled')
-        } else {
-            await this.emitAndWait(players, 'matchEnd', match)
-        }
+        await this.emitAndWait(players, 'matchEnd', match)
+        //if (match.isCanceled) {
+        //    this.logger.warn('The match was canceled')
+        //} else {
+        //    await this.emitAndWait(players, 'matchEnd', match)
+        //}
 
         if (this.opts.isRecord) {
             const matchFile = path.resolve(matchDir, 'match.json')
@@ -332,16 +333,15 @@ class Coordinator {
 
             turn.finish()
 
-            if (!turn.isCanceled) {
-                await this.emitWaitAndCheck(players, 'turnEnd', turn, game, match)
-            }
+            await this.emitWaitAndCheck(players, 'turnEnd', turn, game, match)
         }
 
-        if (game.isCanceled) {
-            this.logger.warn('The game was canceled')
-        } else {
-            await this.emitWaitAndCheck(players, 'gameEnd', game, match)
-        }
+        await this.emitWaitAndCheck(players, 'gameEnd', game, match)
+        //if (game.isCanceled) {
+        //    this.logger.warn('The game was canceled')
+        //} else {
+        //    await this.emitWaitAndCheck(players, 'gameEnd', game, match)
+        //}
     }
 
     /**

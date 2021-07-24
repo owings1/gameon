@@ -27,7 +27,6 @@ const {
     destroyAll,
     expect,
     getError,
-    getErrorAsync,
     makeRandomMoves,
     NullOutput,
     parseKey,
@@ -420,7 +419,7 @@ describe('TermPlayer', () => {
         it('should invalidate foo', async function () {
             const {player, turn} = this.fixture
             player.prompt = MockPrompter({action: 'foo'})
-            const err = await getErrorAsync(() => player.promptTurnOption(turn))
+            const err = await getError(() => player.promptTurnOption(turn))
             expect(err.message).to.contain('Validation failed for action')
         })
 
@@ -430,7 +429,7 @@ describe('TermPlayer', () => {
                 {action: 'q'},
                 {confirm : true}
             ])
-            const err = await getErrorAsync(() => player.promptTurnOption(turn))
+            const err = await getError(() => player.promptTurnOption(turn))
             expect(err.name).to.equal('MatchCanceledError')
         })
 
@@ -482,7 +481,7 @@ describe('TermPlayer', () => {
         it('should fail validation for 3 with [1, 2]', async function () {
             const {player, turn} = this.fixture
             player.prompt = MockPrompter({face: '3'})
-            const err = await getErrorAsync(() => player.promptFace(turn, [1, 2]))
+            const err = await getError(() => player.promptFace(turn, [1, 2]))
             expect(err.message).to.contain('Validation failed for face')
         })
     })
@@ -506,7 +505,7 @@ describe('TermPlayer', () => {
         it('should invalidate for foo', async function () {
             const {player} = this.fixture
             player.prompt = MockPrompter({finish: 'foo'})
-            const err = await getErrorAsync(() => player.promptFinish())
+            const err = await getError(() => player.promptFinish())
             expect(err.message).to.contain('Validation failed for finish')
         })
     })
@@ -543,7 +542,7 @@ describe('TermPlayer', () => {
         it('should fail validation for 3 with [3, 4]',async function () {
             const {player, turn} = this.fixture
             player.prompt = MockPrompter({origin: '3'})
-            const err = await getErrorAsync(() => player.promptOrigin(turn, [3, 4]))
+            const err = await getError(() => player.promptOrigin(turn, [3, 4]))
             expect(err.message).to.contain('Validation failed for origin')
         })
 
@@ -553,7 +552,7 @@ describe('TermPlayer', () => {
                 {origin: 'q'},
                 {confirm : true}
             ])
-            const err = await getErrorAsync(() => player.promptOrigin(turn, [1, 2]))
+            const err = await getError(() => player.promptOrigin(turn, [1, 2]))
             expect(err.name).to.equal('MatchCanceledError')
         })
 
@@ -575,7 +574,7 @@ describe('TermPlayer', () => {
                 {origin: 'q'},
                 {confirm: true}
             ])
-            const err = await getErrorAsync(() => player.promptOrigin(turn, [1]))
+            const err = await getError(() => player.promptOrigin(turn, [1]))
             expect(err.name).to.equal('MatchCanceledError')
         })
     })

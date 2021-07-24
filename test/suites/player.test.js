@@ -26,7 +26,6 @@ const TestUtil = require('../util')
 const {
     expect,
     getError,
-    getErrorAsync,
     makeRandomMoves,
     requireSrc
 } = TestUtil
@@ -72,7 +71,7 @@ describe('#meta', () => {
 describe('#playRoll', () => {
 
     it('should throw NotImplemented', async () => {
-        const err = await getErrorAsync(() => players.White.playRoll())
+        const err = await getError(() => players.White.playRoll())
         expect(err.message).to.equal('NotImplemented')
     })
 })

@@ -26,7 +26,6 @@ const TestUtil = require('../util')
 const {
     expect,
     getError,
-    getErrorAsync,
     requireSrc,
     MockPrompter,
     noop,
@@ -356,7 +355,7 @@ describe('-', () => {
                 {input: 'p'},
                 {from: 'b', color: 'x'}
             ])
-            const err = await getErrorAsync(() => lab.interactive())
+            const err = await getError(() => lab.interactive())
             expect(err.message.toLowerCase()).to.contain('color')
         })
 

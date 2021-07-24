@@ -220,7 +220,7 @@ class TextMethods {
         // Fix bug introduced in commit 73b6e658
         // See https://github.com/SBoudrias/Inquirer.js/commit/73b6e658
         // See https://github.com/owings1/Inquirer.js/commit/21ea73a3
-        if (this.status == 'touched') {
+        if (this.status == 'touched' || this.status == 'pending') {
             return input
         }
         return this.opt.default == null ? '' : this.opt.default

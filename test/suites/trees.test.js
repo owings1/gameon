@@ -27,7 +27,6 @@ const TestUtil = require('../util')
 const {
     expect,
     getError,
-    getErrorAsync,
     makeRandomMoves,
     randomElement,
     requireSrc,

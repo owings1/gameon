@@ -26,7 +26,6 @@ const TestUtil = require('../util')
 const {
     expect,
     getError,
-    getErrorAsync,
     requireSrc,
     MockPrompter,
     noop,
@@ -192,7 +191,7 @@ describe('TableHelper', () => {
                     {input: 'maxRows'},
                     {maxRows: 'asdf'}
                 ])
-                const err = await getErrorAsync(() => helper.interactive(table))
+                const err = await getError(() => helper.interactive(table))
                 expect(err.message.toLowerCase()).to.contain('invalid number')
             })
 

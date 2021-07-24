@@ -26,7 +26,6 @@ const TestUtil = require('../util')
 const {
     expect,
     getError,
-    getErrorAsync,
     parseKey,
     requireSrc,
     MockPrompter,
@@ -289,7 +288,7 @@ describe('ThemeHelper', () => {
             }
             await writeTheme('custom1', {extends: ['Default']})
             await writeTheme('custom2', {extends: ['custom1']})
-            const res = await getErrorAsync(() => ThemeHelper.loadDirectory(dir))
+            const res = await getError(() => ThemeHelper.loadDirectory(dir))
             expect(res).to.equal(exp)
         })
     })

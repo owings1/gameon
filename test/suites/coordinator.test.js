@@ -172,6 +172,12 @@ describe('-', () => {
             const {recordDir} = this.fixture
             new Coordinator({isRecord: true, recordDir})
         })
+
+        it('should set loglevel', function () {
+            const {coord} = this.fixture
+            coord.loglevel = 2
+            expect(coord.loglevel).to.equal(2)
+        })
     })
 
     describe('#cancelMatch', () => {
@@ -512,6 +518,51 @@ describe('-', () => {
                                 await coord.runGame(players, game)
                                 expect(game.getWinner()).to.equal(Red)
                                 expect(game.finalValue).to.equal(1)
+                            })
+
+                        })
+
+                        describe('White cancels', () => {
+
+                            beforeEach(function () {
+                                const {responses} = this.fixture
+                                append(responses.White, [
+                                    {accept: 'y'}
+                                ])
+                            })
+
+                            it.skip('should not call gameEnd if game is canceled after turnEnd', function (done) {
+                                const {players, coord, game} = this.fixture
+                                const cancelErr = new Error('test')
+                                
+                                //const {decideDouble} = players.White
+                                //players.White.decideDouble = function (turn, game, match) {
+                                //    this.holds.push(() => {
+                                //        turn.cancel(cancelErr)
+                                //        game.cancel(cancelErr)
+                                //    })
+                                //    return decideDouble.call(players.White, turn, game, match)
+                                //}
+                                players.White.on('doubleAccepted', (turn, game) => {
+                                    console.log('doubleAccepted')
+                                    turn.cancel(cancelErr)
+                                })
+                                //players.White.on('doubleDeclined', (turn, game, match) => {
+                                //    //if (true || turn.isDoubleDeclined) {
+                                //        console.log('fooooo')
+                                //        turn.cancel(cancelErr)
+                                //        game.cancel(cancelErr)
+                                //        console.log(game.meta())
+                                //        //}
+                                //})
+                                players.White.on('gameEnd', () => {
+                                    done(new Error('test failed'))
+                                })
+                                coord.runGame(players, game).then(done).catch(err => {
+                                    console.log(err)
+                                    expect(err).to.equal(cancelErr)
+                                    done()
+                                })
                             })
                         })
                     })

@@ -26,7 +26,6 @@ const TestUtil = require('../util')
 const {
     expect,
     getError,
-    getErrorAsync,
     requireSrc
 } = TestUtil
 

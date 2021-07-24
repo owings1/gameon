@@ -26,7 +26,6 @@ const Test = require('../util')
 const {
     expect,
     getError,
-    getErrorAsync,
     makeRandomMoves,
     noop,
     randomElement,
@@ -104,7 +103,7 @@ describe('Robot', () => {
     describe('#getMoves', () => {
 
         it('should throw NotImplemented', async () => {
-            const err = await getErrorAsync(() => robot.getMoves())
+            const err = await getError(() => robot.getMoves())
             expect(err.name).to.equal('NotImplementedError')
         })
     })
@@ -168,13 +167,13 @@ describe('ConfidenceRobot', () => {
             robot.getScores = () => []
             // hack a turn
             const turn = {isRolled: true}
-            const err = await getErrorAsync(() => robot.getMoves(turn))
+            const err = await getError(() => robot.getMoves(turn))
             expect(err.name).to.equal('UndecidedMoveError')
         })
 
         it('should throw HasNotRolledError when isRolled=false', async () => {
             doFirstTurn()
-            const err = await getErrorAsync(() => robot.getMoves(game.nextTurn(), game))
+            const err = await getError(() => robot.getMoves(game.nextTurn(), game))
             expect(err.name).to.equal('HasNotRolledError')
         })
     })
@@ -182,7 +181,7 @@ describe('ConfidenceRobot', () => {
     describe('#getScores', () => {
 
         it('should throw NotImplemented for base class', async () => {
-            const err = await getErrorAsync(() => robot.getScores())
+            const err = await getError(() => robot.getScores())
             expect(err.name).to.equal('NotImplementedError')
         })
     })
@@ -366,7 +365,7 @@ describe('FirstTurnRobot', () => {
             const turn = game.nextTurn()
             turn.setRoll([2, 1])
             robot.pointMoves = () => { throw e }
-            const err = await getErrorAsync(() => robot.getScores(turn, game))
+            const err = await getError(() => robot.getScores(turn, game))
             expect(err).to.equal(e)
         })
 
@@ -399,7 +398,7 @@ describe('FirstTurnRobot', () => {
     describe.skip('#pointMoves', () => {
 
         it('should throw UndecidedMoveError for doubles', async () => {
-            const err = await getErrorAsync(() => robot.pointMoves([2, 2]))
+            const err = await getError(() => robot.pointMoves([2, 2]))
             expect(err.name).to.equal('UndecidedMoveError')
         })
     })
@@ -716,7 +715,7 @@ describe('RobotDelegator', () => {
     describe('#getMoves', () => {
 
         it('should throw NoDelegatesError with empty delegates', async () => {
-            const err = await getErrorAsync(() => robot.getMoves())
+            const err = await getError(() => robot.getMoves())
             expect(err.name).to.equal('NoDelegatesError')
         })
 
@@ -731,7 +730,7 @@ describe('RobotDelegator', () => {
         it('should throw HasNotRolledError if not rolled', async () => {
             robot.addDelegate(rando, 1, 0)
             doFirstTurn()
-            const err = await getErrorAsync(() => robot.getMoves(game.nextTurn(), game))
+            const err = await getError(() => robot.getMoves(game.nextTurn(), game))
             expect(err.name).to.equal('HasNotRolledError')
         })
 
@@ -763,7 +762,7 @@ describe('RobotDelegator', () => {
             const turn = game.nextTurn()
             turn.roll()
             robot.logger.loglevel = -1
-            const err = await getErrorAsync(() => robot.getMoves(turn, game))
+            const err = await getError(() => robot.getMoves(turn, game))
             expect(err.name).to.equal('UndecidedMoveError')
         })
     })
@@ -804,7 +803,7 @@ describe('RobotDelegator', () => {
         })
 
         it('should throw NoDelegatesError with no delegates', async () => {
-            const err = await getErrorAsync(() => robot.shouldAcceptDouble())
+            const err = await getError(() => robot.shouldAcceptDouble())
             expect(err.name).to.equal('NoDelegatesError')
         })
 
@@ -832,7 +831,7 @@ describe('RobotDelegator', () => {
         })
 
         it('should throw NoDelegatesError with no delegates', async () => {
-            const err = await getErrorAsync(() => robot.shouldDouble())
+            const err = await getError(() => robot.shouldDouble())
             expect(err.name).to.equal('NoDelegatesError')
         })
 

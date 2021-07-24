@@ -90,7 +90,7 @@ class InputPrompt extends Inquirer.prompt.prompts.input {
             writeInvalid: value => value
         })
     }
-
+    //
     /**
      * @override for writeInvalid
      *
@@ -105,7 +105,7 @@ class InputPrompt extends Inquirer.prompt.prompts.input {
         }
         super.onError({value, isValid})
     }
-
+    
    /**
     * @override for theme and cancel
     *
@@ -114,14 +114,14 @@ class InputPrompt extends Inquirer.prompt.prompts.input {
     * See https://github.com/SBoudrias/Inquirer.js/blob/master/packages/inquirer/lib/prompts/input.js
     */
     render(error) {
-
+    
         const {chlk} = this
-
+    
         const {transformer} = this.opt
-
+    
         let message = this.getQuestion()
         let bottomContent = ''
-
+    
         message += chlk.message.prompt(' ')
         if (this.isCancel) {
             message += chlk.message.help(this.opt.cancel.message)
@@ -139,17 +139,16 @@ class InputPrompt extends Inquirer.prompt.prompts.input {
                 }
             }
         }
-
+    
         if (error) {
             bottomContent += this.getErrorString(error)
         }
-
+    
         if (this.opt.spin) {
             this.screen.renderWithSpinner(message, bottomContent)
         } else {
             this.screen.render(message, bottomContent)
         }
-        
     }
 }
 
