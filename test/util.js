@@ -22,8 +22,9 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-const chai = require('chai')
+const chai     = require('chai')
 const {expect} = chai
+const tmp      = require('tmp')
 
 // See https://www.chaijs.com/guide/helpers/
 chai.Assertion.addMethod('jsonEqual', function assertJsonEqual(b) {
@@ -42,34 +43,7 @@ const {Board} = require('../src/lib/core')
 const Robot   = require('../src/robot/player')
 const Util    = require('../src/lib/util')
 
-const fs     = require('fs')
-const globby = require('globby')
-const path   = require('path')
-const tmp    = require('tmp')
-
 const States = require('./states')
-
-function suites(dir, glob) {
-    dir = dir || path.resolve(__dirname, 'suites')
-    glob = dir + '/' + Util.stripLeadingSlash(glob || '*.test.js')
-    return Object.fromEntries(
-        globby.sync(glob)
-            .sort((a, b) =>
-                path.basename(a).toLowerCase().localeCompare(
-                    path.basename(b).toLowerCase()
-                )
-            )
-            .map(file => [
-                file
-              , path.basename(file)
-                    .split('.').slice(0, -2)
-                    .join('')
-                    .split('-')
-                    .map(Util.ucfirst)
-                    .join('')
-            ])
-    )
-}
 
 class GetErrorError extends Error {
     constructor(...args) {
@@ -104,7 +78,7 @@ function makeRandomMoves(turn, isFinish) {
         if (moves.length == 0) {
             break
         }
-        const move = TestUtil.randomElement(moves)
+        const move = Util.randomElement(moves)
         turn.move(move.origin, move.face)
     }
     if (isFinish) {
@@ -119,18 +93,16 @@ const {NullOutput, ReadlineStub} = require('./util/io')
 
 const TestUtil = {
     // methods
-    fetchBoard : name => Board.fromStateString(States[name]),
     getError,
     makeRandomMoves,
-    newRando      : (...args) => Robot.ConfidenceRobot.getDefaultInstance('RandomRobot', ...args),
-    noop          : () => {},
-    normState     : str => Board.fromStateString(str).stateString(),
-    parseKey      : params => params.Message.Body.Text.Data.match(/^Key: (.*)$/)[1],
-    randomElement : arr => arr[Math.floor(Math.random() * arr.length)],
-    requireSrc    : p => require('../src/' + p),
-    suites,
-    tmpDir  : () => tmp.dirSync().name,
-    tmpFile : () => tmp.fileSync().name,
+    fetchBoard : name => Board.fromStateString(States[name]),
+    newRando   : (...args) => Robot.ConfidenceRobot.getDefaultInstance('RandomRobot', ...args),
+    noop       : () => {},
+    normState  : str => Board.fromStateString(str).stateString(),
+    parseKey   : params => params.Message.Body.Text.Data.match(/^Key: (.*)$/)[1],
+    requireSrc : p => require('../src/' + p),
+    tmpDir     : () => tmp.dirSync().name,
+    tmpFile    : () => tmp.fileSync().name,
     // transforms
     States28: Object.fromEntries(Object.entries(States).map(([key, value]) =>
         [key, Board.fromStateString(value).state28()]
@@ -147,9 +119,10 @@ const TestUtil = {
     NullOutput,
     States,
     // Util methods
-    append     : Util.append,
-    destroyAll : Util.destroyAll,
-    ucfirst    : Util.ucfirst,
-    update     : Util.update,
+    append        : Util.append,
+    destroyAll    : Util.destroyAll,
+    randomElement : Util.randomElement,
+    ucfirst       : Util.ucfirst,
+    update        : Util.update,
 }
 module.exports = TestUtil

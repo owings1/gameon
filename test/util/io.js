@@ -55,6 +55,11 @@ class ReadlineStub extends EventEmitter {
         this.line = ''
         this.input = new EventEmitter
         this.output = new NullOutput
+        this.input.on('keypress', value => {
+           if (value) {
+               this.line += value
+           }
+        })
     }
 
     write() {

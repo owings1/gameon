@@ -601,10 +601,10 @@ class Util {
      * @returns {string} The normalized keypress name
      */
     static keypressName(e) {
-        if (e.key.name == 'escape') {
+        if (e.key && e.key.name == 'escape') {
             return e.key.name
         }
-        const parts = ['ctrl', 'meta', 'shift'].filter(it => e.key[it])
+        const parts = ['ctrl', 'meta', 'shift'].filter(it => e.key && e.key[it])
         if (parts.length) {
             parts.push(e.key.name)
             return parts.join('-')
@@ -612,7 +612,7 @@ class Util {
         if (e.value == null && e.key.name) {
             return e.key.name
         }
-        if (e.key.name && e.key.name.length > 1) {
+        if (e.key && e.key.name && e.key.name.length > 1) {
             return e.key.name
         }
         return e.value || ''

@@ -90,6 +90,7 @@ class InputPrompt extends Inquirer.prompt.prompts.input {
             writeInvalid: value => value
         })
     }
+
     //
     /**
      * @override for writeInvalid
@@ -127,14 +128,14 @@ class InputPrompt extends Inquirer.prompt.prompts.input {
             message += chlk.message.help(this.opt.cancel.message)
         } else {
             const isFinal = this.status == 'answered'
-            var value = isFinal ? this.answer : this.rl.line
+            let value = isFinal ? this.answer : this.rl.line
             if (transformer) {
                 value = transformer(value, this.answers, {isFinal})
             }
-            if (isFinal) {
-                message += chlk.answer(value)
-            } else {
-                if (!this.opt.mute) {
+            if (!this.opt.mute) {
+                if (isFinal) {
+                    message += chlk.answer(value)
+                } else {
                     message += chlk.input(value)
                 }
             }
@@ -149,6 +150,11 @@ class InputPrompt extends Inquirer.prompt.prompts.input {
         } else {
             this.screen.render(message, bottomContent)
         }
+    }
+
+    onEnd(state) {
+        super.onEnd(state)
+        clearInterval(this.screen.spinnerId)
     }
 }
 
@@ -479,8 +485,11 @@ const Prompts = {
 
 Object.entries(Prompts).forEach(([name, TargetClass]) => {
 
-    const features = TargetClass.features ? TargetClass.features() : []
-    const inherits = TargetClass.inherits ? TargetClass.inherits() : []
+    const {features, inherits} = Object.fromEntries(
+        ['features', 'inherits'].map(key =>
+            [key, TargetClass[key] ? TargetClass[key]() : []]
+        )
+    )
 
     const sources = [BaseMethods, ...features.map(name => Features[name]), ...inherits]
 

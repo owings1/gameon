@@ -525,6 +525,7 @@ describe('Util', () => {
           , ['ctrl-delete' , {key: {ctrl: true, name: 'delete'}}]
           , ['a'           , {key: {}, value: 'a'}]
           , [''            , {key: {}}]
+          , ['`'           , {value: '`'}]
         ])
     })
 

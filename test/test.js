@@ -22,7 +22,10 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-const {suites} = require('./util')
+const {stripLeadingSlash, ucfirst} = require('../src/lib/util')
+
+const globby = require('globby')
+const path   = require('path')
 
 const isPrintOnly = false
 
@@ -40,6 +43,7 @@ const onlys = [
     //, 'Moves'
     //, 'NetPlayer'
     //, 'Player'
+    //, 'Prompts'
     //, 'Robot'
     //, 'Tables'
     //, 'Term'
@@ -61,6 +65,7 @@ const skips = [
     //, 'Moves'
     //, 'NetPlayer'
     //, 'Player'
+    //, 'Prompts'
     //, 'Robot'
     //, 'Tables'
     //, 'Term'
@@ -76,7 +81,7 @@ before(() => {
 after(() => {
     process.env.GAMEON_TEST = oldEnv
 })
-Object.entries(suites()).forEach(([file, title]) => {
+Object.entries(getSuites()).forEach(([file, title]) => {
     if (isPrintOnly) {
         console.log(title)
         return
@@ -90,3 +95,25 @@ Object.entries(suites()).forEach(([file, title]) => {
         describe(title, suite)
     }
 })
+
+function getSuites(dir, glob) {
+    dir = dir || path.resolve(__dirname, 'suites')
+    glob = dir + '/' + stripLeadingSlash(glob || '*.test.js')
+    return Object.fromEntries(
+        globby.sync(glob)
+            .sort((a, b) =>
+                path.basename(a).toLowerCase().localeCompare(
+                    path.basename(b).toLowerCase()
+                )
+            )
+            .map(file => [
+                file
+              , path.basename(file)
+                    .split('.').slice(0, -2)
+                    .join('')
+                    .split('-')
+                    .map(ucfirst)
+                    .join('')
+            ])
+    )
+}

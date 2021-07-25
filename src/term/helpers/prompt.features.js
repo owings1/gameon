@@ -160,7 +160,7 @@ class CancelFeature {
         const keyIndex = keyValuesTrue(castToArray(opt.cancel.char))
         this.addKeypressIndex('cancel', keyIndex, (value, e) => {
             this.isCancel = true
-            if (this.opt.cancel.eventKey) {
+            if (this.answers && this.opt.cancel.eventKey) {
                 this.answers[this.opt.cancel.eventKey] = e
             }
             this.cancel(e)
