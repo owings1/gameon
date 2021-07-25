@@ -48,12 +48,43 @@ class NullOutput extends stream.Writable {
     unmute() {}
 }
 
+class NullInput extends EventEmitter {
+
+    constructor(...args) {
+        super(...args)
+    }
+
+    write() {
+        return this
+    }
+
+    moveCursor() {
+        return this
+    }
+
+    setPrompt() {
+        return this
+    }
+
+    close() {
+        return this
+    }
+
+    pause () {
+        return this
+    }
+
+    resume() {
+        return this
+    }
+}
+
 class ReadlineStub extends EventEmitter {
 
     constructor(...args) {
         super(...args)
         this.line = ''
-        this.input = new EventEmitter
+        this.input = new NullInput
         this.output = new NullOutput
         this.input.on('keypress', value => {
            if (value) {

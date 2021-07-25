@@ -104,6 +104,9 @@ function createPromptModule(opt) {
         } catch (error) {
             return Promise.reject(error)
         }
+        if (self.rl) {
+            ui.rl = self.rl
+        }
         const promise = ui.run(questions, answers)
 
         // Monkey patch the UI on the promise object so
@@ -112,6 +115,10 @@ function createPromptModule(opt) {
     }
 
     opt = opt || {}
+
+    if (opt.rl) {
+        self.rl = opt.rl
+    }
 
     ensure(self, {
 
@@ -145,7 +152,17 @@ class Prompt extends Inquirer.ui.Prompt {
 
     constructor(prompts, opt, prompter) {
         super(prompts, opt)
-        this.ScreenClass = (prompter && prompter.ScreenManager) || ScreenManager
+        this.ScreenClass = ScreenManager
+        if (prompter) {
+            if (prompter.rl) {
+                this.rl.removeListener('SIGINT', this.onForceClose)
+                this.rl = prompter.rl
+                this.rl.on('SIGINT', this.onForceClose)
+            }
+            if (prompter.ScreenManager) {
+                this.ScreenManager = prompter.ScreenManager
+            }
+        }
     }
 
     onResize(...args) {
@@ -167,12 +184,12 @@ class Prompt extends Inquirer.ui.Prompt {
     fetchAnswer(question) {
 
         const PromptClass = this.prompts[question.type]
-        const ScreenClass = this.ScreenClass
+        const {ScreenManager} = this
 
         this.activePrompt = new PromptClass(question, this.rl, this.answers)
 
         update(this.activePrompt, {
-            screen: new ScreenClass(this.rl, question.opts)
+            screen: new ScreenManager(this.rl, question.opts)
         })
 
         return defer(() =>
@@ -188,11 +205,12 @@ class Prompt extends Inquirer.ui.Prompt {
         super.close()
         if (this.activePrompt && this.activePrompt.screen) {
             const {screen} = this.activePrompt
-            clearInterval(screen.spinnerId)
             if (typeof screen.done == 'function') {
                 screen.done()
             }
+            clearInterval(screen.spinnerId)
         }
+        this.activePrompt = null
     }
 }
 

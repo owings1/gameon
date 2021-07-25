@@ -846,32 +846,36 @@ class TermHelper {
     }
 
     clear(...args) {
-        if (this.enabled) {
-            this.term.clear(...args)
-        }
+        this.write(this.term.str.clear(...args))
+        //if (this.enabled) {
+        //    this.term.clear(...args)
+        //}
         return this
     }
 
     // \x1B[1X
     // JSON.parse('"\\u001b[1X"')
     erase(...args) {
-        if (this.enabled) {
-            this.term.erase(...args)
-        }
+        this.write(this.term.str.erase(...args))
+        //if (this.enabled) {
+        //    this.term.erase(...args)
+        //}
         return this
     }
 
     eraseArea(...args) {
-        if (this.enabled) {
-            this.term.eraseArea(...args)
-        }
+        this.write(this.term.str.eraseArea(...args))
+        //if (this.enabled) {
+        //    this.term.eraseArea(...args)
+        //}
         return this
     }
 
     eraseDisplayBelow(...args) {
-        if (this.enabled) {
-            this.term.eraseDisplayBelow(...args)
-        }
+        this.write(this.term.str.eraseDisplayBelow(...args))
+        //if (this.enabled) {
+        //    this.term.eraseDisplayBelow(...args)
+        //}
         return this
     }
 
@@ -888,52 +892,51 @@ class TermHelper {
         return this
     }
 
-    write(str) {
-        if (this.enabled) {
-            this.stdout.write(str)
-        }
-        return this
-    }
-
     moveTo(...args) {
-        if (this.enabled) {
-            this.term.moveTo(...args)
-        }
+        this.write(this.term.str.moveTo(...args))
+        //if (this.enabled) {
+        //    this.term.moveTo(...args)
+        //}
         return this
     }
 
     up(...args) {
-        if (this.enabled) {
-            this.term.up(...args)
-        }
+        this.write(this.term.str.up(...args))
+        //if (this.enabled) {
+        //    this.term.up(...args)
+        //}
         return this
     }
 
     down(...args) {
-        if (this.enabled) {
-            this.term.down(...args)
-        }
+        this.write(this.term.str.down(...args))
+        //if (this.enabled) {
+        //    this.term.down(...args)
+        //}
         return this
     }
 
     left(...args) {
-        if (this.enabled) {
-            this.term.left(...args)
-        }
+        this.write(this.term.str.left(...args))
+        //if (this.enabled) {
+        //    this.term.left(...args)
+        //}
         return this
     }
 
     right(...args) {
-        if (this.enabled) {
-            this.term.right(...args)
-        }
+        this.write(this.term.str.right(...args))
+        //if (this.enabled) {
+        //    this.term.right(...args)
+        //}
         return this
     }
 
     column(...args) {
-        if (this.enabled) {
-            this.term.column(...args)
-        }
+        this.write(this.term.str.column(...args))
+        //if (this.enabled) {
+        //    this.term.column(...args)
+        //}
         return this
     }
 
@@ -952,16 +955,18 @@ class TermHelper {
     }
 
     hideCursor() {
-        if (this.enabled) {
-            this.write('\u001b[?25l')
-        }
+        this.write('\u001b[?25l')
+        //if (this.enabled) {
+        //    this.write('\u001b[?25l')
+        //}
         return this
     }
 
     showCursor() {
-        if (this.enabled) {
-            this.write('\u001b[?25h')
-        }
+        this.write('\u001b[?25h')
+        //if (this.enabled) {
+        //    this.write('\u001b[?25h')
+        //}
         return this
     }
 
@@ -980,6 +985,13 @@ class TermHelper {
                 this.showCursor()
             }
         }
+    }
+
+    write(str) {
+        if (this.enabled) {
+            this.stdout.write(str)
+        }
+        return this
     }
 
     get height() {
