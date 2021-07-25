@@ -1216,7 +1216,7 @@ class Menu extends EventEmitter {
         const str = chlk.screen(nchars(this.term.width - 0, ' '))
 
         this.term.saveCursor()
-            .writeArea(1, 1, 1, this.term.height - 0, str)
+            .writeRows(1, 1, this.term.height - 0, str)
             .restoreCursor()
 
         update(this.boxes.screen.opts, {

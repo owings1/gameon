@@ -131,7 +131,7 @@ class TermBox {
 
         this.term
             .saveCursor()
-            .writeArea(outerLeft, outerTop, 1, outerHeight, line)
+            .writeRows(outerLeft, outerTop, outerHeight, line)
             .restoreCursor()
 
         this.status.reset()

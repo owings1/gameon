@@ -22,21 +22,20 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-const Constants   = require('../lib/constants')
-const Core        = require('../lib/core')
-const Robot       = require('../robot/player')
-const Themes      = require('./themes')
-const Util        = require('../lib/util')
+const {Board}   = require('../lib/core')
+const Constants = require('../lib/constants')
+const Util      = require('../lib/util')
+
+const Themes = require('./themes')
+
+const {ArgumentError} = require('../lib/errors')
 
 const ansiEscapes = require('ansi-escapes')
 const TermKit     = require('terminal-kit')
 
-const {RobotDelegator} = Robot
 const {StringBuilder}  = Util
 
 const {nchars, sp, stripAnsi, stringWidth, ucfirst} = Util
-
-const {Board, Match, Turn} = Core
 
 const {
     BoardStrings
@@ -842,102 +841,56 @@ class TermHelper {
 
     constructor(enabled) {
         this.enabled = enabled
-        this.term = TermKit.terminal//createTerminal()
+        this.term = TermKit.terminal
     }
 
-    clear(...args) {
-        this.write(this.term.str.clear(...args))
-        //if (this.enabled) {
-        //    this.term.clear(...args)
-        //}
-        return this
+    clear() {
+        return this.write(this.str.clear())
     }
 
     // \x1B[1X
-    // JSON.parse('"\\u001b[1X"')
-    erase(...args) {
-        this.write(this.term.str.erase(...args))
-        //if (this.enabled) {
-        //    this.term.erase(...args)
-        //}
-        return this
+    erase(n) {
+        return this.write(this.str.erase(n))
     }
 
-    eraseArea(...args) {
-        this.write(this.term.str.eraseArea(...args))
-        //if (this.enabled) {
-        //    this.term.eraseArea(...args)
-        //}
-        return this
+    eraseArea(left, top, width, height) {
+        return this.write(this.str.eraseArea(left, top, width, height))
     }
 
-    eraseDisplayBelow(...args) {
-        this.write(this.term.str.eraseDisplayBelow(...args))
-        //if (this.enabled) {
-        //    this.term.eraseDisplayBelow(...args)
-        //}
-        return this
+    eraseDisplayBelow() {
+        return this.write(this.str.eraseDisplayBelow())
     }
 
-    writeArea(left, top, width, height, chr) {
-        if (this.enabled) {
-            for (let i = 0; i < height; ++i) {
-                this.moveTo(left, top + i)
-                for (let j = 0; j < width; ++j) {
-                    this.moveTo(left + j, top + i)
-                    this.write(chr)
-                }
-            }
+    writeRows(left, top, height, str) {
+        for (let i = 0; i < height; ++i) {
+            this.moveTo(left, top + i)
+            this.write(str)
         }
         return this
     }
 
-    moveTo(...args) {
-        this.write(this.term.str.moveTo(...args))
-        //if (this.enabled) {
-        //    this.term.moveTo(...args)
-        //}
-        return this
+    moveTo(x, y) {
+        return this.write(this.str.moveTo(x, y))
     }
 
-    up(...args) {
-        this.write(this.term.str.up(...args))
-        //if (this.enabled) {
-        //    this.term.up(...args)
-        //}
-        return this
+    up(n) {
+        return this.write(this.str.up(n))
     }
 
-    down(...args) {
-        this.write(this.term.str.down(...args))
-        //if (this.enabled) {
-        //    this.term.down(...args)
-        //}
-        return this
+    down(n) {
+        return this.write(this.str.down(n))
     }
 
-    left(...args) {
-        this.write(this.term.str.left(...args))
-        //if (this.enabled) {
-        //    this.term.left(...args)
-        //}
-        return this
+    left(n) {
+        return this.write(this.str.left(n))
     }
 
-    right(...args) {
-        this.write(this.term.str.right(...args))
-        //if (this.enabled) {
-        //    this.term.right(...args)
-        //}
-        return this
+    right(n) {
+        return this.write(this.str.right(n))
     }
 
-    column(...args) {
-        this.write(this.term.str.column(...args))
-        //if (this.enabled) {
-        //    this.term.column(...args)
-        //}
-        return this
+    column(n) {
+        return this.write(this.str.column(n))
     }
 
     saveCursor() {
@@ -954,20 +907,12 @@ class TermHelper {
         return this
     }
 
-    hideCursor() {
-        this.write('\u001b[?25l')
-        //if (this.enabled) {
-        //    this.write('\u001b[?25l')
-        //}
-        return this
+    hideCursor(isShow) {
+        return isShow ? this.showCursor() : this.write('\u001b[?25l')
     }
 
-    showCursor() {
-        this.write('\u001b[?25h')
-        //if (this.enabled) {
-        //    this.write('\u001b[?25h')
-        //}
-        return this
+    showCursor(isHide) {
+        return isHide ? this.hideCursor() : this.write('\u001b[?25h')
     }
 
     noCursor(cb) {
@@ -994,6 +939,10 @@ class TermHelper {
         return this
     }
 
+    get str() {
+        return this.term.str
+    }
+
     get height() {
         if (this.enabled) {
             return this.term.height
@@ -1011,23 +960,26 @@ class TermHelper {
     // Always return stdout even if disabled.
     get stdout() {
         return this._output || this.term.stdout
-        //return this.term.stdout
     }
 
     set stdout(strm) {
         this._output = strm
-        //this.term.stdout = strm
+    }
+
+    // Aliases for stdout
+    get output() {
+        return this.stdout
+    }
+
+    set output(strm) {
+        this.stdout = strm
     }
 }
 
 class AnsiHelper {
 
-    constructor(inst) {
-        this.inst = inst
-    }
-
-    get output() {
-        return this.inst.rl.output
+    constructor(output) {
+        this.output = output
     }
 
     left(x) {

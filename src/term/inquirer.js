@@ -104,9 +104,7 @@ function createPromptModule(opt) {
         } catch (error) {
             return Promise.reject(error)
         }
-        if (self.rl) {
-            ui.rl = self.rl
-        }
+
         const promise = ui.run(questions, answers)
 
         // Monkey patch the UI on the promise object so
@@ -115,10 +113,6 @@ function createPromptModule(opt) {
     }
 
     opt = opt || {}
-
-    if (opt.rl) {
-        self.rl = opt.rl
-    }
 
     ensure(self, {
 
@@ -151,14 +145,22 @@ function createPromptModule(opt) {
 class Prompt extends Inquirer.ui.Prompt {
 
     constructor(prompts, opt, prompter) {
+        opt = {...opt}
+        let rl
+        if (opt.rl) {
+            rl = opt.rl
+            delete opt.rl
+            opt.input = rl.input
+            opt.output = rl.output
+        }
         super(prompts, opt)
-        this.ScreenClass = ScreenManager
+        this.ScreenManager = ScreenManager
+        if (rl) {
+            this.rl.removeListener('SIGINT', this.onForceClose)
+            this.rl = rl
+            this.rl.on('SIGINT', this.onForceClose)
+        }
         if (prompter) {
-            if (prompter.rl) {
-                this.rl.removeListener('SIGINT', this.onForceClose)
-                this.rl = prompter.rl
-                this.rl.on('SIGINT', this.onForceClose)
-            }
             if (prompter.ScreenManager) {
                 this.ScreenManager = prompter.ScreenManager
             }
@@ -194,9 +196,9 @@ class Prompt extends Inquirer.ui.Prompt {
 
         return defer(() =>
             from(
-                this.activePrompt.run().then((answer) => {
-                    return { name: question.name, answer }
-                })
+                this.activePrompt.run().then((answer) => (
+                    {name: question.name, answer}
+                ))
             )
         )
     }
@@ -218,7 +220,7 @@ class ScreenManager extends ScreenBase {
 
     constructor(rl, opts) {
         super(rl)
-        this.cur = new AnsiHelper(this)
+        this.cur = new AnsiHelper(this.rl.output)
         this.opts = {
             indent       : 0
           , maxWidth     : Infinity
@@ -237,14 +239,22 @@ class ScreenManager extends ScreenBase {
         this.isDone = false
     }
 
-   /**
-    * @override For sparse erasing, events, and other options.
-    *
-    * Adapted from inquirer/lib/utils/screen-manager.
-    *
-    * See https://github.com/SBoudrias/Inquirer.js/blob/master/packages/inquirer/lib/utils/screen-manager.js
-    */
+    /**
+     * @override For sparse erasing, events, and other options.
+     *
+     * Adapted from inquirer/lib/utils/screen-manager.
+     *
+     * See https://github.com/SBoudrias/Inquirer.js/blob/master/packages/inquirer/lib/utils/screen-manager.js
+     *
+     * @param {string} The main body content
+     * @param {string} (optional) The footer content
+     * @param {boolean} (optional) Whether we are rendering the spinner
+     *
+     * @return self
+     */
     render(body, foot, spinning = false) {
+
+        foot = foot || ''
 
         this._lastRender = [body, foot, spinning]
 
@@ -358,14 +368,20 @@ class ScreenManager extends ScreenBase {
         this.isFirstRender = false
 
         emitter.emit('afterRender')
+
+        return this
     }
 
     /**
      * @override
      */
-    clean() {
+    clean(footHeight) {
 
-        const {height, footHeight} = this
+        if (typeof footHeight == 'undefined') {
+            footHeight = this.footHeight
+        }
+
+        const {height} = this
         const {term, indent, clearMaxWidth, maxWidth} = this.opts
 
         if (!term.enabled) {
@@ -387,6 +403,8 @@ class ScreenManager extends ScreenBase {
         ntimes(height, () => down().erase(width))
 
         ntimes(height > 1, () => term.up(height - 1))
+
+        return this
     }
 
     /**
@@ -407,10 +425,11 @@ class ScreenManager extends ScreenBase {
             return
         }
         this.opts.emitter.emit('answered', {height: this.height})
+        super.done()
         this._lastRender = null
         clearInterval(this.spinnerId)
-        super.done()
         this.isDone = true
+        return this
     }
 
     onResize(opts, isResetFirstRender) {
@@ -421,6 +440,7 @@ class ScreenManager extends ScreenBase {
         if (this._lastRender) {
             this.render(...this._lastRender)
         }
+        return this
     }
 }
 
@@ -433,6 +453,9 @@ class Separator extends Inquirer.Separator {
         // default line
         const line = chr.length ? nchars(15, chr) : ''
         super(line)
+        if (!chr.length) {
+            this.line = ''
+        }
         this.char = chr
         this._when = null
     }

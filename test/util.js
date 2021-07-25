@@ -122,6 +122,7 @@ const TestUtil = {
     append        : Util.append,
     destroyAll    : Util.destroyAll,
     randomElement : Util.randomElement,
+    stripAnsi     : Util.stripAnsi,
     ucfirst       : Util.ucfirst,
     update        : Util.update,
 }
