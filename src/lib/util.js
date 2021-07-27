@@ -632,6 +632,24 @@ class Util {
     }
 
     /**
+     * Lowercase the first letter of a string.
+     *
+     * @param {string} The input string
+     *
+     * @throws TypeError
+     *
+     * @returns {string} The result string
+     *
+     * @see `ucfirst()`
+     */
+    static lcfirst(str) {
+        if (str == null || !str.length) {
+            return str
+        }
+        return str.substring(0, 1).toLowerCase() + str.substring(1)
+    }
+
+    /**
      * Create a plain object from an Error, suitable for serialization.
      *
      * @param {Error} The input error
@@ -1122,6 +1140,8 @@ class Util {
      * @throws TypeError
      *
      * @returns {string} The result string
+     *
+     * @see `lcfirst()`
      */
     static ucfirst(str) {
         if (str == null || !str.length) {
