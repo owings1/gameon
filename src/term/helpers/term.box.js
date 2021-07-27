@@ -144,9 +144,10 @@ class TermBox {
         const pad2 = pad * 2
         //??const b2 = +isBorder * 2
 
-        const {left, top, minWidth, minHeight} = this.params
-        const width = Math.max(this.status.width, minWidth)
-        const height = Math.max(this.status.height, minHeight)
+        const {left, top, minWidth, minHeight, maxWidth, maxHeight} = this.params
+
+        const width = Math.min(Math.max(this.status.width, minWidth), maxWidth)
+        const height = Math.min(Math.max(this.status.height, minHeight), maxHeight)
 
         const outerLeft = left - isBorder - pad
         const outerTop = top - isBorder - pad
@@ -258,6 +259,9 @@ class BoxStatus extends EventEmitter {
         this.reset()
 
         this.on('render', ({indent, width, height}) => {
+            indent = indent || 0
+            width = width || 0
+            height = height || 0
             this.thisHeight = Math.max(this.thisHeight, height)
             this.maxHeight = Math.max(this.height, this.maxHeight)
             if (!width) {
@@ -270,6 +274,8 @@ class BoxStatus extends EventEmitter {
         })
 
         this.on('line', ({indent, width}) => {
+            indent = indent || 0
+            width = width || 0
             this.lineHeight += 1
             this.maxHeight = Math.max(this.height, this.maxHeight)
             if (!width) {
@@ -282,6 +288,7 @@ class BoxStatus extends EventEmitter {
         })
 
         this.on('answered', ({height}) => {
+            height = height || 0
             if (!height) {
                 return
             }
