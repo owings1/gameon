@@ -26,38 +26,16 @@ const TestUtil = require('../util')
 const {
     expect,
     getError,
+    noop,
     requireSrc,
 } = TestUtil
 
-describe('-', () => {
+describe('Logger', () => {
 
     const Logger = requireSrc('lib/logger')
 
-    describe.skip('Static', () => {
+    describe('Static', () => {
 
-        describe('#format', () => {
-
-            it('should return string with type and msg', () => {
-                const str = Logger.format({type: 'info', msg: 'test'})
-                expect(str.toLowerCase()).to.contain('info')
-                expect(str).to.contain('test')
-            })
-        })
-
-        describe('#getFormatServer', () => {
-
-            it('should include name in message', () => {
-                const obj = {name: 'TestLogger'}
-                const res = Logger.getFormatServer(obj)({type: '[info]', msg: 'hello'})
-                expect(res).to.contain('TestLogger')
-            })
-
-            it('should accept empty object', () => {
-                const obj = {}
-                const res = Logger.getFormatServer(obj)({type: '[info]', msg: 'hello'})
-                expect(res).to.contain('hello')
-            })
-        })
     })
 
     describe('#constructor', () => {
@@ -94,9 +72,9 @@ describe('-', () => {
 
         it('should call console.error with opts.server', () => {
             const logger = new Logger('Test', {server:true})
-            logger._parentError = () => {}
-            var isCalled = false
+            let isCalled = false
             logger.console = {error : () => isCalled = true }
+            logger._parent.error = noop
             logger.error(new Error('Test Logger.error'))
             expect(isCalled).to.equal(true)
         })

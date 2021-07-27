@@ -33,9 +33,9 @@ const Levels = {
    debug : 4
  , log   : 3
  , info  : 2
+ , line  : 1
  , warn  : 1
  , error : 0
- , line  : 1
 }
 
 const TypeColor = {
@@ -50,21 +50,30 @@ const TypeColor = {
 class Logger {
 
     static defaults() {
-        return {server: false, named: false, raw: false, theme: null}
+        return {
+            server : false,
+            named  : false,
+            raw    : false,
+            theme  : null,
+        }
     }
 
     constructor(name, opts) {
         this.opts = Util.defaults(Logger.defaults(), opts)
         this.name = name || ''
-        this.opts.name = this.name
-        if (this.opts.theme) {
-            this.theme = Themes.getInstance(this.opts.theme)
-        } else {
-            this.theme = Themes.getDefaultInstance()
-        }
+        //this.opts.name = this.name
+        this.theme = Themes.getSemiSafe(this.opts.theme)
         this.console = console
         this.loglevel = Levels[process.env.LOG_LEVEL || 'info']
         this.init()
+    }
+
+    get logLevel() {
+        return this.loglevel
+    }
+
+    set logLevel(n) {
+        this.loglevel = n
     }
 
     getMessageForError(err) {
@@ -80,7 +89,14 @@ class Logger {
 
         Logging(this, {format: this.format.bind(this)})
 
-        const {warn, error} = this
+        const {error, warn, line, info, log, debug} = this
+
+        this._parent = Object.fromEntries(
+            Object.keys(Levels).map(level =>
+                [level, this[level].bind(this)]
+            )
+        )
+
 
         this.error = (...args) => {
             args = args.map(arg => {
@@ -92,7 +108,7 @@ class Logger {
                 }
                 return arg
             })
-            return error.call(this, ...args)
+            return this._parent.error(...args)
         }
 
         this.warn = (...args) => {
@@ -102,7 +118,7 @@ class Logger {
                 }
                 return arg
             })
-            return warn.call(this, ...args)
+            return this._parent.warn(...args)
         }
     }
 

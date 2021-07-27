@@ -167,7 +167,6 @@ class Coordinator {
         return {
             isRecord  : false
           , recordDir : null
-          , name      : 'Coordinator'
         }
     }
 
@@ -181,7 +180,8 @@ class Coordinator {
     constructor(opts) {
 
         this.opts = defaults(Coordinator.defaults(), opts)
-        this.logger = new Logger(this.opts.name, {named: true})
+        this.name = this.constructor.name
+        this.logger = new Logger(this.name, {named: true})
 
         if (this.opts.isRecord) {
             try {
