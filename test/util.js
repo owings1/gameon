@@ -119,11 +119,14 @@ const TestUtil = {
     NullOutput,
     States,
     // Util methods
-    append        : Util.append,
-    destroyAll    : Util.destroyAll,
-    randomElement : Util.randomElement,
-    stripAnsi     : Util.stripAnsi,
-    ucfirst       : Util.ucfirst,
-    update        : Util.update,
+    append            : Util.append,
+    destroyAll        : Util.destroyAll,
+    keyValuesTrue     : Util.keyValuesTrue,
+    mapValues         : Util.mapValues,
+    randomElement     : Util.randomElement,
+    stripAnsi         : Util.stripAnsi,
+    stripLeadingSlash : Util.stripLeadingSlash,
+    ucfirst           : Util.ucfirst,
+    update            : Util.update,
 }
 module.exports = TestUtil
