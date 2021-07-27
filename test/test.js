@@ -22,98 +22,128 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-const {stripLeadingSlash, ucfirst} = require('../src/lib/util')
+const IsPrintOnly = false
 
+const {
+    keyValuesTrue,
+    mapValues,
+    stripLeadingSlash,
+    ucfirst,
+} = require('./util')
+
+const {Chars} = require('../src/lib/constants')
+
+const chalk  = require('chalk')
 const globby = require('globby')
 const path   = require('path')
 
-const isPrintOnly = false
-
 const onlys = [
+    //'auth',
+    //'board-analyzer',
+    //'client',
+    //'coordinator',
+    //'core',
+    //'errors',
+    //'inquirer',
+    //'lab',
+    //'logger',
+    //'menu',
+    //'move',
+    //'net-player',
+    //'player',
+    //'prompts',
+    //'robot',
+    //'server',
+    //'tables',
+    //'term',
+    //'themes',
+    //'trees',
+    //'util',
     null
-    //, 'Auth'
-    //, 'BoardAnalyzer'
-    //, 'Client'
-    //, 'Coordinator'
-    //, 'Core'
-    //, 'Errors'
-    //, 'Lab'
-    //, 'Logger'
-    //, 'Menu'
-    //, 'Moves'
-    //, 'NetPlayer'
-    //, 'Player'
-    //, 'Prompts'
-    //, 'Robot'
-    //, 'Tables'
-    //, 'Term'
-    //, 'Themes'
-    //, 'Trees'
-    //, 'Util'
 ]
 const skips = [
+    //'auth',
+    //'board-analyzer',
+    //'client',
+    //'coordinator',
+    //'core',
+    //'errors',
+    //'inquirer',
+    //'lab',
+    //'logger',
+    //'menu',
+    //'move',
+    //'net-player',
+    //'player',
+    //'prompts',
+    //'robot',
+    //'server',
+    //'tables',
+    //'term',
+    //'themes',
+    //'trees',
+    //'util',
     null
-    //, 'Auth'
-    //, 'BoardAnalyzer'
-    //, 'Client'
-    //, 'Coordinator'
-    //, 'Core'
-    //, 'Errors'
-    //, 'Lab'
-    //, 'Logger'
-    //, 'Menu'
-    //, 'Moves'
-    //, 'NetPlayer'
-    //, 'Player'
-    //, 'Prompts'
-    //, 'Robot'
-    //, 'Tables'
-    //, 'Term'
-    //, 'Themes'
-    //, 'Trees'
-    //, 'Util'
 ]
 
-const oldEnv = process.env.GAMEON_TEST
-before(() => {
-    process.env.GAMEON_TEST = '1'
-})
-after(() => {
-    process.env.GAMEON_TEST = oldEnv
-})
-Object.entries(getSuites()).forEach(([file, title]) => {
+const isMocha = typeof describe != 'undefined'
+const isPrintOnly = IsPrintOnly || !isMocha
+const isRun = !isPrintOnly
+
+if (isRun) {
+
+    let oldEnv
+
+    before(() => {
+        oldEnv = process.env.GAMEON_TEST
+        process.env.GAMEON_TEST = '1'
+    })
+
+    after(() => {
+        process.env.GAMEON_TEST = oldEnv
+    })
+}
+
+const maps = mapValues({onlys, skips}, keyValuesTrue)
+
+getSuites().forEach(({file, name, title}) => {
     if (isPrintOnly) {
-        console.log(title)
+        console.log(name)
         return
     }
+    const {onlys, skips} = maps
     const suite = () => require(file)
-    if (onlys.indexOf(title) > -1) {
-        describe.only(title, suite)
-    } else if (skips.indexOf(title) > -1) {
-        describe.skip(title, suite)
+    //const hr = ''.padEnd(name.length + 2, Chars.table.dash)
+    //const label = [
+    //    [Chars.pointer, name].join(' ')
+    //  , hr
+    //].join('\n  ')
+    const label = name
+    if (onlys[title] || onlys[name]) {
+        describe.only(label, suite)
+    } else if (skips[title] || skips[name]) {
+        describe.skip(label, suite)
     } else {
-        describe(title, suite)
+        describe(label, suite)
     }
 })
 
 function getSuites(dir, glob) {
     dir = dir || path.resolve(__dirname, 'suites')
     glob = dir + '/' + stripLeadingSlash(glob || '*.test.js')
-    return Object.fromEntries(
-        globby.sync(glob)
-            .sort((a, b) =>
-                path.basename(a).toLowerCase().localeCompare(
-                    path.basename(b).toLowerCase()
-                )
-            )
-            .map(file => [
-                file
-              , path.basename(file)
-                    .split('.').slice(0, -2)
-                    .join('')
-                    .split('-')
-                    .map(ucfirst)
-                    .join('')
-            ])
-    )
+    return globby.sync(glob)
+        .map(file => {
+            const name = path.basename(file)
+                .split('.')
+                .slice(0, -2)
+                .join('')
+            const title = name.split('-')
+                .map(ucfirst)
+                .join('')
+            return {file, name, title}
+        })
+        .sort((a, b) => {
+            const strs = [a, b].map(({name}) => name.toLowerCase())
+            return strs[0].localeCompare(strs[1])
+        })
 }
