@@ -22,7 +22,7 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-const TestUtil = require('../util')
+const Test = require('../util')
 const {
     expect,
     getError,
@@ -31,8 +31,8 @@ const {
     noop,
     NullOutput,
     tmpDir,
-    States
-} = TestUtil
+    States,
+} = Test
 
 const chalk = require('chalk')
 const fs    = require('fs')
@@ -41,7 +41,7 @@ const path  = require('path')
 
 const {resolve} = path
 
-describe('-', () => {
+describe('Lab', () => {
 
     const Constants = requireSrc('lib/constants')
     const Core      = requireSrc('lib/core')

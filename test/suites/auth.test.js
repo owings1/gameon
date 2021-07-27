@@ -41,7 +41,7 @@ const fse = require('fs-extra')
 
 const {ucfirst, update} = Util
 
-describe('-', () => {
+describe('Auth', () => {
 
     const loglevel = 0
 

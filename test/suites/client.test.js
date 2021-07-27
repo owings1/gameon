@@ -32,7 +32,7 @@ const {
     update,
 } = Test
 
-describe('-', () => {
+describe('Client', () => {
 
     const Client = requireSrc('net/client')
     const Server = requireSrc('net/server')

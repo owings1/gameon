@@ -22,14 +22,14 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-const TestUtil = require('../util')
+const Test = require('../util')
 const {
     expect,
     getError,
-    requireSrc
-} = TestUtil
+    requireSrc,
+} = Test
 
-describe('-', () => {
+describe('Error', () => {
 
     const Errors = requireSrc('lib/errors')
 
@@ -47,37 +47,58 @@ describe('-', () => {
         }
     })
 
-    describe('properties', () => {
+    describe('RequestError', () => {
 
-        describe('RequestError from AlreadyRolledError', () => {
+        describe('Static', () => {
 
-            beforeEach(function() {
-                this.name = 'RequestError'
-                this.args = [new Errors.AlreadyRolledError(this.msg)]
-                this.argsOnly = true
-                this.load()
+            describe('#forResponse', () => {
+
+                it('should set case to error in body', function () {
+                    const res = {status: 500}
+                    const body = {error: {name: 'TestError', message: 'test error message'}}
+                    const err = Errors.RequestError.forResponse(res, body)
+                    expect(err.cause.name).to.equal('TestError')
+                })
+
+                it('should construct without body', function () {
+                    const res = {status: 500}
+                    const err = Errors.RequestError.forResponse(res)
+                })
             })
+        })
 
-            it('should have name RequestError', function() {
-                expect(this.err.name).to.equal('RequestError')
-            })
+        describe('properties', () => {
 
-            it('should have cause AlreadyRolledError', function() {
-                expect(this.args[0].name).to.equal('AlreadyRolledError')
-                expect(this.err.cause).to.equal(this.args[0])
-            })
+            describe('RequestError from AlreadyRolledError', () => {
 
-            const expTrueProps = [
-                'isAlreadyRolledError'
-              , 'isIllegalStateError'
-              , 'isGameError'
-              , 'isRequestError'
-              , 'isBaseError'
-            ]
+                beforeEach(function() {
+                    this.name = 'RequestError'
+                    this.args = [new Errors.AlreadyRolledError(this.msg)]
+                    this.argsOnly = true
+                    this.load()
+                })
 
-            expTrueProps.forEach(prop => {
-                it(`should have property ${prop} = true`, function() {
-                    expect(this.err[prop]).to.equal(true)
+                it('should have name RequestError', function() {
+                    expect(this.err.name).to.equal('RequestError')
+                })
+
+                it('should have cause AlreadyRolledError', function() {
+                    expect(this.args[0].name).to.equal('AlreadyRolledError')
+                    expect(this.err.cause).to.equal(this.args[0])
+                })
+
+                const expTrueProps = [
+                    'isAlreadyRolledError'
+                  , 'isIllegalStateError'
+                  , 'isGameError'
+                  , 'isRequestError'
+                  , 'isBaseError'
+                ]
+
+                expTrueProps.forEach(prop => {
+                    it(`should have property ${prop} = true`, function() {
+                        expect(this.err[prop]).to.equal(true)
+                    })
                 })
             })
         })

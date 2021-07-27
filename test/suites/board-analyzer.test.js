@@ -32,7 +32,7 @@ const {
   , update
 } = Test
 
-describe('-', () => {
+describe('BoardAnalyzer', () => {
 
     const {Board, Piece} = requireSrc('lib/core')
     const {White, Red}   = requireSrc('lib/constants')

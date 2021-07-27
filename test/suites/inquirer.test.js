@@ -40,12 +40,12 @@ describe('inquirer', () => {
         this.rl = new ReadlineStub
         this.output = this.rl.output
         this.input = this.rl.input
-        this.prompter = inquirer.createPromptModule({rl: this.rl})
+        this.inquirer = inquirer.createPromptModule({rl: this.rl})
         this.term = new TermHelper(true)
         this.term.output = this.rl.output
         this.create = function () {
             const {questions, answers, opts} = this.fixture
-            const promise = this.prompter.prompt(questions, answers, opts)
+            const promise = this.inquirer.prompt(questions, answers, opts)
             this.ui = promise.ui
             return promise
         }
@@ -68,7 +68,7 @@ describe('inquirer', () => {
 
             it('should set module.opt.rl for rl in opt', function () {
                 const rl = new ReadlineStub
-                const prompter = this.prompter.createPromptModule({rl})
+                const prompter = this.inquirer.createPromptModule({rl})
                 expect(prompter.opt.rl).to.equal(rl)
             })
         })
@@ -96,7 +96,7 @@ describe('inquirer', () => {
 
             it('should reject when UI constructor throws', function (done) {
                 const exp = new Error('test')
-                this.prompter.ui.Prompt = function () { throw exp }
+                this.inquirer.ui.Prompt = function () { throw exp }
                 this.run().catch(err => {
                     expect(err).to.equal(exp)
                     done()
@@ -107,8 +107,8 @@ describe('inquirer', () => {
         describe('#registerPrompt', () => {
 
             it('should register mock input class', function () {
-                class MyPrompt extends this.prompter.prompts.input {}
-                this.prompter.registerPrompt('input', MyPrompt)
+                class MyPrompt extends this.inquirer.prompts.input {}
+                this.inquirer.registerPrompt('input', MyPrompt)
                 return this.run(rl => {
                     expect(this.ui.activePrompt.constructor).to.equal(MyPrompt)
                     rl.emit('line', 'foo')
@@ -253,7 +253,7 @@ describe('inquirer', () => {
                 // coverage
                 let ui
                 try {
-                    ui = new Prompt(this.prompter.prompts)
+                    ui = new Prompt(this.inquirer.prompts)
                 } finally {
                     if (ui) {
                         ui.close()
@@ -265,7 +265,7 @@ describe('inquirer', () => {
                 // coverage
                 let ui
                 try {
-                    ui = new Prompt(this.prompter.prompts, null, {})
+                    ui = new Prompt(this.inquirer.prompts, null, {})
                 } finally {
                     if (ui) {
                         ui.close()
@@ -280,7 +280,7 @@ describe('inquirer', () => {
                 // coverage
                 let ui
                 try {
-                    ui = new Prompt(this.prompter.prompts)
+                    ui = new Prompt(this.inquirer.prompts)
                     ui.activePrompt = {screen: {}}
                 } finally {
                     if (ui) {

@@ -45,7 +45,7 @@ const fse = require('fs-extra')
 
 const {resolve} = require('path')
 
-describe('-', () => {
+describe('Coordinator', () => {
 
     const Coordinator = requireSrc('lib/coordinator')
     const Player      = requireSrc('lib/player')
