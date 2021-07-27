@@ -128,6 +128,13 @@ class ThemeHelper {
         return this.getInstance(name)
     }
 
+    static getSemiSafe(name) {
+        if (!name) {
+            return this.getDefaultInstance()
+        }
+        return this.getInstance(name)
+    }
+
     static getConfig(name) {
         if (!Store.All[name]) {
             throw new ThemeNotFoundError('Theme not found: ' + name)
