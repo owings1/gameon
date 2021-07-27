@@ -83,7 +83,8 @@ class Client extends EventEmitter {
 
         super()
 
-        this.logger = new Logger(this.constructor.name, {named: true})
+        this.name = this.constructor.name
+        this.logger = new Logger(this.name, {named: true})
 
         const {serverUrl, username, password} = credentials || {}
 

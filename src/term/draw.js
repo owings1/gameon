@@ -840,7 +840,7 @@ class Reporter {
 class TermHelper {
 
     constructor(enabled) {
-        this.enabled = enabled
+        this.enabled = Boolean(enabled)
         this.term = TermKit.terminal
     }
 
