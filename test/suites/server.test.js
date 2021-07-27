@@ -38,7 +38,7 @@ const {
 
 const fse = require('fs-extra')
 
-describe('-', () => {
+describe('Server', () => {
 
     const Client = requireSrc('net/client')
     const Server = requireSrc('net/server')
