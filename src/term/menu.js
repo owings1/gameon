@@ -22,18 +22,19 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-const Constants   = require('../lib/constants')
-const Coordinator = require('../lib/coordinator')
-const Core        = require('../lib/core')
-const Dice        = require('../lib/dice')
-const Errors      = require('../lib/errors')
-const Logger      = require('../lib/logger')
-const Util        = require('../lib/util')
+const Constants      = require('../lib/constants')
+const Coordinator    = require('../lib/coordinator')
+const {Board, Match} = require('../lib/core')
+const Dice           = require('../lib/dice')
+const Logger         = require('../lib/logger')
 
 const Client    = require('../net/client')
 const NetPlayer = require('../net/player')
 
-const Robot = require('../robot/player')
+const {
+    ConfidenceRobot,
+    RobotDelegator,
+} = require('../robot/player')
 
 const LabHelper    = require('./lab')
 const {TermHelper} = require('./draw')
@@ -47,6 +48,10 @@ const globby     = require('globby')
 const {inquirer} = require('./inquirer')
 const os         = require('os')
 const path       = require('path')
+const _ = {
+    get: require('lodash/get'),
+    set: require('lodash/set'),
+}
 
 const {EventEmitter} = require('events')
 
@@ -55,17 +60,14 @@ const ApiHelper = require('./helpers/menu.api')
 const Questions = require('./helpers/menu.questions')
 const TermBox   = require('./helpers/term.box')
 
-const {ConfidenceRobot} = Robot
-const {RobotDelegator}  = Robot
-
-const {Match, Board}     = Core
-const {DependencyHelper} = Util
-const {StringBuilder}    = Util
-
 const {
     append
   , castToArray
+  , decrypt2
+  , defaults
+  , DependencyHelper
   , destroyAll
+  , encrypt2
   , forceLineReturn
   , isCredentialsFilled
   , isEmptyObject
@@ -73,11 +75,12 @@ const {
   , ntimes
   , padEnd
   , rejectDuplicatePrompter
+  , StringBuilder
   , stringWidth
   , stripAnsi
   , sumArray
   , update
-} = Util
+} = require('../lib/util')
 
 const {
     Chars
@@ -92,19 +95,19 @@ const {
 } = Constants
 
 const {
+    LoginChoiceMap
+  , MainChoiceMap
+  , PlayChoiceMap
+} = Constants.Menu
+
+const {
     MatchCanceledError
   , MenuError
   , PromptActiveError
   , RequestError
   , ResetKeyNotEnteredError
   , WaitingAbortedError
-} = Errors
-
-const {
-    LoginChoiceMap
-  , MainChoiceMap
-  , PlayChoiceMap
-} = Constants.Menu
+} = require('../lib/errors')
 
 const ResizeTimoutMs = 300
 
@@ -194,6 +197,15 @@ class Menu extends EventEmitter {
         }
     }
 
+    get output() {
+        return this.term.output
+    }
+    
+    set output(strm) {
+        this.term.output = strm
+        this.inquirer.opt.output = strm
+    }
+
     get loglevel() {
         return this.logger.loglevel
     }
@@ -202,8 +214,8 @@ class Menu extends EventEmitter {
         this.logger.loglevel = n
         this.alerter.loglevel = n
         this.api.loglevel = n
-        if (this.thisClient) {
-            this.thisClient.loglevel = n
+        if (this.client) {
+            this.client.loglevel = n
         }
         if (this.coordinator) {
             this.coordinator.loglevel = n
@@ -369,6 +381,8 @@ class Menu extends EventEmitter {
                     return true
                 }
 
+                const {credentials} = this
+
                 if (LoginChoiceMap[choice]) {
                     try {
                         const {message, method} = LoginChoiceMap[choice]
@@ -391,17 +405,17 @@ class Menu extends EventEmitter {
                         return true
                     }
 
-                    this.credentials.isTested = false
+                    credentials.isTested = false
                     if (choice == 'password') {
-                        this.credentials[choice] = this.encryptPassword(answer)
+                        credentials[choice] = this.encryptPassword(answer)
                     } else {
-                        this.credentials[choice] = answer
+                        credentials[choice] = answer
                     }
                 }
 
                 try {
 
-                    if (!isCredentialsFilled(this.credentials, true)) {
+                    if (!isCredentialsFilled(credentials, true)) {
                         return true
                     }
 
@@ -512,8 +526,10 @@ class Menu extends EventEmitter {
 
         return this.runMenu('Robot', async (choose, loop) => {
 
-            if (isEmptyObject(this.settings.robots[name])) {
-                this.settings.robots[name] = this.robotMinimalConfig(name)
+            const {settings} = this
+
+            if (isEmptyObject(settings.robots[name])) {
+                settings.robots[name] = this.robotMinimalConfig(name)
             }
 
             await loop(async () => {
@@ -525,7 +541,7 @@ class Menu extends EventEmitter {
                 }
 
                 if (choice == 'reset') {
-                    this.settings.robots[name] = this.robotDefaults(name)
+                    settings.robots[name] = this.robotDefaults(name)
                     await this.saveSettings()
                     return
                 }
@@ -536,7 +552,7 @@ class Menu extends EventEmitter {
                     return
                 }
 
-                this.settings.robots[name][choice] = answer
+                settings.robots[name][choice] = answer
                 await this.saveSettings()
 
                 // always break
@@ -733,9 +749,10 @@ class Menu extends EventEmitter {
     async playRobot(matchOpts) {
         await this.ensureLoaded()
         const match = new Match(matchOpts.total, matchOpts)
+        const playerOpts = {term: this.term, ...this.settings}
         const players = {
-            White : new TermPlayer(White, this.settings)
-          , Red   : new TermPlayer.Robot(this.newRobot(Red), this.settings)
+            White : new TermPlayer(White, playerOpts),
+            Red   : new TermPlayer.Robot(this.newRobot(Red), playerOpts),
         }
         return this.runMatch(match, players)
     }
@@ -743,9 +760,10 @@ class Menu extends EventEmitter {
     async playRobots(matchOpts) {
         await this.ensureLoaded()
         const match = new Match(matchOpts.total, matchOpts)
+        const playerOpts = {term: this.term, ...this.settings}
         const players = {
-            White : new TermPlayer.Robot(this.newRobot(White), this.settings)
-          , Red   : new TermPlayer.Robot(this.newDefaultRobot(Red), this.settings)
+            White : new TermPlayer.Robot(this.newRobot(White), playerOpts),
+            Red   : new TermPlayer.Robot(this.newDefaultRobot(Red), playerOpts),
         }
         return this.runMatch(match, players)
     }
@@ -753,9 +771,10 @@ class Menu extends EventEmitter {
     async playHumans(matchOpts) {
         await this.ensureLoaded()
         const match = new Match(matchOpts.total, matchOpts)
+        const playerOpts = {term: this.term, ...this.settings}
         const players = {
-            White : new TermPlayer(White, this.settings)
-          , Red   : new TermPlayer(Red, this.settings)
+            White : new TermPlayer(White, playerOpts),
+            Red   : new TermPlayer(Red, playerOpts),
         }
         return this.runMatch(match, players)
     }
@@ -764,16 +783,14 @@ class Menu extends EventEmitter {
 
         await this.ensureLoaded()
 
-        if (this.thisClient) {
-            this.thisClient.close()
-            this.thisClient.removeAllListeners()
-        }
-
         const client = this.newClient()
 
         try {
 
-            const termPlayer = new TermPlayer(isStart ? White : Red, this.settings)
+            const termPlayer = new TermPlayer(isStart ? White : Red, {
+                term: this.term,
+                ...this.settings,
+            })
             const netPlayer  = new NetPlayer(client, isStart ? Red : White)
             const players = {
                 White : isStart ? termPlayer : netPlayer
@@ -826,8 +843,12 @@ class Menu extends EventEmitter {
 
         } finally {
             this.captureInterrupt = null
-            // This could throw
-            client.close()
+            try {
+                // This could throw
+                client.close()
+            } finally {
+                this.client = null
+            }
         }
     }
 
@@ -836,6 +857,11 @@ class Menu extends EventEmitter {
         try {
 
             this.players = players
+
+            Object.entries(players).forEach(([color, player]) => {
+                player.loglevel = this.loglevel
+                player.logger.name = [this.logger.name, player.name, color].join('.')
+            })
 
             const coordinator = this.newCoordinator()
 
@@ -912,7 +938,7 @@ class Menu extends EventEmitter {
         this.emit('beforeRunLab', helper)
         if (cmds && cmds.length) {
             cmds = castToArray(cmds)
-            for (var i = 0; i < cmds.length; ++i) {
+            for (let i = 0; i < cmds.length; ++i) {
                 await helper.runCommand(cmds[i], i == 0)
             }
         } else {
@@ -939,10 +965,10 @@ class Menu extends EventEmitter {
 
     newRobot(...args) {
         const {settings} = this
-        if (!settings.isCustomRobot) {
-            return this.newDefaultRobot(...args)
+        if (settings.isCustomRobot) {
+            return RobotDelegator.forSettings(settings.robots, ...args)
         }
-        return RobotDelegator.forSettings(settings.robots, ...args)
+        return this.newDefaultRobot(...args)
     }
 
     newDefaultRobot(...args) {
@@ -952,16 +978,22 @@ class Menu extends EventEmitter {
     newCoordinator() {
         const coordinator = new Coordinator(this.settings)
         coordinator.loglevel = this.loglevel
+        coordinator.logger.name = [this.logger.name, coordinator.name].join('.')
         this.coordinator = coordinator
         return coordinator
     }
 
     newClient() {
+        if (this.client) {
+            this.client.close()
+            this.client.removeAllListeners()
+        }
         const client = new Client(update({...this.credentials}, {
             password: this.decryptPassword(this.credentials.password)
         }))
-        this.thisClient = client
         client.loglevel = this.loglevel
+        client.logger.name = [this.logger.name, client.name].join('.')
+        this.client = client
         return client
     }
 
@@ -975,26 +1007,49 @@ class Menu extends EventEmitter {
 
             opts = this.getPromptOpts(opts)
 
+            const cleanup = () => {
+                this.captureInterrupt = null
+                this.prompter = null
+                // Clean the listener in case it was not called.
+                box.status.removeListener('render', onRender)
+            }
+
             if (opts.cancelOnInterrupt) {
                 this.captureInterrupt = () => {
-                    if (this.prompter && this.prompter.ui) {
-                        this.prompter.ui.close()
-                        resolve(InterruptCancelAnswers)
-                        return true
+                    try {
+                        if (this.prompter && this.prompter.ui) {
+                            this.prompter.ui.close()
+                            resolve(InterruptCancelAnswers)
+                            return true
+                        }
+                        //this.prompter = null
+                    } finally {
+                        cleanup()
                     }
-                    this.prompter = null
                 }
             }
 
-            this.prompter = this.inquirer.prompt(questions, answers, opts)
+            const prompter = this.inquirer.prompt(questions, answers, opts)
+            this.prompter = prompter
 
-            this.prompter.then(answers => {
-                this.captureInterrupt = null
-                this.prompter = null
+            // Ensure that prompt event is emitted after first render
+            const onRender = () => this.emit('prompt', {prompter, questions, answers, opts})
+            const box = this.boxes.menu
+            box.status.once('render', onRender)
+
+            prompter.then(answers => {
+                cleanup()
+                //this.captureInterrupt = null
+                //this.prompter = null
+                //// Clean the listener in case it was not called.
+                //box.status.removeListener('render', onRender)
                 resolve(answers)
             }).catch(err => {
-                this.captureInterrupt = null
-                this.prompter = null
+                cleanup()
+                //this.captureInterrupt = null
+                //this.prompter = null
+                //// Clean the listener in case it was not called.
+                //box.status.removeListener('render', onRender)
                 reject(err)
             })
         })
@@ -1003,7 +1058,7 @@ class Menu extends EventEmitter {
     getPromptOpts(opts) {
         const box = this.boxes.menu
         const {maxWidth, left} = box.params
-        const indent = (left - 1) * this.settings.termEnabled
+        const indent = (left - 1) * Boolean(this.settings.termEnabled)
         return {
             theme         : this.theme
           , emitter       : box.status
@@ -1063,7 +1118,7 @@ class Menu extends EventEmitter {
             this.term.moveTo(1, box.params.top)
 
             return await run(
-                (...hints) => this.menuChoice(this.q.menu(title, ...hints))
+                (...hints) => this.menuChoice(title, this.q.menu(title, ...hints))
               , async loop => {
                     let ret
                     while (true) {
@@ -1104,6 +1159,7 @@ class Menu extends EventEmitter {
         }
 
         const box = this.boxes.alerts
+
         const {maxWidth, minWidth, left, top} = box.params
         const {format} = box.opts
 
@@ -1136,15 +1192,33 @@ class Menu extends EventEmitter {
         box.drawBorder()
     }
 
-    async menuChoice(question, opts) {
+    async menuChoice(title, question, opts) {
+
+        const box = this.boxes.menu
+
         question = {
             name     : 'choice'
           , type     : 'rawlist'
-          , pageSize : this.boxes.menu.opts.maxHeight - 4
+          , pageSize : box.opts.maxHeight - 4
           , prefix   : this.getMenuPrefix()
           , ...question
         }
-        const {answer, isCancel, toggle, ...result} = await this.questionAnswer(question, opts)
+
+        const promise = this.questionAnswer(question, opts)
+
+        // Ensure that prompt.menu event is emitted after first render
+        const onRender = () => this.emit('prompt.menu', {title, question, opts})
+
+        box.status.once('render', onRender)
+        let res
+        try {
+            res = await promise
+        } finally {
+            // Clean the listener in case it was not called.
+            box.status.removeListener('render', onRender)
+        }
+
+        const {answer, isCancel, toggle, ...result} = res
         const choice = answer
         question = (question.choices.find(c => c.value == choice) || {}).question
         const ask = () => this.questionAnswer(question, opts)
@@ -1156,39 +1230,61 @@ class Menu extends EventEmitter {
     }
 
     async questionAnswer(question, opts) {
+
         opts = {
-            cancelOnInterrupt: !!question.cancel && !question.noInterrupt
+            cancelOnInterrupt: Boolean(question.cancel && !question.noInterrupt)
           , ...opts
         }
+
         const {name} = question
-        const oldValue = typeof question.default == 'function' ? question.default() : question.default
-        var answers = {}
+        const oldValue = typeof question.default == 'function'
+            ? question.default()
+            : question.default
+
+        let answers = {}
         if (question.answer != null) {
-            answers[name] = question.answer
+            _.set(answers, name, question.answer)
         }
-        answers = await this.prompt(question, answers, opts)
-        const answer = answers[name]
+
+        const promise = this.prompt(question, answers, opts)
+
+        // Ensure that prompt.question event is emitted after first render
+        const box = this.boxes.menu
+        const onRender = () => this.emit('prompt.question', {name, question, opts})
+
+        box.status.once('render', onRender)
+        try {
+            answers = await promise
+        } finally {
+            // Clean the listener in case it was not called.
+            box.status.removeListener('render', onRender)
+        }
+
+        const answer = _.get(answers, name)
         const isCancel = !!answers._cancelEvent
         const isChange = !isCancel && answer != oldValue
         const toggle = answers['#toggle']
+
         return {answers, answer, isCancel, oldValue, isChange, toggle}
     }
 
     getMenuPrefix() {
-        if (this.bread.length > 1) {
-            return this.bread.slice(0, this.bread.length - 1).join(' > ') + ' >'
+        if (this.bread.length < 2) {
+            return ''
         }
-        return ''
+        return this.bread
+            .slice(0, this.bread.length - 1)
+            .join(` ${Chars.pointer} `) + ` ${Chars.pointer}`
     }
 
     handleInterrupt() {
-        const handler = this.captureInterrupt
-        this.captureInterrupt = null
-        if (handler) {
-            this.logger.console.log()
-            return handler()
+        if (!this.captureInterrupt) {
+            return 1
         }
-        return 1
+        const handler = this.captureInterrupr
+        this.captureInterrupt = null
+        this.term.output.write('\n')
+        return handler()
     }
 
     clearScreen() {
@@ -1207,25 +1303,37 @@ class Menu extends EventEmitter {
     eraseScreen() {
         this.term.moveTo(1, 1).eraseDisplayBelow()
         this.hasMenuBackground = false
+        this.resetBoxes()
+    }
+
+    resetBoxes() {
         Object.values(this.boxes).forEach(box => box.status.reset())
     }
 
     writeMenuBackground() {
-        Object.values(this.boxes).forEach(box => box.status.reset())
-        const chlk = this.theme.menu
-        const str = chlk.screen(nchars(this.term.width - 0, ' '))
 
-        this.term.saveCursor()
-            .writeRows(1, 1, this.term.height - 0, str)
+        const {term} = this
+        const {width, height} = term
+
+        this.resetBoxes()
+
+        const chlk = this.theme.menu
+        const str = chlk.screen(nchars(width - 0, ' '))
+
+        term.saveCursor()
+            .writeRows(1, 1, height - 0, str)
             .restoreCursor()
 
-        update(this.boxes.screen.opts, {
-            minWidth  : this.term.width
-          , maxWidth  : this.term.width
-          , minHeight : this.term.height
-          , maxHeight : this.term.height
+        const box = this.boxes.screen
+
+        update(box.opts, {
+            minWidth  : width
+          , maxWidth  : width
+          , minHeight : height
+          , maxHeight : height
         })
-        this.boxes.screen.drawBorder()
+        box.drawBorder()
+
         this.hasMenuBackground = true
     }
 
@@ -1261,9 +1369,9 @@ class Menu extends EventEmitter {
 
         const settings = await fse.readJson(settingsFile)
 
-        const defaults = Menu.settingsDefaults()
-        update(this.settings, Util.defaults(defaults, this.settings, settings))
-        update(this.settings.matchOpts, Util.defaults(defaults.matchOpts, settings.matchOpts))
+        const defs = Menu.settingsDefaults()
+        update(this.settings, defaults(defs, this.settings, settings))
+        update(this.settings.matchOpts, defaults(defs.matchOpts, settings.matchOpts))
 
         if (this.settings.isCustomRobot && isEmptyObject(this.settings.robots)) {
             // populate for legacy format
@@ -1295,7 +1403,7 @@ class Menu extends EventEmitter {
         const settingsFile = this.getSettingsFile()
         if (settingsFile) {
             await fse.ensureDir(path.dirname(settingsFile))
-            const settings = Util.defaults(Menu.settingsDefaults(), this.settings)
+            const settings = defaults(Menu.settingsDefaults(), this.settings)
             await fse.writeJson(settingsFile, settings, {spaces: 2})
         }
         // Load current theme
@@ -1322,7 +1430,7 @@ class Menu extends EventEmitter {
             credentials.serverUrl = Menu.getDefaultServerUrl()
         }
 
-        update(this.credentials, Util.defaults(Menu.credentialDefaults(), credentials))
+        update(this.credentials, defaults(Menu.credentialDefaults(), credentials))
 
         this.isCredentialsLoaded = true
     }
@@ -1437,11 +1545,11 @@ class Menu extends EventEmitter {
     }
 
     encryptPassword(password) {
-        return password ? Util.encrypt2(password, this.chash) : ''
+        return password ? encrypt2(password, this.chash) : ''
     }
 
     decryptPassword(password) {
-        return password ? Util.decrypt2(password, this.chash) : ''
+        return password ? decrypt2(password, this.chash) : ''
     }
 
     robotsDefaults() {
@@ -1472,15 +1580,18 @@ class Menu extends EventEmitter {
         destroyAll(this.boxes)
         if (this.players) {
             destroyAll(this.players)
+            this.players = null
         }
         this.alerts.destroy()
-        if (this.thisClient) {
+        if (this.client) {
             try {
-                this.thisClient.close()
+                this.client.close()
             } catch (err) {
                 this.logger.warn(err)
             }
+            this.client = null
         }
+        this.coordinator = null
         this.removeListener('resize', this.handleResize)
     }
 
