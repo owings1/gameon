@@ -49,18 +49,19 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
  * OTHER DEALINGS IN THE SOFTWARE.
  */
-const Errors = require('../../lib/errors')
-const Themes = require('../themes')
-const Util   = require('../../lib/util')
-
-const {DuplicateKeyError} = Errors
+const {DuplicateKeyError} = require('../../lib/errors')
 
 const {
     castToArray
   , keyValuesTrue
   , stripAnsi
-} = Util
+} = require('../../lib/util')
 
+const Themes = require('../themes')
+
+const _ = {
+    set: require('lodash/set')
+}
 const ModifiedStatuses = {
     answered : true
   , canceled : true
@@ -161,7 +162,7 @@ class CancelFeature {
         this.addKeypressIndex('cancel', keyIndex, (value, e) => {
             this.isCancel = true
             if (this.answers && this.opt.cancel.eventKey) {
-                this.answers[this.opt.cancel.eventKey] = e
+                _.set(this.answers, this.opt.cancel.eventKey, e)
             }
             this.cancel(e)
         })
