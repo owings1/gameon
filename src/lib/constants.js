@@ -135,7 +135,10 @@ const Chars = {
   , dblSp : '  '
   , br    : '\n'
   , hr    : '\u2501'
-  , check : '\u2713'
+  , info  : '\u2139'
+  , warn  : '\u26a0'
+  , error : '\u2716'
+  , check : '\u2713' // \u2714 \u221a
   , pointer : '\u276f'
   , bullet  : '\u2022'
     //https://unicode-table.com/en/sets/arrow-symbols/#down-arrows
@@ -163,9 +166,9 @@ const Chars = {
           , right  : '\u252b'
         }
       , bottom  : {
-            left   : '\u2523'//'\u2517'
+            left   : '\u2523'// \u2517
           , middle : '\u253b'
-          , right  : '\u252b'//'\u251b'
+          , right  : '\u252b'// \u251b
         }
       , footer  : {
             left   : '\u2517'
