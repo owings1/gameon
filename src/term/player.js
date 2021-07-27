@@ -204,13 +204,15 @@ const Listeners = {
     }
 }
 
+const DefaultTerm = new TermHelper(DefaultTermEnabled)
+
 class TermPlayer extends Base {
 
     static defaults() {
         return {
             fastForced  : false
           , theme       : DefaultThemeName
-          , termEnabled : DefaultTermEnabled
+          , term        : DefaultTerm
             // for suggesting
           , isCustomRobot : false
           , robots        : null
@@ -224,7 +226,6 @@ class TermPlayer extends Base {
         this.isTerm = true
         this.persp = color
         this.opts = Util.defaults(TermPlayer.defaults(), opts)
-        this.term = new TermHelper(this.opts.termEnabled)
         this.theme = Themes.getInstance(this.opts.theme)
         this.logs = []
 
@@ -250,6 +251,15 @@ class TermPlayer extends Base {
     set output(strm) {
         this.term.stdout = strm
         this.inquirer.opt.output = strm
+    }
+
+    get term() {
+        return this.opts.term
+    }
+
+    set term(term) {
+        this.opts.term = term
+        this.drawer.term = term
     }
 
     // @override
@@ -607,9 +617,6 @@ class TermPlayer extends Base {
                     try {
                         this.logger.debug('promptReject.ui.close')
                         this.prompter.ui.close()
-                        //console.log(this.prompter.ui.rl.eventNames())
-                        //console.log(this.prompter.ui.rl.listenerCount('line'))
-                        //console.log(this.prompter.ui.rl.listeners('line'))
                     } catch (e) {
                         this.logger.error('Failed to close UI', e)
                     }
