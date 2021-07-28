@@ -1,5 +1,5 @@
 /**
- * gameon - Custom mochajs reporter
+ * gameon - Test reporter default chalks.
  *
  * Copyright (C) 2020-2021 Doug Owings
  *
@@ -22,42 +22,52 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-const Base = require('./reporter-base').DefaultReporter
-
-const {append, pad, nchars, stringWidth} = require('../../src/lib/util')
-
-function wrap (inner, outer) {
-    return outer + inner + outer
-}
-
-class Reporter extends Base {
-
-    constructor(runner, opts) {
-        super(runner, opts)
-        this.setStyles({
-            'suite.root.title' : 'bgWhiteBright.magenta.bold',
-        })
-    }
-
-    renderSuiteBegin(suite) {
-
-        if (this.depth != 1) {
-            return super.renderSuiteBegin(suite)
-        }
-
-        const chlk = this.chalks.suite.root
-        const {title} = suite
-        const spaces = nchars(stringWidth(title) + 2, ' ')
-        const lines = [
-            spaces
-          , wrap(title.toUpperCase(), ' ')
-          , spaces
-        ].map(line => chlk.title(line))
-
-        lines.push('')
-
-        return this.indentLines(lines, this.counters.tab + 1)
-    }
-}
-
-module.exports = Reporter
+module.exports = (chalk) => ({
+    diff: {
+        unified: {
+            added   : chalk.green,
+            removed : chalk.red,
+        },
+        inline: {
+            added   : chalk.bgGreen.black,
+            removed : chalk.bgRed.black,
+        },
+    },
+    error: {
+        title   : chalk.reset,
+        message : chalk.red,
+        stack   : chalk.grey,
+    },
+    stats: {
+        passes   : chalk.green,
+        pending  : chalk.cyan,
+        failures : chalk.red,
+        duration : chalk.grey,
+    },
+    suite: {
+        title : chalk.reset,
+        root  : {
+            title: chalk.reset,
+        },
+    },
+    test: {
+        pass: {
+            title  : chalk.grey,
+            symbol : chalk.green,
+        },
+        fail: {
+            title: chalk.red,
+        },
+        pending: {
+            title: chalk.cyan,
+        },
+        speed: {
+            fast   : chalk.grey,
+            medium : chalk.yellow,
+            slow   : chalk.red,
+        },
+    },
+    warn: {
+        message: chalk.yellow,
+    },
+})
