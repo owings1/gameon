@@ -22,9 +22,23 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-const Pkg = require('../../package.json')
+const path = require('path')
+const {resolve} = path
+
+/**
+ * Package info
+ */
+const BaseDir = resolve(__dirname, '../..')
+const Pkg = require(resolve(BaseDir, 'package.json'))
 const Version = Pkg.version
 
+const DefaultLocale = 'en'
+const LocaleNames   = Pkg.lingui.locales.map(locale => path.basename(locale))
+const LocalesDir    = resolve(BaseDir, 'locale')
+
+/**
+ * Test Environment
+ */
 const IsTest = parseInt(process.env.GAMEON_TEST) > 0
 
 /**
@@ -228,14 +242,16 @@ const DefaultEmailFromAddress = 'noreply@nowhere.example'
 const DefaultEmailType        = 'mock'
 // Minimum eight characters, at least one letter and one number:
 // from: https://stackoverflow.com/questions/19605150/regex-for-password-must-contain-at-least-eight-characters-at-least-one-number-a
+// TODO: make translatable
 const DefaultPasswordHelp = 'Minimum eight characters, at least one lowercase letter, one uppercase letter, and one number'
 const DefaultPasswordMin = 8
 const DefaultPasswordRegex = '^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)[a-zA-Z\\d\\w\\W]{8,}$'
 const InvalidUsernameChars = '/\\?%*:|"\'&#'.split('')
 const EncryptedFlagPrefix = 'encrypted_'
 
-
 const Menu = {
+
+    // TODO: make messages translatable
 
     LoginChoiceMap : {
         changePassword  : {
@@ -364,6 +380,7 @@ const Constants = {
     DefaultEmailFromAddress,
     DefaultEmailFromName,
     DefaultEmailType,
+    DefaultLocale,
     DefaultPasswordHelp,
     DefaultPasswordMin,
     DefaultPasswordRegex,
@@ -378,6 +395,8 @@ const Constants = {
     InsideOrigins,
     InvalidUsernameChars,
     IsTest,
+    LocaleNames,
+    LocalesDir,
     MatchCancelRef,
     Menu,
     MoveCoords,
