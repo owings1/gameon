@@ -15,6 +15,7 @@
     "dist_and_publish": "oclif-dev pack && oclif-dev publish"
   },
   "dependencies": {
+    "@lingui/core": "^3.10.4",
     "@oclif/command": "^1.8.0",
     "@oclif/config": "^1.17.0",
     "@oclif/plugin-help": "^3.2.0",
@@ -67,6 +68,29 @@
   "repository": "https://bitbucket.org/owings1/gameon.git",
   "bin": {
     "gameon": "./bin/run"
+  },
+  "lingui": {
+    "format": "po",
+    "locales": [
+      "en",
+      "fr"
+    ],
+    "catalogs": [
+      {
+        "path": "<rootDir>/locale/{locale}/messages",
+        "include": [
+          "<rootDir>/src"
+        ],
+        "exclude": [
+          "**/node_modules/**"
+        ]
+      }
+    ],
+    "extractBabelOptions": {
+      "plugins": [
+        "@babel/plugin-syntax-dynamic-import"
+      ]
+    }
   },
   "mocha": {
       "reporter": "test/util/reporter",
