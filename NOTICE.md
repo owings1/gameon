@@ -420,6 +420,8 @@ Creative Commons Notice
 
 ### mochajs
 
+***Development only**
+
 **MIT License**
 
 - https://www.npmjs.com/package/mocha
