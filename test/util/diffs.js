@@ -85,8 +85,6 @@ class Diffs {
             ...opts.chlk,
         }
 
-        const {chlk} = opts
-
         const format = line => {
             if (line[0] === '+') {
                 return chlk.added(line)
