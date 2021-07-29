@@ -71,62 +71,35 @@ function chalkDiff(value, defaultValue, chlk) {
     return getDiffChalk(value, defaultValue, chlk)(value.toString())
 }
 
-function weightValidator(value) {
-    return errMessage(() =>
-        RobotDelegator.validateWeight(value)
-    )
-}
-
-function stateValidator(value) {
-    if (!value.length) {
-        return true
-    }
-    try {
-        Board.fromStateString(value).analyzer.validateLegalBoard()
-    } catch (err) {
-        return err.message
-    }
-    return true
-}
-
-function rollsFileValidator(value) {
-    if (!value.length) {
-        return true
-    }
-    const data = fse.readJsonSync(value)
-    return errMessage(() => Dice.validateRollsData(data))
-}
-
 const CancelChars = {
-    bool     : ['escape', '<', '`']
-  , input    : ['escape']
-  , list     : ['escape', '<']
-  , password : ['escape']
+    bool     : ['escape', '<', '`'],
+    input    : ['escape'],
+    list     : ['escape', '<'],
+    password : ['escape'],
 }
 const EnterChars = {
-    back : ['escape', '`', '<']
-  , quit : ['escape', '`']
+    back : ['escape', '`', '<'],
+    quit : ['escape', '`'],
 }
 const ExpandChars = {
-    input: ['right']
+    input: ['right'],
 }
 const RestoreChars = {
-    input    : ['up']
-  , password : ['up']
+    input    : ['up'],
+    password : ['up'],
 }
 const ToggleChars = {
-    bool: ['up', 'down']
+    bool: ['up', 'down'],
 }
 
 class Questions {
 
     constructor(menu) {
-        this._menu = menu
+        this.menu = menu
     }
 
-    menu(title, extra) {
-        const menu = this._menu
-        const {settings} = menu
+    menuq(title, extra) {
+        const {menu, settings, __} = this
         const name = title.toLowerCase()
         switch (name) {
             case 'main':
@@ -146,7 +119,7 @@ class Questions {
                   , choices : this.matchChoices(extra)
                   , default : () => menu.lastToggleChoice
                   , action  : {char: 'tab', name: '#toggle', all: false}
-                    // this skips the match menu for joinOnline
+                    // This skips the match menu for joinOnline.
                   , answer  : PlayChoiceMap[extra].matchAnswer
                 }
             case 'account':
@@ -175,69 +148,77 @@ class Questions {
     }
 
     mainChoices() {
-        const menu = this._menu
+
+        const {__} = this
+
         const entries = Object.entries(MainChoiceMap)
-        const entryChoice = ([value, {name, select}]) => ({name, value, select})
+        const toChoice = ([value, {name, select}]) => ({name, value, select})
+
+        // TODO: refactor for translation.
         return this.formatChoices([
             this.br()
-          , ...entries.map(entryChoice)
+          , entries.map(toChoice)
           , this.hr()
           , {
                 value  : 'quit'
-              , name   : 'Quit'
+              , name   : __('Quit')
               , select : 'q'
               , enter  : EnterChars.quit
             }
           , this.br()
-        ])
+        ].flat())
     }
 
     playChoices() {
-        const menu = this._menu
+
+        const {menu, __} = this
+
         const entries = Object.entries(PlayChoiceMap)
-        const entryChoice = ([name, {message}]) => ({value: name, name: message})
+        const toChoice = ([name, {message}]) => ({value: name, name: message})
+
+        // TODO: refactor for translation.
         return this.formatChoices([
             this.br()
-          , ...entries.filter(([name, {isOnline}]) => isOnline).map(entryChoice)
+          , entries.filter(([name, {isOnline}]) => isOnline).map(toChoice)
           , this.hr()
-          , ...entries.filter(([name, {isOnline}]) => !isOnline).map(entryChoice)
+          , entries.filter(([name, {isOnline}]) => !isOnline).map(toChoice)
           , this.hr()
           , {
-                value : 'back'
-              , name  : 'Back'
-              , when  : menu.bread.length > 1
-              , enter : EnterChars.back
+                value : 'back',
+                name  : __('Back'),
+                when  : menu.bread.length > 1,
+                enter : EnterChars.back,
             }
           , {
-                value  : 'quit'
-              , name   : 'Quit'
-              , select : 'q'
+                value  : 'quit',
+                name   : __('Quit'),
+                select : 'q',
             }
           , this.br()
-        ])
+        ].flat())
     }
 
     matchChoices(playChoice) {
-        const menu = this._menu
+        const {menu, __} = this
         const {isOnline, isJoin} = PlayChoiceMap[playChoice]
         return this.formatChoices(
             this.matchInitialChoices(playChoice).concat([
-                // only show advanced for local matches
+                // Only show advanced for local matches.
                 {
                     value : 'advanced'
-                  , name  : 'Advanced'
+                  , name  : __('Advanced')
                   , when  : !isOnline
                 }
               , this.hr().when(!isOnline)
               , {
                     value : 'back'
-                  , name  : 'Back'
+                  , name  : __('Back')
                   , when  : menu.bread.length > 1
                   , enter : EnterChars.back
                 }
               , {
                     value  : 'quit'
-                  , name   : 'Quit'
+                  , name   : __('Quit')
                   , select : 'q'
                 }
               , this.br()
@@ -246,252 +227,324 @@ class Questions {
     }
 
     matchInitialChoices(playChoice) {
-        const menu = this._menu
-        const {matchOpts} = menu.settings
-        
+
+        const {__} = this
+        const mopts = this.settings.matchOpts
+        const {isJoin} = PlayChoiceMap[playChoice]
+
+        const validate = {
+            total: value => {
+                if (Number.isInteger(value) && value > 0) {
+                    return true
+                }
+                return __('Please enter a number > 0')
+            }
+        }
+
         return [
             this.br()
           , {
-                value    : 'start'
-              , name     : 'Start Match'
-              , select   : 's'
-              , question : PlayChoiceMap[playChoice].isJoin ? this.matchId() : null
+                value    : 'start',
+                name     : __('Start Match'),
+                select   : 's',
+                question : isJoin ? this.matchId() : null,
             }
           , this.hr()
           , {
-                value : 'total'
-              , name  : 'Match Total'
-              , select  : 't'
-              , question : {
-                    name     : 'total'
-                  , message  : 'Match Total'
-                  , type     : 'input'
-                  , default  : () => matchOpts.total
-                  , validate : value => Number.isInteger(value) && value > 0 || 'Please enter a number > 0'
-                  , filter   : value => +value
-                  , cancel   : CancelChars.input
-                  , restore  : RestoreChars.input
-                  , expand   : ExpandChars.input
-                }
+                value : 'total',
+                name  : __('Match Total'),
+                select  : 't',
+                question : {
+                    name     : 'total',
+                    message  : __('Match Total'),
+                    type     : 'input',
+                    default  : () => mopts.total,
+                    validate : validate.total,
+                    filter   : value => +value,
+                    cancel   : CancelChars.input,
+                    restore  : RestoreChars.input,
+                    expand   : ExpandChars.input,
+                },
             }
           , {
-                value  : 'cubeEnabled'
-              , name   : 'Cube Enabled'
-              , action : ['#toggle']
-              , question : {
-                    name    : 'cubeEnabled'
-                  , message : 'Cube Enabled'
-                  , type    : 'confirm'
-                  , default : () => matchOpts.cubeEnabled
-                  , cancel  : CancelChars.bool
-                  , toggle  : ToggleChars.bool
-                }
+                value  : 'cubeEnabled',
+                name   : __('Cube Enabled'),
+                action : ['#toggle'],
+                question : {
+                    name    : 'cubeEnabled',
+                    message : __('Cube Enabled'),
+                    type    : 'confirm',
+                    default : () => mopts.cubeEnabled,
+                    cancel  : CancelChars.bool,
+                    toggle  : ToggleChars.bool,
+                },
             }
           , {
-                value  : 'isCrawford'
-              , name   : 'Crawford Rule'
-              , when   : () => matchOpts.cubeEnabled
-              , action : ['#toggle']
-              , question : {
-                    name    : 'isCrawford'
-                  , message : 'Crawford Rule'
-                  , type    : 'confirm'
-                  , default : () => matchOpts.isCrawford
-                  , cancel  : CancelChars.bool
-                  , toggle  : ToggleChars.bool
-                }
+                value  : 'isCrawford',
+                name   : __('Crawford Rule'),
+                when   : () => mopts.cubeEnabled,
+                action : ['#toggle'],
+                question : {
+                    name    : 'isCrawford',
+                    message : __('Crawford Rule'),
+                    type    : 'confirm',
+                    default : () => mopts.isCrawford,
+                    cancel  : CancelChars.bool,
+                    toggle  : ToggleChars.bool,
+                },
             }
           , {
-                value  : 'isJacoby'
-              , name   : 'Jacoby Rule'
-              , action : ['#toggle']
-              , question : {
-                    name    : 'isJacoby'
-                  , message : 'Jacoby Rule'
-                  , type    : 'confirm'
-                  , default : () => matchOpts.isJacoby
-                  , cancel  : CancelChars.bool
-                  , toggle  : ToggleChars.bool
-                }
+                value  : 'isJacoby',
+                name   : __('Jacoby Rule'),
+                action : ['#toggle'],
+                question : {
+                    name    : 'isJacoby',
+                    message : __('Jacoby Rule'),
+                    type    : 'confirm',
+                    default : () => mopts.isJacoby,
+                    cancel  : CancelChars.bool,
+                    toggle  : ToggleChars.bool,
+                },
             }
           , this.hr()
         ]
     }
 
-    matchAdvanced(advancedOpts) {
-        advancedOpts = advancedOpts || {}
+    matchAdvanced(aopts) {
+
+        aopts = aopts || {}
+
+        const {__} = this
+
+        const validate = {
+            state: value => {
+                if (!value.length) {
+                    return true
+                }
+                try {
+                    Board.fromStateString(value).analyzer.validateLegalBoard()
+                } catch (err) {
+                    // TODO: make tranlatable
+                    return err.message
+                }
+                return true
+            },
+            rollsFile: value => {
+                if (!value.length) {
+                    return true
+                }
+                const data = fse.readJsonSync(value)
+                // TODO: make tranlatable
+                return errMessage(() => Dice.validateRollsData(data))
+            },
+        }
+
         return [
             {
-                name     : 'startState'
-              , message  : 'Start State'
-              , type     : 'input'
-              , default  : () => advancedOpts.startState
-              , validate : stateValidator
-              , cancel   : CancelChars.input
+                name     : 'startState',
+                message  : __('Start State'),
+                type     : 'input',
+                default  : () => aopts.startState,
+                validate : validate.state,
+                cancel   : CancelChars.input,
             }
           , {
-                name     : 'rollsFile'
-              , message  : 'Rolls File'
-              , type     : 'input'
-              , default  : () => homeTilde(advancedOpts.rollsFile)
-              , filter   : value => tildeHome(value)
-              , validate : rollsFileValidator
-              , cancel   : CancelChars.input
-              , when     : answers => !answers._cancelEvent
+                name     : 'rollsFile',
+                message  : __('Rolls File'),
+                type     : 'input',
+                default  : () => homeTilde(aopts.rollsFile),
+                filter   : value => tildeHome(value),
+                validate : validate.rollsFile,
+                cancel   : CancelChars.input,
+                when     : answers => !answers._cancelEvent,
             }
         ]
     }
 
     matchId() {
+
+        const {__} = this
+
+        const validate = {
+            matchId: value => {
+                if (!value || value.length == 8) {
+                    return true
+                }
+                return __('Invalid match ID format')
+            },
+        }
+
         return {
-            name     : 'matchId'
-          , message  : 'Match ID'
-          , type     : 'input'
-          , validate : value => !value || value.length == 8 || 'Invalid match ID format'
-          , cancel   : CancelChars.input
+            name     : 'matchId',
+            message  : __('Match ID'),
+            type     : 'input',
+            validate : validate.matchId,
+            cancel   : CancelChars.input,
         }
     }
 
     accountChoices() {
-        const menu = this._menu
-        const {credentials} = menu
-        const isFilled = isCredentialsFilled(credentials)
-        const {needsConfirm} = credentials
-        const hasCredential = credentials.username || credentials.password
-        return this.formatChoices([
-            this.br()
-          , {
-                value : 'done'
-              , name  : 'Done'
-              , enter : EnterChars.back
-            }
-        ]).concat(this.formatChoices([
-            this.hr()
-          , {
-                value : 'serverUrl'
-              , name  : 'Server'
-              , question : {
-                    name    : 'serverUrl'
-                  , message : 'Server URL'
-                  , type    : 'input'
-                  , default : () => credentials.serverUrl
-                  , cancel  : CancelChars.input
-                  , restore : RestoreChars.input
-                  , expand  : ExpandChars.input
+
+        const {creds, __} = this
+
+        const {needsConfirm} = creds
+        const isFilled = isCredentialsFilled(creds)
+        const hasCred = Boolean(creds.username || creds.password)
+
+        return [
+            [
+                this.br()
+              , {
+                    value : 'done',
+                    name  : __('Done'),
+                    enter : EnterChars.back,
                 }
-            }
-          , {
-                value    : 'username'
-              , name     : 'Username'
-              , question : this.username()
-            }
-          , {
-                value    : 'password'
-              , name     : 'Password'
-              , question : this.password()
-            }
-          , this.hr()
-        ])).concat(this.formatChoices([
-            {
-                value : 'createAccount'
-              , name  : 'Create Account'
-              , when  : !isFilled
-            }
-          , {
-                value : 'forgotPassword'
-              , name  : 'Forgot Password'
-              , when  : !isFilled
-            }
-          , {
-                value : 'confirmAccount'
-              , name  : 'Enter confirm key'
-              , when  : isFilled && needsConfirm
-            }
-          , {
-                value : 'newConfirmKey'
-              , name  : 'Get new confirm key'
-              , when  : isFilled && needsConfirm
-            }
-          , this.hr().when(isFilled && needsConfirm)
-          , {
-                value : 'testCredentials'
-              , name  : 'Test Credentials'
-              , when  : isFilled && !needsConfirm
-            }
-          , {
-                value : 'changePassword'
-              , name  : 'Change Password'
-              , when  : isFilled && !needsConfirm
-            }
-          , {
-                value : 'clearCredentials'
-              , name  : 'Clear Credentials'
-              , when  : hasCredential
-            }
-          , this.br()
-        ]))
+            ]
+          , [
+                this.hr()
+              , {
+                    value : 'serverUrl',
+                    name  : __('Server'),
+                    question : {
+                        name    : 'serverUrl',
+                        message : __('Server URL'),
+                        type    : 'input',
+                        default : () => creds.serverUrl,
+                        cancel  : CancelChars.input,
+                        restore : RestoreChars.input,
+                        expand  : ExpandChars.input,
+                    },
+                }
+              , {
+                    value    : 'username',
+                    name     : __('Username'),
+                    question : this.username(),
+                }
+              , {
+                    value    : 'password',
+                    name     : __('Password'),
+                    question : this.password(),
+                }
+              , this.hr()
+            ]
+          , [
+                {
+                    value : 'createAccount',
+                    name  : __('Create Account'),
+                    when  : !isFilled,
+                }
+              , {
+                    value : 'forgotPassword',
+                    name  : __('Forgot Password'),
+                    when  : !isFilled,
+                }
+              , {
+                    value : 'confirmAccount',
+                    name  : __('Enter confirm key'),
+                    when  : isFilled && needsConfirm,
+                }
+              , {
+                    value : 'newConfirmKey',
+                    name  : __('Get new confirm key'),
+                    when  : isFilled && needsConfirm,
+                }
+              , this.hr().when(isFilled && needsConfirm)
+              , {
+                    value : 'testCredentials',
+                    name  : __('Test Credentials'),
+                    when  : isFilled && !needsConfirm,
+                }
+              , {
+                    value : 'changePassword',
+                    name  : __('Change Password'),
+                    when  : isFilled && !needsConfirm,
+                }
+              , {
+                    value : 'clearCredentials',
+                    name  : __('Clear Credentials'),
+                    when  : hasCred,
+                }
+              , this.br()
+            ]
+        ].map(group => this.formatChoices(group)).flat()
     }
 
     username() {
-        const menu = this._menu
-        const {credentials} = menu
-        const checkMark = menu.theme.prompt.check.pass(Chars.check)
-        const checkSuffix = credentials.isTested ? ' ' + checkMark : ''
+
+        const {creds, __} = this
+
+        const checkMark = this.theme.prompt.check.pass(Chars.check)
+        const checkSuffix = creds.isTested ? ' ' + checkMark : ''
+
         return {
-            name    : 'username'
-          , message : 'Username'
-          , type    : 'input'
-          , default : () => credentials.username
-          , display : () => credentials.username + checkSuffix
-          , cancel  : CancelChars.input
-          , when    : answers => !answers._cancelEvent
-          , restore : RestoreChars.input
-          , expand  : ExpandChars.input
+            name    : 'username',
+            message : __('Username'),
+            type    : 'input',
+            default : () => creds.username,
+            display : () => creds.username + checkSuffix,
+            cancel  : CancelChars.input,
+            when    : answers => !answers._cancelEvent,
+            restore : RestoreChars.input,
+            expand  : ExpandChars.input,
         }
     }
 
     password() {
-        const {credentials} = this._menu
+
+        const {creds, __} = this
+
         return {
-            name    : 'password'
-          , message : 'Password'
-          , type    : 'password'
-          , default : () => credentials.password
-          , display : () => credentials.password ? '******' : ''
-          , mask    : '*'
-          , cancel  : CancelChars.password
-          , when    : answers => !answers._cancelEvent
-          , restore : RestoreChars.password
+            name    : 'password',
+            message : __('Password'),
+            type    : 'password',
+            default : () => creds.password,
+            display : () => creds.password ? '******' : '',
+            mask    : '*',
+            cancel  : CancelChars.password,
+            when    : answers => !answers._cancelEvent,
+            restore : RestoreChars.password,
         }
     }
 
     passwordConfirm(checkKey = 'password') {
-        const validator = (value, answers) => {
-            return value == answers[checkKey] || 'Passwords do not match'
+
+        const {__} = this
+
+        const validate = {
+            passwordConfirm: (value, answers) => {
+                if (value == answers[checkKey]) {
+                    return true
+                }
+                return __('Passwords do not match')
+            }
         }
+
         return {
-            name     : 'passwordConfirm'
-          , message  : 'Confirm password'
-          , type     : 'password'
-          , validate : validator
-          , mask     : '*'
-          , cancel   : CancelChars.password
-          , when     : answers => !answers._cancelEvent
+            name     : 'passwordConfirm',
+            message  : 'Confirm password',
+            type     : 'password',
+            validate : validate.passwordConfirm,
+            mask     : '*',
+            cancel   : CancelChars.password,
+            when     : answers => !answers._cancelEvent,
         }
     }
 
     changePassword() {
+
+        const {__} = this
+
         return [
             {
                 ...this.password()
               , name    : 'oldPassword'
-              , message : 'Current password'
+              , message : __('Current password')
               , default : ''
             }
           , {
                 ...this.password()
               , name    : 'newPassword'
-              , message : 'New password'
+              , message : __('New password')
               , default : ''
             }
           , this.passwordConfirm('newPassword')
@@ -499,22 +552,31 @@ class Questions {
     }
 
     forgotPassword() {
+
+        const {__} = this
+
+        const when = {
+            keyEntered: answers => {
+                return Boolean(!answers._cancelEvent && answers.resetKey)
+            },
+        }
+
         return [
             {
-                name    : 'resetKey'
-              , type    : 'input'
-              , message : 'Enter reset key'
-              , prefix  : 'Reset key requested, check your email.\n'
-              , cancel  : CancelChars.input
+                name    : 'resetKey',
+                type    : 'input',
+                message : __('Enter reset key'),
+                prefix  : __('Reset key requested, check your email.') + '\n',
+                cancel  : CancelChars.input,
             }
           , {
-                ...this.password()
-              , message : 'New password'
-              , when    : answers => !answers._cancelEvent && answers.resetKey
+                ...this.password(),
+                message : __('New password'),
+                when    : when.keyEntered,
             }
           , {
-                ...this.passwordConfirm()
-              , when: answers => !answers._cancelEvent && answers.resetKey
+                ...this.passwordConfirm(),
+                when: when.keyEntered,
             }
         ]
     }
@@ -528,270 +590,319 @@ class Questions {
     }
 
     confirmKey() {
+
+        const {__} = this
+
         return {
-            name    : 'key'
-          , type    : 'input'
-          , message : 'Enter confirm key'
-          , prefix  : [
-                'You must confirm your account.'
-              , 'Check your email for a confirmation key.'
+            name    : 'key',
+            type    : 'input',
+            message : __('Enter confirm key'),
+            prefix  : [
+                __('You must confirm your account.')
+              , __('Check your email for a confirmation key.')
               , ''
-            ].join('\n')
-          , cancel  : CancelChars.input
+            ].join('\n'),
+            cancel  : CancelChars.input,
         }
     }
 
     settingsChoices() {
-        const menu = this._menu
-        const {settings} = menu
-        const delayValidator = value => {
-            return !isNaN(value) && value >= 0 || 'Please enter a number >= 0'
+
+        const {settings, __} = this
+        const {intl} = this.menu
+
+        const validate = {
+            delay: value => {
+                if (!isNaN(value) && value >= 0) {
+                    return true
+                }
+                return __('Please enter a number >= 0')
+            },
         }
+
         return this.formatChoices([
             this.br()
           , {
-                value  : 'done'
-              , name   : 'Done'
-              , enter  : EnterChars.back
-              , select : 'd'
+                value  : 'done',
+                name   : __('Done'),
+                enter  : EnterChars.back,
+                select : 'd',
             }
           , this.hr()
           , {
-                value : 'theme'
-              , name  : 'Theme'
-              , question : {
-                    name : 'theme'
-                  , message : 'Choose a theme'
-                  , type    : 'list'
-                  , default : () => settings.theme
-                  , choices : () => [this.br()].concat(Themes.list())
-                  , cancel  : CancelChars.list
-                  , prefix  : ''
-                }
+                value : 'locale',
+                name  : __('Locale'),
+                question : {
+                    name    : 'locale',
+                    message : __('Choose your locale'),
+                    type    : 'list',
+                    default : () => settings.locale,
+                    choices : () => [this.br()].concat(intl.locales),
+                    cancel  : CancelChars.list,
+                    prefix  : '',
+                },
             }
           , {
-                value  : 'termEnabled'
-              , name   : 'Term Cursoring'
-              , action : ['#toggle']
-              , question : {
-                    name    : 'termEnabled'
-                  , message : 'Enable term cursoring'
-                  , type    : 'confirm'
-                  , default : () => settings.termEnabled
-                  , cancel  : CancelChars.bool
-                  , toggle  : ToggleChars.bool
-                }
-            }
-          , this.hr()
-          , {
-                value  : 'fastForced'
-              , name   : 'Fast Forced Moves'
-              , action : ['#toggle']
-              , question : {
-                    name    : 'fastForced'
-                  , message : 'Fast Forced Moves'
-                  , type    : 'confirm'
-                  , default : () => settings.fastForced
-                  , cancel  : CancelChars.bool
-                  , toggle  : ToggleChars.bool
-                }
+                value : 'theme',
+                name  : __('Theme'),
+                question : {
+                    name : 'theme',
+                    message : __('Choose a theme'),
+                    type    : 'list',
+                    default : () => settings.theme,
+                    choices : () => [this.br()].concat(Themes.list()),
+                    cancel  : CancelChars.list,
+                    prefix  : '',
+                },
             }
           , {
-                value    : 'recordDir'
-              , name     : 'Record Dir'
-              , question : {
-                    name    : 'recordDir'
-                  , message : 'Record Dir'
-                  , type    : 'input'
-                  , default : () => homeTilde(settings.recordDir)
-                  , filter  : value => !value ? null : path.resolve(tildeHome(value))
-                  , cancel  : CancelChars.input
-                  , clear   : 'ctrl-delete'
-                  , restore : RestoreChars.input
-                  , expand  : ExpandChars.input
-                }
-            }
-          , {
-                value    : 'isRecord'
-              , name     : 'Record Matches'
-              , action   : ['#toggle']
-              , question : {
-                    name    : 'isRecord'
-                  , message : 'Record Matches'
-                  , type    : 'confirm'
-                  , default : () => settings.isRecord
-                  , cancel  : CancelChars.bool
-                  , toggle  : ToggleChars.bool
-                }
+                value  : 'termEnabled',
+                name   : __('Term Cursoring'),
+                action : ['#toggle'],
+                question : {
+                    name    : 'termEnabled',
+                    message : __('Enable terminal cursoring'),
+                    type    : 'confirm',
+                    default : () => settings.termEnabled,
+                    cancel  : CancelChars.bool,
+                    toggle  : ToggleChars.bool,
+                },
             }
           , this.hr()
           , {
-                value : 'delay'
-              , name  : 'Robot Delay'
-              , question : {
-                    name     : 'delay'
-                  , message  : 'Robot Delay (seconds)'
-                  , type     : 'input'
-                  , default  : () => settings.delay
-                  , filter   : value => +value
-                  , validate : delayValidator
-                  , cancel   : CancelChars.input
-                  , restore  : RestoreChars.input
-                  , expand   : ExpandChars.input
-                  , writeInvalid : () => ''
+                value  : 'fastForced',
+                name   : __('Fast Forced Moves'),
+                action : ['#toggle'],
+                question : {
+                    name    : 'fastForced',
+                    message : __('Fast Forced Moves'),
+                    type    : 'confirm',
+                    default : () => settings.fastForced,
+                    cancel  : CancelChars.bool,
+                    toggle  : ToggleChars.bool,
+                },
+            }
+          , {
+                value : 'recordDir',
+                name  : __('Record Dir'),
+                question : {
+                    name    : 'recordDir',
+                    message : __('Record Dir'),
+                    type    : 'input',
+                    default : () => homeTilde(settings.recordDir),
+                    filter  : value => !value ? null : path.resolve(tildeHome(value)),
+                    cancel  : CancelChars.input,
+                    clear   : 'ctrl-delete',
+                    restore : RestoreChars.input,
+                    expand  : ExpandChars.input,
+                },
+            }
+          , {
+                value  : 'isRecord',
+                name   : __('Record Matches'),
+                action : ['#toggle'],
+                question : {
+                    name    : 'isRecord',
+                    message : __('Record Matches'),
+                    type    : 'confirm',
+                    default : () => settings.isRecord,
+                    cancel  : CancelChars.bool,
+                    toggle  : ToggleChars.bool,
+                },
+            }
+          , this.hr()
+          , {
+                value : 'delay',
+                name  : __('Robot Delay'),
+                question : {
+                    name     : 'delay',
+                    message  : __('Robot Delay (seconds)'),
+                    type     : 'input',
+                    default  : () => settings.delay,
+                    filter   : value => +value,
+                    validate : validate.delay,
+                    cancel   : CancelChars.input,
+                    restore  : RestoreChars.input,
+                    expand   : ExpandChars.input,
+                    writeInvalid : () => '',
+                },
+            }
+          , {
+                value  : 'isCustomRobot',
+                name   : __('Use Custom Robot'),
+                action : ['#toggle'],
+                question : {
+                    name    : 'isCustomRobot',
+                    message : __('Use Custom Robot'),
+                    type    : 'confirm',
+                    default : () => settings.isCustomRobot,
+                    cancel  : CancelChars.bool,
+                    toggle  : ToggleChars.bool,
                 }
             }
           , {
-                value    : 'isCustomRobot'
-              , name     : 'Use Custom Robot'
-              , action   : ['#toggle']
-              , question : {
-                    name    : 'isCustomRobot'
-                  , message : 'Use Custom Robot'
-                  , type    : 'confirm'
-                  , default : () => settings.isCustomRobot
-                  , cancel  : CancelChars.bool
-                  , toggle  : ToggleChars.bool
-                }
-            }
-          , {
-                value : 'robotConfigs'
-              , name  : 'Robot Configuration'
-              , when  : settings.isCustomRobot
+                value : 'robotConfigs',
+                name  : __('Robot Configuration'),
+                when  : settings.isCustomRobot,
             }
           , this.br()
         ])
     }
 
     robotsChoices() {
-        const menu = this._menu
-        const {settings} = menu
-        const chlk = menu.theme.diff
+
+        const {menu, settings, __} = this
+        const chlk = this.theme.diff
+
+        const config = (name, prop) => {
+            const base = settings.robots[name] || menu.robotMinimalConfig(name)
+            return base[prop]
+        }
+
         const entries = Object.entries(menu.robotsDefaults())
+
         return this.formatChoices([
             this.br()
           , {
-                value  : 'done'
-              , name   : 'Done'
-              , enter  : EnterChars.back
-              , select : 'd'
+                value  : 'done',
+                name   : __('Done'),
+                enter  : EnterChars.back,
+                select : 'd',
             }
           , this.hr()
           , {
-                value  : 'reset'
-              , name   : 'Reset defaults'
-              , select : 'r'
+                value  : 'reset',
+                name   : __('Reset defaults'),
+                select : 'r',
             }
           , this.hr()
-          , ...entries.map(([name, defaults]) => (
-                {
-                    value    : name
-                  , name     : name
-                  , question : {
-                        display : () => {
-                            const config = settings.robots[name] || menu.robotMinimalConfig(name)
-                            const b = new StringBuilder
-                            b.sp(
-                                chalkDiff(config.version, defaults.version, chlk) + ','
-                              , 'move:'
-                              , padEnd(chalkDiff(config.moveWeight, defaults.moveWeight, chlk), 4, ' ') + ','
-                              , 'double:'
-                              , chalkDiff(config.doubleWeight, defaults.doubleWeight, chlk)
-                            )
-                            return b.toString()
+          , entries.map(([name, defaults]) => ({
+                value : name,
+                name  : name,
+                // TODO: We shouldn't have to use question key since it is a submenu.
+                question : {
+                    display : () => {
+                        const differ = prop => {
+                            const actual = config(name, prop)
+                            const expected = defaults[prop]
+                            return chalkDiff(actual, expected, chlk)
                         }
-                    }
-                }
-            ))
+                        return [
+                            differ('version') + ','
+                          , __('move:')
+                          , padEnd(differ('moveWeight'), 4, ' ') + ','
+                          , __('double:')
+                          , differ('doubleWeight')
+                        ].join(' ')
+                    },
+                },
+            }))
           , this.br()
-        ])
+        ].flat())
     }
 
     robotChoices(name) {
-        const menu = this._menu
-        const {defaults, versions} = menu.robotMeta(name)
-        const chlk = menu.theme.diff
-        const config = () => menu.settings.robots[name]
+
+        const {__} = this
+        const chlk = this.theme.diff
+        const {defaults, versions} = this.menu.robotMeta(name)
+
+        const validate = {
+            weight: value => {
+                // TODO: make tranlatable
+                return errMessage(() =>
+                    RobotDelegator.validateWeight(value)
+                )
+            }
+        }
+
+        const config = prop => {
+            return this.settings.robots[name][prop]
+        }
+
+        const differ = prop => {
+            return chalkDiff(config(prop), defaults[prop], chlk)
+        }
+
+        const common = {
+            prop: name => ({
+                name,
+                default : () => config(name),
+                display : () => differ(name),
+            }),
+            weight: {
+                type     : 'input',
+                filter   : value => +value,
+                validate : validate.weight,
+                cancel   : CancelChars.input,
+                restore  : RestoreChars.input,
+                expand   : ExpandChars.input,
+                writeInvalid : () => '',
+            }
+        }
+
         return this.formatChoices([
             this.br()
           , {
-                value  : 'done'
-              , name   : 'Done'
-              , enter  : EnterChars.back
-              , select : 'd'
+                value  : 'done',
+                name   : __('Done'),
+                enter  : EnterChars.back,
+                select : 'd',
             }
           , this.hr()
           , {
-                value  : 'reset'
-              , name   : 'Reset defaults'
-              , select : 'r'
+                value  : 'reset',
+                name   : __('Reset defaults'),
+                select : 'r',
             }
           , this.hr()
           , {
-                value : 'version'
-              , name  : 'Version'
-              , select  : 'v'
-              , question : {
-                    name    : 'version'
-                  , message : 'Version'
-                  , type    : 'list'
-                  , default : () => config().version
-                  , display : () => chalkDiff(config().version, defaults.version, chlk)
-                  , choices : () => Object.keys(versions)
-                  , cancel  : CancelChars.list
-                }
+                value  : 'version',
+                name   : __('Version'),
+                select : 'v',
+                question : {
+                    ...common.prop('version'),
+                    message : __('Version'),
+                    type    : 'list',
+                    choices : () => Object.keys(versions),
+                    cancel  : CancelChars.list,
+                },
             }
           , {
-                value : 'moveWeight'
-              , name  : 'Move Weight'
-              , select  : 'm'
-              , question : {
-                    name     : 'moveWeight'
-                  , message  : 'Move Weight'
-                  , type     : 'input'
-                  , default  : () => config().moveWeight
-                  , display  : () => chalkDiff(config().moveWeight, defaults.moveWeight, chlk)
-                  , filter   : value => +value
-                  , validate : weightValidator
-                  , cancel   : CancelChars.input
-                  , restore  : RestoreChars.input
-                  , expand   : ExpandChars.input
-                  , writeInvalid : () => ''
-                }
+                value  : 'moveWeight',
+                name   : __('Move Weight'),
+                select : 'm',
+                question : {
+                    ...common.prop('moveWeight'),
+                    message  : __('Move Weight'),
+                    ...common.weight,
+                },
             }
           , {
-                value : 'doubleWeight'
-              , name  : 'Double Weight'
-              , select  : 'b'
-              , question : {
-                    name     : 'doubleWeight'
-                  , message  : 'Double Weight'
-                  , type     : 'input'
-                  , default  : () => config().doubleWeight
-                  , display  : () => chalkDiff(config().doubleWeight, defaults.doubleWeight, chlk)
-                  , filter   : value => +value
-                  , validate : weightValidator
-                  , cancel   : CancelChars.input
-                  , restore  : RestoreChars.input
-                  , expand   : ExpandChars.input
-                  , writeInvalid : () => ''
-                }
+                value  : 'doubleWeight',
+                name   : __('Double Weight'),
+                select : 'b',
+                question : {
+                    ...common.prop('doubleWeight'),
+                    message  : __('Double Weight'),
+                    ...common.weight,
+                },
             }
           , this.br()
         ])
     }
 
     br() {
-        return new this._menu.inquirer.Separator('')
+        return new this.menu.inquirer.Separator('')
     }
 
     hr() {
-        return new this._menu.inquirer.Separator()
+        return new this.menu.inquirer.Separator()
     }
 
     formatChoices(choices) {
 
-        const menu = this._menu
+        const {menu} = this
 
         choices = choices.filter(choice => {
             if (!('when' in choice)) {
@@ -804,7 +915,10 @@ class Questions {
         })
 
         const available = choices.filter(choice => choice.type != 'separator')
-        const maxNameLength = Math.max(...available.map(choice => stringWidth(choice.name)))
+        const total = available.length
+        const nameWidth = Math.max(
+            ...available.map(choice => stringWidth(choice.name))
+        )
 
         const menuBoxMaxWidth = menu.boxes.menu.params.maxWidth
 
@@ -812,7 +926,7 @@ class Questions {
 
             const n = i + 1
 
-            const numPad = available.length.toString().length - n.toString().length
+            const numPad = total.toString().length - n.toString().length
 
             if ('name' in choice) {
                 choice._originalName = choice.name
@@ -821,6 +935,8 @@ class Questions {
             if (!('short' in choice)) {
                 choice.short = choice.name
             }
+
+            // TODO: Support display key without a question.
 
             const {question} = choice
 
@@ -845,12 +961,32 @@ class Questions {
             if (stringWidth(bareText) >= thisMaxWidth) {
                 choice.name = bareText
             } else {
-                choice.name = padEnd(choice.name, maxNameLength + numPad, ' ')
+                choice.name = padEnd(choice.name, nameWidth + numPad, ' ')
                 choice.name = sp(choice.name, ':', display)
             }
         })
 
         return choices
+    }
+
+    get __() {
+        return this.menu.__
+    }
+
+    get credentials() {
+        return this.menu.credentials
+    }
+
+    get creds() {
+        return this.credentials
+    }
+
+    get settings() {
+        return this.menu.settings
+    }
+
+    get theme() {
+        return this.menu.theme
     }
 }
 

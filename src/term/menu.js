@@ -70,6 +70,7 @@ const {
   , encrypt2
   , forceLineReturn
   , getOrCall
+  , Intl
   , isCredentialsFilled
   , isEmptyObject
   , nchars
@@ -132,6 +133,7 @@ class Menu extends EventEmitter {
 
         this.settings = Menu.settingsDefaults()
         this.credentials = Menu.credentialDefaults()
+        this.intl = Intl.getDefaultInstance()
 
         this.chash = CHash
         this.bread = []
@@ -229,6 +231,10 @@ class Menu extends EventEmitter {
         }
     }
 
+    get __() {
+        return this.intl.__
+    }
+
     mainMenu() {
 
         return this.runMenu('Main', async (choose, loop) => {
@@ -257,6 +263,8 @@ class Menu extends EventEmitter {
 
         return this.runMenu('Play', async (choose, loop) => {
 
+            const {__} = this
+
             let isContinue = true
 
             await loop(async () => {
@@ -284,7 +292,7 @@ class Menu extends EventEmitter {
                 } catch (err) {
                     this.alerts.error(err)
                     if (err.isAuthError || err.isValidateError) {
-                        this.alerts.warn('Authentication failed. Go to Account to sign up or log in.')
+                        this.alerts.warn(__('Authentication failed. Go to Account to sign up or log in.'))
                     }
                 }
 
@@ -440,6 +448,8 @@ class Menu extends EventEmitter {
 
         return this.runMenu('Settings', async (choose, loop) => {
 
+            const {__} = this
+
             await loop(async () => {
 
                 const {choice, toggle, ask} = await choose()
@@ -479,7 +489,10 @@ class Menu extends EventEmitter {
                     return true
                 }
 
-                if (choice == 'theme' || choice == 'termEnabled') {
+                if (choice == 'locale') {
+                    // Set the new locale.
+                    this.intl.locale = answer
+                } else if (choice == 'theme' || choice == 'termEnabled') {
                     // Erase the screen because the background may change.
                     this.eraseScreen()
                 }
@@ -495,8 +508,10 @@ class Menu extends EventEmitter {
 
         return this.runMenu('Robots', async (choose, loop) => {
 
+            const {__} = this
+
             if (isEmptyObject(this.settings.robots)) {
-                this.alerts.info('Loading robot defaults')
+                this.alerts.info(__('Loading robot defaults'))
                 this.settings.robots = this.robotsDefaults()
                 await this.saveSettings()
             }
@@ -655,12 +670,12 @@ class Menu extends EventEmitter {
             return false
         }
 
-        const {credentials} = this
+        const {credentials, __} = this
         try {
             await this.api.confirmKey(credentials, answer)
         } catch (err) {
             if (err.isUserConfirmedError) {
-                this.alerts.warn('Account already confirmed')
+                this.alerts.warn(__('Account already confirmed'))
                 return
             }
             throw err
@@ -705,7 +720,8 @@ class Menu extends EventEmitter {
 
         await this.ensureCredentialsLoaded()
 
-        const {credentials} = this
+        const {credentials, __} = this
+        const url = credentials.serverUrl
 
         credentials.isTested = false
 
@@ -727,12 +743,12 @@ class Menu extends EventEmitter {
             }
 
             if (!isSuccess) {
-                this.alerts.warn('Login failed to', credentials.serverUrl)
+                this.alerts.warn(__('Login failed to {url}', {url}))
                 throw err
             }
         }
 
-        this.alerts.success('Login success to', credentials.serverUrl)
+        this.alerts.success(__('Login success to {url}', {url}))
 
         credentials.needsConfirm = false
         credentials.isTested = true
@@ -785,6 +801,7 @@ class Menu extends EventEmitter {
 
         await this.ensureLoaded()
 
+        const {__} = this
         const client = this.newClient()
 
         try {
@@ -800,7 +817,7 @@ class Menu extends EventEmitter {
             }
 
             this.captureInterrupt = () => {
-                this.alerts.warn('Aborting waiting')
+                this.alerts.warn(__('Aborting waiting'))
                 client.cancelWaiting(new WaitingAbortedError('Keyboard interrupt'))
                 return true
             }
@@ -856,6 +873,8 @@ class Menu extends EventEmitter {
 
     async runMatch(match, players) {
 
+        const {__} = this
+
         try {
 
             this.players = players
@@ -868,7 +887,7 @@ class Menu extends EventEmitter {
             const coordinator = this.newCoordinator()
 
             this.captureInterrupt = () => {
-                this.alerts.warn('Canceling match')
+                this.alerts.warn(__('Canceling match'))
                 const err = new MatchCanceledError('Keyboard interrupt')
                 coordinator.cancelMatch(match, players, err)
                 return true
@@ -883,8 +902,13 @@ class Menu extends EventEmitter {
                 const winner = match.getWinner()
                 const loser = match.getLoser()
                 const {scores} = match
+                const params = {
+                    winner,
+                    winning : scores[winner],
+                    losing  : scores[loser],
+                }
                 this.alerts.info(
-                    winner, 'won the match', scores[winner], 'to', scores[loser]
+                    __('{winner} won the match {winning} to {losing}', params)
                 )
             })
 
@@ -952,12 +976,13 @@ class Menu extends EventEmitter {
 
     async getMatchOpts(matchOpts, advancedOpts = {}) {
         matchOpts = {...matchOpts}
+        const {__} = this
         if (advancedOpts.startState) {
-            this.logger.info('Setting initial state')
+            this.logger.info(__('Setting initial state'))
             matchOpts.startState = advancedOpts.startState
         }
         if (advancedOpts.rollsFile) {
-            this.logger.info('Using custom rolls file')
+            this.logger.info(__('Using custom rolls file'))
             const file = advancedOpts.rollsFile
             const {rolls} = await fse.readJson(file)
             matchOpts.roller = Dice.createRoller(rolls)
@@ -1100,6 +1125,8 @@ class Menu extends EventEmitter {
     }
 
     async runMenu(title, run) {
+        const {__} = this
+        // TODO: translate title for bread
         this.bread.push(title)
         try {
             this.ensureClearScreen()
@@ -1113,7 +1140,7 @@ class Menu extends EventEmitter {
             this.term.moveTo(1, box.params.top)
 
             return await run(
-                (...hints) => this.menuChoice(title, this.q.menu(title, ...hints))
+                (...hints) => this.menuChoice(title, this.q.menuq(title, ...hints))
               , async loop => {
                     let ret
                     while (true) {
@@ -1360,16 +1387,20 @@ class Menu extends EventEmitter {
             await this.saveSettings()
         }
 
+        const {__} = this
         const loaded = await fse.readJson(settingsFile)
 
         const defs = Menu.settingsDefaults()
         update(this.settings, defaults(defs, this.settings, loaded))
         update(this.settings.matchOpts, defaults(defs.matchOpts, loaded.matchOpts))
 
+        if (this.intl.locale != this.settings.locale) {
+            this.intl.locale = this.settings.locale
+        }
         if (this.settings.isCustomRobot && isEmptyObject(this.settings.robots)) {
             // populate for legacy format
             update(this.settings.robots,  Menu.robotsDefaults())
-            this.alerts.info('Migrating legacy robot config')
+            this.alerts.info(__('Migrating legacy robot config'))
             await this.saveSettings()
         }
 
@@ -1490,12 +1521,15 @@ class Menu extends EventEmitter {
             return
         }
 
+        const {__} = this
         const {loaded, errors} = await Themes.loadDirectory(themesDir)
         errors.forEach(info => {
+            // TODO: __
             this.alerts.error(info.error, {...info, error: undefined})
         })
         if (!isQuiet && loaded.length) {
-            this.alerts.info('Loaded', loaded.length, 'custom themes')
+            const count = loaded.length
+            this.alerts.info(__('Loaded {count} custom themes.', {count}))
         }
 
         this.theme = Themes.getInstance(this.settings.theme)
@@ -1606,6 +1640,7 @@ class Menu extends EventEmitter {
             }
           , robots         : {}
           , lastPlayChoice : undefined
+          , locale         : DefaultLocale
         }
     }
 
