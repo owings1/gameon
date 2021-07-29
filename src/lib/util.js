@@ -33,9 +33,9 @@ const stripAnsi   = require('strip-ansi')
 const uuid        = require('uuid')
 
 const {
-    ArgumentError
-  , ProgrammerError
-  , PromptActiveError
+    ArgumentError,
+    ProgrammerError,
+    PromptActiveError,
 } = require('./errors')
 
 const StringBuilder = require('./util/string-builder')
@@ -1299,11 +1299,11 @@ class Util {
 }
 
 Util.update(Util, {
-    Counter          : require('./util/counter')
-  , DependencyHelper : require('./util/dependency-helper')
-  , Profiler         : require('./util/profiler')
-  , Timer            : require('./util/timer')
-  , StringBuilder
+    get Counter()          { return require('./util/counter') },
+    get DependencyHelper() { return require('./util/dependency-helper') },
+    get Profiler()         { return require('./util/profiler') },
+    get Timer()            { return require('./util/timer') },
+    StringBuilder,
 })
 
 module.exports = Util

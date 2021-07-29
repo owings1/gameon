@@ -22,24 +22,21 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-const Constants = require('../lib/constants')
-const Errors    = require('../lib/errors')
-const Logger    = require('../lib/logger')
-const Util      = require('../lib/util')
-
-const path = require('path')
+const Logger = require('../lib/logger')
 
 const {
-    DefaultEmailFromAddress
-  , DefaultEmailFromName
-  , DefaultEmailType
-} = Constants
+    DefaultEmailFromAddress,
+    DefaultEmailFromName,
+    DefaultEmailType,
+} = require('../lib/constants')
 
-const {InternalError} = Errors
+const {InternalError} = require('../lib/errors')
+
+const {defaults} = require('../lib/util')
 
 const ImplClasses = {
-    mock : require('./email/mock')
-  , ses  : require('./email/ses')
+    get mock() { return require('./email/mock') },
+    get ses()  { return require('./email/ses') },
 }
 
 class Email {
@@ -64,7 +61,7 @@ class Email {
 
     constructor(impl, opts) {
         this.impl = impl
-        this.opts = Util.defaults(Email.defaults(process.env), opts)
+        this.opts = defaults(Email.defaults(process.env), opts)
         this.logger = new Logger(this.constructor.name, {server: true})
     }
 

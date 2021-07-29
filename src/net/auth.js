@@ -66,13 +66,10 @@ const {
     uuid,
 } = require('../lib/util')
 
-const path = require('path')
-
-// TODO: lazy load
 const ImplClasses = {
-    anonymous : require('./auth/anonymous'),
-    directory : require('./auth/directory'),
-    s3        : require('./auth/s3'),
+    get anonymous() { return require('./auth/anonymous') },
+    get directory() { return require('./auth/directory') },
+    get s3()        { return require('./auth/s3') },
 }
 
 const ErrorMessages = {
