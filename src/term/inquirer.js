@@ -231,10 +231,9 @@ class ScreenManager extends ScreenBase {
           , ...opts
         }
 
-        // TODO: see if we need this, looks like debugging.
-        this.opts.indent = this.opts.indent || 0
-        this.opts.maxWidth = this.opts.maxWidth || 0
-        this.opts.defaultWidth = this.opts.defaultWidth || 0
+        //this.opts.indent = this.opts.indent || 0
+        //this.opts.maxWidth = this.opts.maxWidth || 0
+        //this.opts.defaultWidth = this.opts.defaultWidth || 0
 
         update(this, {
             width     : 0
