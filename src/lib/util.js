@@ -138,7 +138,7 @@ class Util {
 
     /**
      * 
-     * @param {any}
+     * @param {*}
      *
      * @returns {array}
      */
@@ -566,7 +566,7 @@ class Util {
     /**
      * Check whether to parameter is null, or an empty object.
      *
-     * @param {any} The input to check
+     * @param {*} The input to check
      *
      * @returns {boolean} Whether the input is null or an empty object
      */
@@ -583,7 +583,7 @@ class Util {
     /**
      * Check whether the input is a valid email address.
      *
-     * @param {any} The input to check
+     * @param {*} The input to check
      *
      * @returns {boolean} Whether the input is a valid email
      */
@@ -758,7 +758,7 @@ class Util {
      * @throws ArgumentError
      * @throws TypeError
      *
-     * @returns {any} Return value of last callback
+     * @returns {*} Return value of last callback
      */
     static ntimes(n, cb) {
         if (!Number.isFinite(+n)) {
@@ -866,7 +866,7 @@ class Util {
      *
      * @throws TypeError
      *
-     * @returns {any} The value of a random index of the array
+     * @returns {*} The value of a random index of the array
      */
     static randomElement(arr) {
         const i = Math.floor(Math.random() * arr.length)
@@ -878,7 +878,7 @@ class Util {
      * `PromptActiveError` by calling the reject argument if passed, else by
      * throwing.
      *
-     * @param {any} The object to test
+     * @param {*} The object to test
      * @param {function} (optional) The reject function.
      *
      * @throws PromptActiveError
@@ -912,6 +912,66 @@ class Util {
     }
 
     /**
+     * Check whether default values are used in production environments.
+     *
+     * @param {array} The checks {value, default, name}
+     * @param {object} (optional) The environment variables
+     * @returns {object} Result {isPass, error, warning, missing}
+     */
+    static securityCheck(checks, env) {
+
+        env = env || process.env
+
+        const getter = it => typeof it == 'function' ? it() : it
+        const missing = checks.filter(it =>
+            getter(it.value) == getter(it.default)
+        )
+
+        const count = missing.length
+        const isPass = !count
+        const isProd = env.NODE_ENV == 'production'
+
+        let error
+        let warning
+
+        if (count) {
+
+            const strs = []
+            const names = missing.map(it => it.name)
+
+            if (count > 1) {
+                // Join all but the last with commas. If count is only 2,
+                // this will just add the first name.
+                strs.push(names.slice(0, -1).join(', '))
+            }
+            // Add the last name.
+            strs.push(names[count - 1])
+
+            // Use Oxford comma.
+            // For two names: 'A and B'.
+            // For three or more name: 'A, B, and C'.
+            const joiner = count > 2 ? ', and ' : ' and '
+            const joined = strs.join(joiner)
+
+            // Cheap pluralization.
+            const [noun, adj] = count > 1
+                ? ['defaults' , 'These']
+                : ['default'  , 'This']
+
+            if (isProd) {
+                error = `Must set custom ${joined} in production environments`
+            } else {
+                warning = [
+                    `${joined} not set, using ${noun}.`
+                  , `${adj} must be set in production environments.`
+                ].join(' ')
+            }
+        }
+
+        return {isPass, error, warning, missing}
+    }
+
+    /**
      * Compare two numbers for sorting ascending.
      *
      * @param {number} The left-hand number.
@@ -938,7 +998,7 @@ class Util {
     /**
      * Join arguments on space character.
      *
-     * @param ...{any} The arguments to join
+     * @param ...{*} The arguments to join
      *
      * @returns {string} The joined string
      */

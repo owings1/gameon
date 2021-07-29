@@ -22,76 +22,80 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-const Constants = require('../lib/constants')
-const Errors    = require('../lib/errors')
-const Logger    = require('../lib/logger')
-const Util      = require('../lib/util')
+const Logger = require('../lib/logger')
 
 const Email = require('./email')
 
+const {
+    DefaultAuthHash,
+    DefaultAuthSalt,
+    DefaultAuthSaltHash,
+    DefaultAuthType,
+    DefaultEmailImpl,
+    DefaultPasswordHelp,
+    DefaultPasswordMin,
+    DefaultPasswordRegex,
+    EncryptedFlagPrefix,
+    InvalidUsernameChars,
+    IsTest,
+} = require('../lib/constants')
+
+const {
+    AuthError,
+    BadCredentialsError,
+    InternalError,
+    NotImplementedError,
+    SecurityError,
+    UserConfirmedError,
+    UserExistsError,
+    UserLockedError,
+    UserNotConfirmedError,
+    UserNotFoundError,
+    ValidateError,
+} = require('../lib/errors')
+
+const {
+    decrypt2,
+    encrypt2,
+    defaults,
+    hash,
+    isValidEmail,
+    securityCheck,
+    tstamp,
+    update,
+    uuid,
+} = require('../lib/util')
+
 const path = require('path')
 
-const {
-    DefaultAuthType
-  , DefaultEmailImpl
-  , DefaultPasswordHelp
-  , DefaultPasswordRegex
-  , DefaultSalt
-  , EncryptedFlagPrefix
-  , InvalidUsernameChars
-} = Constants
-
-const {
-    AuthError
-  , BadCredentialsError
-  , InternalError
-  , NotImplementedError
-  , SecurityError
-  , UserConfirmedError
-  , UserExistsError
-  , UserLockedError
-  , UserNotConfirmedError
-  , UserNotFoundError
-  , ValidateError
-} = Errors
-
-const {
-    decrypt2
-  , encrypt2
-  , hash
-  , isValidEmail
-  , tstamp
-  , update
-  , uuid
-} = Util
-
+// TODO: lazy load
 const ImplClasses = {
-    anonymous : require('./auth/anonymous')
-  , directory : require('./auth/directory')
-  , s3        : require('./auth/s3')
+    anonymous : require('./auth/anonymous'),
+    directory : require('./auth/directory'),
+    s3        : require('./auth/s3'),
 }
 
 const ErrorMessages = {
-    badConfirmKey     : 'Invalid username and confirm key combination'
-  , badResetKey       : 'Invalid username and reset key combination'
-  , confirmed         : 'User account is already confirmed'
-  , expiredConfirmKey : 'Confirm key expired'
-  , expiredResetKey   : 'Reset key expired'
-  , generic           : 'Invalid username/password combination'
-  , locked            : 'User account is locked'
-  , notFound          : 'User not found'
-  , unconfirmed       : 'User account is not confirmed'
-  , userExists        : 'User already exists'
+    badConfirmKey     : 'Invalid username and confirm key combination',
+    badResetKey       : 'Invalid username and reset key combination',
+    confirmed         : 'User account is already confirmed',
+    expiredConfirmKey : 'Confirm key expired',
+    expiredResetKey   : 'Reset key expired',
+    generic           : 'Invalid username/password combination',
+    locked            : 'User account is locked',
+    notFound          : 'User not found',
+    unconfirmed       : 'User account is not confirmed',
+    userExists        : 'User already exists',
 }
 
 const ValidateMessages = {
-    badCharUsername : badChar => `Bad character in username: ${badChar}`
-  , email           : 'Username is not a valid email address.'
-  , emptyPassword   : 'Password cannot be empty.'
-  , emptyUsername   : 'Username cannot be empty.'
-  , minPassword     : min => `Password must be at least ${min} characters.`
-  , prefixPassword  : prefix => `Password cannot begin with ${prefix}`
-  , regexPassword   : help => `Invalid password: ${help}`
+    badCharUsername : chr => `Bad character in username: '${chr}'.`,
+    email           : 'Username is not a valid email address.',
+    emptyPassword   : 'Password cannot be empty.',
+    emptyUsername   : 'Username cannot be empty.',
+    minPassword     : min => `Password must be at least ${min} characters.`,
+    prefixPassword  : prefix => `Password cannot begin with '${prefix}'.`,
+    regexPassword   : help => `Invalid password: ${help}`,
 }
 
 class Auth {
@@ -105,18 +109,19 @@ class Auth {
      */
     static defaults(env) {
         const opts = {
-            salt          : env.AUTH_SALT || DefaultSalt
-          , hash          : env.AUTH_HASH || 'sha512'
-          , saltHash      : env.AUTH_SALT_HASH || 'sha256'
-          , passwordMin   : +env.AUTH_PASSWORD_MIN || 8
-          , passwordRegex : env.AUTH_PASSWORD_REGEX || DefaultPasswordRegex
-          , passwordHelp  : env.AUTH_PASSWORD_HELP || DefaultPasswordHelp
-          , emailTimeout  : +env.AUTH_EMAILTIMEOUT   || 15 * 1000
-          , confirmExpiry : +env.AUTH_CONFIRM_EXPIRY || 86400
-          , resetExpiry   : +env.AUTH_RESET_EXPIRY   || 3600
+            salt          : env.AUTH_SALT || DefaultAuthSalt,
+            hash          : env.AUTH_HASH || DefaultAuthHash,
+            saltHash      : env.AUTH_SALT_HASH || DefaultAuthSaltHash,
+            passwordMin   : +env.AUTH_PASSWORD_MIN || DefaultPasswordMin,
+            passwordRegex : env.AUTH_PASSWORD_REGEX || DefaultPasswordRegex,
+            passwordHelp  : env.AUTH_PASSWORD_HELP || DefaultPasswordHelp,
+            emailTimeout  : +env.AUTH_EMAILTIMEOUT   || 15 * 1000,
+            confirmExpiry : +env.AUTH_CONFIRM_EXPIRY || 86400,
+            resetExpiry   : +env.AUTH_RESET_EXPIRY   || 3600,
         }
         if (opts.passwordRegex != DefaultPasswordRegex && !env.AUTH_PASSWORD_HELP) {
-            // If a custom regex is defined, but not a help message, make a generic message.
+            // If a custom regex is defined, but not a help message, make a
+            // generic default message.
             opts.passwordHelp = 'Must meet regex: ' + opts.passwordRegex
         }
         return opts
@@ -151,17 +156,18 @@ class Auth {
 
         this.impl = impl
 
-        this.opts = Util.defaults(Auth.defaults(process.env), opts)
+        this.opts = defaults(Auth.defaults(process.env), opts)
 
         this.logger = new Logger(this.constructor.name, {server: true})
 
+        // TODO: should this be passed in constructor?
         this.email = Email.create({
-            ...opts
-          , ...this.opts
-          , connectTimeout: this.opts.emailTimeout
+            ...opts,
+            ...this.opts,
+            connectTimeout: this.opts.emailTimeout,
         })
 
-        this._checkSecurity()
+        this._checkSecurity(process.env)
 
         this.saltHash = hash(this.opts.saltHash, this.opts.salt, 'base64')
 
@@ -169,7 +175,7 @@ class Auth {
 
         this.passwordRegex = new RegExp(this.opts.passwordRegex)
 
-        // fail fast
+        // Fail fast.
         hash(this.opts.hash)
     }
 
@@ -887,26 +893,37 @@ class Auth {
     }
 
     /**
-     * Ensure the default salt is not used in production environments.
+     * Ensure the defaults are not used in production environments.
      *
      * @throws SecurityError
      *
-     * @returns undefined
+     * @param {object} (optional) The environment variables
+     * @returns {boolean} Whether all values are custom
      */
-    _checkSecurity() {
-        if (this.opts.salt == DefaultSalt) {
-            if (!process.env.GAMEON_TEST) {
-                this.logger.warn(
-                    'AUTH_SALT not set, using default. For security, AUTH_SALT'
-                  , 'must be set in production environemnts.'
-                )
+    _checkSecurity(env) {
+
+        const checks = [
+            {
+                name    : 'AUTH_SALT',
+                value   : this.opts.salt,
+                default : DefaultAuthSalt,
             }
-            if (process.env.NODE_ENV == 'production') {
-                throw new SecurityError(
-                    'Must set custom AUTH_SALT when NODE_ENV=production'
-                )
-            }
+        ]
+
+        const {error, warning} = securityCheck(checks, env)
+
+        if (error) {
+            throw new SecurityError(error)
         }
+
+        if (warning) {
+            if (!IsTest) {
+                this.logger.warn(warning)
+            }
+            return false
+        }
+
+        return true
     }
 
     /**

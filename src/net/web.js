@@ -22,11 +22,20 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-const Auth      = require('./auth')
-const Constants = require('../lib/constants')
-const Errors    = require('../lib/errors')
-const Logger    = require('../lib/logger')
-const Util      = require('../lib/util')
+const Logger = require('../lib/logger')
+
+const {
+    DefaultSessionCookie,
+    DefaultSessionSecret,
+    IsTest,
+} = require('../lib/constants')
+
+const {
+    defaults,
+    securityCheck,
+} = require('../lib/util')
+
+const {SecurityError} = require('../lib/errors')
 
 const bodyParser   = require('body-parser')
 const cookieParser = require('cookie-parser')
@@ -36,27 +45,20 @@ const session      = require('express-session')
 
 const {resolve} = path
 
-const {
-    DefaultSessionCookie
-    // This should be set in production environments with SESSION_SECRET
-  , DefaultSessionSecret
-} = Constants
-
-const {SecurityError} = Errors
-
 const ResourcePath = resolve(__dirname, '../www')
-
-const StaticPath = resolve(ResourcePath, 'static')
-const ViewPath   = resolve(ResourcePath, 'templates')
+const StaticPath   = resolve(ResourcePath, 'static')
+const ViewPath     = resolve(ResourcePath, 'templates')
 
 class Web {
 
     static defaults(env) {
         return {
-            sessionSecret   : env.SESSION_SECRET || DefaultSessionSecret
-          , sessionInsecure : !!env.SESSION_INSECURE
-          , sessionExpiry   : +env.SESSION_EXPIRY || 86400 * 1000
-          , sessionCookie   : env.SESSION_COOKIE || DefaultSessionCookie
+            /* `SESSION_COOKIE` must be set to custom value in production environments */
+            sessionCookie   : env.SESSION_COOKIE || DefaultSessionCookie,
+            /* `SESSION_SECRET` must be set to custom value in production environments */
+            sessionSecret   : env.SESSION_SECRET || DefaultSessionSecret,
+            sessionInsecure : Boolean(env.SESSION_INSECURE),
+            sessionExpiry   : +env.SESSION_EXPIRY || 86400 * 1000,
         }
     }
 
@@ -64,9 +66,10 @@ class Web {
 
         this.logger = new Logger(this.constructor.name, {server: true})
 
-        this.opts = Util.defaults(Web.defaults(process.env), opts)
+        this.opts = defaults(Web.defaults(process.env), opts)
         this.auth = auth
-        //this.auth = Auth.create({...opts, ...this.opts, loggerPrefix: 'Web'})
+
+        this._checkSecurity(process.env)
 
         this.app = this.createExpressApp()
     }
@@ -77,25 +80,9 @@ class Web {
 
     set loglevel(n) {
         this.logger.loglevel = n
-        //this.auth.loglevel = n
     }
 
     createExpressApp() {
-
-        if (this.opts.sessionSecret == DefaultSessionSecret) {
-            if (!process.env.GAMEON_TEST) {
-                this.logger.warn(
-                    'SESSION_SECRET not set, using default.'
-                  , 'For security, SESSION_SECRET must be set'
-                  , 'in production environemnts.'
-                )
-            }
-            if (process.env.NODE_ENV == 'production') {
-                throw new SecurityError(
-                    'Must set custom SESSION_SECRET when NODE_ENV=production'
-                )
-            }
-        }
 
         const app = express()
         const formParser = bodyParser.urlencoded({extended: true})
@@ -121,14 +108,16 @@ class Web {
         app.use(cookieParser())
 
         app.use((req, res, next) => {
-            // clear old session cookies
-            if (req.cookies[this.opts.sessionCookie] && !req.session.user) {
+            const hasCookie = Boolean(req.cookies[this.opts.sessionCookie])
+            const hasUser = Boolean(req.session.user)
+            // Clear old session cookies.
+            if (hasCookie && !hasUser) {
                 res.clearCookie(this.opts.sessionCookie)
-                res.clearCookie('gatoken')
+                res.clearCookie(DefaultSessionCookie)
             }
-            // set logged in
-            req.loggedIn = !!(req.cookies[this.opts.sessionCookie] && req.session.user)
-            // set view locals
+            // Set logged in.
+            req.loggedIn = hasCookie && hasUser
+            // Set view locals.
             if (req.loggedIn) {
                 res.locals.loggedIn = true
                 res.locals.user = req.session.user
@@ -157,14 +146,14 @@ class Web {
             const {username, password} = req.body
             this.auth.authenticate(username, password).then(user => {
                 req.session.user = user
-                res.cookie('gatoken', user.token, {
-                    httpOnly : false
-                  , secure   : !this.opts.sessionInsecure
-                  , sameSite : true
+                res.cookie(this.opts.sessionCookie, user.token, {
+                    httpOnly : false,
+                    secure   : !this.opts.sessionInsecure,
+                    sameSite : true,
                 })
                 res.status(302).redirect('/dashboard')
             }).catch(err => {
-                if (err.name == 'BadCredentialsError' || err.name == 'ValidateError') {
+                if (err.isBadCredentialsError || err.isValidateError) {
                     res.status(400)
                 } else {
                     res.status(500)
@@ -176,6 +165,7 @@ class Web {
         app.get('/logout', (req, res) => {
             res.clearCookie(this.opts.sessionCookie)
             delete req.session.user
+            req.loggedIn = false
             res.status(302).redirect('/')
         })
 
@@ -198,6 +188,45 @@ class Web {
         })
 
         return app
+    }
+
+    /**
+     * Ensure the defaults are not used in production environments.
+     *
+     * @throws SecurityError
+     *
+     * @param {object} (optional) The environment variables
+     * @returns {boolean} Whether all values are custom
+     */
+    _checkSecurity(env) {
+
+        const checks = [
+            {
+                name    : 'SESSION_SECRET',
+                value   : this.opts.sessionSecret,
+                default : DefaultSessionSecret,
+            },
+            {
+                name    : 'SESSION_COOKIE',
+                value   : this.opts.sessionCookie,
+                default : DefaultSessionCookie,
+            }
+        ]
+
+        const {error, warning} = securityCheck(checks, env)
+
+        if (error) {
+            throw new SecurityError(error)
+        }
+
+        if (warning) {
+            if (!IsTest) {
+                this.logger.warn(warning)
+            }
+            return false
+        }
+
+        return true
     }
 }
 

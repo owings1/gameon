@@ -25,6 +25,11 @@
 const Pkg = require('../../package.json')
 const Version = Pkg.version
 
+const IsTest = parseInt(process.env.GAMEON_TEST) > 0
+
+/**
+ * Core
+ */
 const White = 'White'
 const Red   = 'Red'
 
@@ -91,10 +96,10 @@ const OriginPoints = {
 }
 
 function populatePointsAndOrigins(pointOrigins, originPoints) {
-    for (var origin = 0; origin < 24; ++origin) {
+    for (let origin = 0; origin < 24; ++origin) {
         // Origins are from 0 to 23
         // Points are from 1 to 24
-        var point = origin + 1
+        let point = origin + 1
         // Red point 1 is origin 0
         pointOrigins.Red[point] = point - 1
         // White point 1 is origin 23
@@ -129,6 +134,9 @@ const BoardStrings = {
     Initial: '0|0|2:W|0:|0:|0:|0:|5:R|0:|3:R|0:|0:|0:|5:W|5:R|0:|0:|0:|3:W|0:|5:W|0:|0:|0:|0:|2:R|0|0'
 }
 
+/**
+ * Symbols
+ */
 const Chars = {
     empty : ''
   , sp    : ' '
@@ -187,34 +195,43 @@ Chars.table.foot = Chars.table.footer
 Chars.table.bot  = Chars.table.bottom
 
 
+/**
+ * User settings.
+ */
+const DefaultTermEnabled = !IsTest
+const DefaultThemeName = 'Default'
 const DefaultServerUrl = 'https://gameon.dougowings.net'
 const ObsoleteServerUrls = [
     'ws://bg.dougowings.net:8080'
   , 'wss://bg.dougowings.net'
   , 'https://bg.dougowings.net'
 ]
+const CHash = 'a9c0fc569fd231b004d44e718add99e2'
 
-const DefaultTermEnabled = !process.env.GAMEON_TEST
-const DefaultThemeName = 'Default'
-
-// This should be set in production environments with SESSION_SECRET
-const DefaultSessionSecret = 'D2hjWtg95VkuzhFBVxnhDhSU4J9BYnz8'
+/**
+ * Server, Auth, Email
+ */
+/* AUTH_SALT must be set to custom value in production environments. */
+const DefaultAuthSalt  = 'RYm!BtLhPTx4%QrGku_6?Q*NZsfM54Q=Y9?p^q5$9#TM42YcY4WfEGb#48-x88-n'
+/* SESSION_COOKIE must be set to custom value in production environments. */
 const DefaultSessionCookie = 'gasid'
+/* SESSION_SECRET must be set to custom value in production environments. */
+const DefaultSessionSecret = 'D2hjWtg95VkuzhFBVxnhDhSU4J9BYnz8'
 
+const DefaultAuthType         = 'anonymous'
+const DefaultAuthHash         = 'sha512'
+const DefaultAuthSaltHash     = 'sha256'
 const DefaultEmailFromName    = 'Gameon'
 const DefaultEmailFromAddress = 'noreply@nowhere.example'
 const DefaultEmailType        = 'mock'
-
-const DefaultAuthType = 'anonymous'
-// This should be set by AUTH_SALT in production environments
-const DefaultSalt  = 'RYm!BtLhPTx4%QrGku_6?Q*NZsfM54Q=Y9?p^q5$9#TM42YcY4WfEGb#48-x88-n'
 // Minimum eight characters, at least one letter and one number:
 // from: https://stackoverflow.com/questions/19605150/regex-for-password-must-contain-at-least-eight-characters-at-least-one-number-a
-const DefaultPasswordRegex = '^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)[a-zA-Z\\d\\w\\W]{8,}$'
 const DefaultPasswordHelp = 'Minimum eight characters, at least one lowercase letter, one uppercase letter, and one number'
-
+const DefaultPasswordMin = 8
+const DefaultPasswordRegex = '^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)[a-zA-Z\\d\\w\\W]{8,}$'
 const InvalidUsernameChars = '/\\?%*:|"\'&#'.split('')
 const EncryptedFlagPrefix = 'encrypted_'
+
 
 const Menu = {
 
@@ -313,8 +330,6 @@ const Menu = {
     }
 }
 
-const CHash = 'a9c0fc569fd231b004d44e718add99e2'
-
 const MatchCancelRef = {
     peerDisconnected: {
         reason: 'Peer disconnected'
@@ -332,43 +347,48 @@ const MatchCancelRef = {
         }
     }
 }
+
 const Constants = {
-    BoardStrings
-  , BottomPoints
-  , Chars
-  , CHash
-  , ColorAbbr
-  , ColorNorm
-  , Colors
-  , DefaultAuthType
-  , DefaultEmailFromAddress
-  , DefaultEmailFromName
-  , DefaultEmailType
-  , DefaultPasswordHelp
-  , DefaultPasswordRegex
-  , DefaultSalt
-  , DefaultServerUrl
-  , DefaultSessionCookie
-  , DefaultSessionSecret
-  , DefaultThemeName
-  , Direction
-  , EncryptedFlagPrefix
-  , InsideOrigins
-  , InvalidUsernameChars
-  , MatchCancelRef
-  , Menu
-  , MoveCoords
-  , MoveHashes
-  , ObsoleteServerUrls
-  , Opponent
-  , OriginPoints
-  , OutsideOrigins
-  , Pkg
-  , PointOrigins
-  , Red
-  , TopPoints
-  , Version
-  , White
+    BoardStrings,
+    BottomPoints,
+    Chars,
+    CHash,
+    ColorAbbr,
+    ColorNorm,
+    Colors,
+    DefaultAuthHash,
+    DefaultAuthSaltHash,
+    DefaultAuthType,
+    DefaultEmailFromAddress,
+    DefaultEmailFromName,
+    DefaultEmailType,
+    DefaultPasswordHelp,
+    DefaultPasswordMin,
+    DefaultPasswordRegex,
+    DefaultAuthSalt,
+    DefaultServerUrl,
+    DefaultSessionCookie,
+    DefaultSessionSecret,
+    DefaultThemeName,
+    Direction,
+    EncryptedFlagPrefix,
+    InsideOrigins,
+    InvalidUsernameChars,
+    IsTest,
+    MatchCancelRef,
+    Menu,
+    MoveCoords,
+    MoveHashes,
+    ObsoleteServerUrls,
+    Opponent,
+    OriginPoints,
+    OutsideOrigins,
+    Pkg,
+    PointOrigins,
+    Red,
+    TopPoints,
+    Version,
+    White,
 }
 
 module.exports = Constants
