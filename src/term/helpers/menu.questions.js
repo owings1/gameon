@@ -41,14 +41,15 @@ const fse   = require('fs-extra')
 const path  = require('path')
 
 const {
-    append
-  , errMessage
-  , homeTilde
-  , padEnd
-  , padStart
-  , sp
-  , stringWidth
-  , tildeHome
+    append,
+    errMessage,
+    homeTilde,
+    isCredentialsFilled,
+    padEnd,
+    padStart,
+    sp,
+    stringWidth,
+    tildeHome,
 } = Util
 
 
@@ -58,20 +59,11 @@ const {
   , PlayChoiceMap
 } = Constants.Menu
 
-function isCredentialsFilled(credentials, isServer) {
-    const keys = ['username', 'password']
-    if (isServer) {
-        keys.push('serverUrl')
-    }
-    return !keys.find(key => !credentials[key])
-}
-
 function getDiffChalk(a, b, chlk) {
     if (a == b) {
         return sp
     }
     const isLess = typeof a == 'string' ? a.localeCompare(b) < 0 : a < b
-    //return isLess ? chalk.bold.red : chalk.bold.green
     return isLess ? chlk.minus : chlk.plus
 }
 

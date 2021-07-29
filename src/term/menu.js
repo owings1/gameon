@@ -36,6 +36,7 @@ const {
     RobotDelegator,
 } = require('../robot/player')
 
+const {inquirer}   = require('./inquirer')
 const LabHelper    = require('./lab')
 const {TermHelper} = require('./draw')
 const TermPlayer   = require('./player')
@@ -45,7 +46,6 @@ const chalk      = require('chalk')
 const fs         = require('fs')
 const fse        = require('fs-extra')
 const globby     = require('globby')
-const {inquirer} = require('./inquirer')
 const os         = require('os')
 const path       = require('path')
 const _ = {
@@ -69,6 +69,7 @@ const {
   , destroyAll
   , encrypt2
   , forceLineReturn
+  , getOrCall
   , isCredentialsFilled
   , isEmptyObject
   , nchars
@@ -83,15 +84,16 @@ const {
 } = require('../lib/util')
 
 const {
-    Chars
-  , CHash
-  , DefaultServerUrl
-  , DefaultTermEnabled
-  , DefaultThemeName
-  , ObsoleteServerUrls
-  , Red
-  , States
-  , White
+    Chars,
+    CHash,
+    DefaultLocale,
+    DefaultServerUrl,
+    DefaultTermEnabled,
+    DefaultThemeName,
+    ObsoleteServerUrls,
+    Red,
+    States,
+    White,
 } = Constants
 
 const {
@@ -1022,7 +1024,6 @@ class Menu extends EventEmitter {
                             resolve(InterruptCancelAnswers)
                             return true
                         }
-                        //this.prompter = null
                     } finally {
                         cleanup()
                     }
@@ -1032,24 +1033,16 @@ class Menu extends EventEmitter {
             const prompter = this.inquirer.prompt(questions, answers, opts)
             this.prompter = prompter
 
-            // Ensure that prompt event is emitted after first render
+            // Ensure that prompt event is emitted after first render.
             const onRender = () => this.emit('prompt', {prompter, questions, answers, opts})
             const box = this.boxes.menu
             box.status.once('render', onRender)
 
             prompter.then(answers => {
                 cleanup()
-                //this.captureInterrupt = null
-                //this.prompter = null
-                //// Clean the listener in case it was not called.
-                //box.status.removeListener('render', onRender)
                 resolve(answers)
             }).catch(err => {
                 cleanup()
-                //this.captureInterrupt = null
-                //this.prompter = null
-                //// Clean the listener in case it was not called.
-                //box.status.removeListener('render', onRender)
                 reject(err)
             })
         })
@@ -1072,7 +1065,9 @@ class Menu extends EventEmitter {
     handleResize() {
         this.hasMenuBackground = false
         if (this.players) {
-            Object.values(this.players).forEach(player => player.emit('resize'))
+            Object.values(this.players).forEach(player =>
+                player.emit('resize')
+            )
         }
         if (!this.settings.termEnabled) {
             return
@@ -1172,7 +1167,7 @@ class Menu extends EventEmitter {
             )
         }).flat()
 
-        // debug errors if term not enabled
+        // Debug errors if term not enabled.
         if (this.loglevel > 3 && !this.settings.termEnabled) {
             errors.forEach(error => console.error(error))
         }
@@ -1237,9 +1232,7 @@ class Menu extends EventEmitter {
         }
 
         const {name} = question
-        const oldValue = typeof question.default == 'function'
-            ? question.default()
-            : question.default
+        const oldValue = getOrCall(question.default)
 
         let answers = {}
         if (question.answer != null) {
@@ -1367,11 +1360,11 @@ class Menu extends EventEmitter {
             await this.saveSettings()
         }
 
-        const settings = await fse.readJson(settingsFile)
+        const loaded = await fse.readJson(settingsFile)
 
         const defs = Menu.settingsDefaults()
-        update(this.settings, defaults(defs, this.settings, settings))
-        update(this.settings.matchOpts, defaults(defs.matchOpts, settings.matchOpts))
+        update(this.settings, defaults(defs, this.settings, loaded))
+        update(this.settings.matchOpts, defaults(defs.matchOpts, loaded.matchOpts))
 
         if (this.settings.isCustomRobot && isEmptyObject(this.settings.robots)) {
             // populate for legacy format
@@ -1454,7 +1447,7 @@ class Menu extends EventEmitter {
         update(this.credentials, {
             username     : ''
           , password     : ''
-          , needsConfirm : null
+          , needsConfirm : false
           , isTested     : false
         })
     }
@@ -1621,7 +1614,7 @@ class Menu extends EventEmitter {
             serverUrl    : this.getDefaultServerUrl()
           , username     : ''
           , password     : ''
-          , needsConfirm : null
+          , needsConfirm : false
           , isTested     : false
         }
     }
