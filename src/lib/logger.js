@@ -64,8 +64,8 @@ class Logger {
         //this.opts.name = this.name
         this.theme = Themes.getSemiSafe(this.opts.theme)
         this.console = console
-        this.loglevel = Levels[process.env.LOG_LEVEL || 'info']
         this.init()
+        this.loglevel = Levels[process.env.LOG_LEVEL || 'info']
     }
 
     get logLevel() {
