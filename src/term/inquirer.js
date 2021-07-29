@@ -463,21 +463,23 @@ class Separator extends Inquirer.Separator {
             this.line = ''
         }
         this.char = chr
-        this._when = null
+        this._when = true
     }
 
-    when(when) {
-        if (typeof when == 'undefined') {
-            if (this._when == null) {
-                return true
-            }
-            if (typeof this._when == 'function') {
-                return this._when()
-            }
-            return this._when
+    /**
+     * Set or evaluate the `when` condition. If no argument is passed, the
+     * condition is evaluated. If an argument is passed, it sets the condition.
+     *
+     * @param {boolean|function} (optional) The condition to set.
+     * @return {boolean|self}
+     */
+    when(when = undefined) {
+        if (arguments.length) {
+            this._when = when
+            return this
         }
-        this._when = when
-        return this
+        const res = typeof this._when == 'function' ? this._when() : this._when
+        return Boolean(res)
     }
 
     text(line) {
