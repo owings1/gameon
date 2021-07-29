@@ -27,6 +27,7 @@ const Logger = require('../lib/logger')
 const {
     DefaultSessionCookie,
     DefaultSessionSecret,
+    DefaultTokenCookie,
     IsTest,
 } = require('../lib/constants')
 
@@ -59,6 +60,7 @@ class Web {
             sessionSecret   : env.SESSION_SECRET || DefaultSessionSecret,
             sessionInsecure : Boolean(env.SESSION_INSECURE),
             sessionExpiry   : +env.SESSION_EXPIRY || 86400 * 1000,
+            tokenCookie     : env.TOKEN_COOKIE || DefaultTokenCookie,
         }
     }
 
@@ -146,7 +148,7 @@ class Web {
             const {username, password} = req.body
             this.auth.authenticate(username, password).then(user => {
                 req.session.user = user
-                res.cookie(this.opts.sessionCookie, user.token, {
+                res.cookie(this.opts.tokenCookie, user.token, {
                     httpOnly : false,
                     secure   : !this.opts.sessionInsecure,
                     sameSite : true,
@@ -210,6 +212,11 @@ class Web {
                 name    : 'SESSION_COOKIE',
                 value   : this.opts.sessionCookie,
                 default : DefaultSessionCookie,
+            },
+            {
+                name    : 'TOKEN_COOKIE',
+                value   : this.opts.tokenCookie,
+                default : DefaultTokenCookie,
             }
         ]
 

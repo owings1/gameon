@@ -217,6 +217,8 @@ const DefaultAuthSalt  = 'RYm!BtLhPTx4%QrGku_6?Q*NZsfM54Q=Y9?p^q5$9#TM42YcY4WfEG
 const DefaultSessionCookie = 'gasid'
 /* SESSION_SECRET must be set to custom value in production environments. */
 const DefaultSessionSecret = 'D2hjWtg95VkuzhFBVxnhDhSU4J9BYnz8'
+/* TOKEN_COOKIE must be set to custom value in production environments. */
+const DefaultTokenCookie = 'gatoken'
 
 const DefaultAuthType         = 'anonymous'
 const DefaultAuthHash         = 'sha512'
@@ -370,6 +372,7 @@ const Constants = {
     DefaultSessionCookie,
     DefaultSessionSecret,
     DefaultThemeName,
+    DefaultTokenCookie,
     Direction,
     EncryptedFlagPrefix,
     InsideOrigins,

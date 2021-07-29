@@ -43,7 +43,7 @@ describe('Server', () => {
     const Client = requireSrc('net/client')
     const Server = requireSrc('net/server')
 
-    const Dice      = requireSrc('lib/dice')
+    const Dice = requireSrc('lib/dice')
 
     const {White, Red} = requireSrc('lib/constants')
 
@@ -612,7 +612,6 @@ describe('Server', () => {
                   , password: null
                   , token
                 })
-
                 await client.connect()
             })
         })
