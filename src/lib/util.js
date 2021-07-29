@@ -1305,6 +1305,7 @@ class Util {
 Util.update(Util, {
     get Counter()          { return require('./util/counter') },
     get DependencyHelper() { return require('./util/dependency-helper') },
+    get Intl()             { return require('./util/intl') },
     get Profiler()         { return require('./util/profiler') },
     get Timer()            { return require('./util/timer') },
     StringBuilder,
