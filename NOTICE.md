@@ -432,6 +432,7 @@ Code adapted and modified.
 
 #### Files
 
+- [test/util/diffs.js](test/util/diffs.js)
 - [test/util/reporter.js](test/util/reporter.js)
 
 #### Copyright

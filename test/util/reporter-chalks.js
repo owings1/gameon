@@ -25,12 +25,14 @@
 module.exports = (chalk) => ({
     diff: {
         unified: {
-            added   : chalk.green,
-            removed : chalk.red,
+            added     : chalk.green,
+            removed   : chalk.red,
         },
         inline: {
-            added   : chalk.bgGreen.black,
-            removed : chalk.bgRed.black,
+            added     : chalk.bgGreen.black,
+            removed   : chalk.bgRed.black,
+            number    : chalk.reset,
+            separator : chalk.grey,
         },
     },
     error: {

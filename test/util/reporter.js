@@ -49,9 +49,9 @@ class Reporter extends Base {
         const {title} = suite
         const spaces = nchars(stringWidth(title) + 2, ' ')
         const lines = [
-            spaces
-          , wrap(title.toUpperCase(), ' ')
-          , spaces
+            spaces,
+            wrap(title.toUpperCase(), ' '),
+            spaces,
         ].map(line => chlk.title(line))
 
         lines.push('')

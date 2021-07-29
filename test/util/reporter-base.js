@@ -57,21 +57,37 @@
  */
 const Base        = require('mocha/lib/reporters/base')
 const Runner      = require('mocha/lib/runner')
-const {stringify} = require('mocha/lib/utils')
+const mstringify  = require('mocha/lib/utils').stringify
 
 const {
     append,
     castToArray,
+    induceBool,
+    induceInt,
     lcfirst,
     mapValues,
     nchars,
+    sp,
+    stringWidth,
     ucfirst,
 } = require('../../src/lib/util')
 
 const Chalks = require('./reporter-chalks')
+const Diffs  = require('./diffs')
 
-const DefaultDiffSize    = 2048
-const DefaultGroupErrors = true
+const chalk = require('chalk')
+const ms    = require('ms')
+const ld = {
+    get : require('lodash/get'),
+    set : require('lodash/set'),
+}
+
+const RawMatchRegex = /^([^:]+): expected/
+
+const DefaultDiffLinesMin = 5
+const DefaultDiffSize     = 2048
+const DefaultGroupErrors  = true
+const DefaultTabSize      = 2
 
 /**
  * Mocha Runner events.
@@ -115,13 +131,10 @@ const EventMap = Object.fromEntries(
 )
 const EventList = Object.values(EventMap)
 
-const chalk = require('chalk')
-const diff  = require('diff')
-const ms    = require('ms')
-const ld = {
-    get : require('lodash/get'),
-    set : require('lodash/set'),
-}
+
+const matchIndex = (str, regex, index) => (str.match(regex) || [])[index]
+const stringify = arg => typeof arg == 'string' ? arg : mstringify(arg)
+
 /**
  * Base reporter class.
  *
@@ -142,32 +155,14 @@ class BaseReporter extends Base {
 
         this.counters = {tab: 0, failures: 0}
         this.chalk = new chalk.Instance()
-
-        // Load default colors and symbols.
-        this.chalks = Chalks(this.chalk)
-        this.symbols = {ok: '\u2713'}
-
-        // Process options.
+        // Propagate color option to chalk instance.
         if (this.opts.color === false) {
             this.chalk.level = 0
         }
 
-        // Report options.
-        const {ropts} = this
-
-        this.diffSize = DefaultDiffSize
-        if (ropts.diffSize != null) {
-            this.diffSize = parseInt(ropts.diffSize) || 0
-        }
-        this.tabSize = 2
-        if (ropts.tabSize != null) {
-            this.tabSize = parseInt(ropts.tabSize) || 0
-        }
-        if (ropts.groupErrors != null) {
-            ropts.groupErrors = String(ropts.groupErrors).toLowerCase() != 'false'
-        } else {
-            ropts.groupErrors = DefaultGroupErrors
-        }
+        // Load default colors and symbols.
+        this.chalks = Chalks(this.chalk)
+        this.symbols = {ok: '\u2713'}
 
         // Load listeners.
         EventList.forEach(({event, render, incs}) => {
@@ -269,6 +264,27 @@ class BaseReporter extends Base {
     }
 
     /**
+     * Get the stats summary lines.
+     *
+     * @param {object} (optional) The stats, default is `this.stats`
+     * @return {object} The formatted lines {passes, pending, failures}
+     */
+    getStatsLines(stats) {
+
+        stats = stats || this.stats
+        const chlk = this.chalks.stats
+
+        return {
+            passes: sp(
+                chlk.passes(`${stats.passes || 0} passing`),
+                chlk.duration(`(${ms(stats.duration)})`),
+            ),
+            pending  : chlk.pending(`${stats.pending} pending`),
+            failures : chlk.failures(`${stats.failures} failing`),
+        }
+    }
+
+    /**
      * Adapted from:
      *
      *   https://github.com/mochajs/mocha/blob/e044ef02/lib/reporters/base.js#L223
@@ -349,6 +365,11 @@ class BaseReporter extends Base {
         return {first, others}
     }
 
+    /**
+     * Warning message lines for multiple errors.
+     *
+     * @return {string} The warning lines
+     */
     getWarnMulipleLines() {
         const chlk = this.chalks.warn
         return ['', chlk.message('------ MULTIPLE ERRORS --------'), '']
@@ -397,72 +418,136 @@ class BaseReporter extends Base {
      */
     generateDiff(actual, expected) {
 
+        const style = this.diffStyle
+        const norm = arg => this.trunc(stringify(arg), this.diffSize)
+
+        let result
+
         try {
-
-            const {diffSize} = this
-
-            if (typeof actual != 'string') {
-                actual = stringify(actual)
-            }
-            if (typeof expected != 'string') {
-                expected = stringify(expected)
-            }
-
-            if (actual.length > diffSize) {
-                actual = actual.substring(0, diffSize) + ' ... Lines skipped'
-            }
-            if (expected.length > diffSize) {
-                expected = expected.substring(0, diffSize) + ' ... Lines skipped'
-            }
-
-            const method = this.opts.inlineDiffs ? '_inlineDiff' : '_unifiedDiff'
-
-            return this[method](actual, expected)
-
+            result = this._diffResult(style, norm(actual), norm(expected))
         } catch (err) {
-
-            console.error(err)
-
-            // Produce an error diff for the UI.
-
-            const chlk = this.chalks.diff.unified
-
-            const headerLine = [
-                chlk.added   ( '+ expected' )
-              , chlk.removed ( '- actual: failed to generate Mocha diff' )
-            ].join(' ')
-
-            const lines = []
-
-            lines.push(headerLine)
-            lines.push('')
-
-            return lines.join('\n')
+            this.log(err)
+            result = this._errorDiffResult(err)
         }
+
+        return [result.head, '', result.body].join('\n')
     }
 
     /**
-     * Getter for the current depth (integer).
+     * Truncate a string at certain length and append a message.
+     *
+     * @param {string} The string to truncate
+     * @param {integer} The max width
+     * @return {string} The result string
+     */
+    trunc(str, width) {
+        if (str.length <= width) {
+            return str
+        }
+        return str.substring(0, width) + ' ... [truncated]'
+    }
+
+    /**
+     * The current depth (integer).
      */
     get depth() {
         return Math.max(this.counters.tab - 1, 0)
     }
 
     /**
-     * Alias getter for this.options (object).
+     * Alias for `options` (object).
      */
     get opts() {
         return this.options
     }
 
     /**
-     * Alias getter for this.options.reporterOption (object).
+     * Alias for `opts.reporterOption` (object).
      */
     get ropts() {
-        if (!this.options.reporterOption) {
-            this.options.reporterOption = {}
+        if (!this.opts.reporterOption) {
+            this.opts.reporterOption = {}
         }
-        return this.options.reporterOption
+        return this.opts.reporterOption
+    }
+
+    /**
+     * The `diffSize` reporter option (integer). String safe. If `opts.diff`
+     * is false, the value of `diffSize` is 0.
+     */
+    get diffSize() {
+        if (!this.opts.diff) {
+            return 0
+        }
+        return induceInt(this.ropts.diffSize, DefaultDiffSize)
+    }
+
+    /**
+     * Sets `reporterOption.diffSize`.
+     */
+    set diffSize(value) {
+        this.ropts.diffSize = value
+    }
+
+    /**
+     * The diff style (string): 'inline' if `opts.inlineDiffs` is true,
+     * otherwise 'unified'.
+     */
+    get diffStyle() {
+        return this.opts.inlineDiffs ? 'inline' : 'unified'
+    }
+
+    /**
+     * Sets `opts.inlineDiffs` to true iff the value is 'inline'.
+     */
+    set diffStyle(style) {
+        this.opts.inlineDiffs = style == 'inline'
+    }
+
+    /**
+     * The `diffNumLinesMin` reporter option (integer). If `opts.inlineDiffs`
+     * is false, then the value Infinity. String safe.
+     */
+    get diffNumLinesMin() {
+        if (!this.opts.inlineDiffs) {
+            return Infinity
+        }
+        return induceInt(this.ropts.diffNumLinesMin, DefaultDiffLinesMin)
+    }
+
+    /**
+     * Sets `reporterOption.diffNumLinesMin`.
+     */
+    set diffNumLinesMin(value) {
+        this.ropts.diffNumLinesMin = value
+    }
+
+    /**
+     * The `tabSize` reporter option (integer). String safe.
+     */
+    get tabSize() {
+        return induceInt(this.ropts.tabSize, DefaultTabSize)
+    }
+
+    /**
+     * Sets `reporterOption.tabSize`.
+     */
+    set tabSize(value) {
+        this.ropts.tabSize = value
+    }
+
+    /**
+     * The `groupErrors` reporter option (boolean). String safe.
+     */
+    get groupErrors() {
+        return induceBool(this.ropts.groupErrors, DefaultGroupErrors)
+    }
+
+    /**
+     * Sets `reporterOption.groupErrors`.
+     */
+    set groupErrors(value) {
+        this.ropts.groupErrors = value
     }
 
     /**
@@ -493,113 +578,43 @@ class BaseReporter extends Base {
     }
 
     /**
-     * Adapted from:
+     * Get the diff result.
      *
-     *   https://github.com/mochajs/mocha/blob/e044ef02/lib/reporters/base.js#L435
-     *
-     * Returns unified diff between two strings with coloured ANSI output.
-     * No indenting is applied.
-     *
-     * @param {string} The actual result
-     * @param {string} The expected result
-     * @return {string} The diff
+     * @param {string} The style, 'inline' or 'unified'
+     * @param {string} The actual text
+     * @param {string} The expected text
+     * @return {object} The diff result {head, body}
      */
-    _unifiedDiff(actual, expected) {
+    _diffResult(style, actual, expected) {
 
-        const chlk = this.chalks.diff.unified
+        const chlk = this.chalks.diff[style]
+        const numbers = lines => lines.length >= this.diffNumLinesMin
+        const dopts = {chlk, numbers}
 
-        const headerLine = [
-            chlk.added   ( '+ expected' )
-          , chlk.removed ( '- actual'   )
-        ].join(' ')
+        const head = style == 'inline'
+            ? sp(chlk.removed('actual'), chlk.added('expected'))
+            : sp(chlk.added('+ expected'), chlk.removed('- actual'))
 
-        const format = line => {
-            if (line[0] === '+') {
-                return chlk.added(line)
-            }
-            if (line[0] === '-') {
-                return chlk.removed(line)
-            }
-            if (line.match(/@@/)) {
-                return '--'
-            }
-            if (line.match(/\\ No newline/)) {
-                return null
-            }
-            return line
-        }
+        const body = Diffs[style](actual, expected, dopts)
 
-        const blanks = line => typeof line !== 'undefined' && line !== null
-
-        const patch = diff.createPatch('string', actual, expected)
-        const diffLines = patch.split('\n').splice(5).map(format).filter(blanks)
-
-        const lines = []
-
-        lines.push(headerLine)
-
-        lines.push('')
-        //lines.push('')
-
-        append(lines, diffLines)
-
-        return lines.join('\n')
+        return {head, body}
     }
 
     /**
-     * Adapted from:
+     * Produce a diff result for the UI when an internal error occurs.
      *
-     *  - https://github.com/mochajs/mocha/blob/e044ef02/lib/reporters/base.js#L398
-     *  - https://github.com/mochajs/mocha/blob/e044ef02/lib/reporters/base.js#L478
-     *
-     * Returns inline diff between 2 strings with coloured ANSI output.
-     * No indenting is applied.
-     *
-     * @private
-     * @param {String} actual
-     * @param {String} expected
-     * @return {string} Diff
+     * @param {Error} The error that occurred.
+     * @return {object} The diff result {head, body}
      */
-    _inlineDiff(actual, expected) {
+    _errorDiffResult(err) {
 
-        const chlk = this.chalks.diff.inline
+        const chlk = this.chalks.diff.unified
 
-        const headerLine = [
-            chlk.removed ( 'actual'   )
-          , chlk.added   ( 'expected' )
-        ].join(' ')
-
-        const changes = diff.diffWordsWithSpace(actual, expected)
-        const parts = changes.map(change => {
-            if (change.added) {
-                return chlk.added(change.value)
-            }
-            if (change.removed) {
-                return chlk.removed(change.value)
-            }
-            return change.value
-        })
-        const diffLines = parts.join('').split('\n')
-        const isLineNums = diffLines.length > 4
-        const numsWidth = String(diffLines.length).length
-
-        const lines = []
-
-        lines.push(headerLine)
-        //lines.push('')
-
-        append(lines, diffLines.map((str, i) => {
-            if (!isLineNums) {
-                return str
-            }
-            // Add line numbers.
-            const prefix = String(i + 1).padStart(numsWidth, ' ')
-            return [prefix, str].join(' | ')
-        }))
-
-        lines.push('')
-
-        return lines.join('\n')
+        const head = sp(
+            chlk.added('+ expected'),
+            chlk.removed ('- actual: failed to generate error diff'),
+        )
+        return {head, body: ''}
     }
 
     /**
@@ -610,7 +625,7 @@ class BaseReporter extends Base {
      * Get normalized message and stack info for an error.
      *
      * @param {Error} The error to parse
-     * @return {object} Strings {stack, message, rawMessagem, rawMatch}
+     * @return {object} Strings {stack, message, rawMessage, rawMatch}
      */
     _parseStack(err) {
 
@@ -639,7 +654,7 @@ class BaseReporter extends Base {
             }
         }
 
-        const rawMatch = (rawMessage.match(/^([^:]+): expected/) || [])[1] || ''
+        const rawMatch = matchIndex(rawMessage, RawMatchRegex, 1)
 
         return {stack, message, rawMessage, rawMatch}
     }
@@ -655,14 +670,13 @@ class BaseReporter extends Base {
      * @return {string} The normalized message
      */
     _rawErrorMessage(err) {
-        // Normalize raw error message.
-        let rawMessage = ''
+        let raw = ''
         if (typeof err.inspect == 'function') {
-            rawMessage += err.inspect()
+            raw += err.inspect()
         } else if (err.message && typeof err.message.toString == 'function') {
-            rawMessage += err.message
+            raw += err.message
         }
-        return rawMessage
+        return raw
     }
 }
 
@@ -716,8 +730,8 @@ class DefaultReporter extends BaseReporter {
     renderTestPass(test) {
         const chlk = this.chalks.test
         const parts = [
-            chlk.pass.symbol(this.symbols.ok)
-          , chlk.pass.title(test.title)
+            chlk.pass.symbol(this.symbols.ok),
+            chlk.pass.title(test.title),
         ]
         if (test.speed != 'fast') {
             parts.push(
@@ -742,7 +756,9 @@ class DefaultReporter extends BaseReporter {
     }
 
     /**
-     * Adapted from https://github.com/mochajs/mocha/blob/e044ef02/lib/reporters/base.js#L351
+     * Adapted from:
+     *
+     *   https://github.com/mochajs/mocha/blob/e044ef02/lib/reporters/base.js#L351
      *
      * Render the summary and errors after the test run is complete.
      *
@@ -751,33 +767,26 @@ class DefaultReporter extends BaseReporter {
     renderRunEnd() {
 
         const chlk = this.chalks.stats
-
+        const {stats} = this
         const tab = 2
 
-        const {stats} = this
-
-        const passLine = [
-            chlk.passes  ( `${stats.passes || 0} passing` )
-          , chlk.duration( `(${ms(stats.duration)})`      )
-        ].join(' ')
-        const pendLine = chlk.pending (`${stats.pending} pending`)
-        const failLine = chlk.failures(`${stats.failures} failing`)
+        const stLines = this.getStatsLines(stats)
 
         const lines = []
 
         lines.push('')
 
         // Passing
-        lines.push(this.indentLine(passLine, tab))
+        lines.push(this.indentLine(stLines.passes, tab))
 
         // Pending
         if (stats.pending) {
-            lines.push(this.indentLine(pendLine, tab))
+            lines.push(this.indentLine(stLines.pending, tab))
         }
 
         // Failures
         if (stats.failures) {
-            lines.push(this.indentLine(failLine, tab))
+            lines.push(this.indentLine(stLines.failures, tab))
             append(lines, this.renderFailures(this.failures, tab).split('\n'))
             lines.push('')
         }
@@ -788,12 +797,14 @@ class DefaultReporter extends BaseReporter {
     }
 
     /**
-     * Adapted from https://github.com/mochajs/mocha/blob/e044ef02/lib/reporters/base.js#L223
+     * Adapted from:
+     *
+     *   https://github.com/mochajs/mocha/blob/e044ef02/lib/reporters/base.js#L223
      *
      * Render test failures.
      *
      * @param {array} Test instances with corresponding `err` property
-     * @param {integer} (optional) The start tab level, default is 0.
+     * @param {integer} (optional) The start tab level, default is 0
      * @return {string} The rendered lines
      */
     renderFailures(failures, tab = 0) {
@@ -801,11 +812,10 @@ class DefaultReporter extends BaseReporter {
         tab = tab || 0
 
         const chlk = this.chalks.error
+        const {groupErrors} = this
+
         const lines = []
 
-        const {groupErrors} = this.ropts
-
-        
         lines.push('')
 
         failures.forEach((test, i) => {
@@ -816,42 +826,34 @@ class DefaultReporter extends BaseReporter {
             const {first, others} = this.getFailedTestLines(test, i + 1)
             const common = [
                 // Root suite title with number prefix.
-                this.indentLine(  first  , tab)
+                this.indentLine(  first  , tab),
                 // Successively indent the other lines of the test path.
-              , this.indentLines( others , tab + 1, 1)
+                this.indentLines( others , tab + 1, 1),
             ].flat()
 
             common.push('')
-
-            if (groupErrors) {
-                // Log test info once.
-                append(lines, common)
-            }
 
             errs.forEach((err, eidx) => {
 
                 // Error lines.
                 const {message, diff, stack} = this.getErrorLines(err)
 
-                if (groupErrors) {
-                    if (eidx > 0) {
-                        append(lines,
-                            this.indentLines(this.getWarnMulipleLines(), tab + 2)
-                        )
-                    }
+                if (groupErrors && eidx > 0) {
+                    // Show warning line instead of test info after first error.
+                    const warning = this.getWarnMulipleLines()
+                    append(lines, this.indentLines(warning, tab + 2))
                 } else {
-                    // Repeat test info.
+                    // Repeat test info for each error.
                     append(lines, common)
                 }
 
-                append(
-                    lines, [
+                append(lines, [
                     // The error message.
-                    this.indentLines( message , tab + 2)
+                    this.indentLines( message , tab + 2),
                     // The diff, if any.
-                  , this.indentLines( diff    , tab + 2)
+                    this.indentLines( diff    , tab + 2),
                     // The error stack.
-                  , this.indentLines( stack   , tab)
+                    this.indentLines( stack   , tab),
                 ].flat())
 
                 lines.push('')
