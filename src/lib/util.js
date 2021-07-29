@@ -475,6 +475,10 @@ class Util {
         return Util.breakLines(content.split('\n'), width).flat().join('\n')
     }
 
+    static getOrCall(thing, ...args) {
+        return typeof thing == 'function' ? thing(...args) : thing
+    }
+
     /**
      * Alias for `createHash()`
      *
