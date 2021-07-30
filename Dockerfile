@@ -22,4 +22,5 @@ RUN rm -rf .git
 
 USER node
 
-CMD gameon server
+CMD gameon
+#server
