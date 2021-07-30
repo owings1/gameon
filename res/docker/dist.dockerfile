@@ -13,3 +13,4 @@ USER node
 COPY --chown=node:node . .
 
 RUN npm install
+RUN npm run compile

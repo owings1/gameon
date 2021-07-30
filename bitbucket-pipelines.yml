@@ -15,4 +15,5 @@ pipelines:
             script:
               - apk add python3 build-base
               - npm install --unsafe-perm
+              - npm run compile
               - FORCE_COLOR=2 npm test
