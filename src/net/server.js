@@ -91,9 +91,8 @@ class Server {
     /**
      * Get the default options.
      *
-     * @param object (optional) The environment variables.
-     *
-     * @return object The default options
+     * @param {object} (optional) The environment variables
+     * @return {object} The default options
      */
     static defaults(env) {
         return {
@@ -103,11 +102,10 @@ class Server {
     }
 
     /**
-     * Constructor
+     * @constructor
      *
-     * @param object (optional) The options
-     *
-     * @throws TypeError
+     * @param {object} (optional) The options
+     * @throws {TypeError}
      */
     constructor(opts) {
 
@@ -134,9 +132,8 @@ class Server {
     /**
      * @async
      *
-     * @param integer (optional)
-     * @param integer (optional)
-     *
+     * @param {integer} (optional)
+     * @param {integer} (optional)
      */
     async listen(port, metricsPort) {
 
@@ -171,11 +168,10 @@ class Server {
     }
 
     /**
-     * @param boolean (optional)
-     *
-     * @returns self
+     * @param {boolean} (optional)
+     * @return self
      */
-    close(isSkipLog) {
+    close(isSkipLog = false) {
         if (!isSkipLog) {
             this.logger.info('Shutting down server')
         }
@@ -206,8 +202,7 @@ class Server {
     }
 
     /**
-     *
-     * @return Function Express app
+     * @return {function} Express app
      */
     createApp() {
 
@@ -233,8 +228,7 @@ class Server {
     }
 
     /**
-     *
-     * @return Function Express app
+     * @return {function} Express app
      */
     createMetricsApp() {
 
@@ -255,7 +249,7 @@ class Server {
     }
 
     /**
-     * @return object Prometheus metrics
+     * @return {object} Prometheus metrics
      */
     createMetrics() {
         return {
@@ -295,17 +289,15 @@ class Server {
     /**
      * @async
      *
-     * @return object
+     * @return {object}
      */
     fetchMetrics() {
         return this.promRegistry.metrics()
     }
 
     /**
-     *
-     * @param http.Server
-     *
-     * @return WebSocketServer
+     * @param {http.Server}
+     * @return {WebSocketServer}
      */
     createSocketServer(httpServer) {
 
@@ -381,10 +373,9 @@ class Server {
      *
      * @async
      *
-     * @param WebSocketConnection The client connection
-     * @param object The request data
-     *
-     * @returns undefined
+     * @param {WebSocketConnection} The client connection
+     * @param {object} The request data
+     * @return {undefined}
      */
     async response(conn, req) {
 
@@ -439,15 +430,14 @@ class Server {
     /**
      * @async
      *
-     * @param WebSocketConnection The client connection
-     * @param object The request data
+     * @throws {AuthError}
+     * @throws {InternalError}
+     * @throws {RequestError}
+     * @throws {ValidateError}
      *
-     * @throws AuthError
-     * @throws InternalError
-     * @throws RequestError
-     * @throws ValidateError
-     *
-     * @returns undefined
+     * @param {WebSocketConnection} The client connection
+     * @param {object} The request data
+     * @return {undefined}
      */
     async handshakeResponse(conn, req) {
 
@@ -491,12 +481,11 @@ class Server {
     /**
      * Handle a createMatch response.
      *
-     * @param WebSocketConnection The client connection
-     * @param object The request data
+     * @throws {ValidateError}
      *
-     * @throws ValidateError
-     *
-     * @returns undefined
+     * @param {WebSocketConnection} The client connection
+     * @param {object} The request data
+     * @return {undefined}
      */
     matchCreateResponse(conn, req) {
 
@@ -530,19 +519,18 @@ class Server {
     }
 
     /**
-     * Handle a joinMatch response. On success, this will send a `matchJoined`
+     * Handle a `joinMatch` response. On success, this will send a `matchJoined`
      * response to the requester (Red) with the match information, and an
      * `opponentJoined` response to the waiting match creator (White) with
      * the match ID.
      *
-     * @param WebSocketConnection The client connection
-     * @param object The request data
+     * @throws {RequestError.MatchAlreadyJoinedError}
+     * @throws {RequestError.MatchNotFoundError}
+     * @throws {ValidateError}
      *
-     * @throws RequestError.MatchAlreadyJoinedError
-     * @throws RequestError.MatchNotFoundError
-     * @throws ValidateError
-     *
-     * @returns undefined
+     * @param {WebSocketConnection} The client connection
+     * @param {object} The request data
+     * @return {undefined}
      */
     matchJoinResponse(conn, req) {
 
@@ -578,16 +566,16 @@ class Server {
      * internally, only the request data is needed.
      *
      * Error Responses:
-     *  - RequestError
-     *  - ValidateError
      *
-     * @param object The request data
+     *   ❯ RequestError
+     *   ❯ ValidateError
      *
-     * @throws RequestError.HandshakeError
-     * @throws RequestError.MatchNotFoundError
-     * @throws ValidateError
+     * @throws {RequestError.HandshakeError}
+     * @throws {RequestError.MatchNotFoundError}
+     * @throws {ValidateError}
      *
-     * @returns undefined
+     * @param {object} The request data
+     * @return {undefined}
      */
     matchPlayResponse(req) {
 
@@ -781,10 +769,9 @@ class Server {
     /**
      * Send a message to one or more socket connections.
      *
-     * @param WebSocketConnection|array The connection, or array of connections
-     * @param object The message data
-     *
-     * @returns boolean Whether all messages were send successfully
+     * @param {WebSocketConnection|array} The connection, or array of connections
+     * @param {object} The message data
+     * @return {boolean} Whether all messages were send successfully
      */
     sendMessage(conns, data) {
 
@@ -825,9 +812,8 @@ class Server {
      * Check if a match is finished, and update the match score. If the match
      * is finished, delete the match from the stored matches.
      *
-     * @param Match The match to check
-     *
-     * @returns boolean Whether the match is finished
+     * @param {Match} The match to check
+     * @return {boolean} Whether the match is finished
      */
     checkMatchFinished(match) {
         if (match.thisGame && match.thisGame.checkFinished()) {
@@ -847,6 +833,7 @@ class Server {
 
     /**
      * Log the current active connection information.
+     * @return {undefined}
      */
     logActive() {
         const numConns = this.socketServer ? Object.keys(this.socketServer.conns).length : 0
@@ -856,10 +843,9 @@ class Server {
 
     /**
      *
-     * @param string The match ID
-     * @param string The reference object (reason, attrs)
-     *
-     * @returns self
+     * @param {string} The match ID
+     * @param {string} The reference object {reason, attrs}
+     * @return self
      */
     cancelMatchId(id, {reason, attrs}) {
         const match = this.matches[id]
@@ -874,14 +860,12 @@ class Server {
     }
 
     /**
+     * @throws {RequestError.HandshakeError}
+     * @throws {RequestError.MatchNotFoundError}
+     * @throws {ValidateError}
      *
-     * @param object The request data
-     *
-     * @throws RequestError.HandshakeError
-     * @throws RequestError.MatchNotFoundError
-     * @throws ValidateError
-     *
-     * @returns Match The match from the stored matches
+     * @param {object} The request data
+     * @return {Match} The match from the stored matches
      */
     getMatchForRequest(req) {
         const {id, color, secret} = req
@@ -902,9 +886,8 @@ class Server {
     /**
      * Safely close connection(s).
      *
-     * @param WebSocketConnection|array The connection, or array of connections
-     *
-     * @returns self
+     * @param {WebSocketConnection|array} The connection, or array of connections
+     * @return self
      */
     closeConn(conns) {
 
@@ -923,7 +906,7 @@ class Server {
     }
 
     /**
-     * Getter for loglevel (integer).
+     * The loglevel (integer).
      */
     get loglevel() {
         return this.logger.loglevel
@@ -942,11 +925,10 @@ class Server {
     /**
      * Validate a color string.
      *
-     * @param string The color string to test
+     * @throws {ValidateError}
      *
-     * @throws ValidateError
-     *
-     * @returns string The color string
+     * @param {string} The color string to test
+     * @return {string} The color string
      */
     static validateColor(color) {
         if (color != White && color != Red) {
@@ -958,11 +940,10 @@ class Server {
     /**
      * Validate a match ID string.
      *
-     * @param string The string to test.
+     * @throws {ValidateError}
      *
-     * @throws ValidateError
-     *
-     * @returns string The match ID string
+     * @param {string} The string to test
+     * @return {string} The match ID string
      */
     static validateMatchId(str) {
         if (!str || typeof str != 'string' || str.length != 8) {
@@ -974,11 +955,10 @@ class Server {
     /**
      * Validate a client secret string.
      *
-     * @param string The string to test.
+     * @throws {ValidateError}
      *
-     * @throws ValidateError
-     *
-     * @returns string The secret string
+     * @param {string} The string to test
+     * @return {string} The secret string
      */
     static validateSecret(str) {
         if (!str || typeof str != 'string' || str.length != 64) {
@@ -990,7 +970,7 @@ class Server {
     /**
      * Generate a new connection ID.
      *
-     * @return string The connection ID
+     * @return {string} The connection ID
      */
     static newConnectionId() {
         return uuid()
@@ -999,11 +979,10 @@ class Server {
     /**
      * Generate a match ID from a client secret.
      *
-     * @param string The client secret.
+     * @throws {ValidateError}
      *
-     * @throws ValidateError
-     *
-     * @returns string The 8-character match ID
+     * @param {string} The client secret
+     * @return {string} The 8-character match ID
      */
     static matchIdFromSecret(str) {
         Server.validateSecret(str)

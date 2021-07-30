@@ -29,21 +29,21 @@ const {InvalidRollError, InvalidRollDataError} = require('./errors')
 class Dice {
 
     /**
-     * @returns integer
+     * @return integer
      */
     static rollOne() {
         return Math.ceil(Math.random() * 6)
     }
 
     /**
-     * @returns Array[integer]
+     * @return Array[integer]
      */
     static rollTwo() {
         return [Dice.rollOne(), Dice.rollOne()]
     }
 
     /**
-     * @returns Array[integer]
+     * @return Array[integer]
      */
     static faces(roll) {
         const faces = [roll[0], roll[1]]
@@ -99,7 +99,7 @@ class Dice {
     }
 
     /**
-     * @returns string
+     * @return string
      */
     static getWinner(dice) {
         if (dice[0] == dice[1]) {
@@ -109,7 +109,7 @@ class Dice {
     }
 
     /**
-     * @returns Array[Array[integer]]
+     * @return Array[Array[integer]]
      */
     static sequencesForFaces(faces) {
         if (faces.length == 2) {
@@ -124,7 +124,7 @@ class Dice {
     }
 
     /**
-     * @returns Function
+     * @return Function
      */
     static createRoller(rolls) {
         let rollIndex = 0
@@ -140,7 +140,7 @@ class Dice {
     /**
      * @throws ArgumentError.InvalidRollDataError
      *
-     * @returns Object
+     * @return Object
      */
     static validateRollsData(data) {
         if (!Array.isArray(data.rolls)) {

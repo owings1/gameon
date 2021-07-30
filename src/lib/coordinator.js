@@ -161,7 +161,7 @@ class Coordinator {
     /**
      * Get the default options.
      *
-     * @returns {object} The default options
+     * @return {object} The default options
      */
     static defaults() {
         return {
@@ -205,7 +205,7 @@ class Coordinator {
      *
      * @throws Error
      *
-     * @returns {undefined}
+     * @return {undefined}
      */
     async runMatch(match, ...players) {
 
@@ -269,7 +269,7 @@ class Coordinator {
      *
      * @throws Error
      *
-     * @returns undefined
+     * @return undefined
      */
     async runGame(players, game, match) {
 
@@ -355,7 +355,7 @@ class Coordinator {
      *
      * @throws Error
      *
-     * @returns {undefined}
+     * @return {undefined}
      */
     cancelMatch(match, players, err) {
         match.cancel(err)
@@ -369,7 +369,7 @@ class Coordinator {
      *
      * @throws Error
      *
-     * @returns {undefined}
+     * @return {undefined}
      */
     checkCancel(...args) {
         for (let i = 0; i < args.length; ++i) {
@@ -390,7 +390,7 @@ class Coordinator {
      *
      * @throws Error
      *
-     * @returns {undefined}
+     * @return {undefined}
      */
     async recordMatch(match, file, players) {
         const dir = path.dirname(file)
@@ -416,7 +416,7 @@ class Coordinator {
      *
      * @throws Error
      *
-     * @returns {undefined}
+     * @return {undefined}
      */
     async recordGame(game, file) {
         const dir = path.dirname(file)
@@ -438,7 +438,7 @@ class Coordinator {
      *
      * @throws Error
      *
-     * @returns {undefined}
+     * @return {undefined}
      */
     async emitWaitAndCheck(players, event, ...args) {
         await this.emitAndWait(players, event, ...args)
@@ -456,7 +456,7 @@ class Coordinator {
      *
      * @throws Error
      *
-     * @returns {undefined}
+     * @return {undefined}
      */
     async emitAndWait(players, event, ...args) {
         this.logger.debug('emitAndWait', event)
@@ -519,7 +519,7 @@ class Coordinator {
      *
      * @param {Match}
      *
-     * @returns {string}
+     * @return {string}
      */
     getMatchDir(match) {
         const dateString = fileDateString(match.createDate).substring(0, 19)
@@ -550,7 +550,7 @@ class Coordinator {
      * @param {Player} (optional) The Red player, if the White player was
      *        passed as the first argument.
      *
-     * @returns {object} Players map {White: Player, Red: Player}
+     * @return {object} Players map {White: Player, Red: Player}
      */
     static buildPlayers(white, red) {
         const players = {}

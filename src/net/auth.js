@@ -100,9 +100,9 @@ class Auth {
     /**
      * Get the default options.
      *
-     * @param object (optional) The environment variables.
+     * @param {object} (optional) The environment variables.
      *
-     * @returns object The default options.
+     * @return {object} The default options.
      */
     static defaults(env) {
         const opts = {
@@ -127,13 +127,12 @@ class Auth {
     /**
      * Create an Auth instance with the implementation instance.
      *
-     * @param object (optional) The combined auth and impl options, with a key
+     * @param {object} (optional) The combined auth and impl options, with a key
      *       `authType` specifying the implmentation (directory, s3, anonymous).
-     * @param object (optional) The environment variables.
+     * @param {object} (optional) The environment variables.
      *
-     * @throws TypeError
-     *
-     * @returns Auth The auth instance.
+     * @throws {TypeError}     *
+     * @return Auth The auth instance.
      */
     static create(opts, env) {
         env = env || process.env
@@ -145,7 +144,7 @@ class Auth {
 
     /**
      * @param AuthImpl The implementation instance.
-     * @param object (optional) The options.
+     * @param {object} (optional) The options.
      *
      * @throws Error
      */
@@ -181,16 +180,14 @@ class Auth {
      *
      * @async
      *
-     * @param string The username
-     * @param string The password
+     * @param {string} The username
+     * @param {string} The password
      *
      * @throws AuthError.BadCredentialsError
      * @throws AuthError.UserLockedError
      * @throws AuthError.UserNotConfirmedError
-     * @throws InternalError
-     * @throws ValidateError
-     *
-     * @returns object The user data with `passwordEncrypted` and `token` keys
+     * @throws {InternalError}     * @throws {ValidateError}     *
+     * @return {object} The user data with `passwordEncrypted` and `token` keys
      */
     async authenticate(username, password) {
 
@@ -239,15 +236,12 @@ class Auth {
      *
      * @async
      *
-     * @param string The new username
-     * @param string The password
+     * @param {string} The new username
+     * @param {string} The password
      * @param boolean (optional) Whether to create the user as already confirmed
      *
-     * @throws AuthError
-     * @throws InternalError
-     * @throws ValidateError
-     *
-     * @returns object The user data with `passwordEncrypted` and `token` keys
+     * @throws {AuthError}     * @throws {InternalError}     * @throws {ValidateError}     *
+     * @return {object} The user data with `passwordEncrypted` and `token` keys
      */
     async createUser(username, password, confirmed = false) {
 
@@ -287,13 +281,10 @@ class Auth {
      *
      * @async
      *
-     * @param string The username
+     * @param {string} The username
      *
-     * @throws AuthError
-     * @throws InternalError
-     * @throws ValidateError
-     *
-     * @returns object The user data
+     * @throws {AuthError}     * @throws {InternalError}     * @throws {ValidateError}     *
+     * @return {object} The user data
      */
     async readUser(username) {
         username = this.validateUsername(username)
@@ -305,13 +296,10 @@ class Auth {
      *
      * @async
      *
-     * @param string The username
+     * @param {string} The username
      *
-     * @throws AuthError
-     * @throws InternalError
-     * @throws ValidateError
-     *
-     * @returns boolean Whether the user exists
+     * @throws {AuthError}     * @throws {InternalError}     * @throws {ValidateError}     *
+     * @return {boolean} Whether the user exists
      */
     async userExists(username) {
         username = this.validateUsername(username)
@@ -323,10 +311,8 @@ class Auth {
      *
      * @async
      *
-     * @throws AuthError
-     * @throws InternalError
-     *
-     * @returns array[string]
+     * @throws {AuthError}     * @throws {InternalError}     *
+     * @return array[string]
      */
     async listAllUsers() {
         return this.wrapInternalError(() => this.impl.listAllUsers())
@@ -337,13 +323,10 @@ class Auth {
      *
      * @async
      *
-     * @param string The username
+     * @param {string} The username
      *
-     * @throws AuthError
-     * @throws InternalError
-     * @throws ValidateError
-     *
-     * @returns undefined
+     * @throws {AuthError}     * @throws {InternalError}     * @throws {ValidateError}     *
+     * @return undefined
      */
     async deleteUser(username) {
         if (!(await this.userExists(username))) {
@@ -359,13 +342,10 @@ class Auth {
      *
      * @async
      *
-     * @param string The username
+     * @param {string} The username
      *
-     * @throws AuthError
-     * @throws InternalError
-     * @throws ValidateError
-     *
-     * @returns object The user data
+     * @throws {AuthError}     * @throws {InternalError}     * @throws {ValidateError}     *
+     * @return {object} The user data
      */
     async sendConfirmEmail(username) {
 
@@ -417,13 +397,10 @@ class Auth {
      *
      * @async
      *
-     * @param string The username
+     * @param {string} The username
      *
-     * @throws AuthError
-     * @throws InternalError
-     * @throws ValidateError
-     *
-     * @returns object The user data
+     * @throws {AuthError}     * @throws {InternalError}     * @throws {ValidateError}     *
+     * @return {object} The user data
      */
     async sendResetEmail(username) {
 
@@ -474,14 +451,11 @@ class Auth {
      *
      * @async
      *
-     * @param string The username
-     * @param string The confirm key
+     * @param {string} The username
+     * @param {string} The confirm key
      *
-     * @throws AuthError
-     * @throws InternalError
-     * @throws ValidateError
-     *
-     * @returns object The user data
+     * @throws {AuthError}     * @throws {InternalError}     * @throws {ValidateError}     *
+     * @return {object} The user data
      */
     async confirmUser(username, confirmKey) {
 
@@ -516,15 +490,12 @@ class Auth {
      *
      * @async
      *
-     * @param string The username
-     * @param string The new password
-     * @param string The reset key
+     * @param {string} The username
+     * @param {string} The new password
+     * @param {string} The reset key
      *
-     * @throws AuthError
-     * @throws InternalError
-     * @throws ValidateError
-     *
-     * @returns object The user data
+     * @throws {AuthError}     * @throws {InternalError}     * @throws {ValidateError}     *
+     * @return {object} The user data
      */
     async resetPassword(username, password, resetKey) {
 
@@ -563,15 +534,12 @@ class Auth {
      *
      * @async
      *
-     * @param string The username
-     * @param string The old password
-     * @param string The new password
+     * @param {string} The username
+     * @param {string} The old password
+     * @param {string} The new password
      *
-     * @throws AuthError
-     * @throws InternalError
-     * @throws ValidateError
-     *
-     * @returns object The user data
+     * @throws {AuthError}     * @throws {InternalError}     * @throws {ValidateError}     *
+     * @return {object} The user data
      */
     async changePassword(username, oldPassword, newPassword) {
 
@@ -604,13 +572,10 @@ class Auth {
      *
      * @async
      *
-     * @param string The username
+     * @param {string} The username
      *
-     * @throws AuthError
-     * @throws InternalError
-     * @throws ValidateError
-     *
-     * @returns object The user data
+     * @throws {AuthError}     * @throws {InternalError}     * @throws {ValidateError}     *
+     * @return {object} The user data
      */
     async lockUser(username) {
 
@@ -632,7 +597,7 @@ class Auth {
      *
      * @async
      *
-     * @param string The username
+     * @param {string} The username
      */
     async unlockUser(username) {
 
@@ -652,11 +617,11 @@ class Auth {
     // Validation
 
     /**
-     * @param string The username to test
+     * @param {string} The username to test
      *
      * @throws RequestError.ValidateError
      *
-     * @returns string The username lowercased
+     * @return {string} The username lowercased
      */
     validateUsername(str) {
         const Msg = ValidateMessages
@@ -674,11 +639,11 @@ class Auth {
     }
 
     /**
-     * @param string The password to test
+     * @param {string} The password to test
      *
      * @throws RequestError.ValidateError
      *
-     * @returns string The input string
+     * @return {string} The input string
      */
     validatePassword(str) {
         const {opts} = this
@@ -701,11 +666,11 @@ class Auth {
     /**
      * Assert the user is confirmed.
      *
-     * @param object The user data
+     * @param {object} The user data
      *
      * @throws AuthError.UserNotConfirmedError
      *
-     * @returns self
+     * @return self
      */
     assertConfirmed(user) {
         if (!user.confirmed) {
@@ -717,11 +682,11 @@ class Auth {
     /**
      * Assert the user is not confirmed.
      *
-     * @param object The user data
+     * @param {object} The user data
      *
      * @throws AuthError.UserConfirmedError
      *
-     * @returns self
+     * @return self
      */
     assertNotConfirmed(user) {
         if (user.confirmed) {
@@ -733,11 +698,11 @@ class Auth {
     /**
      * Assert the user is not locked.
      *
-     * @param object The user data
+     * @param {object} The user data
      *
      * @throws AuthError.UserLockedError
      *
-     * @returns self
+     * @return self
      */
     assertNotLocked(user) {
         if (user.locked) {
@@ -751,9 +716,9 @@ class Auth {
     /**
      * Hash a password.
      *
-     * @param string The password to hash
+     * @param {string} The password to hash
      *
-     * @returns string The hased password
+     * @return {string} The hased password
      */
     hashPassword(password) {
         return hash(this.opts.hash, password + this.opts.salt, 'base64')
@@ -762,10 +727,10 @@ class Auth {
     /**
      * Compare a plain input to a stored hash.
      *
-     * @param string The plain text input
-     * @param string The stored hashed string
+     * @param {string} The plain text input
+     * @param {string} The stored hashed string
      *
-     * @returns boolean Whether they match
+     * @return {boolean} Whether they match
      */
     checkHashed(input, stored) {
         return Boolean(
@@ -774,9 +739,9 @@ class Auth {
     }
 
     /**
-     * @param string The password string to test
+     * @param {string} The password string to test
      *
-     * @returns boolean Whether it is an encrypted password string
+     * @return {boolean} Whether it is an encrypted password string
      */
     isEncryptedPassword(password) {
         return password && password.indexOf(EncryptedFlagPrefix) == 0
@@ -785,11 +750,10 @@ class Auth {
     /**
      * Encrypt a password.
      *
-     * @param string The password to encrypt
+     * @param {string} The password to encrypt
      *
-     * @throws ArgumentError
-     *
-     * @returns string The encrypted password
+     * @throws {ArgumentError}     *
+     * @return {string} The encrypted password
      */
     encryptPassword(password) {
         return EncryptedFlagPrefix + encrypt2(password, this.saltMd5)
@@ -798,11 +762,10 @@ class Auth {
     /**
      * Decrypt an encrypted password string.
      *
-     * @param string The encrypted string
+     * @param {string} The encrypted string
      *
-     * @throws ArgumentError
-     *
-     * @returns string The decrypted password
+     * @throws {ArgumentError}     *
+     * @return {string} The decrypted password
      */
     decryptPassword(passwordEncrypted) {
         return decrypt2(passwordEncrypted.substring(EncryptedFlagPrefix.length), this.saltMd5)
@@ -811,12 +774,11 @@ class Auth {
     /**
      * Get an encrypted token string for credentials.
      *
-     * @param string The username
-     * @param string The password
+     * @param {string} The username
+     * @param {string} The password
      *
-     * @throws ArgumentError
-     *
-     * @returns string The encrypted token string
+     * @throws {ArgumentError}     *
+     * @return {string} The encrypted token string
      */
     getToken(username, password) {
         return this.encryptPassword([username, password].join('\t'))
@@ -825,11 +787,10 @@ class Auth {
     /**
      * Parse an encrypted token string into credentials.
      *
-     * @param string Then encrypted token string
+     * @param {string} Then encrypted token string
      *
-     * @throws ArgumentError
-     *
-     * @returns object The credentials
+     * @throws {ArgumentError}     *
+     * @return {object} The credentials
      */
     parseToken(token) {
         const [username, password] = this.decryptPassword(token).split('\t')
@@ -839,7 +800,7 @@ class Auth {
     /**
      * Generate a new confirm key.
      *
-     * @returns string The new confirm key
+     * @return {string} The new confirm key
      */
     generateConfirmKey() {
         return hash(this.opts.hash, uuid() + this.opts.salt, 'hex')
@@ -850,14 +811,11 @@ class Auth {
      *
      * @async
      *
-     * @param string The username
-     * @param object The user data
+     * @param {string} The username
+     * @param {object} The user data
      *
-     * @throws AuthError
-     * @throws InternalError
-     * @throws ValidateError
-     *
-     * @returns undefined
+     * @throws {AuthError}     * @throws {InternalError}     * @throws {ValidateError}     *
+     * @return undefined
      */
     _updateUser(username, user) {
         username = this.validateUsername(username)
@@ -872,10 +830,8 @@ class Auth {
      *
      * @param function The callback to execute
      *
-     * @throws AuthError
-     * @throws InternalError
-     *
-     * @returns The return value of the callback
+     * @throws {AuthError}     * @throws {InternalError}     *
+     * @return The return value of the callback
      */
     async wrapInternalError(cb) {
         try {
@@ -892,10 +848,9 @@ class Auth {
     /**
      * Ensure the defaults are not used in production environments.
      *
-     * @throws SecurityError
-     *
+     * @throws {SecurityError}     *
      * @param {object} (optional) The environment variables
-     * @returns {boolean} Whether all values are custom
+     * @return {boolean} Whether all values are custom
      */
     _checkSecurity(env) {
 

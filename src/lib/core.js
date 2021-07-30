@@ -100,7 +100,7 @@ const Profiler = Util.Profiler.getDefaultInstance()
 class Match {
 
     /**
-     * @returns object
+     * @return {object}
      */
     static defaults() {
         return {
@@ -116,10 +116,9 @@ class Match {
 
     /**
      * @param integer
-     * @param object (optional)
+     * @param {object} (optional)
      *
-     * @throws ArgumentError
-     */
+     * @throws {ArgumentError}     */
     constructor(total, opts) {
 
         if (!Number.isInteger(total) || total < 1) {
@@ -147,7 +146,7 @@ class Match {
      * @throws GameError.IllegalStateError.GameNotFinishedError
      * @throws GameError.IllegalStateError.MatchFinishedError
      *
-     * @returns Game
+     * @return Game
      */
     nextGame() {
 
@@ -184,7 +183,7 @@ class Match {
     }
 
     /**
-     * @returns self
+     * @return self
      */
     updateScore() {
         for (var color in Colors) {
@@ -200,7 +199,7 @@ class Match {
     }
 
     /**
-     * @returns self
+     * @return self
      */
     cancel(err) {
         if (this.checkFinished()) {
@@ -216,7 +215,7 @@ class Match {
     }
 
     /**
-     * @returns boolean
+     * @return boolean
      */
     checkFinished() {
         if (this.isFinished) {
@@ -233,14 +232,14 @@ class Match {
     }
 
     /**
-     * @returns boolean
+     * @return boolean
      */
     hasWinner() {
         return this.getWinner() != null
     }
 
     /**
-     * @returns string|null
+     * @return string|null
      */
     getWinner() {
         for (var color in Colors) {
@@ -252,7 +251,7 @@ class Match {
     }
 
     /**
-     * @returns string|null
+     * @return string|null
      */
     getLoser() {
         if (this.hasWinner()) {
@@ -262,7 +261,7 @@ class Match {
     }
 
     /**
-     * @returns object
+     * @return {object}
      */
     meta() {
         return {
@@ -281,7 +280,7 @@ class Match {
     }
 
     /**
-     * @returns object
+     * @return {object}
      */
     serialize() {
         return Match.serialize(this)
@@ -290,7 +289,7 @@ class Match {
     /**
      * @param Match
      *
-     * @returns object
+     * @return {object}
      */
     static serialize(match) {
         const games = match.games.map(Game.serialize)
@@ -300,7 +299,7 @@ class Match {
     /**
      * @param object
      *
-     * @returns Match
+     * @return Match
      */
     static unserialize(data) {
         const match = new Match(data.total, data.opts)
@@ -328,7 +327,7 @@ class Match {
 class Game {
 
     /**
-     * @returns object
+     * @return {object}
      */
     static defaults() {
         return {
@@ -343,10 +342,9 @@ class Game {
     }
 
     /**
-     * @param object (optional)
+     * @param {object} (optional)
      *
-     * @throws TypeError
-     */
+     * @throws {TypeError}     */
     constructor(opts) {
 
         this.opts  = defaults(Game.defaults(), opts)
@@ -380,7 +378,7 @@ class Game {
     /**
      * @param string
      *
-     * @returns boolean
+     * @return boolean
      */
     canDouble(color) {
         if (!this.opts.cubeEnabled) {
@@ -400,7 +398,7 @@ class Game {
      * @throws GameError.IllegalStateError.GameFinishedError
      * @throws GameError.IllegalStateError.GameNotStartedError
      *
-     * @returns self
+     * @return self
      */
     double() {
         if (this.isFinished) {
@@ -426,7 +424,7 @@ class Game {
      * @throws GameError.IllegalStateError.GameAlreadyStartedError
      * @throws GameError.IllegalStateError.GameFinishedError
      *
-     * @returns Turn
+     * @return Turn
      */
     firstTurn() {
 
@@ -461,7 +459,7 @@ class Game {
      * @throws GameError.IllegalStateError.GameNotStartedError
      * @throws GameError.IllegalStateError.TurnNotFinishedError
      *
-     * @returns Turn|null
+     * @return Turn|null
      */
     nextTurn() {
         if (this.isFinished) {
@@ -489,7 +487,7 @@ class Game {
     }
 
     /**
-     * @returns boolean
+     * @return boolean
      */
     hasWinner() {
         this.checkFinished()
@@ -497,7 +495,7 @@ class Game {
     }
 
     /**
-     * @returns string|null
+     * @return string|null
      */
     getWinner() {
         this.checkFinished()
@@ -505,7 +503,7 @@ class Game {
     }
 
     /**
-     * @returns string|null
+     * @return string|null
      */
     getLoser() {
         const winner = this.getWinner()
@@ -513,7 +511,7 @@ class Game {
     }
 
     /**
-     * @returns self
+     * @return self
      */
     cancel(err) {
         if (this.checkFinished()) {
@@ -531,7 +529,7 @@ class Game {
     }
 
     /**
-     * @returns boolean
+     * @return boolean
      */
     checkFinished() {
         if (this.isFinished) {
@@ -574,14 +572,14 @@ class Game {
     }
 
     /**
-     * @returns integer
+     * @return integer
      */
     getTurnCount() {
         return this.turnHistory.length + +!!this.thisTurn
     }
 
     /**
-     * @returns object
+     * @return {object}
      */
     meta() {
         return {
@@ -602,7 +600,7 @@ class Game {
     }
 
     /**
-     * @returns object
+     * @return {object}
      */
     serialize() {
         return Game.serialize(this)
@@ -611,7 +609,7 @@ class Game {
     /**
      * @param Game
      *
-     * @returns object
+     * @return {object}
      */
     static serialize(game) {
         const data = game.meta()
@@ -625,7 +623,7 @@ class Game {
     /**
      * @param object
      *
-     * @returns Game
+     * @return Game
      */
     static unserialize(data) {
 
@@ -655,7 +653,7 @@ class Game {
 class Turn {
 
     /**
-     * @returns object
+     * @return {object}
      */
     static defaults() {
         return {
@@ -667,10 +665,9 @@ class Turn {
     /**
      * @param Board
      * @param string
-     * @param object (optional)
+     * @param {object} (optional)
      *
-     * @throws TypeError
-     */
+     * @throws {TypeError}     */
     constructor(board, color, opts) {
 
         this.board      = board
@@ -710,7 +707,7 @@ class Turn {
      * @throws GameError.IllegalStateError.TurnCanceledError
      * @throws GameError.IllegalStateError.AlreadyRolledError
      *
-     * @returns self
+     * @return self
      */
     setDoubleOffered() {
 
@@ -730,7 +727,7 @@ class Turn {
      * @throws GameError.IllegalStateError.AlreadyRolledError
      * @throws GameError.IllegalStateError.HasNotDoubledError
      *
-     * @returns self
+     * @return self
      */
     setDoubleDeclined() {
 
@@ -762,7 +759,7 @@ class Turn {
      * @throws GameError.IllegalStateError.TurnCanceledError
      * @throws GameError.IllegalStateError.AlreadyRolledError
      *
-     * @returns self
+     * @return self
      */
     setRoll(...args) {
 
@@ -784,7 +781,7 @@ class Turn {
      * @throws GameError.IllegalStateError.TurnCanceledError
      * @throws GameError.IllegalStateError.AlreadyRolledError
      *
-     * @returns self
+     * @return self
      */
     roll() {
 
@@ -804,7 +801,7 @@ class Turn {
      * @throws GameError.IllegalStateError.TurnCanceledError
      * @throws GameError.IllegalStateError.HasNotRolledError
      *
-     * @returns self
+     * @return self
      */
     afterRoll() {
 
@@ -848,7 +845,7 @@ class Turn {
     /**
      * @throws GameError.IllegalStateError.HasNotRolledError
      *
-     * @returns Array[Move]
+     * @return Array[Move]
      */
     getNextAvailableMoves() {
 
@@ -880,7 +877,7 @@ class Turn {
      * @throws GameError.IllegalStateError.TurnAlreadyFinishedError
      * @throws GameError.IllegalStateError.TurnCanceledError
      *
-     * @returns Move
+     * @return Move
      */
     move(origin, face) {
 
@@ -923,7 +920,7 @@ class Turn {
      * @throws GameError.IllegalStateError.TurnAlreadyFinishedError
      * @throws GameError.IllegalStateError.TurnCanceledError
      *
-     * @returns Move
+     * @return Move
      */
     unmove() {
 
@@ -947,7 +944,7 @@ class Turn {
      * @throws GameError.IllegalStateError.HasNotRolledError
      * @throws GameError.IllegalStateError.MovesRemainingError
      *
-     * @returns self
+     * @return self
      */
     finish() {
         if (this.isFinished) {
@@ -973,7 +970,7 @@ class Turn {
     }
 
     /**
-     * @returns self
+     * @return self
      */
     cancel(err) {
         if (this.isFinished) {
@@ -995,9 +992,8 @@ class Turn {
      *
      * @param string
      *
-     * @throws TypeError
-     *
-     * @returns Board
+     * @throws {TypeError}     *
+     * @return Board
      */
     fetchBoard(state28) {
         if (!this.boardCache[state28]) {
@@ -1010,7 +1006,7 @@ class Turn {
      * @throws GameError.IllegalStateError.TurnAlreadyFinishedError
      * @throws GameError.IllegalStateError.TurnCanceledError
      *
-     * @returns self
+     * @return self
      */
     assertNotFinished() {
         if (this.isFinished) {
@@ -1028,7 +1024,7 @@ class Turn {
     /**
      * @throws GameError.IllegalStateError.HasNotRolledError
      *
-     * @returns self
+     * @return self
      */
     assertIsRolled() {
         if (!this.isRolled) {
@@ -1040,7 +1036,7 @@ class Turn {
     /**
      * @throws GameError.IllegalStateError.AlreadyRolledError
      *
-     * @returns self
+     * @return self
      */
     assertNotRolled() {
         if (this.isRolled) {
@@ -1050,7 +1046,7 @@ class Turn {
     }
 
     /**
-     * @returns object
+     * @return {object}
      */
     meta() {
         return {
@@ -1072,7 +1068,7 @@ class Turn {
     }
 
     /**
-     * @returns object
+     * @return {object}
      */
     serialize() {
         return Turn.serialize(this)
@@ -1081,7 +1077,7 @@ class Turn {
     /**
      * @param Turn
      *
-     * @returns object
+     * @return {object}
      */
     static serialize(turn) {
         return {
@@ -1098,7 +1094,7 @@ class Turn {
      * @param object
      * @param Board (optional)
      *
-     * @returns Turn
+     * @return Turn
      */
     static unserialize(data, board) {
 
@@ -1150,7 +1146,7 @@ class Board {
      *
      * @throws GameError.IllegalMoveError
      *
-     * @returns Move
+     * @return Move
      */
     move(color, origin, face) {
         const move = this.buildMove(color, origin, face)
@@ -1165,7 +1161,7 @@ class Board {
      *
      * @throws GameError.IllegalMoveError
      *
-     * @returns Move
+     * @return Move
      */
     buildMove(color, origin, face) {
         const {check, build} = Move.check(this, color, origin, face)
@@ -1179,7 +1175,7 @@ class Board {
      * @param string
      * @param integer
      *
-     * @returns array[Move]
+     * @return array[Move]
      */
     getPossibleMovesForFace(color, face) {
         Profiler.start('Board.getPossibleMovesForFace')
@@ -1238,14 +1234,14 @@ class Board {
     }
 
     /**
-     * @returns boolean
+     * @return boolean
      */
     hasWinner() {
         return this.getWinner() != null
     }
 
     /**
-     * @returns string|null
+     * @return string|null
      */
     getWinner() {
         if (this.analyzer.isAllHome(Red)) {
@@ -1258,7 +1254,7 @@ class Board {
     }
 
     /**
-     * @returns boolean
+     * @return boolean
      */
     isGammon() {
         if (!this.hasWinner()) {
@@ -1269,7 +1265,7 @@ class Board {
     }
 
     /**
-     * @returns boolean
+     * @return boolean
      */
     isBackgammon() {
 
@@ -1295,7 +1291,7 @@ class Board {
     }
 
     /**
-     * @returns self
+     * @return self
      */
     clear() {
         this.slots = nmap(24, () => [])
@@ -1306,7 +1302,7 @@ class Board {
     }
 
     /**
-     * @returns Board
+     * @return Board
      */
     copy() {
         Profiler.start('Board.copy')
@@ -1326,7 +1322,7 @@ class Board {
     }
 
     /**
-     * @returns self
+     * @return self
      */
     setup() {
         this.clear()
@@ -1345,7 +1341,7 @@ class Board {
     /**
      * @cache
      *
-     * @returns string
+     * @return string
      */
     state28() {
         Profiler.start('Board.state28')
@@ -1373,9 +1369,8 @@ class Board {
     /**
      * @param string|array|Buffer
      *
-     * @throws TypeError
-     *
-     * @returns self
+     * @throws {TypeError}     *
+     * @return self
      */
     setState28(input) {
         const arr = Buffer.from(input)
@@ -1398,7 +1393,7 @@ class Board {
     /**
      * @cache
      *
-     * @returns string
+     * @return string
      */
     stateString() {
         Profiler.start('Board.stateString')
@@ -1422,9 +1417,8 @@ class Board {
     /**
      * @param string
      *
-     * @throws TypeError
-     *
-     * @returns self
+     * @throws {TypeError}     *
+     * @return self
      */
     setStateString(str) {
         if (str.length == 28) {
@@ -1449,7 +1443,7 @@ class Board {
     }
 
     /**
-     * @returns Board
+     * @return Board
      */
     inverted() {
         const board = new Board(true)
@@ -1485,7 +1479,7 @@ class Board {
     /**
      * @param string
      *
-     * @returns Piece
+     * @return Piece
      */
     popBar(color) {
         const piece = this.bars[color].pop()
@@ -1497,7 +1491,7 @@ class Board {
      * @param string
      * @param Piece (optional)
      *
-     * @returns self
+     * @return self
      */
     pushBar(color, piece) {
         piece = piece || new Piece(color)
@@ -1509,7 +1503,7 @@ class Board {
     /**
      * @param string
      *
-     * @returns Piece
+     * @return Piece
      */
     popHome(color) {
         const piece = this.homes[color].pop()
@@ -1521,7 +1515,7 @@ class Board {
      * @param string
      * @param Piece (optional)
      *
-     * @returns self
+     * @return self
      */
     pushHome(color, piece) {
         piece = piece || new Piece(color)
@@ -1533,7 +1527,7 @@ class Board {
     /**
      * @param integer
      *
-     * @returns Piece
+     * @return Piece
      */
     popOrigin(origin) {
         const piece = this.slots[origin].pop()
@@ -1545,7 +1539,7 @@ class Board {
      * @param integer
      * @param string|Piece
      *
-     * @returns self
+     * @return self
      */
     pushOrigin(origin, piece) {
         if (!(piece instanceof Piece)) {
@@ -1557,7 +1551,7 @@ class Board {
     }
 
     /**
-     * @returns self
+     * @return self
      */
     markChange() {
         this.cache = {}
@@ -1566,14 +1560,14 @@ class Board {
     }
 
     /**
-     * @returns string
+     * @return string
      */
     toString() {
         return this.state28()
     }
 
     /**
-     * @returns Board
+     * @return Board
      */
     static setup() {
         const board = new Board(true)
@@ -1584,9 +1578,8 @@ class Board {
     /**
      * @param string
      *
-     * @throws TypeError
-     *
-     * @returns Board
+     * @throws {TypeError}     *
+     * @return Board
      */
     static fromStateString(str) {
         const board = new Board(true)
@@ -1597,9 +1590,8 @@ class Board {
     /**
      * @param string|array|Buffer
      *
-     * @throws TypeError
-     *
-     * @returns Board
+     * @throws {TypeError}     *
+     * @return Board
      */
     static fromState28(input) {
         const board = new Board(true)
@@ -1622,7 +1614,7 @@ class Piece {
     }
 
     /**
-     * @returns string
+     * @return string
      */
     toString() {
         return this.color
@@ -1632,7 +1624,7 @@ class Piece {
      * @param integer
      * @param string
      *
-     * @returns array[Piece]
+     * @return array[Piece]
      */
     static make(n, color) {
         return nmap(+n, () => new Piece(color))

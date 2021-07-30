@@ -195,10 +195,9 @@ class Web {
     /**
      * Ensure the defaults are not used in production environments.
      *
-     * @throws SecurityError
-     *
+     * @throws {SecurityError}     *
      * @param {object} (optional) The environment variables
-     * @returns {boolean} Whether all values are custom
+     * @return {boolean} Whether all values are custom
      */
     _checkSecurity(env) {
 

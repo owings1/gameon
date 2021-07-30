@@ -77,7 +77,7 @@ class Client extends EventEmitter {
     /**
      * Constructor
      *
-     * @param object (optional) The credentials, serverUrl, username, password.
+     * @param {object} (optional) The credentials, serverUrl, username, password.
      */
     constructor(credentials) {
 
@@ -109,9 +109,8 @@ class Client extends EventEmitter {
      *
      * @async
      *
-     * @throws ClientError
-     *
-     * @returns undefined
+     * @throws {ClientError}     *
+     * @return undefined
      */
     connect() {
 
@@ -238,15 +237,14 @@ class Client extends EventEmitter {
      *
      * @async
      *
-     * @param object The match options, which must include `total`.
+     * @param {object} The match options, which must include `total`.
      *
      * @emits matchCreated
      * @emits opponentJoined
      *
-     * @throws ClientError
-     * @throws GameError.MatchCanceledError
+     * @throws {ClientError}     * @throws GameError.MatchCanceledError
      *
-     * @returns Match
+     * @return Match
      */
     async createMatch(opts) {
 
@@ -282,9 +280,8 @@ class Client extends EventEmitter {
      *
      * @emits matchJoined
      *
-     * @throws ClientError
-     *
-     * @returns Match
+     * @throws {ClientError}     *
+     * @return Match
      */
     async joinMatch(id) {
 
@@ -313,8 +310,8 @@ class Client extends EventEmitter {
      *
      * @async
      *
-     * @param string The play action.
-     * @param object (optional) Additional request data.
+     * @param {string} The play action.
+     * @param {object} (optional) Additional request data.
      *
      * @emits matchRequest
      * @emits matchResponse
@@ -323,11 +320,10 @@ class Client extends EventEmitter {
      * @event responseError
      * @event response
      *
-     * @throws ClientError
-     * @throws GameError.MatchCanceledError
+     * @throws {ClientError}     * @throws GameError.MatchCanceledError
      * @throws MenuError.WaitingAbortedError
      *
-     * @returns object|Error|null
+     * @return object|Error|null
      */
     async matchRequest(action, params) {
         const req = {...this.matchParams(action), ...params}
@@ -341,7 +337,7 @@ class Client extends EventEmitter {
      *
      * @param Error
      *
-     * @returns boolean Whether a reject handler was called.
+     * @return {boolean} Whether a reject handler was called.
      */
     cancelWaiting(err) {
         if (this.messageReject) {
@@ -359,7 +355,7 @@ class Client extends EventEmitter {
      *
      * @param Error The error to pass to the matchCanceled event
      *
-     * @returns boolean Whether there was an active match AND a listener attached
+     * @return {boolean} Whether there was an active match AND a listener attached
      */
     cancelMatch(err) {
         if (!this.match) {
@@ -381,7 +377,7 @@ class Client extends EventEmitter {
     /**
      * Clear the current match properties.
      *
-     * @returns self
+     * @return self
      */
     clearCurrentMatch() {
         return update(this, {
@@ -395,7 +391,7 @@ class Client extends EventEmitter {
      *
      * @param object|string
      *
-     * @returns object
+     * @return {object}
      */
     matchParams(params) {
         if (typeof params == 'string') {
@@ -407,7 +403,7 @@ class Client extends EventEmitter {
     /**
      * @param string|null The server URL.
      *
-     * @returns self
+     * @return self
      */
     setServerUrl(serverUrl) {
         this.serverSocketUrl = httpToWs(serverUrl)
@@ -449,18 +445,17 @@ class Client extends EventEmitter {
      *
      * @async
      *
-     * @param object The request data.
-     * @param string (optional) The expected action of the response.
+     * @param {object} The request data.
+     * @param {string} (optional) The expected action of the response.
      *
      * @event response
      * @event matchCanceled
      * @event responseError
      *
-     * @throws ClientError
-     * @throws GameError.MatchCanceledError
+     * @throws {ClientError}     * @throws GameError.MatchCanceledError
      * @throws MenuError.WaitingAbortedError
      *
-     * @returns object|Error|null
+     * @return object|Error|null
      */
     _sendAndWaitForResponse(req, action = null) {
         const promise = this._waitForResponse(action)
@@ -492,7 +487,7 @@ class Client extends EventEmitter {
      *
      * @async
      *
-     * @param string (optional) The expected action of the response.
+     * @param {string} (optional) The expected action of the response.
      *
      * @emits matchCanceled
      * @emits responseError
@@ -500,11 +495,10 @@ class Client extends EventEmitter {
      * @throws ClientError.ConnectionClosedError
      * @throws ClientError.ParallelRequestError
      * @throws ClientError.UnexpectedResponseError
-     * @throws ClientError
-     * @throws GameError.MatchCanceledError
+     * @throws {ClientError}     * @throws GameError.MatchCanceledError
      * @throws MenuError.WaitingAbortedError
      *
-     * @returns object|Error|null
+     * @return object|Error|null
      */
     async _waitForResponse(action = null) {
 
@@ -572,7 +566,7 @@ class Client extends EventEmitter {
      * @throws GameError.MatchCanceledError
      * @throws MenuError.WaitingAbortedError
      *
-     * @returns object
+     * @return {object}
      */
     _waitForMessage() {
 
@@ -667,7 +661,7 @@ class Client extends EventEmitter {
     /**
      * @param object
      *
-     * @returns self
+     * @return self
      */
     _sendMessage(req) {
         req = {secret: this.secret, ...req}
@@ -679,9 +673,8 @@ class Client extends EventEmitter {
     /**
      * @async
      *
-     * @throws ClientError
-     *
-     * @returns object
+     * @throws {ClientError}     *
+     * @return {object}
      */
     async _handshake() {
         const {username, password, token} = this
