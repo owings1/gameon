@@ -296,8 +296,10 @@ describe('inquirer', () => {
             it.only('screen should render _lastRender', function () {
                 // coverage
                 return this.run(rl => {
-                    console.log(this.ui.activePrompt.screen.opts.term)
-                    console.log(this.ui.activePrompt.screen.opts.term.str.erase)
+                    console.log('term',this.ui.activePrompt.screen.opts.term)
+                    console.log('term.str',this.ui.activePrompt.screen.opts.term.str)
+                    console.log('term.str.erase',this.ui.activePrompt.screen.opts.term.str.erase)
+                    console.log('term.str.down',this.ui.activePrompt.screen.opts.term.str.down)
                     this.ui.activePrompt.screen._lastRender = ['test-resize', '']
                     this.ui.onResize()
                     rl.emit('line', 'foo')
