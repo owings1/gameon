@@ -300,6 +300,7 @@ describe('inquirer', () => {
                     console.log('term.str',this.ui.activePrompt.screen.opts.term.str)
                     console.log('term.str.erase',this.ui.activePrompt.screen.opts.term.str.erase)
                     console.log('term.str.down',this.ui.activePrompt.screen.opts.term.str.down)
+                    console.log(require('terminal-kit/package'))
                     this.ui.activePrompt.screen._lastRender = ['test-resize', '']
                     this.ui.onResize()
                     rl.emit('line', 'foo')
