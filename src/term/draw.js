@@ -850,7 +850,13 @@ class TermHelper {
 
     // \x1B[1X
     erase(n) {
-        return this.write(this.str.erase(n))
+        n = n || 0
+        if (!n) {
+            return this
+        }
+        const str = '\x1B[' + n + 'X'
+        return this.write(str)
+        //return this.write(this.str.erase(n))
     }
 
     eraseArea(left, top, width, height) {
