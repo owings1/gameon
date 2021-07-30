@@ -15,6 +15,7 @@ COPY package-lock.json .
 COPY scripts scripts
 
 RUN npm install
+RUN npm run compile
 
 COPY --chown=node:node . .
 RUN rm -rf .git

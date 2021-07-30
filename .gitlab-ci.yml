@@ -14,6 +14,7 @@ test:
     - apk add python3 build-base
   script:
     - npm install --unsafe-perm
+    - npm run compile
     - npm test
 
 test_dist:
@@ -26,6 +27,7 @@ test_dist:
     - apk add git p7zip xz curl perl-utils
   script:
     - npm install --unsafe-perm
+    - npm run compile
     - npm run-script dist
 
 #test_docker:
