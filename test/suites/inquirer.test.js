@@ -293,14 +293,16 @@ describe('inquirer', () => {
 
         describe('#onResize', () => {
 
-            it.only('screen should render _lastRender', function () {
+            it('screen should render _lastRender', function () {
                 // coverage
                 return this.run(rl => {
-                    console.log('term',this.ui.activePrompt.screen.opts.term)
-                    console.log('term.str',this.ui.activePrompt.screen.opts.term.str)
-                    console.log('term.str.erase',this.ui.activePrompt.screen.opts.term.str.erase)
-                    console.log('term.str.down',this.ui.activePrompt.screen.opts.term.str.down)
-                    console.log(require('terminal-kit/package'))
+                    // Debugging strange error:
+                    // https://bitbucket.org/owings1/gameon/addon/pipelines/home#!/results/40
+                    //console.log('term',this.ui.activePrompt.screen.opts.term)
+                    //console.log('term.str',this.ui.activePrompt.screen.opts.term.str)
+                    //console.log('term.str.erase',this.ui.activePrompt.screen.opts.term.str.erase)
+                    //console.log('term.str.down',this.ui.activePrompt.screen.opts.term.str.down)
+                    //console.log(require('terminal-kit/package'))
                     this.ui.activePrompt.screen._lastRender = ['test-resize', '']
                     this.ui.onResize()
                     rl.emit('line', 'foo')

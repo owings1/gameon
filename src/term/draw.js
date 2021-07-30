@@ -849,6 +849,7 @@ class TermHelper {
     }
 
     // \x1B[1X
+    // must hack this, see https://bitbucket.org/owings1/gameon/addon/pipelines/home#!/results/40
     erase(n) {
         n = n || 0
         if (!n) {
