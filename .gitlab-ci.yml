@@ -11,9 +11,9 @@ test:
   tags:
     - docker
   before_script:
-    - apk add python3 build-base
+    - apk --no-cache add python3 build-base
   script:
-    - npm install --unsafe-perm
+    - npm install #--unsafe-perm
     - npm run compile
     - npm test
 
