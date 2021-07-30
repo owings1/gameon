@@ -367,6 +367,7 @@ const MatchCancelRef = {
 }
 
 const Constants = {
+    BaseDir,
     BoardStrings,
     BottomPoints,
     Chars,

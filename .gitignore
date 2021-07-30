@@ -4,3 +4,5 @@ node_modules
 /tmp
 /dist
 /local
+/locale/backup
+/locale/*/messages.js*

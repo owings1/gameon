@@ -406,6 +406,10 @@ class Util {
     /**
      * Generate a readable date string safe for using as a filename.
      *
+     * Format:  YYYY-MM-DD_HH-MM-SS_MS
+     *          -----------------------
+     * Example: 2021-07-29_02-01-09_584
+     *
      * @param {Date} (optional) The date reference, default is current date.
      *
      * @throws TypeError
@@ -526,6 +530,50 @@ class Util {
             return str
         }
         return str.replace(/^(http)/, 'ws')
+    }
+
+    /**
+     * Induce a boolean value.
+     *
+     * @param {*} The value to examine
+     * @param {boolean} (optional) The default value
+     * @return {boolean} The induced value
+     */
+    static induceBool(value, def = false) {
+        if (typeof value == 'boolean') {
+            return value
+        }
+        if (value )
+        if (value != null) {
+            value = String(value).toLowerCase()
+            if (def) {
+                // Default is true, so check for explicit false.
+                return ['0', 'false', 'no', 'n', 'off'].indexOf(value) < 0
+            }
+            // Default is false, so check for explicit true.
+            return ['1', 'true', 'yes', 'y', 'on'].indexOf(value) > -1
+        }
+        return Boolean(def)
+    }
+
+    /**
+     * Induce an integer value.
+     *
+     * @param {*} The value to examine
+     * @param {integer} (optional) The default value
+     * @return {integer} The induced value
+     */
+    static induceInt(value, def = 0) {
+        if (Number.isInteger(value)) {
+            return value
+        }
+        if (!Number.isInteger(def)) {
+            def = 0
+        }
+        if (value != null) {
+            return parseInt(value) || def
+        }
+        return def
     }
 
     /**

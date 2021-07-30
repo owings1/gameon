@@ -7,12 +7,14 @@
     "postpack": "rm -f oclif.manifest.json",
     "lint": "eslint .",
     "prepack": "oclif-dev manifest && oclif-dev readme",
-    "test": "GAMEON_TEST=1 nyc --reporter=text-summary mocha test/test.js && nyc report --reporter=lcov",
+    "test": "GAMEON_TEST=1 NODE_OPTIONS='--trace-warnings' nyc --reporter=text-summary mocha test/test.js && nyc report --reporter=lcov",
     "version": "oclif-dev readme && git add README.md",
     "install": "node scripts/install.js",
     "mac": "oclif-dev pack:macos",
     "dist": "oclif-dev pack",
-    "dist_and_publish": "oclif-dev pack && oclif-dev publish"
+    "dist_and_publish": "oclif-dev pack && oclif-dev publish",
+    "extract": "node scripts/extract.js",
+    "compile": "lingui compile"
   },
   "dependencies": {
     "@lingui/core": "^3.10.4",
@@ -43,16 +45,20 @@
     "string-width": "^2.1.1",
     "strip-ansi": "^6.0.0",
     "terminal-kit": "^2.1.5",
-    "uuid": "^8.3.1",
+    "uuid": "^8.3.2",
     "websocket": "^1.0.34"
   },
   "devDependencies": {
+    "@babel/core": "^7.14.8",
+    "@lingui/cli": "^3.10.2",
     "@oclif/dev-cli": "^1.22.2",
     "@oclif/test": "^1.2.7",
     "chai": "^4.2.0",
     "diff": "^5.0.0",
     "eslint": "^7.11.0",
     "eslint-config-oclif": "^3.1.0",
+    "gettext-parser": "^3.1.1",
+    "i18n-extract": "^0.6.7",
     "mocha": "^8.1.3",
     "ms": "^2.1.3",
     "nyc": "^15.1.0",
@@ -85,16 +91,12 @@
           "**/node_modules/**"
         ]
       }
-    ],
-    "extractBabelOptions": {
-      "plugins": [
-        "@babel/plugin-syntax-dynamic-import"
-      ]
-    }
+    ]
   },
   "mocha": {
-      "reporter": "test/util/reporter",
-      "reporter-option": "diffSize=3072"
+    "inlineDiffs": false,
+    "reporter": "test/util/reporter",
+    "reporter-option": "diffSize=3072"
   },
   "oclif": {
     "commands": "./src/commands",
