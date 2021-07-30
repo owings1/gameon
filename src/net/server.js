@@ -169,7 +169,7 @@ class Server {
 
     /**
      * @param {boolean} (optional)
-     * @return self
+     * @return {self}
      */
     close(isSkipLog = false) {
         if (!isSkipLog) {
@@ -845,7 +845,7 @@ class Server {
      *
      * @param {string} The match ID
      * @param {string} The reference object {reason, attrs}
-     * @return self
+     * @return {self}
      */
     cancelMatchId(id, {reason, attrs}) {
         const match = this.matches[id]
@@ -887,7 +887,7 @@ class Server {
      * Safely close connection(s).
      *
      * @param {WebSocketConnection|array} The connection, or array of connections
-     * @return self
+     * @return {self}
      */
     closeConn(conns) {
 
