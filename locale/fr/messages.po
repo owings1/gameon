@@ -30,7 +30,7 @@ msgid "Advanced"
 msgstr "Options avancées"
 
 #: src/term/menu.js:295
-#: L'authentification a échoué. ...
+# L'authentification a échoué. ...
 msgid "Authentication failed. Go to Account to sign up or log in."
 msgstr ""
 
