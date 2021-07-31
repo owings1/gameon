@@ -100,9 +100,8 @@ class Auth {
     /**
      * Get the default options.
      *
-     * @param {object} (optional) The environment variables.
-     *
-     * @return {object} The default options.
+     * @param {object} (optional) The environment variables
+     * @return {object} The default options
      */
     static defaults(env) {
         const opts = {
@@ -127,12 +126,12 @@ class Auth {
     /**
      * Create an Auth instance with the implementation instance.
      *
-     * @param {object} (optional) The combined auth and impl options, with a key
-     *       `authType` specifying the implmentation (directory, s3, anonymous).
-     * @param {object} (optional) The environment variables.
+     * @throws {TypeError}
      *
-     * @throws {TypeError}     *
-     * @return Auth The auth instance.
+     * @param {object} (optional) The combined auth and impl options, with a key
+     *       `authType` specifying the implmentation (directory, s3, anonymous)
+     * @param {object} (optional) The environment variables
+     * @return {Auth} The auth instance
      */
     static create(opts, env) {
         env = env || process.env
@@ -143,10 +142,12 @@ class Auth {
     }
 
     /**
-     * @param AuthImpl The implementation instance.
-     * @param {object} (optional) The options.
+     * @constructor
      *
-     * @throws Error
+     * @throws {Error}
+     *
+     * @param {AuthImpl} The implementation instance
+     * @param {object} (optional) The options
      */
     constructor(impl, opts) {
 
@@ -180,13 +181,14 @@ class Auth {
      *
      * @async
      *
+     * @throws {AuthError.BadCredentialsError}
+     * @throws {AuthError.UserLockedError}
+     * @throws {AuthError.UserNotConfirmedError}
+     * @throws {InternalError}
+     * @throws {ValidateError}
+     *
      * @param {string} The username
      * @param {string} The password
-     *
-     * @throws AuthError.BadCredentialsError
-     * @throws AuthError.UserLockedError
-     * @throws AuthError.UserNotConfirmedError
-     * @throws {InternalError}     * @throws {ValidateError}     *
      * @return {object} The user data with `passwordEncrypted` and `token` keys
      */
     async authenticate(username, password) {
@@ -236,11 +238,13 @@ class Auth {
      *
      * @async
      *
+     * @throws {AuthError}
+     * @throws {InternalError}
+     * @throws {ValidateError}
+     *
      * @param {string} The new username
      * @param {string} The password
-     * @param boolean (optional) Whether to create the user as already confirmed
-     *
-     * @throws {AuthError}     * @throws {InternalError}     * @throws {ValidateError}     *
+     * @param {boolean} (optional) Whether to create the user as already confirmed
      * @return {object} The user data with `passwordEncrypted` and `token` keys
      */
     async createUser(username, password, confirmed = false) {
@@ -281,9 +285,11 @@ class Auth {
      *
      * @async
      *
-     * @param {string} The username
+     * @throws {AuthError}
+     * @throws {InternalError}
+     * @throws {ValidateError}
      *
-     * @throws {AuthError}     * @throws {InternalError}     * @throws {ValidateError}     *
+     * @param {string} The username
      * @return {object} The user data
      */
     async readUser(username) {
@@ -296,9 +302,11 @@ class Auth {
      *
      * @async
      *
-     * @param {string} The username
+     * @throws {AuthError}
+     * @throws {InternalError}
+     * @throws {ValidateError}
      *
-     * @throws {AuthError}     * @throws {InternalError}     * @throws {ValidateError}     *
+     * @param {string} The username
      * @return {boolean} Whether the user exists
      */
     async userExists(username) {
