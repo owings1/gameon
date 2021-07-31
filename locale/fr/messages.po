@@ -29,8 +29,8 @@ msgstr "Le compte est déjà confirmé"
 msgid "Advanced"
 msgstr "Options avancées"
 
-#: src/term/menu.js:295
 # L'authentification a échoué. ...
+#: src/term/menu.js:295
 msgid "Authentication failed. Go to Account to sign up or log in."
 msgstr ""
 
@@ -286,4 +286,8 @@ msgstr "Version"
 
 #: src/term/helpers/menu.questions.js:601
 msgid "You must confirm your account."
+msgstr ""
+
+#: src/term/helpers/menu.questions.js:650
+msgid "Choose a theme"
 msgstr ""
