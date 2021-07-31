@@ -15,28 +15,29 @@ msgstr ""
 
 #: src/term/menu.js:911
 msgid "{winner} won the match {winning} to {losing}"
-msgstr ""
+msgstr "{winner} a gagné le match {winning} a {losing}"
 
 #: src/term/menu.js:820
 msgid "Aborting waiting"
-msgstr ""
+msgstr "Arrêté d'attendre"
 
 #: src/term/menu.js:678
 msgid "Account already confirmed"
-msgstr ""
+msgstr "Le compte est déjà confirmé"
 
 #: src/term/helpers/menu.questions.js:209
 msgid "Advanced"
-msgstr ""
+msgstr "Options avancées"
 
 #: src/term/menu.js:295
+#: L'authentification a échoué. ...
 msgid "Authentication failed. Go to Account to sign up or log in."
 msgstr ""
 
 #: src/term/helpers/menu.questions.js:188
 #: src/term/helpers/menu.questions.js:215
 msgid "Back"
-msgstr ""
+msgstr "Retourner"
 
 #: src/term/menu.js:890
 msgid "Canceling match"
@@ -61,7 +62,7 @@ msgstr ""
 #: src/term/helpers/menu.questions.js:284
 #: src/term/helpers/menu.questions.js:289
 msgid "Crawford Rule"
-msgstr ""
+msgstr "Règle Crawford"
 
 #: src/term/helpers/menu.questions.js:433
 msgid "Create Account"
@@ -125,7 +126,7 @@ msgstr ""
 #: src/term/helpers/menu.questions.js:298
 #: src/term/helpers/menu.questions.js:302
 msgid "Jacoby Rule"
-msgstr ""
+msgstr "Règle Jacoby"
 
 #: src/term/menu.js:1532
 msgid "Loaded {count} custom themes."
@@ -177,7 +178,7 @@ msgstr ""
 #: src/term/helpers/menu.questions.js:425
 #: src/term/helpers/menu.questions.js:498
 msgid "Password"
-msgstr ""
+msgstr "Mot de passe"
 
 #: src/term/helpers/menu.questions.js:518
 msgid "Passwords do not match"
@@ -210,7 +211,7 @@ msgstr ""
 #: src/term/helpers/menu.questions.js:775
 #: src/term/helpers/menu.questions.js:855
 msgid "Reset defaults"
-msgstr ""
+msgstr "Réinitialiser"
 
 #: src/term/helpers/menu.questions.js:569
 msgid "Reset key requested, check your email."
@@ -234,11 +235,11 @@ msgstr ""
 
 #: src/term/helpers/menu.questions.js:407
 msgid "Server"
-msgstr ""
+msgstr "Serveur"
 
 #: src/term/helpers/menu.questions.js:410
 msgid "Server URL"
-msgstr ""
+msgstr "URL du serveur"
 
 #: src/term/menu.js:981
 msgid "Setting initial state"
@@ -246,7 +247,7 @@ msgstr ""
 
 #: src/term/helpers/menu.questions.js:248
 msgid "Start Match"
-msgstr ""
+msgstr "Commencer le match"
 
 #: src/term/helpers/menu.questions.js:345
 msgid "Start State"
@@ -262,7 +263,7 @@ msgstr ""
 
 #: src/term/helpers/menu.questions.js:647
 msgid "Theme"
-msgstr ""
+msgstr "Thème"
 
 #: src/term/helpers/menu.questions.js:732
 #: src/term/helpers/menu.questions.js:736
@@ -272,7 +273,7 @@ msgstr ""
 #: src/term/helpers/menu.questions.js:420
 #: src/term/helpers/menu.questions.js:481
 msgid "Username"
-msgstr ""
+msgstr "Nom d'utilisateur"
 
 #: src/term/menu.js:985
 msgid "Using custom rolls file"
@@ -281,7 +282,7 @@ msgstr ""
 #: src/term/helpers/menu.questions.js:861
 #: src/term/helpers/menu.questions.js:865
 msgid "Version"
-msgstr ""
+msgstr "Version"
 
 #: src/term/helpers/menu.questions.js:601
 msgid "You must confirm your account."
