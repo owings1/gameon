@@ -173,7 +173,7 @@ msgstr ""
 #: src/term/helpers/menu.questions.js:547
 #: src/term/helpers/menu.questions.js:574
 msgid "New password"
-msgstr ""
+msgstr "Nouveau mot de passe"
 
 #: src/term/helpers/menu.questions.js:425
 #: src/term/helpers/menu.questions.js:498
