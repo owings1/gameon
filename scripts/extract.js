@@ -22,122 +22,46 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-const Diffs   = require('../test/util/diffs')
-const Extractor = require('../../po-extractor/src/extractor')
-
-const {fileDateString} = require('../src/lib/util')
-
 const fs     = require('fs')
 const fse    = require('fs-extra')
 const path   = require('path')
 const {resolve} = path
 
-const {
-    BaseDir,
-    LocaleNames,
-    LocalesDir,
-} = require('../src/lib/constants')
+const {Extractor, Merger} = require('po-extractor')
 
-const BackupDir = resolve(LocalesDir, 'backup')
-const CommentMaxLen = 80
-const Filename = 'messages'
-const Format = 'po'
-const PoName = [Filename, Format].join('.')
+const {BaseDir, LocalesDir} = require('../src/lib/constants')
+const Diffs   = require('../test/util/diffs')
 
-const LocalesMap = Object.fromEntries(
-    LocaleNames.map(locale => {
-        const file = resolve(LocalesDir, locale, PoName)
-        const rel = path.relative(LocalesDir, file)
-        return [locale, {locale, file, rel}]
-    })
-)
-const Locales = Object.values(LocalesMap)
-
-
-const extractor = new Extractor({
+const poGlob = LocalesDir + '/*/messages.po'
+const srcGlobs = ['src/**/*.js']
+const opts = {
     //dryRun: true,
     baseDir: BaseDir,
-    gitCheck: 'trackedOnly',
     //verbosity: 1,
-    sort: 'source',
+    sort: 'msgid',
     marker: '__',
     references: {
         perLine: 1,
     },
-    logging: {
-        //prefix: false,
-    },
-})
-const {logger} = extractor
+}
+
 /**
  * Extract messages, backup and update po files.
  */
 function main () {
-
-    const globs = ['src/**/*.js']
-
-
-    const messages = extractor.extract(globs)
-
-
-    logger.info('Updating', Locales.length, 'locales')
-    Locales.forEach(({locale, rel}) => {
-        //const diff = mergeDiff(locale, messages)
-        //if (diff) {
-        //    console.log(diff)
-        //} else {
-        //    console.log('no diff')
-        //}
-        
-        const {file} = LocalesMap[locale]
-
-        extractor.mergePoTo(file, file, messages)
-        //update(locale, messages, opts)
-    })
-    logger.info('Done')
+    const merger = new Merger(opts)
+    const extractor = new Extractor(opts)
+    const messages = extractor.extract(srcGlobs)
+    merger.mergePos(poGlob, messages)
 }
 
-
 function mergeDiff (locale, messages) {
-    const {file} = LocalesMap[locale]
-    const result = extractor.getMergePoResult(file, messages)
+    const file = resolve(LocalesDir, locale, 'messages.po')
+    const result = merger.getMergePoResult(file, messages)
     const contentOld = result.sourceContent.toString('utf-8')
     const contentNew = result.content.toString('utf-8')
     return Diffs.unified(contentOld, contentNew)
 }
-
-
-
-/**
- * Backup a locale po file.
- *
- * @param {string} The locale name
- * @param {Date} (optional) The date reference for the backup file
- * @return {string} The backup file
- */
-function backup (locale, dateRef) {
-    const source = LocalesMap[locale].file
-    const {dest, rel} = _backupPath(locale, dateRef)
-    logger.info('Backing up to', rel)
-    fse.ensureDirSync(path.dirname(dest))
-    fse.copySync(source, dest)
-    return dest
-}
-
-
-/***************************************************/
-/* Util methods                                    */
-/***************************************************/
-
-
-function _backupPath (locale, dateRef) {
-    const fdstr = fileDateString(dateRef)
-    const bname = [Filename, fdstr, Format].join('.')
-    const rel = [locale, bname].join('/')
-    const dest = resolve(BackupDir, rel)
-    return {dest, rel}
-}
-
 
 if (require.main === module) {
     main()
