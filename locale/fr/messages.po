@@ -51,6 +51,10 @@ msgstr ""
 msgid "Check your email for a confirmation key."
 msgstr ""
 
+#: src/term/helpers/menu.questions.js:650
+msgid "Choose a theme"
+msgstr ""
+
 #: src/term/helpers/menu.questions.js:637
 msgid "Choose your locale"
 msgstr ""
@@ -286,8 +290,4 @@ msgstr "Version"
 
 #: src/term/helpers/menu.questions.js:601
 msgid "You must confirm your account."
-msgstr ""
-
-#: src/term/helpers/menu.questions.js:650
-msgid "Choose a theme"
 msgstr ""
