@@ -27,19 +27,22 @@ const fse    = require('fs-extra')
 const path   = require('path')
 const {resolve} = path
 
-const {Extractor, Merger} = require('po-extractor')
+const {Extractor, Merger} = require('../../po-extractor')
 
 const {BaseDir, LocalesDir} = require('../src/lib/constants')
 const Diffs   = require('../test/util/diffs')
 
 const poGlob = LocalesDir + '/*/messages.po'
 const srcGlobs = ['src/**/*.js']
+//const srcGlobs = ['extras/intl-test.js']
 const opts = {
     //dryRun: true,
+    //verbose: 3,
+    marker: ['__'],
+    members: true,
     baseDir: BaseDir,
     //verbosity: 1,
     sort: 'msgid',
-    marker: '__',
     references: {
         perLine: 1,
     },

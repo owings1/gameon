@@ -237,7 +237,7 @@ class Menu extends EventEmitter {
 
     mainMenu() {
 
-        return this.runMenu('Main', async (choose, loop) => {
+        return this.runMenu('main', this.__('Main'), async (choose, loop) => {
 
             await loop(async () => {
 
@@ -261,7 +261,7 @@ class Menu extends EventEmitter {
 
     playMenu() {
 
-        return this.runMenu('Play', async (choose, loop) => {
+        return this.runMenu('play', __('Play'), async (choose, loop) => {
 
             const {__} = this
 
@@ -292,7 +292,9 @@ class Menu extends EventEmitter {
                 } catch (err) {
                     this.alerts.error(err)
                     if (err.isAuthError || err.isValidateError) {
-                        this.alerts.warn(__('Authentication failed. Go to Account to sign up or log in.'))
+                        this.alerts.warn(
+                            __('Authentication failed. Go to Account to sign up or log in.')
+                        )
                     }
                 }
 
@@ -305,7 +307,7 @@ class Menu extends EventEmitter {
 
     matchMenu(playChoice) {
 
-        return this.runMenu('Match', async (choose, loop) => {
+        return this.runMenu('match', this.__('Match'), async (choose, loop) => {
 
             const {message, method, isAdvanced, isJoin} = PlayChoiceMap[playChoice]
 
@@ -375,7 +377,7 @@ class Menu extends EventEmitter {
 
     accountMenu() {
 
-        return this.runMenu('Account', async (choose, loop) => {
+        return this.runMenu('account', this.__('Account'), async (choose, loop) => {
 
             await loop(async () => {
 
@@ -446,9 +448,9 @@ class Menu extends EventEmitter {
 
     settingsMenu() {
 
-        return this.runMenu('Settings', async (choose, loop) => {
+        const {__} = this
 
-            const {__} = this
+        return this.runMenu('settings', __('Settings'), async (choose, loop) => {            
 
             await loop(async () => {
 
@@ -506,9 +508,9 @@ class Menu extends EventEmitter {
 
     robotsMenu() {
 
-        return this.runMenu('Robots', async (choose, loop) => {
+        const {__} = this
 
-            const {__} = this
+        return this.runMenu('robots', __('Robots'), async (choose, loop) => {
 
             if (isEmptyObject(this.settings.robots)) {
                 this.alerts.info(__('Loading robot defaults'))
@@ -541,7 +543,7 @@ class Menu extends EventEmitter {
 
     robotMenu(name) {
 
-        return this.runMenu('Robot', async (choose, loop) => {
+        return this.runMenu('robot', this.__('Robot'), async (choose, loop) => {
 
             const {settings} = this
 
@@ -978,10 +980,11 @@ class Menu extends EventEmitter {
         matchOpts = {...matchOpts}
         const {__} = this
         if (advancedOpts.startState) {
-            this.logger.info(__('Setting initial state'))
+            this.logger.info(__('Setting initial state')) // logger
             matchOpts.startState = advancedOpts.startState
         }
         if (advancedOpts.rollsFile) {
+            // log
             this.logger.info(__('Using custom rolls file'))
             const file = advancedOpts.rollsFile
             const {rolls} = await fse.readJson(file)
@@ -1124,9 +1127,7 @@ class Menu extends EventEmitter {
         }, ResizeTimoutMs)
     }
 
-    async runMenu(title, run) {
-        const {__} = this
-        // TODO: translate title for bread
+    async runMenu(name, title, run) {
         this.bread.push(title)
         try {
             this.ensureClearScreen()
@@ -1140,7 +1141,7 @@ class Menu extends EventEmitter {
             this.term.moveTo(1, box.params.top)
 
             return await run(
-                (...hints) => this.menuChoice(title, this.q.menuq(title, ...hints))
+                (...hints) => this.menuChoice(title, this.q.menuq(name, ...hints))
               , async loop => {
                     let ret
                     while (true) {

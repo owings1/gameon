@@ -48,7 +48,8 @@ class Util {
      * @param {array} The array to push to
      * @param {array} The values to push
      *
-     * @throws {TypeError}     *
+     * @throws {TypeError}
+     *
      * @return {array} The input array
      */
     static append(arr, values) {
@@ -1206,7 +1207,8 @@ class Util {
      *
      * @param {string} The input string
      *
-     * @throws {TypeError}     *
+     * @throws {TypeError}
+     *
      * @return {string} The result string
      *
      * @see `lcfirst()`
@@ -1223,7 +1225,8 @@ class Util {
      *
      * @param {array} The input array
      *
-     * @throws {TypeError}     *
+     * @throws {TypeError}
+     *
      * @return {array} The unique numbers
      */
     static uniqueInts(arr) {
