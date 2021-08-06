@@ -172,20 +172,20 @@ const Chars = {
     }
     // https://codepoints.net/box_drawing
   , table: {
-        dash    : '\u2501'
-      , pipe    : '\u2503'
+      dash    : '\u2501'  // console: 2500
+      , pipe    : '\u2503' // console: 2502
       , vdash   : '|'
       , dot     : '\u2022'
       , dblPipe : '\u2503\u2503'
       , top     : {
-            left   : '\u250f'
+          left   : '\u250f' // console: 250c
           , middle : '\u2533'
           , right  : '\u2513'
         }
       , middle  : {
-            left   : '\u2523'
+          left   : '\u2523'  // console: 251c
           , middle : '\u254b'
-          , right  : '\u252b'
+          , right  : '\u252b' // console: 2524
         }
       , bottom  : {
             left   : '\u2523'// \u2517
@@ -193,7 +193,7 @@ const Chars = {
           , right  : '\u252b'// \u251b
         }
       , footer  : {
-            left   : '\u2517'
+          left   : '\u2517'       // console: 2518
           , middle : '\u2501'
           , right  : '\u251b'
         }

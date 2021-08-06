@@ -42,7 +42,6 @@ const {TermHelper} = require('./draw')
 const TermPlayer   = require('./player')
 const Themes       = require('./themes')
 
-const chalk      = require('chalk')
 const fs         = require('fs')
 const fse        = require('fs-extra')
 const globby     = require('globby')
@@ -261,9 +260,9 @@ class Menu extends EventEmitter {
 
     playMenu() {
 
-        return this.runMenu('play', __('Play'), async (choose, loop) => {
+        const {__} = this
 
-            const {__} = this
+        return this.runMenu('play', __('Play'), async (choose, loop) => {
 
             let isContinue = true
 
