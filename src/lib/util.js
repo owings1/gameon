@@ -45,11 +45,10 @@ class Util {
     /**
      * Append all values to an array.
      *
-     * @param {array} The array to push to
-     * @param {array} The values to push
-     *
      * @throws {TypeError}
      *
+     * @param {array} The array to push to
+     * @param {array} The values to push
      * @return {array} The input array
      */
     static append(arr, values) {
@@ -58,14 +57,13 @@ class Util {
     }
 
     /**
+     * @throws {TypeError}
      * 
      * @param {array}
      * @param {integer}
      * @param {integer}
      * @param {integer}
      * @param {integer} (optional)
-     *
-     * @throws {TypeError}     *
      * @return {boolean}
      */
     static arrayIncrement(arr, inc, min, max, place) {
@@ -93,7 +91,6 @@ class Util {
      *
      * @param {array} The lines to chunk
      * @param {integer} The max width
-     *
      * @return {array} One array of chunked lines for each input line
      */
     static breakLines(lines, width) {
@@ -138,7 +135,6 @@ class Util {
     /**
      * 
      * @param {*}
-     *
      * @return {array}
      */
     static castToArray(val) {
@@ -146,19 +142,22 @@ class Util {
             return val
         }
         const arr = []
-        if (val !== null && typeof val != 'undefined') {
+        if (val != null) {
             arr.push(val)
         }
         return arr
     }
 
+    static cat(...args) {
+        return args.flat().join('')
+    }
+
     /**
      * Break up an array into chunks.
      *
+     * @throws {TypeError}
      * @param {array} The array to chunk
      * @param {integer} The number of chunks
-     *
-     * @throws {TypeError}     *
      * @return {array} The array of chunks
      */
     static chunkArray(arr, numChunks) {
@@ -178,7 +177,6 @@ class Util {
      * Get the terminal width.
      *
      * @param {object} (optional) The options
-     *
      * @return {integer} The width
      */
     static cliWidth(opts) {
@@ -214,10 +212,11 @@ class Util {
      * Adapted from: http://vancelucas.com/blog/stronger-encryption-and-decryption-in-node-js/
      *
      * @license CC-BY 3.0 https://creativecommons.org/licenses/by/3.0/us/
-     * @param {string}
-     * @param {string}
      *
-     * @throws {ArgumentError}     *
+     * @throws {ArgumentError}
+     *
+     * @param {string}
+     * @param {string}
      * @return {string}
      */
     static decrypt2(text, key) {
@@ -244,7 +243,6 @@ class Util {
      *
      * @param {object}
      * @param ...{object} (optional)
-     *
      * @return {object}
      */
     static defaults(defaults, ...opts) {
@@ -256,9 +254,8 @@ class Util {
     /**
      * Call the `destroy()` method on all values of the given parameter.
      *
+     * @throws {TypeError}
      * @param {array|object} The collection whose values to destroy
-     *
-     * @throws {TypeError}     *
      * @return {self}
      */
     static destroyAll(obj) {
@@ -271,10 +268,9 @@ class Util {
      *
      * @license CC-BY 3.0 https://creativecommons.org/licenses/by/3.0/us/
      *
+     * @throws {ArgumentError}
      * @param {string}
      * @param {string}
-     *
-     * @throws {ArgumentError}     *
      * @return {string}
      */
     static encrypt2(text, key) {
@@ -292,13 +288,27 @@ class Util {
 
         return iv.toString('hex') + ':' + encrypted.toString('hex')
     }
+
+    /**
+     * String ends with
+     *
+     * @throws {TypeError}
+     *
+     * @param {string} String to examine
+     * @param {string} The end string to search for
+     * @return {boolean}
+     */
+    static endsWith(str, srch) {
+        return str.length - str.lastIndexOf(srch) === srch.length
+    }
+
     /**
      * Update the target object with the defaults if the key does not yet exist.
      *
+     * @throws {TypeError}
+     *
      * @param {object} The target object to update
      * @param {object} The defaults to use
-     *
-     * @throws {TypeError}     *
      * @return {object} The target object
      */
     static ensure(target, defaults) {
@@ -337,9 +347,8 @@ class Util {
      *
      * @license MPL 2.0 https://www.mozilla.org/en-US/MPL/
      *
+     * @throws {TypeError}
      * @param {string} The string to escape
-     *
-     * @throws {TypeError}     *
      * @return {string} The escaped string
      */
     static escapeRegex(str) {
@@ -349,13 +358,14 @@ class Util {
     /**
      * Copy methods from the prototype of one class to another.
      *
+     * @throws {TypeError}
+     * @throws {ProgrammerError}
+     *
      * @param {class} The target class
      * @param {class} The source class
      * @param {object} (optional) Options, `overrides`, `optionals`, each
      *        either a boolean (for all) or array of method names. The string
      *        '*' as a name signifies all.
-     *
-     * @throws {ProgrammerError}     * @throws {TypeError}     *
      * @return {class} The target class
      */
     static extendClass(TargetClass, SourceClass, opts) {
@@ -401,9 +411,8 @@ class Util {
      *          -----------------------
      * Example: 2021-07-29_02-01-09_584
      *
+     * @throws {TypeError}
      * @param {Date} (optional) The date reference, default is current date.
-     *
-     * @throws {TypeError}     *
      * @return {string} The result string
      */
     static fileDateString(date) {
@@ -432,9 +441,8 @@ class Util {
     /**
      * Get the basename of the file path, without the extension.
      *
+     * @throws {TypeError}
      * @param {string} The input path string
-     *
-     * @throws {TypeError}     *
      * @return {string} The basename without the extension
      */
     static filenameWithoutExtension(str) {
@@ -444,9 +452,8 @@ class Util {
     /**
      * Get the file path without the extension.
      *
+     * @throws {TypeError}
      * @param {string} The input path string
-     *
-     * @throws {TypeError}     *
      * @return {string} The path without the extension
      */
     static filepathWithoutExtension(str) {
@@ -456,10 +463,9 @@ class Util {
     /**
      * From inquirer/lib/utils/screen-manager.
      *
+     * @throws {TypeError}
      * @param {string}
      * @param {integer}
-     *
-     * @throws {TypeError}     *
      * @return {string}
      */
     static forceLineReturn(content, width) {
@@ -482,9 +488,9 @@ class Util {
     /**
      * Replace os home dir at the start of a string with ~.
      *
-     * @param {string} The input path string
+     * @throws {TypeError}
      *
-     * @throws {TypeError}     *
+     * @param {string} The input path string
      * @return {string} The result string
      *
      * @see `tildeHome()`
@@ -503,9 +509,9 @@ class Util {
     /**
      * Normalize an http(s) URL to a websocket URL.
      *
-     * @param {string} The URL string to normalized
+     * @throws {TypeError}
      *
-     * @throws {TypeError}     *
+     * @param {string} The URL string to normalized
      * @return {string} The normalized string
      *
      * @see `wsToHttp()`
@@ -528,7 +534,6 @@ class Util {
         if (typeof value == 'boolean') {
             return value
         }
-        if (value )
         if (value != null) {
             value = String(value).toLowerCase()
             if (def) {
@@ -564,10 +569,11 @@ class Util {
     /**
      * Create an array of integers for the given range (inclusive).
      *
+     * @throws {TypeError}
+     * @throws {ArgumentError}
+     *
      * @param {integer} The range start
      * @param {integer} The range end
-     *
-     * @throws {ArgumentError}     * @throws {TypeError}     *
      * @return {array} The range array
      */
     static intRange(a, b) {
@@ -585,10 +591,10 @@ class Util {
      * Check whether both the `username` and `password` keys are non-empty, and
      * optionally the `serverUrl` key.
      *
+     * @throws {TypeError}
+     *
      * @param {object} The credentials object to check
      * @param {boolean} (optional) Whether to also check for `serverUrl`
-     *
-     * @throws {TypeError}     *
      * @return {boolean} Whether the keys are non-empty
      */
     static isCredentialsFilled(credentials, isServer) {
@@ -601,7 +607,6 @@ class Util {
      * Check whether to parameter is null, or an empty object.
      *
      * @param {*} The input to check
-     *
      * @return {boolean} Whether the input is null or an empty object
      */
     static isEmptyObject(obj) {
@@ -618,7 +623,6 @@ class Util {
      * Check whether the input is a valid email address.
      *
      * @param {*} The input to check
-     *
      * @return {boolean} Whether the input is a valid email
      */
     static isValidEmail(str) {
@@ -628,9 +632,9 @@ class Util {
     /**
      * Get the normalized keypress name from an event object.
      *
-     * @param {object} The keypress event object
+     * @throws {TypeError}
      *
-     * @throws {TypeError}     *
+     * @param {object} The keypress event object
      * @return {string} The normalized keypress name
      */
     static keypressName(e) {
@@ -654,9 +658,9 @@ class Util {
     /**
      * Return an object with the same keys, with `true` as all values.
      *
-     * @param {object} The input object
+     * @throws {TypeError}
      *
-     * @throws {TypeError}     *
+     * @param {object} The input object
      * @return {object} The result object
      */
     static keyValuesTrue(input) {
@@ -666,12 +670,12 @@ class Util {
     /**
      * Lowercase the first letter of a string.
      *
-     * @param {string} The input string
-     *
-     * @throws {TypeError}     *
-     * @return {string} The result string
-     *
      * @see `ucfirst()`
+     *
+     * @throws {TypeError}
+     *
+     * @param {string} The input string
+     * @return {string} The result string
      */
     static lcfirst(str) {
         if (str == null || !str.length) {
@@ -683,9 +687,9 @@ class Util {
     /**
      * Create a plain object from an Error, suitable for serialization.
      *
-     * @param {Error} The input error
+     * @throws {TypeError}
      *
-     * @throws {TypeError}     *
+     * @param {Error} The input error
      * @return {object} The result object
      */
     static makeErrorObject(err, depth = 1) {
@@ -721,10 +725,10 @@ class Util {
      * Return a new object with the same keys, transforming values with the
      * given callback.
      *
+     * @throws {TypeError}
+     *
      * @param {object} The input object
      * @param {function} The callback, to transform the value
-     *
-     * @throws {TypeError}     *
      * @return {object} The result object
      */
     static mapValues(obj, cb) {
@@ -738,10 +742,11 @@ class Util {
     /**
      * Create a string of length n from the input character.
      *
+     * @throws {ArgumentError}
+     * @throws {TypeError}
+     *
      * @param {integer} The desired length
      * @param {string} The character to repeat
-     *
-     * @throws {ArgumentError}     * @throws {TypeError}     *
      * @return {string} The result string
      */
     static nchars(n, chr) {
@@ -757,10 +762,11 @@ class Util {
     /**
      * Map the range from 0 for n (exclusive) by the given callback.
      *
+     * @throws {ArgumentError}
+     * @throws {TypeError}
+     *
      * @param {integer} The range limit
      * @param {function} The callback to execute
-     *
-     * @throws {ArgumentError}     * @throws {TypeError}     *
      * @return {array} The collection of the return values
      */
     static nmap(n, cb) {
@@ -777,10 +783,11 @@ class Util {
     /**
      * Run the callback n times.
      *
+     * @throws {ArgumentError}
+     * @throws {TypeError}
+     *
      * @param {integer} The number of times to run the callback
      * @param {function} The callback to execute
-     *
-     * @throws {ArgumentError}     * @throws {TypeError}     *
      * @return {*} Return value of last callback
      */
     static ntimes(n, cb) {
@@ -797,12 +804,13 @@ class Util {
     /**
      * Pad a string, left or right, ANSI-safe.
      *
+     * @throws {ArgumentError}
+     * @throws {TypeError}
+     *
      * @param {string} The string to pad
      * @param {string} Alignment, 'left' or 'right', default 'right'
      * @param {integer} Required string width.
      * @param {string} (optional) Pad string, default space.
-     *
-     * @throws {ArgumentError}     * @throws {TypeError}     *
      * @return {string} The padded string
      */
     static pad(str, align, width, chr = ' ') {
@@ -815,11 +823,12 @@ class Util {
     /**
      * Pad the end of a string, ANSI-safe.
      *
+     * @throws {ArgumentError}
+     * @throws {TypeError}
+     *
      * @param {string} The string to pad
      * @param {integer} The min width required
      * @param {string} The character to pad with
-     *
-     * @throws {ArgumentError}     * @throws {TypeError}     *
      * @return {string} The padded string
      */
     static padEnd(str, n, chr) {
@@ -838,11 +847,12 @@ class Util {
     /**
      * Pad the start of a string, ANSI-safe.
      *
+     * @throws {ArgumentError}
+     * @throws {TypeError}
+     *
      * @param {string} The string to pad
      * @param {integer} The min width required
      * @param {string} The character to pad with
-     *
-     * @throws {ArgumentError}     * @throws {TypeError}     *
      * @return {string} The padded string
      */
     static padStart(str, n, chr) {
@@ -859,10 +869,10 @@ class Util {
     }
 
     /**
+     * @throws {TypeError}
+     *
      * @param {object}
      * @param {array|object}
-     *
-     * @throws {TypeError}     *
      * @return {object}
      */
     static propsFrom(obj, keys) {
@@ -878,9 +888,9 @@ class Util {
     /**
      * Get a random element from an array.
      *
-     * @param {array} The input array
+     * @throws {TypeError}
      *
-     * @throws {TypeError}     *
+     * @param {array} The input array
      * @return {*} The value of a random index of the array
      */
     static randomElement(arr) {
@@ -893,10 +903,10 @@ class Util {
      * `PromptActiveError` by calling the reject argument if passed, else by
      * throwing.
      *
+     * @throws {PromptActiveError}
+     *
      * @param {*} The object to test
      * @param {function} (optional) The reject function.
-     *
-     * @throws {PromptActiveError}     *
      * @return {boolean} Whether the reject function was called
      */
     static rejectDuplicatePrompter(prompter, reject = null) {
@@ -990,7 +1000,6 @@ class Util {
      *
      * @param {number} The left-hand number.
      * @param {number} The right-hand number.
-     *
      * @return {number} The comparison result
      */
     static sortNumericAsc(a, b) {
@@ -1002,7 +1011,6 @@ class Util {
      *
      * @param {number} The left-hand number.
      * @param {number} The right-hand number.
-     *
      * @return {number} The comparison result
      */
     static sortNumericDesc(a, b) {
@@ -1013,7 +1021,6 @@ class Util {
      * Join arguments on space character.
      *
      * @param ...{*} The arguments to join
-     *
      * @return {string} The joined string
      */
     static sp(...args) {
@@ -1023,7 +1030,6 @@ class Util {
     /**
      * @param {object}
      * @param {boolean} (optional)
-     *
      * @return {object}
      */
     static spreadScore(obj, isInverse) {
@@ -1059,7 +1065,6 @@ class Util {
      * Strip all ANSI escape sequences from a string.
      *
      * @param {string} The input string
-     *
      * @return {string} The result string
      */
     static stripAnsi(str) {
@@ -1069,9 +1074,9 @@ class Util {
     /**
      * Strips one forward slash from the start of a string, if any.
      *
-     * @param {string} The input string
+     * @throws {TypeError}
      *
-     * @throws {TypeError}     *
+     * @param {string} The input string
      * @return {string} The result string
      */
     static stripLeadingSlash(str) {
@@ -1084,9 +1089,9 @@ class Util {
     /**
      * Strips one forward slash from the end of a string, if any.
      *
-     * @param {string} The input string
+     * @throws {TypeError}
      *
-     * @throws {TypeError}     *
+     * @param {string} The input string
      * @return {string} The result string
      */
     static stripTrailingSlash(str) {
@@ -1101,7 +1106,6 @@ class Util {
      * multi-byte characters.
      *
      * @param {string} The input string
-     *
      * @return {integer} The string width
      */
     static stringWidth(str) {
@@ -1111,9 +1115,9 @@ class Util {
     /**
      * Sum all numbers in the array.
      *
-     * @param {array} The input array
+     * @throws {TypeError}
      *
-     * @throws {TypeError}     *
+     * @param {array} The input array
      * @return {integer} The result sum
      */
     static sumArray(arr) {
@@ -1123,9 +1127,9 @@ class Util {
     /**
      * Replace ~ at the start of a string with the os home dir.
      *
-     * @param {string} The input path string
+     * @throws {TypeError}
      *
-     * @throws {TypeError}     *
+     * @param {string} The input path string
      * @return {string} The result string
      *
      * @see `homeTilde()`
@@ -1144,7 +1148,6 @@ class Util {
      * Get UNIX timestamp (seconds).
      *
      * @param {Date} (optional) The date reference. Default is the current date.
-     *
      * @return {integer} The UNIX timestamp
      */
     static timestamp(date) {
@@ -1156,7 +1159,6 @@ class Util {
      * Prune data object for logging.
      *
      * @param {object} The input data
-     *
      * @return {object} The cleaned data
      */
     static trimMessageData(data) {
@@ -1193,7 +1195,6 @@ class Util {
      * Alias for `timestamp()`
      *
      * @param {Date} (optional) The date reference. Default is the current date.
-     *
      * @return {integer} The UNIX timestamp
      *
      * @see `timestamp()`
@@ -1205,10 +1206,9 @@ class Util {
     /**
      * Capitalize the first letter of a string.
      *
-     * @param {string} The input string
-     *
      * @throws {TypeError}
      *
+     * @param {string} The input string
      * @return {string} The result string
      *
      * @see `lcfirst()`
@@ -1223,10 +1223,9 @@ class Util {
     /**
      * Returns an array with all the unique integers of the input array.
      *
-     * @param {array} The input array
-     *
      * @throws {TypeError}
      *
+     * @param {array} The input array
      * @return {array} The unique numbers
      */
     static uniqueInts(arr) {
@@ -1238,9 +1237,9 @@ class Util {
     /**
      * Returns an array with all the unique strings of the input array.
      *
-     * @param {array} The input array
+     * @throws {TypeError}
      *
-     * @throws {TypeError}     *
+     * @param {array} The input array
      * @return {array} The unique strings
      */
     static uniqueStrings(arr) {
@@ -1250,9 +1249,9 @@ class Util {
     /**
      * Returns an array with all the unique primitives of the input array.
      *
-     * @param {array} The input array
+     * @throws {TypeError}
      *
-     * @throws {TypeError}     *
+     * @param {array} The input array
      * @return {array} The unique primitives
      */
     static uniquePrimitives(arr) {
@@ -1266,7 +1265,6 @@ class Util {
      *
      * @param {object} The target object to update
      * @param {object} The source object with the new values
-     *
      * @return {object} The target object
      */
     static update(target, source) {
@@ -1290,9 +1288,9 @@ class Util {
     /**
      * Normalize websocket URL to an http(s) URL.
      *
-     * @param {string} The URL string to normalized
+     * @throws {TypeError}
      *
-     * @throws {TypeError}     *
+     * @param {string} The URL string to normalized
      * @return {string} The normalized string
      *
      * @see `httpToWs()`

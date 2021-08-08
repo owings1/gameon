@@ -145,16 +145,11 @@ const Util      = require('./util')
 
 const fse  = require('fs-extra')
 const path = require('path')
+const {arrays: {append}, types: {castToArray}} = require('utils-h')
 
 const {InvalidDirError} = require('./errors')
 
-const {
-    append
-  , defaults
-  , castToArray
-  , fileDateString
-  , homeTilde
-} = Util
+const {defaults, fileDateString, homeTilde} = Util
 
 class Coordinator {
 

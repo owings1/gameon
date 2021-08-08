@@ -128,9 +128,9 @@ getSuites().forEach(({file, name, title}) => {
     }
 })
 
-function getSuites(dir, glob) {
-    dir = dir || path.resolve(__dirname, 'suites')
-    glob = dir + '/' + stripLeadingSlash(glob || '*.test.js')
+function getSuites() {
+    const dir = path.resolve(__dirname)
+    const glob = path.resolve(dir, '*/**/*.test.js')
     return globby.sync(glob)
         .map(file => {
             const name = path.basename(file)

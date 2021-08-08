@@ -25,6 +25,9 @@
 const chai     = require('chai')
 const {expect} = chai
 const tmp      = require('tmp')
+const Util    = require('../src/lib/util')
+const {strings: {endsWith}} = require('utils-h')
+const {Assertion} = chai
 
 // See https://www.chaijs.com/guide/helpers/
 chai.Assertion.addMethod('jsonEqual', function assertJsonEqual(b) {
@@ -39,9 +42,31 @@ chai.Assertion.addMethod('jsonEqual', function assertJsonEqual(b) {
     )
 })
 
+Assertion.addMethod('erri', function (type) {
+    const obj = this._obj
+    // preconditon, whether positive or negative assertion
+    new Assertion(obj).to.be.instanceof(Error)
+
+    let name = type
+    if (typeof name === 'function') {
+        name = type.name
+    } else if (name.length - name.lastIndexOf('Error') !== 'Error'.length) {
+        // ends with
+        name += 'Error'
+    }
+    const isprop = 'is' + name
+
+    this.assert(
+        obj.name === name || obj[isprop] === true,
+        "expected #{this} to be a #{exp} but got #{act}",
+        "expected #{this} to not be a #{act}",
+        name,        // expected,
+        obj.name,  // actual,
+    )
+})
+
 const {Board} = require('../src/lib/core')
 const Robot   = require('../src/robot/player')
-const Util    = require('../src/lib/util')
 
 const States = require('./states')
 
@@ -93,6 +118,7 @@ const {NullOutput, ReadlineStub} = require('./util/io')
 
 const TestUtil = {
     // methods
+    ger: getError,
     getError,
     makeRandomMoves,
     fetchBoard : name => Board.fromStateString(States[name]),
