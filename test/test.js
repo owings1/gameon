@@ -23,19 +23,20 @@
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 const IsPrintOnly = false
+const {
+    objects: {valueHash},
+    strings: {ucfirst},
+    types  : {castToArray},
+} = require('utils-h')
+const globby = require('globby')
+
+const path   = require('path')
 
 const {
-    keyValuesTrue,
     mapValues,
     stripLeadingSlash,
-    ucfirst,
-} = require('./util')
-
-const {Chars} = require('../src/lib/constants')
-
-const chalk  = require('chalk')
-const globby = require('globby')
-const path   = require('path')
+} = require('./util.js')
+const {Chars} = require('../src/lib/constants.js')
 
 const onlys = [
     //'auth',
@@ -104,7 +105,7 @@ if (isRun) {
     })
 }
 
-const maps = mapValues({onlys, skips}, keyValuesTrue)
+const maps = mapValues({onlys, skips}, valueHash)
 
 getSuites().forEach(({file, name, title}) => {
     if (isPrintOnly) {

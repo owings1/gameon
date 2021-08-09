@@ -55,33 +55,31 @@
  * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
+const {
+    arrays  : {append},
+    colors  : {Chalk},
+    objects : {lget, lset},
+    strings : {lcfirst, ucfirst},
+    types   : {castToArray},
+} = require('utils-h')
+const ms = require('ms')
 const Base        = require('mocha/lib/reporters/base')
 const Runner      = require('mocha/lib/runner')
 const mstringify  = require('mocha/lib/utils').stringify
 
 const {
-    append,
-    castToArray,
     induceBool,
     induceInt,
-    lcfirst,
     mapValues,
     nchars,
     sp,
     stringWidth,
-    ucfirst,
-} = require('../../src/lib/util')
+} = require('../../src/lib/util.js')
 
-const Chalks = require('./reporter-chalks')
-const Diffs  = require('./diffs')
+const Chalks = require('./reporter-chalks.js')
+const Diffs  = require('./diffs.js')
 
-const chalk = require('chalk')
-const ms    = require('ms')
-const ld = {
-    get : require('lodash/get'),
-    set : require('lodash/set'),
-}
-
+const chalk = new Chalk()
 const RawMatchRegex = /^([^:]+): expected/
 
 const DefaultDiffLinesMin = 5
@@ -188,12 +186,12 @@ class BaseReporter extends Base {
      * @return self
      */
     setStyle(key, ref) {
-        ld.set(this.chalks, key, ld.get(this.chalk, ref))
+        lset(this.chalks, key, lget(this.chalk, ref))
         return this
     }
 
     /**
-     * Set chalk styles.
+     * Set chalk styles
      *
      * @param {object} Map of style key paths to chalk paths.
      * @return self

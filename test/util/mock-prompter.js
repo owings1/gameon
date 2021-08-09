@@ -22,8 +22,10 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-
-const {castToArray, keyValuesTrue} = require('../../src/lib/util')
+const {
+    objects : {valueHash},
+    types   : {castToArray},
+} = require('utils-h')
 
 function MockPrompter(responses, isSkipAssertAsked, isSkipAssertAnswered, isSkipAssertValid) {
 
@@ -51,7 +53,7 @@ function MockPrompter(responses, isSkipAssertAsked, isSkipAssertAnswered, isSkip
                 )
             }
 
-            const unasked = keyValuesTrue(Object.keys(response))
+            const unasked = valueHash(Object.keys(response))
             const unanswered = []
             const alerts = []
 

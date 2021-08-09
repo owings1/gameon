@@ -22,10 +22,9 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-const {
-    errMessage,
-    keyValuesTrue,
-} = require('../../lib/util.js')
+const {objects: {valueHash}} = require('utils-h')
+
+const {errMessage} = require('../../lib/util.js')
 
 module.exports = {
     interactive: {
@@ -110,7 +109,7 @@ module.exports = {
         }
     ]
   , columns : ({columns, showColumns}) => {
-        const showMap = keyValuesTrue(showColumns.map(it => it.name))
+        const showMap = valueHash(showColumns.map(it => it.name))
         return {
               name    : 'columns'
             , type    : 'checkbox'

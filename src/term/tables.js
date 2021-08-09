@@ -23,8 +23,9 @@
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 const {
-    arrays : {append, arraySum},
-    types  : {castToArray},
+    arrays  : {append, arraySum},
+    objects : {valueHash},
+    types   : {castToArray},
 } = require('utils-h')
 
 const Themes = require('./themes.js')
@@ -39,7 +40,6 @@ const {
 const {
     createLogger,
     defaults,
-    keyValuesTrue,
     mapValues,
     nchars,
     pad,
@@ -465,7 +465,7 @@ class Table {
         if (this.opts.columns == null) {
             return this.columns
         }
-        const nameMap = keyValuesTrue(this.columns.map(it => it.name))
+        const nameMap = valueHash(this.columns.map(it => it.name))
         const showNames = []
         let columnOpts = []
         if (Array.isArray(this.opts.columns)) {

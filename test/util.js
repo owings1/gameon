@@ -114,7 +114,6 @@ const TestUtil = {
     // Util methods
     append,
     destroyAll        : Util.destroyAll,
-    keyValuesTrue     : Util.keyValuesTrue,
     mapValues         : Util.mapValues,
     randomElement     : Util.randomElement,
     stripAnsi,

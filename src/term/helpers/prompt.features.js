@@ -50,13 +50,12 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  */
 const {
-    objects : {lset},
+    objects : {lset, valueHash},
     strings : {stripAnsi},
     types   : {castToArray},
 } = require('utils-h')
 
 const Themes = require('../themes.js')
-const {keyValuesTrue} = require('../../lib/util.js')
 const {DuplicateKeyError} = require('../../lib/errors.js')
 
 const ModifiedStatuses = {
@@ -155,7 +154,7 @@ class CancelFeature {
         const validate = opt.validate
         opt.validate = (...args) => this.isCancel || validate(...args)
 
-        const keyIndex = keyValuesTrue(castToArray(opt.cancel.char))
+        const keyIndex = valueHash(castToArray(opt.cancel.char))
         this.addKeypressIndex('cancel', keyIndex, (value, e) => {
             this.isCancel = true
             if (this.answers && this.opt.cancel.eventKey) {
@@ -169,7 +168,7 @@ class CancelFeature {
 class ClearFeature {
 
     _constructor(...args) {
-        const keyIndex = keyValuesTrue(castToArray(this.opt.clear))
+        const keyIndex = valueHash(castToArray(this.opt.clear))
         this.addKeypressIndex('clear', keyIndex, this.clear.bind(this))
     }
 }
@@ -253,7 +252,7 @@ class ChoiceActionFeature {
 class RestoreFeature {
 
     _constructor() {
-        const keyIndex = keyValuesTrue(castToArray(this.opt.restore))
+        const keyIndex = valueHash(castToArray(this.opt.restore))
         this.addKeypressIndex('restore', keyIndex, () => {
             if (!this.opt.default) {
                 return false
@@ -266,7 +265,7 @@ class RestoreFeature {
 class ExpandFeature {
 
     _constructor() {
-        const keyIndex = keyValuesTrue(castToArray(this.opt.expand))
+        const keyIndex = valueHash(castToArray(this.opt.expand))
         this.addKeypressIndex('expand', keyIndex, () => {
             if (!this.opt.default || ModifiedStatuses[this.status]) {
                 return false

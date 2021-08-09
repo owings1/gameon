@@ -33,11 +33,11 @@ const uuid        = require('uuid')
 
 const {
     Logger,
-    arrays: {append},
-    merging: {mergePlain},
-    objects: {lget, lset, update},
-    strings: {cat, endsWith, escapeRegex, lcfirst, stripAnsi, ucfirst},
-    types: {isString, isObject, castToArray},
+    arrays  : {append},
+    merging : {mergePlain},
+    objects : {lget, lset, update, valueHash},
+    strings : {cat, endsWith, escapeRegex, lcfirst, stripAnsi, ucfirst},
+    types   : {isString, isObject, castToArray},
 } = require('utils-h')
 const {
     ArgumentError,
@@ -394,7 +394,7 @@ class Util {
             } else if (opts[key] === false) {
                 opts[key] = {}
             } else {
-                opts[key] = Util.keyValuesTrue(Util.castToArray(opts[key]))
+                opts[key] = valueHash(castToArray(opts[key]))
             }
         })
 
@@ -655,17 +655,7 @@ class Util {
         return e.value || ''
     }
 
-    /**
-     * Return an object with the same keys, with `true` as all values.
-     *
-     * @throws {TypeError}
-     *
-     * @param {object} The input object
-     * @return {object} The result object
-     */
-    static keyValuesTrue(input) {
-        return Object.fromEntries(Object.values(input).map(value => [value, true]))
-    }
+
 
     /**
      * Create a plain object from an Error, suitable for serialization.

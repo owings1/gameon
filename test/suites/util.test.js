@@ -520,16 +520,6 @@ describe('Util', () => {
         ])
     })
 
-    describe('#keyValuesTrue', () => {
-
-        makeCases('keyValuesTrue', {isJson: true}, [
-            [
-                {a: true, b: true, c: true}
-              , ['a', 'b', 'b', 'c']
-            ]
-        ])
-    })
-
     describe('#makeErrorObject', () => {
 
         it('should return constructor name if error has no name', function () {
