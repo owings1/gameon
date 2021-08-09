@@ -22,41 +22,42 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-const Base      = require('../lib/player')
-const Constants = require('../lib/constants')
-const Core      = require('../lib/core')
-const Draw      = require('./draw')
-const Errors    = require('../lib/errors')
-const Logger    = require('../lib/logger')
-const Robot     = require('../robot/player')
-const Themes    = require('./themes')
-const Util      = require('../lib/util')
-
-const {inquirer} = require('./inquirer')
-const {Board} = Core
-const {DrawHelper, TermHelper} = Draw
-const {RobotDelegator} = Robot
-
 const {
-    Colors
-  , DefaultThemeName
-  , DefaultTermEnabled
-  , Opponent
-  , OriginPoints
-  , PointOrigins
-} = Constants
-
-const {MatchCanceledError, WaitingFinishedError} = Errors
-
-const {
-    castToArray
-  , nchars
-  , rejectDuplicatePrompter
-  , sp
-  , uniqueInts
-} = Util
+    types: {castToArray},
+} = require('utils-h')
 
 const {EventEmitter} = require('events')
+
+const Base    = require('../lib/player.js')
+const {Board} = require('../lib/core.js')
+const Themes  = require('./themes.js')
+const {inquirer} = require('./inquirer.js')
+const {RobotDelegator} = require('../robot/player.js')
+const {
+    DrawHelper,
+    TermHelper,
+} = require('./draw.js')
+const {
+    Colors,
+    DefaultThemeName,
+    DefaultTermEnabled,
+    Opponent,
+    OriginPoints,
+    PointOrigins,
+} = require('../lib/constants.js')
+const {
+    MatchCanceledError,
+    WaitingFinishedError,
+} = require('../lib/errors.js')
+const {
+    defaults,
+    nchars,
+    rejectDuplicatePrompter,
+    sortNumericAsc,
+    sortNumericDesc,
+    sp,
+    uniqueInts,
+} = require('../lib/util.js')
 
 const Listeners = {
 
@@ -227,7 +228,7 @@ class TermPlayer extends Base {
 
         this.isTerm = true
         this.persp = color
-        this.opts = Util.defaults(TermPlayer.defaults(), opts)
+        this.opts = defaults(TermPlayer.defaults(), opts)
         this.theme = Themes.getInstance(this.opts.theme)
         this.logs = []
 
@@ -421,7 +422,7 @@ class TermPlayer extends Base {
     }
 
     async promptFace(turn, faces) {
-        faces = uniqueInts(faces).sort(Util.sortNumericDesc)
+        faces = uniqueInts(faces).sort(sortNumericDesc)
         if (faces.length == 1) {
             return faces[0]
         }
@@ -532,7 +533,7 @@ class TermPlayer extends Base {
     getOriginQuestion(origins, canUndo, prefix) {
 
         const points = uniqueInts(origins).map(origin => this.originPoint(origin))
-        points.sort(Util.sortNumericAsc)
+        points.sort(sortNumericAsc)
 
         const choices = points.map(p => p.toString())
 
@@ -787,7 +788,7 @@ class TermRobot extends TermPlayer {
 
         super(robot.color, opts)
 
-        this.opts = {...this.opts, ...Util.defaults(TermRobot.defaults(), opts)}
+        this.opts = {...this.opts, ...defaults(TermRobot.defaults(), opts)}
         this.isRobot = true
         this.persp = Colors.White
         this.robot = robot

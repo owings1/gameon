@@ -22,40 +22,34 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-const Constants = require('../lib/constants')
-const Errors    = require('../lib/errors')
-const Logger    = require('../lib/logger')
-const Util      = require('../lib/util')
-
-const {TermHelper} = require('./draw')
-const Themes       = require('./themes')
-
-const {inquirer} = require('./inquirer')
-
 const {
-    Chars
-  , DefaultTermEnabled
-  , DefaultThemeName
-} = Constants
+    arrays : {append, arraySum},
+    types  : {castToArray},
+} = require('utils-h')
 
+const Themes = require('./themes.js')
+const Questions    = require('./helpers/tables.questions.js')
+const {inquirer}   = require('./inquirer.js')
+const {TermHelper} = require('./draw.js')
 const {
-    append
-  , castToArray
-  , keyValuesTrue
-  , mapValues
-  , nchars
-  , pad
-  , stringWidth
-  , sumArray
-} = Util
-
+    Chars,
+    DefaultTermEnabled,
+    DefaultThemeName,
+} = require('../lib/constants.js')
 const {
-    DuplicateColumnError
-  , InvalidColumnError
-  , InvalidRegexError
-} = Errors
-
-const Questions = require('./helpers/tables.questions')
+    createLogger,
+    defaults,
+    keyValuesTrue,
+    mapValues,
+    nchars,
+    pad,
+    stringWidth,
+} = require('../lib/util.js')
+const {
+    DuplicateColumnError,
+    InvalidColumnError,
+    InvalidRegexError,
+} = require('../lib/errors.js')
 
 const DefaultTerm = new TermHelper(DefaultTermEnabled)
 
@@ -63,17 +57,17 @@ class TableHelper {
 
     static defaults() {
         return {
-            indent : 0
-          , theme  : DefaultThemeName
-          , term   : DefaultTerm
+            indent : 0,
+            theme  : DefaultThemeName,
+            term   : DefaultTerm,
         }
     }
 
     constructor(opts) {
-        this.opts = Util.defaults(TableHelper.defaults(), opts)
-        this.logger = new Logger
-        this.theme = Themes.getInstance(this.opts.theme)
+        this.opts = defaults(TableHelper.defaults(), opts)
         this.term = this.opts.term
+        this.logger = createLogger(this, {oneout: true, stdout: this.term.output})
+        this.theme = Themes.getInstance(this.opts.theme)
         this.inquirer = inquirer.createPromptModule()
     }
 
@@ -89,7 +83,7 @@ class TableHelper {
 
             this.printTable(table)
 
-            var {input} = await this.prompt(Questions.interactive)
+            const {input} = await this.prompt(Questions.interactive)
 
             if (input == 'quit') {
                 break
@@ -171,6 +165,7 @@ class TableHelper {
 
     set output(strm) {
         this.term.stdout = strm
+        this.logger.stdout = strm
     }
 }
 
@@ -178,21 +173,21 @@ class Table {
 
     static defaults() {
         return {
-            theme        : DefaultThemeName
-          , name         : 'Table'
-          , columns      : null
-          , title        : null
-          , titleAlign   : 'left'
-          , footerLines  : null
-          , footerAlign  : 'left'
-          , innerBorders : false
-          , sortBy       : null
-          , maxRows      : -1
-          , filterRegex  : null
-          , filterFixed  : null
-          , arrSeparator : ','
-          , dirSeparator : ':'
-          , oddEven      : true
+            theme        : DefaultThemeName,
+            name         : 'Table',
+            columns      : null,
+            title        : null,
+            titleAlign   : 'left',
+            footerLines  : null,
+            footerAlign  : 'left',
+            innerBorders : false,
+            sortBy       : null,
+            maxRows      : -1,
+            filterRegex  : null,
+            filterFixed  : null,
+            arrSeparator : ',',
+            dirSeparator : ':',
+            oddEven      : true,
         }
     }
 
@@ -200,7 +195,7 @@ class Table {
 
         this.columns = columns
         this.data = data
-        this.opts = Util.defaults(Table.defaults(), opts)
+        this.opts = defaults(Table.defaults(), opts)
 
         this.isBuilt = false
 
@@ -266,16 +261,16 @@ class Table {
         const columns = []
         this.columns.map(Table.makeColumn).forEach(column => {
             if (nameMap[column.name]) {
-                throw new DuplicateColumnError('Duplicate column name: ' + column.name)
+                throw new DuplicateColumnError(`Duplicate column name: ${column.name}`)
             }
-            for (var opt of ['dirSeparator', 'arrSeparator']) {
-                var chr = this.opts[opt]
+            for (const opt of ['dirSeparator', 'arrSeparator']) {
+                const chr = this.opts[opt]
                 if (column.name.indexOf(chr) > -1) {
-                    var msg = [
-                        'Column name cannot contain'
-                      , opt
-                      , '(' + chr + '):'
-                      , column.name
+                    const msg = [
+                        'Column name cannot contain',
+                        opt,
+                        '(' + chr + '):',
+                        column.name,
                     ].join(' ')
                     throw new InvalidColumnError(msg)
                 }
@@ -299,10 +294,10 @@ class Table {
             return this
         }
         this.data.sort((a, b) => {
-            for (var {column, mult} of sortBys) {
-                var aval = column.get(a, this)
-                var bval = column.get(b, this)
-                var cmp = column.sorter(aval, bval)
+            for (const {column, mult} of sortBys) {
+                const aval = column.get(a, this)
+                const bval = column.get(b, this)
+                let cmp = column.sorter(aval, bval)
                 if (cmp) {
                     return cmp * mult
                 }
@@ -331,11 +326,11 @@ class Table {
 
     buildParts() {
         this.parts = {
-            title  : this.makePartsTitle()
-          , head   : this.makePartsHead()
-          , rows   : this.makePartsRows()
-          , foot   : this.makePartsFoot()
-          , border : this.makePartsBorder()
+            title  : this.makePartsTitle(),
+            head   : this.makePartsHead(),
+            rows   : this.makePartsRows(),
+            foot   : this.makePartsFoot(),
+            border : this.makePartsBorder(),
         }
         return this
     }
@@ -364,7 +359,7 @@ class Table {
     }
 
     makeSortBys() {
-        var sortByOpts = []
+        let sortByOpts = []
         if (typeof this.opts.sortBy == 'string') {
             sortByOpts = this.opts.sortBy.split(this.opts.arrSeparator)
         } else if (Array.isArray(this.opts.sortBy)) {
@@ -372,8 +367,8 @@ class Table {
         }
         const sortBys = []
         sortByOpts.forEach(opt => {
-            var [name, dir] = opt.split(this.opts.dirSeparator)
-            var column = this.columns.find(it => it.name == name && it.sortable)
+            let [name, dir] = opt.split(this.opts.dirSeparator)
+            let column = this.columns.find(it => it.name == name && it.sortable)
             if (!column) {
                 column = this.columns.find(it => it.name.trim() == name.trim() && it.sortable)
             }
@@ -404,9 +399,9 @@ class Table {
             }
             const values = filterColumns.map(it => it.get(info, this)).filter(it => it != null)
             // for each regex, some column should match it
-            for (var regex of filterRegexes) {
-                var isFound = false
-                for (var value of values) {
+            for (const regex of filterRegexes) {
+                let isFound = false
+                for (const value of values) {
                     if (regex.test(value)) {
                         isFound = true
                         break
@@ -423,7 +418,7 @@ class Table {
     makeFilterRegexes() {
         const filterRegexes = []
         if (this.opts.filterRegex) {
-            var regexOpts = []
+            let regexOpts = []
             if (Array.isArray(this.opts.filterRegex)) {
                 regexOpts = this.opts.filterRegex.slice(0)
             } else {
@@ -453,7 +448,7 @@ class Table {
             })
         }
         if (this.opts.filterFixed) {
-            var fixedOpts = []
+            let fixedOpts = []
             if (Array.isArray(this.opts.filterFixed)) {
                 fixedOpts = this.opts.filterFixed.slice(0)
             } else {
@@ -472,7 +467,7 @@ class Table {
         }
         const nameMap = keyValuesTrue(this.columns.map(it => it.name))
         const showNames = []
-        var columnOpts = []
+        let columnOpts = []
         if (Array.isArray(this.opts.columns)) {
             columnOpts = this.opts.columns.slice(0)
         } else if (typeof this.opts.columns == 'string') {
@@ -532,24 +527,24 @@ class Table {
         const jp = chr => dashParts.join(dash + chr + dash)
 
         return {
-            top          : [top.left  , jp(top.mid)  , top.right  ]
-          , mid          : [mid.left  , jp(mid.mid)  , mid.right  ]
-          , bot          : [foot.left , jp(bot.mid)  , foot.right ]
-          , pretitle     : [top.left  , dashLine     , top.right  ]
-          , posttitle    : [mid.left  , jp(top.mid)  , mid.right  ]
-          , prefoot      : [bot.left  , jp(bot.mid)  , bot.right  ]
-          , postfoot     : [foot.left , jp(foot.mid) , foot.right ]
-          , footOnlyTop  : [top.left  , dashLine     , top.right  ]
-          , footOnlyBot  : [foot.left , dashLine     , foot.right ]
-          , extraOnlyMid : [mid.left  , dashLine     , mid.right  ]
+            top          : [top.left  , jp(top.mid)  , top.right  ],
+            mid          : [mid.left  , jp(mid.mid)  , mid.right  ],
+            bot          : [foot.left , jp(bot.mid)  , foot.right ],
+            pretitle     : [top.left  , dashLine     , top.right  ],
+            posttitle    : [mid.left  , jp(top.mid)  , mid.right  ],
+            prefoot      : [bot.left  , jp(bot.mid)  , bot.right  ],
+            postfoot     : [foot.left , jp(foot.mid) , foot.right ],
+            footOnlyTop  : [top.left  , dashLine     , top.right  ],
+            footOnlyBot  : [foot.left , dashLine     , foot.right ],
+            extraOnlyMid : [mid.left  , dashLine     , mid.right  ],
         }
     }
 
     calculateColumnWidths() {
         this.showColumns.forEach((column, i) => {
             column.width = Math.max(
-                stringWidth(column.title)
-              , ...this.rows.map(row => stringWidth(row[i]))
+                stringWidth(column.title),
+                ...this.rows.map(row => stringWidth(row[i])),
             )
         })
     }
@@ -557,7 +552,7 @@ class Table {
     calculateInnerWidth() {
         const {showColumns, footerLines, title} = this
         // start with column inner widths
-        this.innerWidth = sumArray(showColumns.map(column => column.width))
+        this.innerWidth = arraySum(showColumns.map(column => column.width))
         // add inner borders/padding
         this.innerWidth += Math.max(showColumns.length - 1, 0) * 3
         if (!footerLines.length && !title.length) {
@@ -582,26 +577,26 @@ class Table {
         const {chlk, chars, parts} = this
         const pipe = chlk.border(chars.pipe)
         const space = {
-            f : chlk.foot(' ')
-          , h : chlk.head(' ')
-          , t : chlk.title(' ')
-          , n : i => [chlk.row.odd, chlk.row.even][(i % 2) * +!!this.opts.oddEven](' ')
+            f : chlk.foot(' '),
+            h : chlk.head(' '),
+            t : chlk.title(' '),
+            n : i => [chlk.row.odd, chlk.row.even][(i % 2) * +!!this.opts.oddEven](' '),
         }
         // join parts (p) with pipe wrapped with space (s)
         const jps = (p, s) => p.join(s + pipe + s)
 
         return {
-            title : parts.title ? [pipe, parts.title, pipe].join(space.t) : ''
-          , head  : [pipe, jps(parts.head, space.h), pipe].join(space.h)
-          , rows  : parts.rows.map((p, i) =>
+            title : parts.title ? [pipe, parts.title, pipe].join(space.t) : '',
+            head  : [pipe, jps(parts.head, space.h), pipe].join(space.h),
+            rows  : parts.rows.map((p, i) =>
                 [pipe, jps(p, space.n(i)), pipe].join(space.n(i))
-            )
-          , foot : parts.foot.map(innerStr =>
+            ),
+            foot : parts.foot.map(innerStr =>
                 [pipe, innerStr, pipe].join(space.f)
-            )
-          , border : mapValues(parts.border, p =>
+            ),
+            border : mapValues(parts.border, p =>
                 chlk.border(p.join(chars.dash))
-            )
+            ),
         }
     }
 
@@ -611,16 +606,16 @@ class Table {
 
         if (strings.title.length) {
             append(lines, [
-                strings.border.pretitle
-              , strings.title
-              , strings.border.posttitle
+                strings.border.pretitle,
+                strings.title,
+                strings.border.posttitle,
             ])
         } else {
             lines.push(strings.border.top)
         }
         append(lines, [
-            strings.head
-          , strings.border.mid
+            strings.head,
+            strings.border.mid,
         ])
         strings.rows.forEach((str, i) => {
             if (opts.innerBorders && i > 0) {
@@ -643,8 +638,8 @@ class Table {
         const lines = []
         if (strings.title.length) {
             append(lines, [
-                strings.border.pretitle
-              , strings.title
+                strings.border.pretitle,
+                strings.title,
             ])
             if (strings.foot.length) {
                 lines.push(strings.border.extraOnlyMid)
@@ -664,7 +659,7 @@ class Table {
     }
 
     static makeColumn(col) {
-        var column = {}
+        let column = {}
         if (typeof(col) == 'object') {
             column = {...col}
         } else if (typeof(col) == 'string') {
@@ -673,14 +668,14 @@ class Table {
             throw new InvalidColumnError('Column def must be object or string')
         }
         column = {
-            align       : 'left'
-          , title       : column.name
-          , key         : column.name
-          , type        : 'auto'
-          , isFilter    : true
-          , sortable    : true
-          , defaultDir : 'asc'
-          , ...column
+            align       : 'left',
+            title       : column.name,
+            key         : column.name,
+            type        : 'auto',
+            isFilter    : true,
+            sortable    : true,
+            defaultDir : 'asc',
+            ...column,
         }
         if (!column.name) {
             throw new InvalidColumnError('Column must have a name')
@@ -722,6 +717,6 @@ class Table {
 }
 
 module.exports = {
-    Table
-  , TableHelper
+    Table,
+    TableHelper,
 }
