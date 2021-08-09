@@ -29,9 +29,16 @@ const os          = require('os')
 const path        = require('path')
 const roundTo     = require('round-to')
 const stringWidth = require('string-width')
-const stripAnsi   = require('strip-ansi')
 const uuid        = require('uuid')
 
+const {
+    Logger,
+    arrays: {append},
+    merging: {mergePlain},
+    objects: {lget, lset},
+    strings: {cat, stripAnsi},
+    types: {isString, isObject, castToArray},
+} = require('utils-h')
 const {
     ArgumentError,
     ProgrammerError,
@@ -40,20 +47,27 @@ const {
 
 const StringBuilder = require('./util/string-builder')
 
+const LoggerPrefix = {
+    named: function(level) {
+        return [
+            `[${this.name}]`,
+            `[${this.chalks[level].prefix(level.toUpperCase())}]`,
+        ]
+    },
+    server: function(level) {
+        return [
+            new Date().toISOString(),
+            `[${this.name}]`,
+            `[${this.chalks[level].prefix(level.toUpperCase())}]`,
+        ]
+    }
+}
+
+
 class Util {
 
-    /**
-     * Append all values to an array.
-     *
-     * @throws {TypeError}
-     *
-     * @param {array} The array to push to
-     * @param {array} The values to push
-     * @return {array} The input array
-     */
-    static append(arr, values) {
-        values.forEach(value => arr.push(value))
-        return arr
+    static append(...args) {
+        return append(...args)
     }
 
     /**
@@ -138,18 +152,11 @@ class Util {
      * @return {array}
      */
     static castToArray(val) {
-        if (Array.isArray(val)) {
-            return val
-        }
-        const arr = []
-        if (val != null) {
-            arr.push(val)
-        }
-        return arr
+        return castToArray(val)
     }
 
     static cat(...args) {
-        return args.flat().join('')
+        return cat(...args)
     }
 
     /**
@@ -206,6 +213,22 @@ class Util {
             return hash
         }
         return hash.digest(digest)
+    }
+
+    static createLogger(inst, opts) {
+        let name = 'Logger'
+        if (isString(inst)) {
+            name = inst
+        } else if (isObject(inst)) {
+            name = lget(inst, 'name') ?? lget(inst, 'constructor.name') ?? name
+            opts = mergePlain(opts, lget(inst, 'opts.logging'))
+        }
+        opts = mergePlain(opts)
+        if (!('prefix' in opts) && (opts.type in LoggerPrefix)) {
+            opts.prefix = LoggerPrefix[opts.type]
+            delete opts.type
+        }
+        return new Logger(opts)
     }
 
     /**
@@ -684,6 +707,20 @@ class Util {
         return str.substring(0, 1).toLowerCase() + str.substring(1)
     }
 
+    static loggerPrefixNamed(level) {
+        return [
+            `[${this.name}]`,
+            `[${this.chalks[level].prefix(level.toUpperCase())}]`,
+        ]
+    }
+
+    static loggerPrefixServer(level) {
+        return [
+            new Date().toISOString(),
+            `[${this.name}]`,
+            `[${this.chalks[level].prefix(level.toUpperCase())}]`,
+        ]
+    }
     /**
      * Create a plain object from an Error, suitable for serialization.
      *

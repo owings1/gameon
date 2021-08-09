@@ -22,7 +22,7 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-const Logger  = require('../lib/logger')
+const {Logger}  = require('utils-h')
 const {Match} = require('../lib/core')
 
 const {EventEmitter} = require('events')
@@ -31,12 +31,13 @@ const WsClient       = require('websocket').client
 const {White, Red} = require('../lib/constants')
 
 const {
-    httpToWs
-  , secret1
-  , stripTrailingSlash
-  , trimMessageData
-  , update
-  , wsToHttp
+    httpToWs,
+    loggerPrefixNamed,
+    secret1,
+    stripTrailingSlash,
+    trimMessageData,
+    update,
+    wsToHttp,
 } = require('../lib/util')
 
 const {
@@ -79,7 +80,7 @@ class Client extends EventEmitter {
         super()
 
         this.name = this.constructor.name
-        this.logger = new Logger(this.name, {named: true})
+        this.logger = new Logger({name: this.constructor.name, prefix: loggerPrefixNamed})
 
         const {serverUrl, username, password} = credentials || {}
 
@@ -403,17 +404,17 @@ class Client extends EventEmitter {
     }
 
     /**
-     * `loglevel` (integer)
+     * `logLevel` (integer)
      */
-    get loglevel() {
-        return this.logger.loglevel
+    get logLevel() {
+        return this.logger.logLevel
     }
 
     /**
-     * `loglevel` (integer)
+     * `logLevel` (integer)
      */
-    set loglevel(n) {
-        this.logger.loglevel = n
+    set logLevel(n) {
+        this.logger.logLevel = n
     }
 
     /**

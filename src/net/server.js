@@ -24,7 +24,6 @@
  */
 const Constants = require('../lib/constants')
 const Errors    = require('../lib/errors')
-const Logger    = require('../lib/logger')
 const {Match}   = require('../lib/core')
 const Util      = require('../lib/util')
 
@@ -37,7 +36,9 @@ const bodyParser = require('body-parser')
 const express    = require('express')
 const onFinished = require('on-finished')
 const prom       = require('prom-client')
+const hutil      = require('utils-h')
 
+const {Logger, types: {castToArray}, objects: {update}} = hutil
 const {
     MatchCancelRef
   , Opponent
@@ -45,7 +46,7 @@ const {
   , White
 } = Constants
 
-const {castToArray, hash, makeErrorObject, update, uuid} = Util
+const {hash, loggerPrefixServer, makeErrorObject, uuid} = Util
 
 const {
     HandshakeError
@@ -109,7 +110,7 @@ class Server {
      */
     constructor(opts) {
 
-        this.logger = new Logger(this.constructor.name, {server: true})
+        this.logger = new Logger({name: 'Server', prefix: loggerPrefixServer})
 
         this.opts = Util.defaults(Server.defaults(process.env), opts)
         this.auth = Auth.create({...opts, ...this.opts})
@@ -906,20 +907,20 @@ class Server {
     }
 
     /**
-     * The loglevel (integer).
+     * The logLevel (integer).
      */
-    get loglevel() {
-        return this.logger.loglevel
+    get logLevel() {
+        return this.logger.logLevel
     }
 
     /**
-     * Setter for loglevel (integer). Propagates to auth, api, and web.
+     * Setter for logLevel (integer). Propagates to auth, api, and web.
      */
-    set loglevel(n) {
-        this.logger.loglevel = n
-        this.auth.loglevel = n
-        this.api.loglevel = n
-        this.web.loglevel = n
+    set logLevel(n) {
+        this.logger.logLevel = n
+        this.auth.logLevel = n
+        this.api.logLevel = n
+        this.web.logLevel = n
     }
 
     /**

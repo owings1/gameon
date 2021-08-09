@@ -524,17 +524,17 @@ class Coordinator {
     }
 
     /**
-     * Getter for loglevel (integer)
+     * Getter for logLevel (integer)
      */
-    get loglevel() {
-        return this.logger.loglevel
+    get logLevel() {
+        return this.logger.logLevel
     }
 
     /**
-     * Setter for loglevel (integer)
+     * Setter for logLevel (integer)
      */
-    set loglevel(n) {
-        this.logger.loglevel = n
+    set logLevel(n) {
+        this.logger.logLevel = n
     }
 
     /**

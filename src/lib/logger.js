@@ -22,6 +22,8 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
+module.exports = require('utils-h/src/logger.js')
+/*
 const Logging = require('better-logging')
 const Themes  = require('../term/themes')
 const Util    = require('./util')
@@ -47,7 +49,7 @@ const TypeColor = {
  , '[line]'  : 'grey'
 }
 
-class Logger {
+class Loggerc {
 
     static defaults() {
         return {
@@ -65,15 +67,15 @@ class Logger {
         this.theme = Themes.getSemiSafe(this.opts.theme)
         this.console = console
         this.init()
-        this.loglevel = Levels[process.env.LOG_LEVEL || 'info']
+        this.logLevel = this.loglevel = Levels[process.env.LOG_LEVEL || 'info']
     }
 
-    get logLevel() {
-        return this.loglevel
+    get loglevel() {
+        return this.logLevel
     }
 
-    set logLevel(n) {
-        this.loglevel = n
+    set loglevel(n) {
+        this.logLevel = n
     }
 
     getMessageForError(err) {
@@ -101,7 +103,7 @@ class Logger {
         this.error = (...args) => {
             args = args.map(arg => {
                 if (arg instanceof Error) {
-                    if ((this.opts.server && this.loglevel >= 0) || this.loglevel > 3) {
+                    if ((this.opts.server && this.logLevel >= 0) || this.logLevel > 3) {
                         this.console.error(arg)
                     }
                     return this.getMessageForError(arg)
@@ -142,5 +144,4 @@ class Logger {
         return parts.join(' ')
     }
 }
-
-module.exports = Logger
+*/

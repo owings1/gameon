@@ -38,13 +38,13 @@ class MenuApiHelper {
         this.term = term
     }
 
-    get loglevel() {
-        return this.logger.loglevel
+    get logLevel() {
+        return this.logger.logLevel
     }
 
-    set loglevel(n) {
-        this.logger.loglevel = n
-        this.client.loglevel = n
+    set logLevel(n) {
+        this.logger.logLevel = n
+        this.client.logLevel = n
     }
 
     authenticate({serverUrl, username, password}) {

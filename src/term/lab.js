@@ -26,7 +26,6 @@ const Constants   = require('../lib/constants')
 const Coordinator = require('../lib/coordinator')
 const Core        = require('../lib/core')
 const Dice        = require('../lib/dice')
-const Logger      = require('../lib/logger')
 const Util        = require('../lib/util')
 const Robot       = require('../robot/player')
 
@@ -38,6 +37,8 @@ const chalk = require('chalk')
 const fs    = require('fs')
 const fse   = require('fs-extra')
 const path  = require('path')
+const utilh = require('utils-h')
+const {merging: {merge}} = utilh
 
 const {Board, Match, Turn} = Core
 
@@ -62,20 +63,21 @@ const {
 } = Constants
 
 const {
-    castToArray
-  , defaults
-  , destroyAll
-  , errMessage
-  , fileDateString
-  , homeTilde
-  , isEmptyObject
-  , nchars
-  , padEnd
-  , sp
-  , StringBuilder
-  , stripAnsi
-  , tildeHome
-  , ucfirst
+    castToArray,
+    createLogger,
+    defaults,
+    destroyAll,
+    errMessage,
+    fileDateString,
+    homeTilde,
+    isEmptyObject,
+    nchars,
+    padEnd,
+    sp,
+    StringBuilder,
+    stripAnsi,
+    tildeHome,
+    ucfirst,
 } = Util
 
 function stringify(data, indent = 2) {
@@ -88,14 +90,15 @@ class LabHelper {
 
     static defaults() {
         return {
-            breadthTrees  : false
-          , recordDir     : null
-          , persp         : White
-          , theme         : DefaultThemeName
-          , term          : DefaultTerm
-          , rollsFile     : null
-          , isCustomRobot : false
-          , robots        : {}
+            breadthTrees  : false,
+            recordDir     : null,
+            persp         : White,
+            theme         : DefaultThemeName,
+            term          : DefaultTerm,
+            rollsFile     : null,
+            isCustomRobot : false,
+            robots        : {},
+            output        : process.stdout,
         }
     }
 
@@ -103,7 +106,7 @@ class LabHelper {
 
         this.board = opts.board
 
-        this.opts = defaults(LabHelper.defaults(), opts)
+        this.opts = merge(LabHelper.defaults(), opts)
         this.persp = this.opts.persp
 
         this.logs   = []        
@@ -111,11 +114,10 @@ class LabHelper {
         this.fetchLastRecords = null
         this.canErase = false
 
-        this.logger = new Logger
+        this.inquirer = inquirer.createPromptModule()
+        this.logger = createLogger(this, {oneout: true, stdout: this.output})
         this.theme = Themes.getInstance(this.opts.theme)
         this.drawer = DrawHelper.forBoard(this.board, this.persp, this.logs, this.opts.theme, this.term)
-
-        this.inquirer = inquirer.createPromptModule()
     }
 
     async interactive() {
@@ -1084,12 +1086,12 @@ class LabHelper {
         return parseInt(param) || 100
     }
 
-    get loglevel() {
-        return this.logger.loglevel
+    get logLevel() {
+        return this.logger.logLevel
     }
 
-    set loglevel(n) {
-        this.logger.loglevel = n
+    set logLevel(n) {
+        this.logger.logLevel = n
     }
 
     get term() {
@@ -1102,12 +1104,14 @@ class LabHelper {
     }
 
     get output() {
-        return this.term.stdout
+        return this.opts.output
     }
 
     set output(strm) {
+        this.opts.output = strm
         this.term.stdout = strm
         this.inquirer.opt.output = strm
+        this.logger.stdout = strm
     }
 
     println(...args) {

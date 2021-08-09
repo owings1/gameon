@@ -23,11 +23,12 @@
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 const Auth      = require('./auth')
-const Logger    = require('../lib/logger')
 const Util      = require('../lib/util')
 
 const bodyParser = require('body-parser')
 const express    = require('express')
+const {Logger}  = require('utils-h')
+const {loggerPrefixServer} = Util
 
 const Messages = {
     accountConfirmed : 'Account confirmed.'
@@ -51,7 +52,7 @@ class Api {
     constructor(auth, opts) {
 
         this.opts = Util.defaults(Api.defaults(process.env), opts)
-        this.logger = new Logger(this.constructor.name, {server: true})
+        this.logger = new Logger({name: this.constructor.name, prefix: loggerPrefixServer})
 
         this.auth = auth
         this.v1 = this.create_v1()
@@ -219,12 +220,12 @@ class Api {
         this.logger.error(err)
     }
 
-    get loglevel() {
-        return this.logger.loglevel
+    get logLevel() {
+        return this.logger.logLevel
     }
 
-    set loglevel(n) {
-        this.logger.loglevel = n
+    set logLevel(n) {
+        this.logger.logLevel = n
     }
 }
 

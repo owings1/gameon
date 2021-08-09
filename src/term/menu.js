@@ -26,7 +26,6 @@ const Constants      = require('../lib/constants')
 const Coordinator    = require('../lib/coordinator')
 const {Board, Match} = require('../lib/core')
 const Dice           = require('../lib/dice')
-const Logger         = require('../lib/logger')
 
 const Client    = require('../net/client')
 const NetPlayer = require('../net/player')
@@ -47,10 +46,14 @@ const fse        = require('fs-extra')
 const globby     = require('globby')
 const os         = require('os')
 const path       = require('path')
-const _ = {
-    get: require('lodash/get'),
-    set: require('lodash/set'),
-}
+const {
+    Logger,
+    merging : {merge},
+    objects : {lget, lset, update, isNullOrEmptyObject},
+    types   : {castToArray},
+    arrays  : {append, sumArray},
+    strings : {stripAnsi},
+} = require('utils-h')
 
 const {EventEmitter} = require('events')
 
@@ -60,27 +63,22 @@ const Questions = require('./helpers/menu.questions')
 const TermBox   = require('./helpers/term.box')
 
 const {
-    append
-  , castToArray
-  , decrypt2
-  , defaults
-  , DependencyHelper
-  , destroyAll
-  , encrypt2
-  , forceLineReturn
-  , getOrCall
-  , Intl
-  , isCredentialsFilled
-  , isEmptyObject
-  , nchars
-  , ntimes
-  , padEnd
-  , rejectDuplicatePrompter
-  , StringBuilder
-  , stringWidth
-  , stripAnsi
-  , sumArray
-  , update
+    decrypt2,
+    defaults,
+    DependencyHelper,
+    destroyAll,
+    encrypt2,
+    forceLineReturn,
+    getOrCall,
+    loggerPrefixNamed,
+    Intl,
+    isCredentialsFilled,
+    nchars,
+    ntimes,
+    padEnd,
+    rejectDuplicatePrompter,
+    StringBuilder,
+    stringWidth,
 } = require('../lib/util')
 
 const {
@@ -209,23 +207,23 @@ class Menu extends EventEmitter {
         this.inquirer.opt.output = strm
     }
 
-    get loglevel() {
-        return this.logger.loglevel
+    get logLevel() {
+        return this.logger.logLevel
     }
 
-    set loglevel(n) {
-        this.logger.loglevel = n
-        this.alerter.loglevel = n
-        this.api.loglevel = n
+    set logLevel(n) {
+        this.logger.logLevel = n
+        this.alerter.logLevel = n
+        this.api.logLevel = n
         if (this.client) {
-            this.client.loglevel = n
+            this.client.logLevel = n
         }
         if (this.coordinator) {
-            this.coordinator.loglevel = n
+            this.coordinator.logLevel = n
         }
         if (this.players) {
             Object.values(this.players).forEach(player => {
-                player.loglevel = n
+                player.logLevel = n
             })
         }
     }
@@ -511,7 +509,7 @@ class Menu extends EventEmitter {
 
         return this.runMenu('robots', __('Robots'), async (choose, loop) => {
 
-            if (isEmptyObject(this.settings.robots)) {
+            if (isNullOrEmptyObject(this.settings.robots)) {
                 this.alerts.info(__('Loading robot defaults'))
                 this.settings.robots = this.robotsDefaults()
                 await this.saveSettings()
@@ -546,7 +544,7 @@ class Menu extends EventEmitter {
 
             const {settings} = this
 
-            if (isEmptyObject(settings.robots[name])) {
+            if (isNullOrEmptyObject(settings.robots[name])) {
                 settings.robots[name] = this.robotMinimalConfig(name)
             }
 
@@ -749,7 +747,7 @@ class Menu extends EventEmitter {
             }
         }
 
-        this.alerts.success(__('Login success to {url}', {url}))
+        this.alerts.info(__('Login success to {url}', {url}))
 
         credentials.needsConfirm = false
         credentials.isTested = true
@@ -881,7 +879,7 @@ class Menu extends EventEmitter {
             this.players = players
 
             Object.entries(players).forEach(([color, player]) => {
-                player.loglevel = this.loglevel
+                player.logLevel = this.logLevel
                 player.logger.name = [this.logger.name, player.name, color].join('.')
             })
 
@@ -1006,7 +1004,7 @@ class Menu extends EventEmitter {
 
     newCoordinator() {
         const coordinator = new Coordinator(this.settings)
-        coordinator.loglevel = this.loglevel
+        coordinator.logLevel = this.logLevel
         coordinator.logger.name = [this.logger.name, coordinator.name].join('.')
         this.coordinator = coordinator
         return coordinator
@@ -1020,7 +1018,7 @@ class Menu extends EventEmitter {
         const client = new Client(update({...this.credentials}, {
             password: this.decryptPassword(this.credentials.password)
         }))
-        client.loglevel = this.loglevel
+        client.logLevel = this.logLevel
         client.logger.name = [this.logger.name, client.name].join('.')
         this.client = client
         return client
@@ -1195,7 +1193,7 @@ class Menu extends EventEmitter {
         }).flat()
 
         // Debug errors if term not enabled.
-        if (this.loglevel > 3 && !this.settings.termEnabled) {
+        if (this.logLevel > 3 && !this.settings.termEnabled) {
             errors.forEach(error => console.error(error))
         }
 
@@ -1263,7 +1261,7 @@ class Menu extends EventEmitter {
 
         let answers = {}
         if (question.answer != null) {
-            _.set(answers, name, question.answer)
+            lset(answers, name, question.answer)
         }
 
         const promise = this.prompt(question, answers, opts)
@@ -1280,7 +1278,7 @@ class Menu extends EventEmitter {
             box.status.removeListener('render', onRender)
         }
 
-        const answer = _.get(answers, name)
+        const answer = lget(answers, name)
         const isCancel = !!answers._cancelEvent
         const isChange = !isCancel && answer != oldValue
         const toggle = answers['#toggle']
@@ -1397,7 +1395,7 @@ class Menu extends EventEmitter {
         if (this.intl.locale != this.settings.locale) {
             this.intl.locale = this.settings.locale
         }
-        if (this.settings.isCustomRobot && isEmptyObject(this.settings.robots)) {
+        if (this.settings.isCustomRobot && isNullOrEmptyObject(this.settings.robots)) {
             // populate for legacy format
             update(this.settings.robots,  Menu.robotsDefaults())
             this.alerts.info(__('Migrating legacy robot config'))

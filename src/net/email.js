@@ -22,7 +22,7 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-const Logger = require('../lib/logger')
+const {Logger} = require('utils-h')
 
 const {
     DefaultEmailFromAddress,
@@ -32,7 +32,7 @@ const {
 
 const {InternalError} = require('../lib/errors')
 
-const {defaults} = require('../lib/util')
+const {defaults, loggerPrefixServer} = require('../lib/util')
 
 const ImplClasses = {
     get mock() { return require('./email/mock') },
@@ -62,7 +62,7 @@ class Email {
     constructor(impl, opts) {
         this.impl = impl
         this.opts = defaults(Email.defaults(process.env), opts)
-        this.logger = new Logger(this.constructor.name, {server: true})
+        this.logger = new Logger({name: 'Email', prefix: loggerPrefixServer})
     }
 
     // standard is SES sendEmail structure
@@ -81,13 +81,13 @@ class Email {
         }
     }
 
-    get loglevel() {
-        return this.logger.loglevel
+    get logLevel() {
+        return this.logger.logLevel
     }
 
-    set loglevel(n) {
-        this.logger.loglevel = n
-        this.impl.loglevel = n
+    set logLevel(n) {
+        this.logger.logLevel = n
+        this.impl.logLevel = n
     }
 }
 

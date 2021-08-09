@@ -174,13 +174,13 @@ class NetPlayer extends Base {
         res.moves.forEach(move => turn.move(move.origin, move.face))
     }
 
-    get loglevel() {
-        return super.loglevel
+    get logLevel() {
+        return super.logLevel
     }
 
-    set loglevel(n) {
-        super.loglevel = n
-        this.client.loglevel = n
+    set logLevel(n) {
+        super.logLevel = n
+        this.client.logLevel = n
     }
 
     async gameStart(game, match, players) {
