@@ -31,11 +31,11 @@ const {
 
 const Client = require('../../src/net/client')
 
-function initServers(servers, loglevel) {
+function initServers(servers, logLevel) {
     return Promise.all(
         Object.entries(servers).map(([name, server]) => {
             server.logger.name = 'Server.' + ucfirst(name)
-            server.loglevel = loglevel
+            server.logLevel = logLevel
             return server.listen().then(() => {
                 server.testUrl = 'http://localhost:' + server.port
                 server.testMetricsUrl = 'http://localhost:' + server.metricsPort
@@ -51,7 +51,7 @@ function createClients(server, count = 2) {
             const key = 'client' + (i + 1)
             const client = new Client({serverUrl: 'http://localhost:' + server.port})
             client.logger.name = ucfirst(key)
-            client.loglevel = server.loglevel
+            client.logLevel = server.logLevel
             return [key, client]
         })
     )
@@ -61,9 +61,9 @@ function createClients(server, count = 2) {
 
 module.exports = {
 
-    testInit : async function(loglevel, numClients = 2) {
+    testInit : async function(logLevel, numClients = 2) {
 
-        await initServers(this.servers, loglevel)
+        await initServers(this.servers, logLevel)
 
         this.objects = this.objects || []
         this.clients = this.clients || {}
@@ -80,7 +80,7 @@ module.exports = {
 
         if (!this.setLoglevel) {
             this.setLoglevel = n => {
-                this.objects.forEach(obj => obj.loglevel = n)
+                this.objects.forEach(obj => obj.logLevel = n)
             }
         }
 

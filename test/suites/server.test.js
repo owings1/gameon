@@ -47,7 +47,7 @@ describe('Server', () => {
 
     const {White, Red} = requireSrc('lib/constants')
 
-    const loglevel = 1
+    const logLevel = 1
 
     beforeEach(async function () {
 
@@ -64,7 +64,7 @@ describe('Server', () => {
             })
         }
 
-        await clientServer.testInit.call(this, loglevel)
+        await clientServer.testInit.call(this, logLevel)
 
         // Provide default
         this.fixture = {

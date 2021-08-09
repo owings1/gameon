@@ -58,7 +58,7 @@ describe('Coordinator', () => {
     const {Match, Game} = requireSrc('lib/core')
     const {MatchCanceledError} = requireSrc('lib/errors')
 
-    const loglevel = 1//4
+    const logLevel = 1//4
 
     class MockPlayer extends Player {
 
@@ -123,9 +123,9 @@ describe('Coordinator', () => {
         this.objects = []
         Object.values(this.fixture.players).forEach(player => {
             this.objects.push(player)
-            player.loglevel = loglevel
+            player.logLevel = logLevel
         })
-        coord.loglevel = loglevel
+        coord.logLevel = logLevel
     })
 
     afterEach(async function () {
@@ -173,10 +173,10 @@ describe('Coordinator', () => {
             new Coordinator({isRecord: true, recordDir})
         })
 
-        it('should set loglevel', function () {
+        it('should set logLevel', function () {
             const {coord} = this.fixture
-            coord.loglevel = 2
-            expect(coord.loglevel).to.equal(2)
+            coord.logLevel = 2
+            expect(coord.logLevel).to.equal(2)
         })
     })
 
@@ -234,7 +234,7 @@ describe('Coordinator', () => {
 
         it('should throw error when listener throws', async function () {
             const {players, coord} = this.fixture
-            coord.loglevel = -1
+            coord.logLevel = -1
             const exp = new Error
             players.White.on('testEvent', () => { throw exp })
             const err = await getError(() => coord.emitAndWait(players, 'testEvent'))
@@ -243,7 +243,7 @@ describe('Coordinator', () => {
 
         it('should throw error when hold rejects', async function () {
             const {players, coord} = this.fixture
-            coord.loglevel = -1
+            coord.logLevel = -1
             const exp = new Error
             players.White.on('testEvent', function () {
                 this.holds.push(new Promise((resolve, reject) => reject(exp)))
@@ -254,7 +254,7 @@ describe('Coordinator', () => {
 
         it('should not throw MatchCanceledError when there is a listener on matchCanceled', function (done) {
             const {players, coord} = this.fixture
-            coord.loglevel = -1
+            coord.logLevel = -1
             const exp = new MatchCanceledError
             players.White.on('testEvent', function () {
                 this.holds.push(new Promise((resolve, reject) => reject(exp)))
@@ -268,7 +268,7 @@ describe('Coordinator', () => {
 
         it('should emit error and not throw MatchCanceledError when there is no listener on matchCanceled', function (done) {
             const {players, coord} = this.fixture
-            coord.loglevel = -1
+            coord.logLevel = -1
             players.White.removeAllListeners()
             const exp = new MatchCanceledError
             players.White.on('testEvent', function () {
@@ -459,8 +459,8 @@ describe('Coordinator', () => {
                 const t1 = new TermPlayer(White)
                 const t2 = new TermPlayer(Red)
                 append(this.objects, [t1, t2])
-                t1.loglevel = loglevel
-                t2.loglevel = loglevel
+                t1.logLevel = logLevel
+                t2.logLevel = logLevel
                 t1.output = new NullOutput
                 t2.output = new NullOutput
                 const r1 = []

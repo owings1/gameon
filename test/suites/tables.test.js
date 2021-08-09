@@ -153,7 +153,7 @@ describe('TableHelper', () => {
                 ])
                 table.columns.forEach(column => column.sortable = false)
                 table.build()
-                helper.logger.loglevel = 0
+                helper.logger.logLevel = 0
                 await helper.interactive(table)
             })
 

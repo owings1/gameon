@@ -37,7 +37,7 @@ const {
 
 describe('NetPlayer', () => {
 
-    const loglevel = 1
+    const logLevel = 1
 
     const Coordinator = requireSrc('lib/coordinator')
     const Server      = requireSrc('net/server')
@@ -53,7 +53,7 @@ describe('NetPlayer', () => {
             anon : new Server
         }
 
-        await clientServer.testInit.call(this, loglevel)
+        await clientServer.testInit.call(this, logLevel)
 
         this.fixture = {
             server : this.servers.anon
@@ -92,7 +92,7 @@ describe('NetPlayer', () => {
                 this.objects.push(it.coord)
             })
 
-            this.setLoglevel(loglevel)
+            this.setLoglevel(logLevel)
 
             let promise
             client1.once('matchCreated', id => {
@@ -104,20 +104,20 @@ describe('NetPlayer', () => {
             return res
         }
 
-        this.setLoglevel(loglevel)
+        this.setLoglevel(logLevel)
     })
 
     afterEach(function () {
         this.closeObjects()
     })
 
-    it('should set loglevel to 0', function () {
-        // coverage for loglevel getter
+    it('should set logLevel to 0', function () {
+        // coverage for logLevel getter
         const {client} = this.fixture
         const player = new NetPlayer(client, Red)
         this.objects.push(player)
-        player.loglevel = 0
-        expect(player.loglevel).to.equal(0)
+        player.logLevel = 0
+        expect(player.logLevel).to.equal(0)
     })
 
     it('should emit matchCanceled on opponent if server shuts down before opponent joins', function (done) {

@@ -31,6 +31,7 @@ const {
     randomElement,
     requireSrc,
     normState,
+    NullOutput,
     States,
     States28
 } = Test
@@ -735,8 +736,9 @@ describe('RobotDelegator', () => {
         })
 
         it('should warn when delegate sets a score less than 0', async () => {
-            var msg = ''
-            robot.logger.warn = (...args) => msg += args.join(' ')
+            const out = new NullOutput
+            robot.logger.opts.colors = false
+            robot.logger.stderr = out
             rando.getScores = turn => {
                 const scores = rando.zeroScores(turn)
                 const key = Object.keys(scores).pop()
@@ -749,8 +751,7 @@ describe('RobotDelegator', () => {
             const turn = game.nextTurn()
             turn.roll()
             const result = await robot.getMoves(turn, game)
-            expect(msg).to.equal('RandomRobot gave score -1')
-            expect(msg).to.have.length.greaterThan(0)
+            expect(out.raw).to.contain('RandomRobot gave score -1')
         })
 
         it('should throw UndecidedMoveError when delegate scores invalid state highest', async () => {
@@ -761,7 +762,7 @@ describe('RobotDelegator', () => {
             doFirstTurn()
             const turn = game.nextTurn()
             turn.roll()
-            robot.logger.loglevel = -1
+            robot.logger.logLevel = -1
             const err = await getError(() => robot.getMoves(turn, game))
             expect(err.name).to.equal('UndecidedMoveError')
         })
@@ -892,7 +893,7 @@ describe('ProfileHelper', () => {
     beforeEach(() => {
         const opts = {numMatches: 1}
         helper = new ProfileHelper(opts)
-        helper.logger.loglevel = 1
+        helper.logger.logLevel = 1
         helper.newTableHelper = (...args) => {
             const h = new TableHelper(...args)
             h.println = noop

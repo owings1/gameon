@@ -43,7 +43,7 @@ const {ucfirst, update} = Util
 
 describe('Auth', () => {
 
-    const loglevel = 0
+    const logLevel = 0
 
     beforeEach(function () {
         this.lastEmail = function () {
@@ -85,7 +85,7 @@ describe('Auth', () => {
 
         beforeEach(function () {
             this.auth = Auth.create({authType: 'anonymous'})
-            this.auth.loglevel = loglevel
+            this.auth.logLevel = logLevel
         })
 
         describe('#authenticate', () => {
@@ -185,7 +185,7 @@ describe('Auth', () => {
         beforeEach(function () {
             this.authDir = tmpDir()
             this.auth = Auth.create({authType: 'directory', authDir: this.authDir})
-            this.auth.loglevel = loglevel
+            this.auth.logLevel = logLevel
         })
 
         afterEach(async function () {
@@ -551,7 +551,7 @@ describe('Auth', () => {
 
             beforeEach(function () {
                 this.auth = Auth.create({authType: 's3', s3_bucket, s3_prefix})
-                this.auth.loglevel = loglevel
+                this.auth.logLevel = logLevel
                 this.impl = this.auth.impl
                 this.s3 = this.impl.s3
                 this.cleanUsers = []

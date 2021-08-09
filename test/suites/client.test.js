@@ -41,7 +41,7 @@ describe('Client', () => {
 
     const {Red, White, MatchCancelRef} = requireSrc('lib/constants')
 
-    const loglevel = 1
+    const logLevel = 1
 
     beforeEach(async function () {
 
@@ -51,7 +51,7 @@ describe('Client', () => {
             anon : new Server
         }
 
-        await clientServer.testInit.call(this, loglevel)
+        await clientServer.testInit.call(this, logLevel)
 
         this.fixture = {
             server : this.servers.anon
@@ -249,13 +249,13 @@ describe('Client', () => {
         it('should not throw when no responseError listener on malformed message', async function () {
             const {client, server} = this.fixture
             await client.connect()
-            client.loglevel = -1
+            client.logLevel = -1
             Object.values(server.socketServer.conns)[0].sendUTF('{]')
         })
 
         it('should close when server sends error with isClientShouldClose', async function () {
             const {client, server} = this.fixture
-            client.loglevel = 0
+            client.logLevel = 0
             const err = new Errors.RequestError('test', {attrs: {isClientShouldClose: true}})
             let caught
             client.on('error', err => {

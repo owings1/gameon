@@ -132,7 +132,7 @@ describe('Reporter', () => {
 
     beforeEach(() => {
         player = new TermPlayer(White)
-        player.logger.loglevel = 1
+        player.logger.logLevel = 1
         player.logger.stdout = {write: () => {}}
     })
 
@@ -179,7 +179,7 @@ describe('TermPlayer', () => {
           , Red   : Robot.RobotDelegator.forDefaults(Red)
         }
         const player = players.White
-        player.loglevel = 1
+        player.logLevel = player.logLevel = 1
         player.output = new NullOutput
 
         player.emit('gameStart', game, null, players)
@@ -242,7 +242,7 @@ describe('TermPlayer', () => {
             rolls.push([6, 1])
             makeRandomMoves(game.firstTurn(), true)
             makeRandomMoves(game.nextTurn().roll(), true)
-            player.logger.loglevel = -1
+            player.logger.logLevel = -1
             const turn = game.nextTurn()
             await player.doHiddenAction('_r', turn)
         })
@@ -253,7 +253,7 @@ describe('TermPlayer', () => {
             makeRandomMoves(game.firstTurn(), true)
             makeRandomMoves(game.nextTurn().roll(), true)
             game.board.setStateString(States.WhiteCantMove)
-            player.logger.loglevel = -1
+            player.logger.logLevel = -1
             const turn = game.nextTurn().roll()
             await player.doHiddenAction('_r', turn)
         })
@@ -263,7 +263,7 @@ describe('TermPlayer', () => {
             rolls.push([6, 1])
             player.newRobot = {getMoves: () => {throw new Error}}
             const turn = game.firstTurn()
-            player.logger.loglevel = -1
+            player.logger.logLevel = -1
             await player.doHiddenAction('_r', turn)
         })
 
@@ -271,7 +271,7 @@ describe('TermPlayer', () => {
             const {rolls, player, game} = this.fixture
             rolls.push([6, 1])
             const turn = game.firstTurn()
-            player.logger.loglevel = -1
+            player.logger.logLevel = -1
             await player.doHiddenAction('_unknown', turn)
         })
     })
@@ -677,9 +677,9 @@ describe('TermPlayer', () => {
 
     describe('listeners on opponent net player', () => {
 
-        const loglevel = 1
-        const playerLoglevel = loglevel
-        const serverLoglevel = loglevel
+        const logLevel = 1
+        const playerLoglevel = logLevel
+        const serverLoglevel = logLevel
 
         function eastAndWest(client1, client2) {
 
@@ -708,18 +708,18 @@ describe('TermPlayer', () => {
               , coord: coordEast
             }
 
-            coordWest.loglevel = loglevel
-            coordEast.loglevel = loglevel
+            coordWest.logLevel = logLevel
+            coordEast.logLevel = logLevel
             Object.values(east.players).forEach(player => {
                 player.logger.name += 'East'
-                player.loglevel = playerLoglevel
+                player.logLevel = playerLoglevel
             })
             update(west.players.White, {
                 output: new NullOutput
             })
             Object.values(west.players).forEach(player => {
                 player.logger.name += 'West'
-                player.loglevel = playerLoglevel
+                player.logLevel = playerLoglevel
             })
 
             return {east, west}
@@ -727,14 +727,14 @@ describe('TermPlayer', () => {
 
         beforeEach(async function() {
             const server = new Server
-            server.loglevel = serverLoglevel
+            server.logLevel = serverLoglevel
             await server.listen()
             const serverUrl = `http://localhost:${server.port}`
             const client1 = new Client({serverUrl})
             const client2 = new Client({serverUrl})
             const {east, west} = eastAndWest(client1, client2)
-            client1.loglevel = loglevel
-            client2.loglevel = loglevel
+            client1.logLevel = logLevel
+            client2.logLevel = logLevel
             update(this.fixture, {client1, client2, server, east, west})
         })
 
@@ -816,7 +816,7 @@ describe('Robot', () => {
           , Red   : new TermPlayer.Robot(newRando(Red), {delay: 0})
         }
         Object.values(players).forEach(player => {
-            player.loglevel = 1
+            player.logLevel = 1
             player.output = new NullOutput
         })
         this.fixture = {players}
