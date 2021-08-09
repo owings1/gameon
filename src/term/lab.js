@@ -22,36 +22,27 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-const Constants   = require('../lib/constants')
-const Coordinator = require('../lib/coordinator')
-const Core        = require('../lib/core')
-const Dice        = require('../lib/dice')
-const Util        = require('../lib/util')
-const Robot       = require('../robot/player')
-
-const Draw    = require('./draw')
-const {Table} = require('./tables')
-const Themes  = require('./themes')
-
-const chalk = require('chalk')
-const fs    = require('fs')
-const fse   = require('fs-extra')
-const path  = require('path')
-const utilh = require('utils-h')
 const {
+    colors  : {Chalk},
+    objects : {isNullOrEmptyObject},
     strings : {stripAnsi, ucfirst},
-    objects : {isEmptyObject},
     types   : {castToArray},
-} = utilh
+} = require('utils-h')
+const fse = require('fs-extra')
 
-const {Board, Match, Turn} = Core
+const fs    = require('fs')
+const path  = require('path')
 
-const {DrawHelper, TermHelper} = Draw
-const {RobotDelegator} = Robot
-
-const {inquirer} = require('./inquirer')
-
+const Dice    = require('../lib/dice.js')
+const {Table} = require('./tables.js')
+const Themes  = require('./themes.js')
+const Coordinator = require('../lib/coordinator.js')
+const {inquirer}  = require('./inquirer.js')
+const {RobotDelegator} = require('../robot/player.js')
+const {Board, Match, Turn} = require('../lib/core.js')
+const {DrawHelper, TermHelper} = require('./draw.js')
 const {
+    Colors: {Red, White},
     BoardStrings,
     Chars,
     ColorAbbr,
@@ -62,10 +53,8 @@ const {
     Opponent,
     OriginPoints,
     PointOrigins,
-    Red,
-    White,
-} = Constants
-
+    Version,
+} = require('../lib/constants.js')
 const {
     createLogger,
     defaults,
@@ -78,13 +67,14 @@ const {
     sp,
     StringBuilder,
     tildeHome,
-} = Util
+} = require('../lib/util.js')
+
+const chalk = new Chalk()
+const DefaultTerm = new TermHelper(DefaultTermEnabled)
 
 function stringify(data, indent = 2) {
     return JSON.stringify(data, null, indent)
 }
-
-const DefaultTerm = new TermHelper(DefaultTermEnabled)
 
 class LabHelper {
 
@@ -118,6 +108,26 @@ class LabHelper {
         this.logger = createLogger(this, {oneout: true, stdout: this.output})
         this.theme = Themes.getInstance(this.opts.theme)
         this.drawer = DrawHelper.forBoard(this.board, this.persp, this.logs, this.opts.theme, this.term)
+    }
+
+    get output() {
+        return this.opts.output
+    }
+
+    set output(strm) {
+        this.opts.output = strm
+        this.term.stdout = strm
+        this.inquirer.opt.output = strm
+        this.logger.stdout = strm
+    }
+
+    get term() {
+        return this.opts.term
+    }
+
+    set term(term) {
+        this.opts.term = term
+        this.drawer.term = term
     }
 
     async interactive() {
@@ -971,7 +981,7 @@ class LabHelper {
     }
 
     newRobot(...args) {
-        if (this.opts.isCustomRobot && !isEmptyObject(this.opts.robots)) {
+        if (this.opts.isCustomRobot && !isNullOrEmptyObject(this.opts.robots)) {
             return RobotDelegator.forSettings(this.opts.robots, ...args)
         }
         return RobotDelegator.forDefaults(...args)
@@ -1010,7 +1020,7 @@ class LabHelper {
 
         const lab = {
             date    : new Date
-          , version : Constants.Version
+          , version : Version
           , board   : this.boardInfo()
         }
 
@@ -1092,26 +1102,6 @@ class LabHelper {
 
     set logLevel(n) {
         this.logger.logLevel = n
-    }
-
-    get term() {
-        return this.opts.term
-    }
-
-    set term(term) {
-        this.opts.term = term
-        this.drawer.term = term
-    }
-
-    get output() {
-        return this.opts.output
-    }
-
-    set output(strm) {
-        this.opts.output = strm
-        this.term.stdout = strm
-        this.inquirer.opt.output = strm
-        this.logger.stdout = strm
     }
 
     println(...args) {

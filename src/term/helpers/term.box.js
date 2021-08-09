@@ -22,14 +22,13 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-const Constants    = require('../../lib/constants')
-const {TermHelper} = require('../draw')
-const Util         = require('../../lib/util')
+const {objects: {update}} = require('utils-h')
 
 const {EventEmitter} = require('events')
 
-const {Chars, DefaultTermEnabled} = Constants
-const {nchars, update} = Util
+const {TermHelper} = require('../draw.js')
+const {defaults, nchars} = require('../../lib/util.js')
+const {Chars, DefaultTermEnabled} = require('../../lib/constants.js')
 
 const DefaultTerm = new TermHelper(DefaultTermEnabled)
 
@@ -37,30 +36,30 @@ class TermBox {
 
     static defaults() {
         return {
-            top         : 1
-          , left        : 1
-          , minWidth    : 0
-          , maxWidth    : 1024
-          , minHeight   : 0
-          , maxHeight   : 512
-          , pad         : 0
-          , vcenter     : false
-          , hcenter     : false
-          , term        : DefaultTerm
-          , isBorder    : false
-          , borderStyle : 'solid'
-          , format : {
-                border : str => str
-              , pad    : str => str
-              , erase  : str => str
+            top         : 1,
+            left        : 1,
+            minWidth    : 0,
+            maxWidth    : 1024,
+            minHeight   : 0,
+            maxHeight   : 512,
+            pad         : 0,
+            vcenter     : false,
+            hcenter     : false,
+            term        : DefaultTerm,
+            isBorder    : false,
+            borderStyle : 'solid',
+            format : {
+                border : str => str,
+                pad    : str => str,
+                erase  : str => str,
             }
         }
     }
 
     constructor(opts) {
-        const defaults = TermBox.defaults()
-        this.opts = Util.defaults(defaults, opts)
-        this.opts.format = Util.defaults(defaults.format, this.opts.format)
+        const defs = TermBox.defaults()
+        this.opts = defaults(defs, opts)
+        this.opts.format = defaults(defs.format, this.opts.format)
         this.status = new BoxStatus
         this.status.on('render', () => {
             this.term.saveCursor()
@@ -195,9 +194,9 @@ class TermBox {
         const chars = this.getBorderChars(borderStyle)
         const dashes = nchars(width + pad2, chars.dash)
         return {
-            top  : format.border(chars.top.left + dashes + chars.top.right)
-          , foot : format.border(chars.foot.left + dashes + chars.foot.right)
-          , side : format.border(chars.pipe)
+            top  : format.border(chars.top.left + dashes + chars.top.right),
+            foot : format.border(chars.foot.left + dashes + chars.foot.right),
+            side : format.border(chars.pipe),
         }
     }
 
@@ -206,17 +205,17 @@ class TermBox {
         const pad2 = pad * 2
         const {format} = this.opts
         return {
-            full : format.pad(nchars(width + pad2, ' '))
-          , side : format.pad(nchars(pad, ' '))
+            full : format.pad(nchars(width + pad2, ' ')),
+            side : format.pad(nchars(pad, ' ')),
         }
     }
 
     getBorderChars(style) {
         const chars = {
-            top  : {...Chars.table.top}
-          , foot : {...Chars.table.foot}
-          , pipe : Chars.table.pipe
-          , dash : Chars.table.dash
+            top  : {...Chars.table.top},
+            foot : {...Chars.table.foot},
+            pipe : Chars.table.pipe,
+            dash : Chars.table.dash,
         }
         const dot = Chars.table.dot
 
@@ -302,31 +301,31 @@ class BoxStatus extends EventEmitter {
     reset() {
         update(this, this.defaults)
         update(this, {
-            right      : this.left
-          , maxHeight  : 0
-          , thisHeight : 0
-          , lastHeight : 0
-          , lineHeight : 0
+            right      : this.left,
+            maxHeight  : 0,
+            thisHeight : 0,
+            lastHeight : 0,
+            lineHeight : 0,
         })
         return this
     }
 
     get defaults() {
-        return Util.defaults({top: 1, left: 1}, this._defaults)
+        return defaults({top: 1, left: 1}, this._defaults)
     }
 
     get info() {
         return Object.fromEntries(
             [
-                'left'
-              , 'right'
-              , 'bottom'
-              , 'top'
-              , 'height'
-              , 'maxHeight'
-              , 'thisHeight'
-              , 'lastHeight'
-              , 'lineHeight'
+                'left',
+                'right',
+                'bottom',
+                'top',
+                'height',
+                'maxHeight',
+                'thisHeight',
+                'lastHeight',
+                'lineHeight',
             ].map(key =>
                 [key, this[key]]
             )

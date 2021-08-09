@@ -49,23 +49,20 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
  * OTHER DEALINGS IN THE SOFTWARE.
  */
-const {DuplicateKeyError} = require('../../lib/errors')
-
 const {
-    castToArray
-  , keyValuesTrue
-  , stripAnsi
-} = require('../../lib/util')
+    objects : {lset},
+    strings : {stripAnsi},
+    types   : {castToArray},
+} = require('utils-h')
 
-const Themes = require('../themes')
+const Themes = require('../themes.js')
+const {keyValuesTrue} = require('../../lib/util.js')
+const {DuplicateKeyError} = require('../../lib/errors.js')
 
-const _ = {
-    set: require('lodash/set')
-}
 const ModifiedStatuses = {
-    answered : true
-  , canceled : true
-  , touched  : true
+    answered : true,
+    canceled : true,
+    touched  : true,
 }
 
 function debug(...args) {
@@ -162,7 +159,7 @@ class CancelFeature {
         this.addKeypressIndex('cancel', keyIndex, (value, e) => {
             this.isCancel = true
             if (this.answers && this.opt.cancel.eventKey) {
-                _.set(this.answers, this.opt.cancel.eventKey, e)
+                lset(this.answers, this.opt.cancel.eventKey, e)
             }
             this.cancel(e)
         })

@@ -66,7 +66,7 @@ class ServerCommand extends Base {
         try {
             this._removeProcHandlers()
         } catch (err) {
-            this.logger.console.error(err)
+            this.logger.error(err)
         }
         try {
             this.server.close()

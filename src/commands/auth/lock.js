@@ -25,7 +25,7 @@
 const {flags} = require('@oclif/command')
 const Base    = require('../../lib/command').AppCommand
 
-const Auth   = require('../../net/auth')
+const Auth   = require('../../net/auth.js')
 
 class AuthLockCommand extends Base {
 

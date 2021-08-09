@@ -22,12 +22,9 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-const Errors = require('../../lib/errors')
-const Themes = require('../themes')
-const Util   = require('../../lib/util')
-
-const {ProgrammerError} = Errors
-const {update} = Util
+const {objects: {update}} = require('utils-h')
+const Themes = require('../themes.js')
+const {ProgrammerError} = require('../../lib/errors.js')
 
 const {EventEmitter} = require('events')
 

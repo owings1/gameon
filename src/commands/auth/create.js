@@ -23,12 +23,13 @@
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 const {flags} = require('@oclif/command')
-const Base    = require('../../lib/command').AppCommand
+const Base    = require('../../lib/command.js').AppCommand
 
-const Auth     = require('../../net/auth')
-const Logger   = require('../../lib/logger')
-const Util     = require('../../lib/util')
-const inquirer = require('inquirer')
+const {types: {castToArray}} = require('utils-h')
+const {errMessage} = require('../../lib/util.js')
+
+const Auth     = require('../../net/auth.js')
+const {inquirer} = require('../../term/inquirer.js')
 
 // TODO: option to read password from stdin
 
@@ -37,6 +38,7 @@ class AuthCreateCommand extends Base {
     async init(...args) {
         await super.init(...args)
         this.helper = this.helper || new Auth(this.env.AUTH_TYPE)
+        this.inquirer = inquirer.createPromptModule()
     }
 
     async run() {
@@ -61,14 +63,14 @@ class AuthCreateCommand extends Base {
             name    : 'password'
           , message : 'Enter password'
           , type    : 'password'
-          , validate : value => Util.errMessage(() => this.helper.validatePassword(value))
+          , validate : value => errMessage(() => this.helper.validatePassword(value))
         }
         const answers = await this.prompt(question)
         return answers.password
     }
 
     prompt(questions) {
-        this._prompt = inquirer.prompt(Util.castToArray(questions))
+        this._prompt = this.inquirer.prompt(castToArray(questions))
         return this._prompt
     }
 }

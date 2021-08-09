@@ -23,9 +23,9 @@
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 const {flags} = require('@oclif/command')
-const Base    = require('../../lib/command').AppCommand
+const Base    = require('../../lib/command.js').AppCommand
 
-const Auth = require('../../net/auth')
+const Auth = require('../../net/auth.js')
 
 class AuthUnlockCommand extends Base {
 

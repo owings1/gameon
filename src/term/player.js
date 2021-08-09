@@ -223,6 +223,8 @@ class TermPlayer extends Base {
 
         super(color)
 
+        this.logger.opts.oneout = true
+
         this.isTerm = true
         this.persp = color
         this.opts = Util.defaults(TermPlayer.defaults(), opts)
@@ -251,6 +253,7 @@ class TermPlayer extends Base {
     set output(strm) {
         this.term.stdout = strm
         this.inquirer.opt.output = strm
+        this.logger.stdout = strm
     }
 
     get term() {

@@ -49,15 +49,16 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
  * OTHER DEALINGS IN THE SOFTWARE.
  */
-const Errors = require('../../lib/errors')
-const Util   = require('../../lib/util')
+const {EventEmitter} = require('events')
 
-const {DuplicateKeyError} = Errors
-const {EventEmitter}      = require('events')
-
-const Features = require('./prompt.features')
-
-const {keypressName, nchars, padEnd, stringWidth} = Util
+const Features = require('./prompt.features.js')
+const {DuplicateKeyError} = require('../../lib/errors.js')
+const {
+    keypressName,
+    nchars,
+    padEnd,
+    stringWidth,
+} = require('../../lib/util.js')
 
 const NullEmitter = new EventEmitter
 
@@ -221,7 +222,7 @@ class TextMethods {
         // See https://github.com/SBoudrias/Inquirer.js/commit/73b6e658
         // See https://github.com/owings1/Inquirer.js/commit/21ea73a3
         if (this.status == 'touched' || this.status == 'pending') {
-            return input
+            return input || this.opt.default || ''
         }
         return this.opt.default == null ? '' : this.opt.default
     }
@@ -448,8 +449,8 @@ class ListMethods {
 }
 
 module.exports = {
-    debug
-  , BaseMethods
-  , ListMethods
-  , TextMethods
+    debug,
+    BaseMethods,
+    ListMethods,
+    TextMethods,
 }

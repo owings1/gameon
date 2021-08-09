@@ -22,24 +22,38 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
+const {strings: {stripAnsi}} = require('utils-h')
 const stream = require('stream')
-
 const {EventEmitter} = require('events')
 
 class NullOutput extends stream.Writable {
 
-    constructor(...args) {
-        super(...args)
+    constructor(opts = {}) {
+        super()
         this.raw = ''
+        this.opts = {...opts}
     }
 
     write(chunk) {
         this.raw += chunk
+        if (this.debug) {
+            process.stderr.write(chunk)
+        }
+    }
+
+    get debug() {
+        return Boolean(this.opts.debug)
+    }
+
+    set debug(v) {
+        this.opts.debug = Boolean(v)
     }
 
     get lines() {
         return this.raw.split('\n')
     }
+
+    get plain() { return stripAnsi(this.raw) }
 
     end() {}
 
@@ -81,11 +95,11 @@ class NullInput extends EventEmitter {
 
 class ReadlineStub extends EventEmitter {
 
-    constructor(...args) {
-        super(...args)
+    constructor(opts = {}) {
+        super()
         this.line = ''
         this.input = new NullInput
-        this.output = new NullOutput
+        this.output = new NullOutput(opts)
         this.input.on('keypress', value => {
            if (value) {
                this.line += value
@@ -93,7 +107,8 @@ class ReadlineStub extends EventEmitter {
         })
     }
 
-    write() {
+    write(chunk) {
+        this.output.write(chunk)
         return this
     }
 

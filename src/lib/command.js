@@ -87,7 +87,7 @@ class UserCommand extends AppCommand {
         try {
             code = this.menu.handleInterrupt()
         } catch (err) {
-            this.logger.console.error(err)
+            this.logger.error(err)
             code = 1
         }
         if (code === true) {
@@ -109,7 +109,7 @@ class UserCommand extends AppCommand {
                 this.menu.eraseScreen()
             }
         } catch (err) {
-            this.logger.console.error(err)
+            this.logger.error(err)
         }
         this._cleanup()
         return super.finally(...args)
@@ -119,7 +119,7 @@ class UserCommand extends AppCommand {
         try {
             this._removeProcHandlers()
         } catch (err) {
-            this.logger.console.error(err)
+            this.logger.error(err)
         }
         try {
             this.menu.destroy()

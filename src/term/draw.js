@@ -22,38 +22,38 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-const {Board}   = require('../lib/core')
-const Constants = require('../lib/constants')
-const Util      = require('../lib/util')
-
-const Themes = require('./themes')
-
-const {ArgumentError} = require('../lib/errors')
-
 const ansiEscapes = require('ansi-escapes')
 const TermKit     = require('terminal-kit')
-
-const {StringBuilder}  = Util
-
-const {nchars, sp, stripAnsi, stringWidth, ucfirst} = Util
-
 const {
-    BoardStrings
-  , BottomPoints
-  , Chars
-  , ColorAbbr
-  , ColorNorm
-  , Colors
-  , DefaultTermEnabled
-  , DefaultThemeName
-  , Direction
-  , Opponent
-  , OriginPoints
-  , PointOrigins
-  , Red
-  , TopPoints
-  , White
-} = Constants
+    strings: {stripAnsi, ucfirst}
+} = require('utils-h')
+
+const {Board} = require('../lib/core.js')
+const Themes  = require('./themes.js')
+const {ArgumentError} = require('../lib/errors')
+const {
+    nchars,
+    sp,
+    StringBuilder,
+    stringWidth,
+} = require('../lib/util.js')
+const {
+    BoardStrings,
+    BottomPoints,
+    Chars,
+    ColorAbbr,
+    ColorNorm,
+    Colors,
+    DefaultTermEnabled,
+    DefaultThemeName,
+    Direction,
+    Opponent,
+    OriginPoints,
+    PointOrigins,
+    Red,
+    TopPoints,
+    White,
+} = require('../lib/constants.js')
 
 
 class DrawHelper {

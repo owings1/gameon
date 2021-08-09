@@ -22,11 +22,9 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-const Client = require('../../net/client')
-const Errors = require('../../lib/errors')
-const Logger = require('../../lib/logger')
-
-const {RequestError} = Errors
+const Client = require('../../net/client.js')
+const {createLogger} = require('../../lib/util.js')
+const {RequestError} = require('../../lib/errors.js')
 
 const fetch = require('node-fetch')
 
@@ -34,7 +32,7 @@ class MenuApiHelper {
 
     constructor(term) {
         this.client = new Client
-        this.logger = new Logger(this.constructor.name)
+        this.logger = createLogger(this)
         this.term = term
     }
 

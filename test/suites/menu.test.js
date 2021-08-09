@@ -58,8 +58,6 @@ describe('Menu', () => {
 
     const Choices = require('inquirer/lib/objects/choices')
 
-    const logLevel = 1
-
     beforeEach(async function () {
 
         this.dirs = []
@@ -76,15 +74,15 @@ describe('Menu', () => {
         await server.listen()
         
         this.rl = new ReadlineStub
+        this.output = this.rl.output
 
         this.create = function () {
             const configDir = tmpDir()
             this.dirs.push(configDir)
             const menu = new Menu(configDir)
             this.menus.push(menu)
-            menu.logLevel = logLevel
             menu.logger.name = 'Menu' + this.menus.length
-            menu.output = this.rl.output
+            menu.output = this.output
             menu.inquirer.opt.rl = this.rl
             menu.credentials.serverUrl = 'http://localhost:' + server.port
             return menu
@@ -192,7 +190,6 @@ describe('Menu', () => {
 
             it('should invalidate match id abcd with joinOnline, then quit', async function () {
                 const {menu} = this
-                menu.alerter.logLevel = -1
                 menu.prompt = MockPrompter([
                     {choice: 'joinOnline'},
                     {matchId: 'abcd'},
@@ -213,7 +210,6 @@ describe('Menu', () => {
                 ])
                 var logObj
                 menu.alerts.on('log.warn', obj => logObj = obj)
-                menu.logLevel = -1
                 await menu.playMenu()
                 const err = menu.alerts.lastError
                 expect(err.isBadCredentialsError).to.equal(true)
@@ -230,7 +226,6 @@ describe('Menu', () => {
                     {choice: 'joinOnline'},
                     {choice: 'quit'}
                 ])
-                menu.logLevel = -1
                 await menu.playMenu()
                 expect(menu.alerts.lastError).to.equal(exp)
             })
@@ -536,7 +531,6 @@ describe('Menu', () => {
             it('should alert error and done when promptForgotPassword throws', async function () {
                 const {menu, auth} = this
                 const err = new Error('testMessage')
-                menu.logLevel = -1
                 menu.promptForgotPassword = () => { throw err }
                 const username = 'nobody@nowhere.example'
                 const password = 'd4PUxRs2'
@@ -551,7 +545,6 @@ describe('Menu', () => {
 
             it('should alert BadCredentialsError and done when password entered and login fails', async function () {
                 const {menu} = this
-                menu.logLevel = -1
                 menu.credentials.username = 'nobody2@nowhere.example'
                 const password = 'JUzrDc5k'
                 menu.prompt = MockPrompter([
@@ -565,7 +558,6 @@ describe('Menu', () => {
 
             it('should alert BadCredentialsError then done on incorrect password for change-password', async function () {
                 const {menu, auth} = this
-                menu.logLevel = -1
                 const username = 'nobody@nowhere.example'
                 const oldPassword = 'C7pUaA3c'
                 const badPassword = 'etzF4Y8L'
@@ -824,7 +816,6 @@ describe('Menu', () => {
 
             it('should throw cause BadCredentialsError for bad confirmKey', async function () {
                 const {menu, auth} = this
-                menu.logLevel = 0
                 const username = 'nobody@nowhere.example'
                 const password = 'r2tW5aUn'
                 const confirmKey = 'bad-confirm-key'
@@ -948,7 +939,6 @@ describe('Menu', () => {
                 await this.writeTheme('t2', {
                     extends: ['Default']
                 })
-                menu.logLevel = 1
                 const result = await menu.loadCustomThemes()
                 expect(result.length).to.equal(2)
                 result.sort((a, b) => a.localeCompare(b))
@@ -975,7 +965,6 @@ describe('Menu', () => {
                 const {menu} = this
                 await this.writeThemeRaw('TestBad', 'p')
                 await this.writeTheme('TestGood', {extends: ['Default']})
-                menu.logLevel = -1
                 const result = await menu.loadCustomThemes()
                 expect(result.length).to.equal(1)
                 expect(result[0]).to.equal('TestGood')
@@ -985,7 +974,6 @@ describe('Menu', () => {
                 const {menu} = this
                 await this.writeTheme('TestGood', {extends: ['Default']})
                 await this.writeTheme('TestBad', {extends: ['Nothing']})
-                menu.logLevel = -1
                 const result = await menu.loadCustomThemes()
                 expect(result.length).to.equal(1)
                 expect(result[0]).to.equal('TestGood')
@@ -995,7 +983,6 @@ describe('Menu', () => {
                 const {menu} = this
                 await this.writeTheme('TestGood', {extends: ['Default']})
                 await this.writeTheme('TestBad', {styles: {'text.color': 'asdflkasd'}})
-                menu.logLevel = -1
                 const result = await menu.loadCustomThemes()
                 expect(result.length).to.equal(1)
                 expect(result[0]).to.equal('TestGood')
@@ -1031,7 +1018,6 @@ describe('Menu', () => {
                 it('bad json', async function () {
                     const {menu} = this
                     fs.writeFileSync(menu.getLabConfigFile(), 'asdf')
-                    menu.logger.logLevel = -1
                     const res = await menu.loadLabConfig()
                     expect(!!res).to.equal(false)
                 })
@@ -1105,7 +1091,6 @@ describe('Menu', () => {
                 const {menu} = this
                 const err = new MatchCanceledError
                 menu.newCoordinator = () => newThrowingCoordinator(err)
-                menu.logLevel = -1
                 await menu.playHumans(menu.settings.matchOpts)
                 await menu.consumeAlerts()
                 expect(menu.alerts.lastError).to.equal(err)
@@ -1314,13 +1299,13 @@ describe('Menu', () => {
                         isCalled = true
                         setTimeout(() => menu.captureInterrupt())
                     })
-                    menu.logLevel = 0
                     await menu.startOnlineMatch({total: 1})
                     expect(isCalled).to.equal(true)
                     expect(Boolean(menu.captureInterrupt)).to.equal(false)
                 })
 
                 it('should let menu2 join then cancel on interrupt', function (done) {
+                    
                     const {menu1, menu2, server} = this
 
                     const finish = () => {
@@ -1332,13 +1317,10 @@ describe('Menu', () => {
                     const isDebug = false
 
                     if (isDebug) {
-                        // debug logger names, etc
+                        this.output.debug = true
                         server.logLevel = 4
                         menu1.logLevel = 4
                         menu2.logLevel = 4
-                    } else {
-                        menu1.logLevel = -1
-                        menu2.logLevel = -1
                     }
 
                     // We could call at any time, but we don't want to double call.

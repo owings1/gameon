@@ -22,47 +22,36 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-const Constants      = require('../lib/constants')
-const Coordinator    = require('../lib/coordinator')
-const {Board, Match} = require('../lib/core')
-const Dice           = require('../lib/dice')
-
-const Client    = require('../net/client')
-const NetPlayer = require('../net/player')
-
 const {
-    ConfidenceRobot,
-    RobotDelegator,
-} = require('../robot/player')
-
-const {inquirer}   = require('./inquirer')
-const LabHelper    = require('./lab')
-const {TermHelper} = require('./draw')
-const TermPlayer   = require('./player')
-const Themes       = require('./themes')
-
-const fs         = require('fs')
-const fse        = require('fs-extra')
-const globby     = require('globby')
-const os         = require('os')
-const path       = require('path')
-const {
-    Logger,
     merging : {merge},
-    objects : {lget, lset, update, isNullOrEmptyObject},
+    objects : {lget, lset, update, isNonEmptyObject},
     types   : {castToArray},
     arrays  : {append, sumArray},
     strings : {stripAnsi},
 } = require('utils-h')
+const fse    = require('fs-extra')
+const globby = require('globby')
 
-const {EventEmitter} = require('events')
-
-const Alerts    = require('./helpers/alerts')
-const ApiHelper = require('./helpers/menu.api')
-const Questions = require('./helpers/menu.questions')
-const TermBox   = require('./helpers/term.box')
-
+const Dice   = require('../lib/dice.js')
+const Client = require('../net/client.js')
+const Themes = require('./themes.js')
+const NetPlayer    = require('../net/player.js')
+const {inquirer}   = require('./inquirer.js')
+const LabHelper    = require('./lab.js')
+const {TermHelper} = require('./draw.js')
+const TermPlayer   = require('./player.js')
+const Coordinator    = require('../lib/coordinator.js')
+const {Board, Match} = require('../lib/core.js')
+const Alerts    = require('./helpers/alerts.js')
+const ApiHelper = require('./helpers/menu.api.js')
+const Questions = require('./helpers/menu.questions.js')
+const TermBox   = require('./helpers/term.box.js')
 const {
+    ConfidenceRobot,
+    RobotDelegator,
+} = require('../robot/player.js')
+const {
+    createLogger,
     decrypt2,
     defaults,
     DependencyHelper,
@@ -80,8 +69,13 @@ const {
     StringBuilder,
     stringWidth,
 } = require('../lib/util')
-
 const {
+    Colors: {Red, White},
+    Menu: {
+        LoginChoiceMap,
+        MainChoiceMap,
+        PlayChoiceMap,
+    },
     Chars,
     CHash,
     DefaultLocale,
@@ -89,25 +83,21 @@ const {
     DefaultTermEnabled,
     DefaultThemeName,
     ObsoleteServerUrls,
-    Red,
     States,
-    White,
-} = Constants
-
+} = require('../lib/constants.js')
 const {
-    LoginChoiceMap
-  , MainChoiceMap
-  , PlayChoiceMap
-} = Constants.Menu
+    MatchCanceledError,
+    MenuError,
+    PromptActiveError,
+    RequestError,
+    ResetKeyNotEnteredError,
+    WaitingAbortedError,
+} = require('../lib/errors.js')
 
-const {
-    MatchCanceledError
-  , MenuError
-  , PromptActiveError
-  , RequestError
-  , ResetKeyNotEnteredError
-  , WaitingAbortedError
-} = require('../lib/errors')
+const fs   = require('fs')
+const os   = require('os')
+const path = require('path')
+const {EventEmitter} = require('events')
 
 const ResizeTimoutMs = 300
 
@@ -139,8 +129,8 @@ class Menu extends EventEmitter {
         this.term  = new TermHelper(this.settings.termEnabled)
         this.inquirer = inquirer.createPromptModule({escapeCodeTimeout: 100})
 
-        this.logger = new Logger('Menu', {named: true})
-        this.alerter = new Logger('Alerter', {raw: true})
+        this.logger = createLogger(this, {type: 'named', oneout: true})
+        this.alerter = createLogger('Alerter', {type: 'raw', oneout: true})
         this.alerts = new Alerts
         this.api = new ApiHelper(this.term)
 
@@ -155,46 +145,46 @@ class Menu extends EventEmitter {
 
         this.boxes = {
             menu   : new TermBox({
-                top         : 10
-              , hcenter     : true
-              , maxWidth    : 50
-              , minWidth    : 50
-              , maxHeight   : 20
-              , pad         : 1
-              , term        : this.term
-              , isBorder    : true
-              , borderStyle : 'solid'
-              , format : {
-                    border : str => this.theme.menu.box.border(str)
-                  , pad    : str => this.theme.menu.box(str)
-                  , erase  : str => this.theme.menu.screen(str)
-                }
-            })
-          , alerts : new TermBox({
-                top         : 2
-              , hcenter     : true
-              , maxWidth    : 79
-              , minWidth    : 79
-              , maxHeight   : 5
-              , term        : this.term
-              , isBorder    : true
-              , borderStyle : 'solid'
-              , pad         : 0
-              , format : {
-                    border : str => this.theme.alert.box.border(str)
-                  , pad    : str => this.theme.alert.box(str)
-                  , erase  : str => this.theme.alert.screen(str)
-                }
-            })
-          , screen: new TermBox({
-                top         : 1
-              , term        : this.term
-              , isBorder    : true
-              , borderStyle : 'solid'
-              , format : {
-                    border: str => this.theme.menu.screen.border(str)
-                }
-            })
+                top         : 10,
+                hcenter     : true,
+                maxWidth    : 50,
+                minWidth    : 50,
+                maxHeight   : 20,
+                pad         : 1,
+                term        : this.term,
+                isBorder    : true,
+                borderStyle : 'solid',
+                format : {
+                    border : str => this.theme.menu.box.border(str),
+                    pad    : str => this.theme.menu.box(str),
+                    erase  : str => this.theme.menu.screen(str),
+                },
+            }),
+            alerts : new TermBox({
+                top         : 2,
+                hcenter     : true,
+                maxWidth    : 79,
+                minWidth    : 79,
+                maxHeight   : 5,
+                term        : this.term,
+                isBorder    : true,
+                borderStyle : 'solid',
+                pad         : 0,
+                format : {
+                    border : str => this.theme.alert.box.border(str),
+                    pad    : str => this.theme.alert.box(str),
+                    erase  : str => this.theme.alert.screen(str),
+                },
+            }),
+            screen: new TermBox({
+                top         : 1,
+                term        : this.term,
+                isBorder    : true,
+                borderStyle : 'solid',
+                format : {
+                    border: str => this.theme.menu.screen.border(str),
+                },
+            }),
         }
     }
 
@@ -205,6 +195,19 @@ class Menu extends EventEmitter {
     set output(strm) {
         this.term.output = strm
         this.inquirer.opt.output = strm
+        this.logger.stdout = strm
+        this.alerter.stdout = strm
+        if (this.client) {
+            this.client.logger.stdout = strm
+        }
+        if (this.coordinator) {
+            this.coordinator.logger.stdout = strm
+        }
+        if (this.players) {
+            Object.values(this.players).forEach(player => {
+                player.logger.stdout = strm
+            })
+        }
     }
 
     get logLevel() {
@@ -509,7 +512,7 @@ class Menu extends EventEmitter {
 
         return this.runMenu('robots', __('Robots'), async (choose, loop) => {
 
-            if (isNullOrEmptyObject(this.settings.robots)) {
+            if (!isNonEmptyObject(this.settings.robots)) {
                 this.alerts.info(__('Loading robot defaults'))
                 this.settings.robots = this.robotsDefaults()
                 await this.saveSettings()
@@ -544,7 +547,7 @@ class Menu extends EventEmitter {
 
             const {settings} = this
 
-            if (isNullOrEmptyObject(settings.robots[name])) {
+            if (!isNonEmptyObject(settings.robots[name])) {
                 settings.robots[name] = this.robotMinimalConfig(name)
             }
 
@@ -810,6 +813,8 @@ class Menu extends EventEmitter {
                 ...this.settings,
             })
             const netPlayer  = new NetPlayer(client, isStart ? Red : White)
+            netPlayer.logger.stdout = this.output
+            netPlayer.logger.opts.oneout = true
             const players = {
                 White : isStart ? termPlayer : netPlayer
               , Red   : isStart ? netPlayer  : termPlayer
@@ -880,7 +885,11 @@ class Menu extends EventEmitter {
 
             Object.entries(players).forEach(([color, player]) => {
                 player.logLevel = this.logLevel
-                player.logger.name = [this.logger.name, player.name, color].join('.')
+                update(player.logger, {
+                    name   : [this.logger.name, player.name, color].join('.'),
+                    stdout : this.output,
+                })
+                player.logger.opts.oneout = true
             })
 
             const coordinator = this.newCoordinator()
@@ -950,14 +959,14 @@ class Menu extends EventEmitter {
         const {theme, isCustomRobot, robots, recordDir} = this.settings
         const {term} = this
         const labOpts = {
-            board
-          , persp
-          , theme
-          , isCustomRobot
-          , robots
-          , recordDir
-          , rollsFile
-          , term
+            board,
+            persp,
+            theme,
+            isCustomRobot,
+            robots,
+            recordDir,
+            rollsFile,
+            term,
         }
         const helper = new LabHelper(labOpts)
         this.emit('beforeRunLab', helper)
@@ -1003,11 +1012,15 @@ class Menu extends EventEmitter {
     }
 
     newCoordinator() {
-        const coordinator = new Coordinator(this.settings)
-        coordinator.logLevel = this.logLevel
-        coordinator.logger.name = [this.logger.name, coordinator.name].join('.')
-        this.coordinator = coordinator
-        return coordinator
+        const coord = new Coordinator(this.settings)
+        coord.logLevel = this.logLevel
+        coord.logger.opts.oneout = true
+        update(coord.logger, {
+            name: [this.logger.name, coord.name].join('.'),
+            stdout: this.output,
+        })
+        this.coordinator = coord
+        return coord
     }
 
     newClient() {
@@ -1019,7 +1032,11 @@ class Menu extends EventEmitter {
             password: this.decryptPassword(this.credentials.password)
         }))
         client.logLevel = this.logLevel
-        client.logger.name = [this.logger.name, client.name].join('.')
+        client.logger.opts.oneout = true
+        update(client.logger, {
+            name: [this.logger.name, client.name].join('.'),
+            stdout: this.output,
+        })
         this.client = client
         return client
     }
@@ -1194,7 +1211,7 @@ class Menu extends EventEmitter {
 
         // Debug errors if term not enabled.
         if (this.logLevel > 3 && !this.settings.termEnabled) {
-            errors.forEach(error => console.error(error))
+            errors.forEach(error => this.logger.error(error))
         }
 
         this.term.saveCursor()
@@ -1299,7 +1316,7 @@ class Menu extends EventEmitter {
         if (!this.captureInterrupt) {
             return 1
         }
-        const handler = this.captureInterrupr
+        const handler = this.captureInterrupt
         this.captureInterrupt = null
         this.term.output.write('\n')
         return handler()
@@ -1395,7 +1412,7 @@ class Menu extends EventEmitter {
         if (this.intl.locale != this.settings.locale) {
             this.intl.locale = this.settings.locale
         }
-        if (this.settings.isCustomRobot && isNullOrEmptyObject(this.settings.robots)) {
+        if (this.settings.isCustomRobot && !isNonEmptyObject(this.settings.robots)) {
             // populate for legacy format
             update(this.settings.robots,  Menu.robotsDefaults())
             this.alerts.info(__('Migrating legacy robot config'))

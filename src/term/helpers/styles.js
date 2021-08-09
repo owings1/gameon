@@ -22,10 +22,13 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-const {ucfirst}    = require('../../lib/util')
-const {StyleError} = require('../../lib/errors')
+const {
+    colors  : {Chalk},
+    strings : {ucfirst},
+} = require('utils-h')
 
-const chalk = require('chalk')
+const {StyleError} = require('../../lib/errors.js')
+const chalk = new Chalk()
 
 class StyleHelper {
 
@@ -75,10 +78,10 @@ class StyleHelper {
     // construct chalk callables, returns array [combined, fg, bg]
     static buildChalkListFromDefs(fgDef, bgDef) {
 
-        var theChalk = chalk
+        let theChalk = chalk
 
-        var fgChalk
-        var bgChalk
+        let fgChalk
+        let bgChalk
 
         if (bgDef) {
             if (bgDef.length) {

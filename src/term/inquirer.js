@@ -49,32 +49,35 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
  * OTHER DEALINGS IN THE SOFTWARE.
  */
-const Constants = require('../lib/constants')
-const Util      = require('../lib/util')
-
+const {
+    objects : {update},
+    strings : {stripAnsi},
+    types   : {castToArray},
+} = require('utils-h')
 const {defer, from} = require('rxjs')
 const Inquirer      = require('inquirer')
 const ScreenBase    = require('inquirer/lib/utils/screen-manager')
 
-const {AnsiHelper, TermHelper} = require('./draw')
-const {EventEmitter}           = require('events')
-
-const Prompts = require('./prompts')
-const {debug} = require('./helpers/prompt.methods')
-
-const {Chars, DefaultTermEnabled} = Constants
+const {EventEmitter} = require('events')
 
 const {
-    castToArray
-  , cliWidth
-  , ensure
-  , forceLineReturn
-  , nchars
-  , ntimes
-  , stringWidth
-  , stripAnsi
-  , update
-} = Util
+    AnsiHelper,
+    TermHelper,
+} = require('./draw.js')
+const Prompts = require('./prompts.js')
+const {debug} = require('./helpers/prompt.methods.js')
+const {
+    Chars,
+    DefaultTermEnabled,
+} = require('../lib/constants.js')
+const {
+    cliWidth,
+    ensure,
+    forceLineReturn,
+    nchars,
+    ntimes,
+    stringWidth,
+} = require('../lib/util.js')
 
 const NullEmitter = new EventEmitter
 const DefaultTerm = new TermHelper(DefaultTermEnabled)

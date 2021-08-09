@@ -499,15 +499,6 @@ describe('Util', () => {
         ])
     })
 
-    describe('#isEmptyObject', () => {
-
-        makeCases('isEmptyObject', [
-            [true, {}]
-          , [true, null]
-          , [false, {a: 1}]
-        ])
-    })
-
     describe('#isValidEmail', () => {
 
         makeCases('isValidEmail', [
@@ -841,13 +832,6 @@ describe('Util', () => {
         ])
     })
 
-    describe('#stripAnsi', () => {
-
-        makeCases('stripAnsi', [
-            ['abc', chalk.green('abc')]
-        ])
-    })
-
     describe('#stripLeadingSlash', () => {
 
         makeCases('stripLeadingSlash', [
@@ -861,15 +845,6 @@ describe('Util', () => {
         makeCases('stripTrailingSlash', [
             ['asdf', 'asdf']
           , ['asdf', 'asdf/']
-        ])
-    })
-
-    describe('#sumArray', () => {
-
-        makeCases('sumArray', [
-            [ 3, [1,2]]
-          , [ 0, []]
-          , [10, [5,5]]
         ])
     })
 

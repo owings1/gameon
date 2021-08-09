@@ -22,42 +22,35 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-const Constants = require('../../lib/constants')
-const Core      = require('../../lib/core')
-const Dice      = require('../../lib/dice')
-const Util      = require('../../lib/util')
-
-const Themes = require('../themes')
-const Robot  = require('../../robot/player')
-
-const {ConfidenceRobot} = Robot
-const {RobotDelegator}  = Robot
-
-const {Board} = Core
-const {StringBuilder} = Util
+const {arrays: {append}} = require('utils-h')
+const fse = require('fs-extra')
 
 const fs    = require('fs')
-const fse   = require('fs-extra')
 const path  = require('path')
 
+const {Board} = require('../../lib/core.js')
+const Dice    = require('../../lib/dice.js')
+const Themes  = require('../themes.js')
 const {
-    append,
     errMessage,
     homeTilde,
     isCredentialsFilled,
     padEnd,
     padStart,
     sp,
+    StringBuilder,
     stringWidth,
     tildeHome,
-} = Util
-
-
-const {Chars} = Constants
+} = require('../../lib/util.js')
 const {
-    MainChoiceMap
-  , PlayChoiceMap
-} = Constants.Menu
+    ConfidenceRobot,
+    RobotDelegator,
+} = require('../../robot/player.js')
+const {
+    Chars,
+    Menu: {MainChoiceMap, PlayChoiceMap},
+} = require('../../lib/constants.js')
+
 
 function getDiffChalk(a, b, chlk) {
     if (a == b) {

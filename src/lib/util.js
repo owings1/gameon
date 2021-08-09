@@ -35,8 +35,8 @@ const {
     Logger,
     arrays: {append},
     merging: {mergePlain},
-    objects: {lget, lset},
-    strings: {cat, stripAnsi},
+    objects: {lget, lset, update},
+    strings: {cat, endsWith, escapeRegex, lcfirst, stripAnsi, ucfirst},
     types: {isString, isObject, castToArray},
 } = require('utils-h')
 const {
@@ -47,20 +47,28 @@ const {
 
 const StringBuilder = require('./util/string-builder')
 
-const LoggerPrefix = {
-    named: function(level) {
-        return [
-            `[${this.name}]`,
-            `[${this.chalks[level].prefix(level.toUpperCase())}]`,
-        ]
+const LoggerTypes = {
+    named: {
+        prefix: function namedPrefix(level) {
+            return [
+                `[${this.name}]`,
+                `[${this.chalks[level].prefix(level.toUpperCase())}]`,
+            ]
+        },
     },
-    server: function(level) {
-        return [
-            new Date().toISOString(),
-            `[${this.name}]`,
-            `[${this.chalks[level].prefix(level.toUpperCase())}]`,
-        ]
-    }
+    raw: {
+        colors: false,
+        prefix: null,
+    },
+    server: {
+        prefix: function serverPrefix(level) {
+            return [
+                new Date().toISOString(),
+                `[${this.name}]`,
+                `[${this.chalks[level].prefix(level.toUpperCase())}]`,
+            ]
+        },
+    },
 }
 
 
@@ -68,6 +76,27 @@ class Util {
 
     static append(...args) {
         return append(...args)
+    }
+    static castToArray(val) {
+        return castToArray(val)
+    }
+    static cat(...args) {
+        return cat(...args)
+    }
+    static endsWith(str, srch) {
+        return endsWith(str, srch)
+    }
+    static escapeRegex(str) {
+        return escapeRegex(str)
+    }
+    static lcfirst(str) {
+        return lcfirst(str)
+    }
+    static ucfirst(str) {
+        return ucfirst(str)
+    }
+    static update(target, source) {
+        return update(target, source)
     }
 
     /**
@@ -147,19 +176,6 @@ class Util {
     }
 
     /**
-     * 
-     * @param {*}
-     * @return {array}
-     */
-    static castToArray(val) {
-        return castToArray(val)
-    }
-
-    static cat(...args) {
-        return cat(...args)
-    }
-
-    /**
      * Break up an array into chunks.
      *
      * @throws {TypeError}
@@ -215,20 +231,25 @@ class Util {
         return hash.digest(digest)
     }
 
-    static createLogger(inst, opts) {
+    static createLogger(inst, opts = {}) {
+        opts = isObject(opts) ? opts : {}
+        let {type} = opts
+        const optset = []
+        const isobj = isObject(inst)
         let name = 'Logger'
         if (isString(inst)) {
             name = inst
-        } else if (isObject(inst)) {
+        } else if (isobj) {
             name = lget(inst, 'name') ?? lget(inst, 'constructor.name') ?? name
-            opts = mergePlain(opts, {name}, lget(inst, 'opts.logging'))
         }
-        opts = mergePlain(opts)
-        if (!('prefix' in opts) && (opts.type in LoggerPrefix)) {
-            opts.prefix = LoggerPrefix[opts.type]
-            delete opts.type
+        optset.push({name})
+        if (isobj) {
+            const lopts = lget(inst, 'opts.logging', {})
+            type = type ?? lopts.type
+            optset.push(lopts)
         }
-        return new Logger(opts)
+        optset.push(LoggerTypes[type])
+        return new Logger(mergePlain(...optset, opts))
     }
 
     /**
@@ -313,19 +334,6 @@ class Util {
     }
 
     /**
-     * String ends with
-     *
-     * @throws {TypeError}
-     *
-     * @param {string} String to examine
-     * @param {string} The end string to search for
-     * @return {boolean}
-     */
-    static endsWith(str, srch) {
-        return str.length - str.lastIndexOf(srch) === srch.length
-    }
-
-    /**
      * Update the target object with the defaults if the key does not yet exist.
      *
      * @throws {TypeError}
@@ -361,21 +369,6 @@ class Util {
             return err.message || false
         }
         return true
-    }
-
-    /**
-     * Escape special regex characters in a string.
-     *
-     * Copied from: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Guide/Regular_Expressions#using_special_characters
-     *
-     * @license MPL 2.0 https://www.mozilla.org/en-US/MPL/
-     *
-     * @throws {TypeError}
-     * @param {string} The string to escape
-     * @return {string} The escaped string
-     */
-    static escapeRegex(str) {
-        return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
     }
 
     /**
@@ -627,22 +620,6 @@ class Util {
     }
 
     /**
-     * Check whether to parameter is null, or an empty object.
-     *
-     * @param {*} The input to check
-     * @return {boolean} Whether the input is null or an empty object
-     */
-    static isEmptyObject(obj) {
-        if (obj == null) {
-            return true
-        }
-        for (const k in obj) {
-            return false
-        }
-        return true
-    }
-
-    /**
      * Check whether the input is a valid email address.
      *
      * @param {*} The input to check
@@ -690,37 +667,6 @@ class Util {
         return Object.fromEntries(Object.values(input).map(value => [value, true]))
     }
 
-    /**
-     * Lowercase the first letter of a string.
-     *
-     * @see `ucfirst()`
-     *
-     * @throws {TypeError}
-     *
-     * @param {string} The input string
-     * @return {string} The result string
-     */
-    static lcfirst(str) {
-        if (str == null || !str.length) {
-            return str
-        }
-        return str.substring(0, 1).toLowerCase() + str.substring(1)
-    }
-
-    static loggerPrefixNamed(level) {
-        return [
-            `[${this.name}]`,
-            `[${this.chalks[level].prefix(level.toUpperCase())}]`,
-        ]
-    }
-
-    static loggerPrefixServer(level) {
-        return [
-            new Date().toISOString(),
-            `[${this.name}]`,
-            `[${this.chalks[level].prefix(level.toUpperCase())}]`,
-        ]
-    }
     /**
      * Create a plain object from an Error, suitable for serialization.
      *
@@ -1240,22 +1186,8 @@ class Util {
         return Util.timestamp(date)
     }
 
-    /**
-     * Capitalize the first letter of a string.
-     *
-     * @throws {TypeError}
-     *
-     * @param {string} The input string
-     * @return {string} The result string
-     *
-     * @see `lcfirst()`
-     */
-    static ucfirst(str) {
-        if (str == null || !str.length) {
-            return str
-        }
-        return str.substring(0, 1).toUpperCase() + str.substring(1)
-    }
+
+
 
     /**
      * Returns an array with all the unique integers of the input array.
@@ -1295,22 +1227,6 @@ class Util {
         const map = {}
         arr.forEach(it => map[it] = it)
         return Object.values(map)
-    }
-
-    /**
-     * Update an object with new values.
-     *
-     * @param {object} The target object to update
-     * @param {object} The source object with the new values
-     * @return {object} The target object
-     */
-    static update(target, source) {
-        target = target || {}
-        source = source || {}
-        Object.entries(source).forEach(([key, value]) => {
-            target[key] = value
-        })
-        return target
     }
 
     /**
