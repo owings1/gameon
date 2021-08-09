@@ -22,13 +22,13 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
+const {objects: {update}} = require('utils-h')
 const {
     expect,
     getError,
     ReadlineStub,
     requireSrc,
-    update,
-} = require('../util')
+} = require('../util.js')
 
 describe('Prompts', () => {
 

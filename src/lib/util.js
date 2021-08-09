@@ -33,10 +33,9 @@ const uuid        = require('uuid')
 
 const {
     Logger,
-    arrays  : {append},
     merging : {mergePlain},
     objects : {lget, lset, update, valueHash},
-    strings : {cat, endsWith, escapeRegex, lcfirst, stripAnsi, ucfirst},
+    strings : {stripAnsi},
     types   : {isString, isObject, castToArray},
 } = require('utils-h')
 const {
@@ -73,31 +72,6 @@ const LoggerTypes = {
 
 
 class Util {
-
-    static append(...args) {
-        return append(...args)
-    }
-    static castToArray(val) {
-        return castToArray(val)
-    }
-    static cat(...args) {
-        return cat(...args)
-    }
-    static endsWith(str, srch) {
-        return endsWith(str, srch)
-    }
-    static escapeRegex(str) {
-        return escapeRegex(str)
-    }
-    static lcfirst(str) {
-        return lcfirst(str)
-    }
-    static ucfirst(str) {
-        return ucfirst(str)
-    }
-    static update(target, source) {
-        return update(target, source)
-    }
 
     /**
      * @throws {TypeError}
@@ -1154,7 +1128,7 @@ class Util {
         if (data.turn) {
             trimmed.turn = {...data.turn}
             if (data.turn.allowedMoveIndex) {
-                Util.update(trimmed.turn, {
+                update(trimmed.turn, {
                     allowedEndStates: '[trimmed]'
                   , allowedMoveIndex: '[trimmed]'
                   , endStatesToSeries: '[trimmed]'
@@ -1246,7 +1220,7 @@ class Util {
     }
 }
 
-Util.update(Util, {
+update(Util, {
     get Counter()          { return require('./util/counter') },
     get DependencyHelper() { return require('./util/dependency-helper') },
     get Intl()             { return require('./util/intl') },

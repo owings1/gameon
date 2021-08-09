@@ -78,15 +78,6 @@ describe('Util', () => {
     const chalk = require('chalk')
     const os    = require('os')
 
-    describe('#append', () => {
-
-        it('should append [3,4] to [1]', function () {
-            const arr = [1]
-            Util.append(arr, [3,4])
-            expect(arr).to.jsonEqual([1,3,4])
-        })
-    })
-
     describe('#arrayIncrement', () => {
 
         describe('inc=1, min=0, max=9', () => {
@@ -152,23 +143,6 @@ describe('Util', () => {
             [[[]]                           ,  ['']                          , 80]
           , [[[chalk.green('abcd'), 'efg']] ,  [chalk.green('abcd') + 'efg'] ,  4]
           , [[[chalk.green('abcd')]]        ,  [chalk.green('abcd')]         ,  4]
-        ])
-    })
-
-    describe('#castToArray', () => {
-
-        it('should return same reference for array input', function () {
-            const arr = []
-            const result = Util.castToArray(arr)
-            expect(result).to.equal(arr)
-        })
-
-        makeCases('castToArray', {isJson: true}, [
-            [[1]     , 1]
-          , [[]      , undefined]
-          , [[]      , null]
-          , [[false] , false]
-          , [[0]     , 0]
         ])
     })
 
@@ -319,14 +293,6 @@ describe('Util', () => {
             ['test message', function throwsTestMessage() {throw new Error('test message')}]
           , [false         , function throwsNoMessage() {throw new Error}]
           , [true          , function doesNotThrow() {}] 
-        ])
-    })
-
-    describe('#escapeRegex', () => {
-
-        makeCases('escapeRegex', [
-            ['\\^' , '^']
-          , ['x'   , 'x']
         ])
     })
 
@@ -888,15 +854,6 @@ describe('Util', () => {
         ])
     })
 
-    describe('#ucfirst', () => {
-
-        makeCases('ucfirst', [
-            [null  , null]
-          , [''    , '']
-          , ['Foo' , 'foo']
-        ])
-    })
-
     describe('#uniqueInts', () => {
 
         makeCases('uniqueInts', {isJson: true}, [
@@ -910,21 +867,6 @@ describe('Util', () => {
         makeCases('uniqueStrings', {isJson: true}, [
             [['a','b'], ['a','a', 'b']]
         ])
-    })
-
-    describe('#update', () => {
-
-        it('should return object for null as target', function () {
-            const res = Util.update(null, {a: 1})
-            expect(res).to.jsonEqual({a: 1})
-        })
-
-        it('should not throw for empty second arg', function () {
-            const obj = {}
-            Util.update(obj)
-            expect(obj).to.equal(obj)
-            expect(obj).to.jsonEqual({})
-        })
     })
 
     describe('#uuid', () => {

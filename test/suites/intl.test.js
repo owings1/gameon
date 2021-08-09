@@ -27,8 +27,7 @@ const {
     getError,
     requireSrc,
     States,
-    update,
-} = require('../util')
+} = require('../util.js')
 
 describe('Intl', () => {
     

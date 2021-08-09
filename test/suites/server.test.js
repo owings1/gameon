@@ -22,21 +22,21 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-const Test = require('../util')
+const {objects: {update}} = require('utils-h')
+const fse = require('fs-extra')
+
 const {
     clientServer,
     expect,
     getError,
     httpFixture,
     makeRandomMoves,
+    parseCookies,
     parseKey,
     requireSrc,
     States,
     tmpDir,
-    update,
-} = Test
-
-const fse = require('fs-extra')
+} = require('../util.js')
 
 describe('Server', () => {
 
@@ -618,8 +618,6 @@ describe('Server', () => {
     })
 
     describe('HTTP', () => {
-
-        const {parseCookies} = Test
 
         beforeEach(function() {
 

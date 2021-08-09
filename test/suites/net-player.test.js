@@ -22,18 +22,20 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-const Test = require('../util')
 const {
-    append
-  , clientServer
-  , destroyAll
-  , expect
-  , getError
-  , newRando
-  , requireSrc
-  , ucfirst
-  , update
-} = Test
+    arrays : {append},
+    objects: {update},
+    strings: {ucfirst},
+} = require('utils-h')
+
+const {
+    clientServer,
+    destroyAll,
+    expect,
+    getError,
+    newRando,
+    requireSrc,
+} = require('../util.js')
 
 describe('NetPlayer', () => {
 
@@ -43,7 +45,7 @@ describe('NetPlayer', () => {
     const Server      = requireSrc('net/server')
     const NetPlayer   = requireSrc('net/player')
 
-    const {Red, White} = requireSrc('lib/constants')
+    const {Colors: {Red, White}} = requireSrc('lib/constants')
 
     beforeEach(async function () {
 

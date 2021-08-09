@@ -22,28 +22,28 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-const Test = require('../util')
-
 const {
-    append
-  , destroyAll
-  , expect
-  , fetchBoard
-  , getError
-  , MockPrompter
-  , newRando
-  , NullOutput
-  , requireSrc
-  , tmpDir
-  , tmpFile
-  , States
-  , update
-} = Test
-
-const fs  = require('fs')
+    arrays: {append},
+    objects: {update},
+} = require('utils-h')
 const fse = require('fs-extra')
 
+const fs  = require('fs')
 const {resolve} = require('path')
+
+const {
+    destroyAll,
+    expect,
+    fetchBoard,
+    getError,
+    MockPrompter,
+    newRando,
+    NullOutput,
+    requireSrc,
+    tmpDir,
+    tmpFile,
+    States,
+} = require('../util.js')
 
 describe('Coordinator', () => {
 

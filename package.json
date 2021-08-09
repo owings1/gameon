@@ -35,7 +35,6 @@
     "fs-extra": "^9.0.1",
     "globby": "^10.0.2",
     "inquirer": "^8.1.2",
-    "lodash": "^4.17.21",
     "node-fetch": "^2.6.1",
     "on-finished": "^2.3.0",
     "prom-client": "^13.1.0",

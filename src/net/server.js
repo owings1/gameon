@@ -22,41 +22,41 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-const Constants = require('../lib/constants')
-const Errors    = require('../lib/errors')
-const {Match}   = require('../lib/core')
-const Util      = require('../lib/util')
-
-const Api       = require('./api')
-const Auth      = require('./auth')
-const Web       = require('./web')
-const WsServer  = require('websocket').server
-
+const {
+    objects: {update},
+    types  : {castToArray},
+} = require('utils-h')
 const bodyParser = require('body-parser')
 const express    = require('express')
 const onFinished = require('on-finished')
 const prom       = require('prom-client')
-const hutil      = require('utils-h')
+const WsServer   = require('websocket').server
 
-const {types: {castToArray}, objects: {update}} = hutil
+const {Match} = require('../lib/core.js')
+const Api     = require('./api.js')
+const Auth    = require('./auth.js')
+const Web     = require('./web.js')
 const {
-    MatchCancelRef
-  , Opponent
-  , Red
-  , White
-} = Constants
-
-const {createLogger, hash, makeErrorObject, uuid} = Util
-
+    Colors: {Red, White},
+    MatchCancelRef,
+    Opponent,
+} = require('../lib/constants.js')
 const {
-    HandshakeError
-  , InvalidActionError
-  , MatchAlreadyExistsError
-  , MatchAlreadyJoinedError
-  , MatchNotFoundError
-  , RequestError
-  , ValidateError
-} = Errors
+    createLogger,
+    defaults,
+    hash,
+    makeErrorObject,
+    uuid,
+} = require('../lib/util.js')
+const {
+    HandshakeError,
+    InvalidActionError,
+    MatchAlreadyExistsError,
+    MatchAlreadyJoinedError,
+    MatchNotFoundError,
+    RequestError,
+    ValidateError,
+} = require('../lib/errors.js')
 
 function statusLogLevel(code) {
     if (code >= 500) {
@@ -78,12 +78,12 @@ function httpVersionString(req) {
 
 function formatLog(req, res) {
     return [
-        res.statusCode
-      , req.method
-      , req.url
-      , httpVersionString(req)
-      , res.get('Content-Length')
-      , req.ip
+        res.statusCode,
+        req.method,
+        req.url,
+        httpVersionString(req),
+        res.get('Content-Length'),
+        req.ip,
     ].join(' ')
 }
 
@@ -97,8 +97,8 @@ class Server {
      */
     static defaults(env) {
         return {
-            socketHsTimeout : +env.SOCKET_HSTIMEOUT || 5000
-          , webEnabled      : !env.GAMEON_WEB_DISABLED
+            socketHsTimeout : +env.SOCKET_HSTIMEOUT || 5000,
+            webEnabled      : !env.GAMEON_WEB_DISABLED,
         }
     }
 
@@ -110,9 +110,9 @@ class Server {
      */
     constructor(opts) {
 
-        this.logger = createLogger(this, {type: 'server'})// new Logger({name: 'Server', prefix: loggerPrefixServer})
+        this.logger = createLogger(this, {type: 'server'})
 
-        this.opts = Util.defaults(Server.defaults(process.env), opts)
+        this.opts = defaults(Server.defaults(process.env), opts)
         this.auth = Auth.create({...opts, ...this.opts})
         this.api  = new Api(this.auth, opts)
         this.web  = new Web(this.auth, opts)

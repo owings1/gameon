@@ -22,15 +22,14 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-const Test = require('../util')
+const {objects: {update}} = require('utils-h')
 const {
     clientServer,
     expect,
     getError,
     makeRandomMoves,
     requireSrc,
-    update,
-} = Test
+} = require('../util.js')
 
 describe('Client', () => {
 

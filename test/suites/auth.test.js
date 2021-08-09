@@ -22,24 +22,23 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-const Test = require('../util')
-
 const {
-    expect
-  , getError
-  , parseKey
-  , requireSrc
-  , tmpDir
-} = Test
-
-const Auth = requireSrc('net/auth')
-const Util = requireSrc('lib/util')
-
+    objects: {update},
+    strings: {ucfirst},
+} = require('utils-h')
 const AWS = require('aws-sdk')
-const fs  = require('fs')
 const fse = require('fs-extra')
 
-const {ucfirst, update} = Util
+const fs  = require('fs')
+
+const {
+    expect,
+    getError,
+    parseKey,
+    requireSrc,
+    tmpDir,
+} = require('../util.js')
+const Auth = requireSrc('net/auth.js')
 
 describe('Auth', () => {
 

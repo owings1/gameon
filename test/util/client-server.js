@@ -23,13 +23,14 @@
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 const {
-    append  ,
-    nmap    ,
-    ucfirst ,
-    update  ,
-} = require('../../src/lib/util')
+    arrays : {append},
+    objects: {update},
+    strings: {ucfirst},
+} = require('utils-h')
 
-const Client = require('../../src/net/client')
+const {nmap} = require('../../src/lib/util.js')
+
+const Client = require('../../src/net/client.js')
 
 function initServers(servers, logLevel) {
     return Promise.all(

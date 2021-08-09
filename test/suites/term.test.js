@@ -22,7 +22,13 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-const TestUtil = require('../util')
+const {objects: {update}} = require('utils-h')
+const fse  = require('fs-extra')
+
+const fs   = require('fs')
+const path = {resolve} = require('path')
+const {EventEmitter} = require('events')
+
 const {
     destroyAll,
     expect,
@@ -35,41 +41,27 @@ const {
     noop,
     tmpDir,
     States
-} = TestUtil
+} = require('../util.js')
 
-const fs   = require('fs')
-const fse  = require('fs-extra')
-const path = require('path')
+const {DrawHelper} = requireSrc('term/draw.js')
+const TermPlayer   = requireSrc('term/player.js')
+const Coordinator = requireSrc('lib/coordinator.js')
+const Dice        = requireSrc('lib/dice.js')
+const Player      = requireSrc('lib/player.js')
+const Client      = requireSrc('net/client.js')
+const Server      = requireSrc('net/server.js')
+const NetPlayer   = requireSrc('net/player.js')
+const {RequestError} = requireSrc('lib/errors.js')
+const {Colors: {White, Red}} = requireSrc('lib/constants.js')
+const {Match, Game, Board, Turn} = requireSrc('lib/core.js')
+const {
+    ConfidenceRobot,
+    RobotDelegator,
+} = requireSrc('robot/player.js')
 
-const {resolve} = path
-const {EventEmitter} = require('events')
-
-const {DrawHelper} = requireSrc('term/draw')
-const TermPlayer   = requireSrc('term/player')
-
-const Constants   = requireSrc('lib/constants')
-const Core        = requireSrc('lib/core')
-const Coordinator = requireSrc('lib/coordinator')
-const Dice        = requireSrc('lib/dice')
-const Errors      = requireSrc('lib/errors')
-const Player      = requireSrc('lib/player')
-const Robot       = requireSrc('robot/player')
-const Client      = requireSrc('net/client')
-const Server      = requireSrc('net/server')
-const NetPlayer   = requireSrc('net/player')
-const Util        = requireSrc('lib/util')
-
-const {update} = Util
-
-const {White, Red} = Constants
-const {Match, Game, Board, Turn} = Core
-
-const {RandomRobot} = Robot
-
-const {RequestError} = Errors
 
 function newRando(...args) {
-    return Robot.ConfidenceRobot.getDefaultInstance('RandomRobot', ...args)
+    return ConfidenceRobot.getDefaultInstance('RandomRobot', ...args)
 }
 
 describe('Draw', () => {
@@ -176,7 +168,7 @@ describe('TermPlayer', () => {
         })
         const players = {
             White : new TermPlayer(White)
-          , Red   : Robot.RobotDelegator.forDefaults(Red)
+          , Red   : RobotDelegator.forDefaults(Red)
         }
         const player = players.White
         player.logLevel = player.logLevel = 1

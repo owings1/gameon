@@ -54,9 +54,13 @@
  * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-const {append} = require('../../src/lib/util')
-const chalk = require('chalk')
+const {
+    arrays: {append},
+    colors: {Chalk},
+} = require('utils-h')
 const diff = require('diff')
+
+const chalk = new Chalk()
 
 const noBlanks = line => typeof line != 'undefined' && line !== null
 

@@ -27,7 +27,7 @@ const tmp      = require('tmp')
 const Util    = require('../src/lib/util')
 const {
     arrays: {append},
-    strings: {endsWith, stripAnsi, ucfirst},
+    strings: {endsWith, stripAnsi},
     objects: {update},
 } = require('utils-h')
 
@@ -118,7 +118,6 @@ const TestUtil = {
     randomElement     : Util.randomElement,
     stripAnsi,
     stripLeadingSlash : Util.stripLeadingSlash,
-    ucfirst,
     update,
 }
 module.exports = TestUtil

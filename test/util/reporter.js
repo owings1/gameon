@@ -22,9 +22,10 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-const Base = require('./reporter-base').DefaultReporter
+const {arrays: {append}} = require('utils-h')
 
-const {append, pad, nchars, stringWidth} = require('../../src/lib/util')
+const Base = require('./reporter-base.js').DefaultReporter
+const {pad, nchars, stringWidth} = require('../../src/lib/util.js')
 
 function wrap (inner, outer) {
     return outer + inner + outer

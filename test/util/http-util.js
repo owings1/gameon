@@ -22,9 +22,9 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-const {update} = require('../../src/lib/util')
-
+const {objects: {update}} = require('utils-h')
 const fetch = require('node-fetch')
+
 const {URLSearchParams} = require('url')
 
 function getUrlParams(obj) {
@@ -46,19 +46,19 @@ const httpFixture = {
 
     url : function (uri) {
         return this.fixture.baseUrl + uri
-    }
+    },
 
-  , get : function (uri, opts) {
+    get : function (uri, opts) {
         opts = {...opts}
         const headers = _getHeaders(opts.headers, this.fixture)
         return fetch(this.url(uri), {
-            ...this.fixture.opts
-          , ...opts
-          , headers
+            ...this.fixture.opts,
+            ...opts,
+            headers,
         })
-    }
+    },
 
-  , post : function (uri, body, opts) {
+    post : function (uri, body, opts) {
         opts = {...opts}
         const headers = _getHeaders(opts.headers, this.fixture)
         if (this.fixture.json) {
@@ -67,24 +67,24 @@ const httpFixture = {
             body = getUrlParams(body)
         }
         return fetch(this.url(uri), {
-            method: 'POST'
-          , ...this.fixture.opts
-          , ...opts
-          , body
-          , headers
+            method: 'POST',
+            ...this.fixture.opts,
+            ...opts,
+            body,
+            headers,
         })
-    }
+    },
 
-  , req : function (...args) {
+    req : function (...args) {
         const method = this.fixture.method.toLowerCase()
         return this[method](this.fixture.uri, ...args)
-    }
+    },
 }
 
 module.exports = {
-    httpFixture
-  , getUrlParams
-  , parseCookies
+    httpFixture,
+    getUrlParams,
+    parseCookies,
 }
 
 function _getHeaders (_headers, fixture) {

@@ -23,18 +23,20 @@
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 const {
+    objects: {update},
+    strings: {stripAnsi},
+} = require('utils-h')
+const {
     expect,
     getError,
     ReadlineStub,
-    stripAnsi,
     requireSrc,
-    update,
-} = require('../util')
+} = require('../util.js')
 
 describe('inquirer', () => {
 
-    const {inquirer} = requireSrc('term/inquirer')
-    const {TermHelper} = requireSrc('term/draw')
+    const {inquirer} = requireSrc('term/inquirer.js')
+    const {TermHelper} = requireSrc('term/draw.js')
 
     beforeEach(function () {
         this.rl = new ReadlineStub
