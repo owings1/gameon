@@ -24,14 +24,14 @@
  */
 const {Command} = require('@oclif/command')
 
-const Logger = require('./logger')
+const {createLogger} = require('./util')
 const Menu   = require('../term/menu')
 
 class AppCommand extends Command {
 
     async init(..._args) {
         await super.init(..._args)
-        this.logger = this.logger || new Logger(this.constructor.name)
+        this.logger = this.logger || createLogger(this)
         this.proc = this.proc || process
         this.env = this.env || this.proc.env
         const {flags, args, argv} = this.parse(this.constructor)

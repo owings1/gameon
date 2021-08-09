@@ -27,20 +27,20 @@ const Util      = require('../lib/util')
 
 const bodyParser = require('body-parser')
 const express    = require('express')
-const {Logger}  = require('utils-h')
-const {loggerPrefixServer} = Util
+
+const {createLogger} = Util
 
 const Messages = {
-    accountConfirmed : 'Account confirmed.'
-  , accountCreated   : 'Account created, check your email to confirm.'
-  , authenticated    : 'User authenticated.'
-  , badRequest       : 'Bad Request'
-  , confirmKeySent   : 'A confirm key has been sent if the account exists and is unconfirmed, check your email.'
-  , internalError    : 'Internal Error'
-  , notFound         : 'Not Found'
-  , passwordChanged  : 'Password changed.'
-  , passwordReset    : 'Password reset.'
-  , resetKeySent     : 'A reset key has been sent if the account exists, check your email.'
+    accountConfirmed : 'Account confirmed.',
+    accountCreated   : 'Account created, check your email to confirm.',
+    authenticated    : 'User authenticated.',
+    badRequest       : 'Bad Request',
+    confirmKeySent   : 'A confirm key has been sent if the account exists and is unconfirmed, check your email.',
+    internalError    : 'Internal Error',
+    notFound         : 'Not Found',
+    passwordChanged  : 'Password changed.',
+    passwordReset    : 'Password reset.',
+    resetKeySent     : 'A reset key has been sent if the account exists, check your email.',
 }
 
 class Api {
@@ -52,7 +52,7 @@ class Api {
     constructor(auth, opts) {
 
         this.opts = Util.defaults(Api.defaults(process.env), opts)
-        this.logger = new Logger({name: this.constructor.name, prefix: loggerPrefixServer})
+        this.logger = createLogger(this, {type: 'server'})
 
         this.auth = auth
         this.v1 = this.create_v1()

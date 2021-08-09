@@ -38,7 +38,7 @@ const onFinished = require('on-finished')
 const prom       = require('prom-client')
 const hutil      = require('utils-h')
 
-const {Logger, types: {castToArray}, objects: {update}} = hutil
+const {types: {castToArray}, objects: {update}} = hutil
 const {
     MatchCancelRef
   , Opponent
@@ -46,7 +46,7 @@ const {
   , White
 } = Constants
 
-const {hash, loggerPrefixServer, makeErrorObject, uuid} = Util
+const {createLogger, hash, makeErrorObject, uuid} = Util
 
 const {
     HandshakeError
@@ -110,7 +110,7 @@ class Server {
      */
     constructor(opts) {
 
-        this.logger = new Logger({name: 'Server', prefix: loggerPrefixServer})
+        this.logger = createLogger(this, {type: 'server'})// new Logger({name: 'Server', prefix: loggerPrefixServer})
 
         this.opts = Util.defaults(Server.defaults(process.env), opts)
         this.auth = Auth.create({...opts, ...this.opts})

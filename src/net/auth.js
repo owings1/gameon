@@ -22,7 +22,7 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-const {Logger} = require('utils-h')
+const {objects: {update}} = require('utils-h')
 
 const Email = require('./email')
 
@@ -55,15 +55,14 @@ const {
 } = require('../lib/errors')
 
 const {
+    createLogger,
     decrypt2,
     encrypt2,
     defaults,
     hash,
     isValidEmail,
-    loggerPrefixServer,
     securityCheck,
     tstamp,
-    update,
     uuid,
 } = require('../lib/util')
 
@@ -156,7 +155,7 @@ class Auth {
 
         this.opts = defaults(Auth.defaults(process.env), opts)
 
-        this.logger = new Logger({name: this.constructor.name, prefix: loggerPrefixServer})
+        this.logger = createLogger(this, {type: 'server'})
 
         // TODO: should this be passed in constructor?
         this.email = Email.create({

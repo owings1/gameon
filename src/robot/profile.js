@@ -22,32 +22,27 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-const Constants   = require('../lib/constants')
+const fse = require('fs-extra')
+
+const Dice     = require('../lib/dice')
+const {Match}  = require('../lib/core.js')
+const Timer    = require('../lib/util/timer.js')
+const Profiler = require('../lib/util/profiler.js').getDefaultInstance()
 const Coordinator = require('../lib/coordinator')
-const Dice        = require('../lib/dice')
-const Errors      = require('../lib/errors')
-const Logger      = require('../lib/logger')
-const {Match}     = require('../lib/core')
-const Util        = require('../lib/util')
+const {RobotDelegator}     = require('./player.js')
+const {Table, TableHelper} = require('../term/tables.js')
+const {InvalidColumnError} = require('../lib/errors.js')
 
-const Tables = require('../term/tables')
+const {Colors, DefaultThemeName} = require('../lib/constants')
 
-const Robot = require('./player')
+const {
+    createLogger,
+    defaults,
+    destroyAll,
+} = require('../lib/util.js')
 
-const fse  = require('fs-extra')
-const path = require('path')
 
-const {Table, TableHelper} = Tables
-const {Timer}   = Util
-const {resolve} = path
-
-const {Colors, DefaultThemeName} = Constants
-
-const {RobotDelegator} = Robot
-
-const {InvalidColumnError} = Errors
-
-const Profiler = Util.Profiler.getDefaultInstance()
+const path = {resolve} = require('path')
 
 function f_round(value) {
     return Math.round(value).toLocaleString()
@@ -59,71 +54,71 @@ function f_elapsed(value) {
 
 const Columns = [
     {
-        name       : 'name'
-      , title      : 'Name'
-      , align      : 'left'
-      , isFilter   : true
-      , sortable   : true
-      , defaultDir : 'asc'
-    }
-  , {
-        name       : 'elapsed'
-      , title      : 'Elapsed (ms)'
-      , align      : 'right'
-      , format     : f_elapsed
-      , isFilter   : false
-      , sortable   : true
-      , defaultDir : 'desc'
-    }
-  , {
-        name       : 'average'
-      , title      : 'Average (ms)'
-      , align      : 'right'
-      , format     : value => value == null ? '' : value.toFixed(4) + ' ms'
-      , isFilter   : false
-      , sortable   : true
-      , defaultDir : 'desc'
-    }
-  , {
-        name       : 'count'
-      , title      : 'Count'
-      , align      : 'right'
-      , format     : f_round
-      , isFilter   : false
-      , sortable   : true
-      , defaultDir : 'desc'
-      , get        : it => it.getCount()
-    }
-  , {
-        name       : 'match'
-      , title      : 'Match (avg)'
-      , align      : 'right'
-      , format     : f_round
-      , isFilter   : false
-      , sortable   : true
-      , defaultDir : 'desc'
-      , get        : (it, {summary}) => it.getCount() / summary.matchCount
-    }
-  , {
-        name       : 'game'
-      , title      : 'Game (avg)'
-      , align      : 'right'
-      , format     : f_round
-      , isFilter   : false
-      , sortable   : true
-      , defaultDir : 'desc'
-      , get        : (it, {summary}) => it.getCount() / summary.gameCount
-    }
-  , {
-        name       : 'turn'
-      , title      : 'Turn (avg)'
-      , align      : 'right'
-      , format     : f_round
-      , isFilter   : false
-      , sortable   : true
-      , defaultDir : 'desc'
-      , get        : (it, {summary}) => it.getCount() / summary.turnCount
-    }
+        name       : 'name',
+        title      : 'Name',
+        align      : 'left',
+        isFilter   : true,
+        sortable   : true,
+        defaultDir : 'asc',
+    },
+    {
+        name       : 'elapsed',
+        title      : 'Elapsed (ms)',
+        align      : 'right',
+        format     : f_elapsed,
+        isFilter   : false,
+        sortable   : true,
+        defaultDir : 'desc',
+    },
+    {
+        name       : 'average',
+        title      : 'Average (ms)',
+        align      : 'right',
+        format     : value => value == null ? '' : value.toFixed(4) + ' ms',
+        isFilter   : false,
+        sortable   : true,
+        defaultDir : 'desc',
+    },
+    {
+        name       : 'count',
+        title      : 'Count',
+        align      : 'right',
+        format     : f_round,
+        isFilter   : false,
+        sortable   : true,
+        defaultDir : 'desc',
+        get        : it => it.getCount(),
+    },
+    {
+        name       : 'match',
+        title      : 'Match (avg)',
+        align      : 'right',
+        format     : f_round,
+        isFilter   : false,
+        sortable   : true,
+        defaultDir : 'desc',
+        get        : (it, {summary}) => it.getCount() / summary.matchCount,
+    },
+    {
+        name       : 'game',
+        title      : 'Game (avg)',
+        align      : 'right',
+        format     : f_round,
+        isFilter   : false,
+        sortable   : true,
+        defaultDir : 'desc',
+        get        : (it, {summary}) => it.getCount() / summary.gameCount,
+    },
+    {
+        name       : 'turn',
+        title      : 'Turn (avg)',
+        align      : 'right',
+        format     : f_round,
+        isFilter   : false,
+        sortable   : true,
+        defaultDir : 'desc',
+        get        : (it, {summary}) => it.getCount() / summary.turnCount,
+    },
 ]
 
 class ProfileHelper {
@@ -159,8 +154,8 @@ class ProfileHelper {
     }
 
     constructor(opts) {
-        this.opts = Util.defaults(ProfileHelper.defaults(), opts)
-        this.logger = new Logger(this.constructor.name, {named: true})
+        this.opts = defaults(ProfileHelper.defaults(), opts)
+        this.logger = createLogger(this, {type: 'named'})
     }
 
     async run() {
@@ -253,7 +248,7 @@ class ProfileHelper {
             }
 
         } finally {
-            await Util.destroyAll(players)
+            await destroyAll(players)
             Profiler.resetAll()
         }
     }

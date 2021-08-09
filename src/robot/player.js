@@ -22,27 +22,23 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-const Constants = require('../lib/constants')
-const Base      = require('../lib/player')
-const Errors    = require('../lib/errors')
-const Util      = require('../lib/util')
-
-const Profiler = Util.Profiler.getDefaultInstance()
-
+const path = require('path')
+const Base = require('../lib/player.js')
+const Profiler = require('../lib/util/profiler.js').getDefaultInstance()
+const {spreadScore} = require('../lib/util.js')
+const {KnownRobots} = require('./res/robots.config.js')
 const {
-    HasNotRolledError
-  , InvalidRobotError
-  , InvalidRobotVersionError
-  , InvalidWeightError
-  , NoDelegatesError
-  , NotImplementedError
-  , RobotError
-  , UndecidedMoveError
-} = Errors
+    HasNotRolledError,
+    InvalidRobotError,
+    InvalidRobotVersionError,
+    InvalidWeightError,
+    NoDelegatesError,
+    NotImplementedError,
+    RobotError,
+    UndecidedMoveError,
+} = require('../lib/errors')
 
 const ZERO_SCORES = 'ZERO_SCORES'
-
-const {KnownRobots} = require('./res/robots.config')
 
 class Robot extends Base {
 
@@ -56,7 +52,7 @@ class Robot extends Base {
             return
         }
         const moves = await this.getMoves(turn, game, match)
-        for (var move of moves) {
+        for (const move of moves) {
             turn.move(move)
         }
     }
@@ -96,32 +92,32 @@ class ConfidenceRobot extends Robot {
 
     // default
     static getClassVersions() {
-        return {v1 : this}
+        return {v1: this}
     }
 
     static getClassMeta(name) {
         const classMeta = KnownRobots[name]
         if (!classMeta) {
-            throw new InvalidRobotError("Unknown robot: " + name)
+            throw new InvalidRobotError(`Unknown robot: ${name}`)
         }
         if (!classMeta.class) {
-            classMeta.class = require('./robots/' + classMeta.filename)
+            classMeta.class = require('./robots/' + path.basename(classMeta.filename))
             classMeta.versions = classMeta.class.getClassVersions()
         }
         // make a copy
         return {
-            ...classMeta
-          , defaults: {...classMeta.defaults}
+            ...classMeta,
+            defaults: {...classMeta.defaults},
         }
     }
 
     static getClassVersion(name, version) {
         const classMeta = this.getClassMeta(name)
-        const theClass = classMeta.versions[version]
-        if (!theClass) {
-            throw new InvalidRobotVersionError("Unknown version for " + name + ": " + version)
+        const Class = classMeta.versions[version]
+        if (!Class) {
+            throw new InvalidRobotVersionError(`Unknown version for ${name}: ${version}`)
         }
-        return theClass
+        return Class
     }
 
     static getClassDefault(name) {
@@ -130,13 +126,13 @@ class ConfidenceRobot extends Robot {
     }
 
     static getVersionInstance(name, version, ...args) {
-        const theClass = this.getClassVersion(name, version)
-        return new theClass(...args)
+        const Class = this.getClassVersion(name, version)
+        return new Class(...args)
     }
 
     static getDefaultInstance(name, ...args) {
-        const theClass = this.getClassDefault(name)
-        return new theClass(...args)
+        const Class = this.getClassDefault(name)
+        return new Class(...args)
     }
 
     constructor(...args) {
@@ -192,7 +188,7 @@ class ConfidenceRobot extends Robot {
     }
 
     spreadScore(...args) {
-        return Util.spreadScore(...args)
+        return spreadScore(...args)
     }
 
     static zeroScores(turn) {
@@ -207,14 +203,14 @@ ConfidenceRobot.ZERO_SCORES = ZERO_SCORES
 
 const Sorters = {
     delegateRankings : (a, b) => {
-        var cmp = a.myRank - b.myRank
+        let cmp = a.myRank - b.myRank
         if (cmp) {
             return cmp
         }
         return a.actualRank - b.actualRank
-    }
-  , overallRankings : result => (a, b) => {
-        var cmp = result.totals[b] - result.totals[a]
+    },
+    overallRankings : result => (a, b) => {
+        let cmp = result.totals[b] - result.totals[a]
         if (cmp) {
             return cmp
         }
@@ -223,9 +219,9 @@ const Sorters = {
             return cmp
         }
         return a.localeCompare(b)
-    }
-  , rankListDelegates: (a, b) => {
-        var cmp = b.weighted - a.weighted
+    },
+    rankListDelegates: (a, b) => {
+        let cmp = b.weighted - a.weighted
         if (cmp) {
             return cmp
         }
@@ -234,7 +230,7 @@ const Sorters = {
             return cmp
         }
         return a.name.localeCompare(b.name)
-    }
+    },
 }
 
 class RobotDelegator extends Robot {
@@ -291,7 +287,7 @@ class RobotDelegator extends Robot {
     async getMoves(turn, game, match) {
         Profiler.start('RobotDelegator.getMoves')
         try {
-            if (this.delegates.length == 0) {
+            if (this.delegates.length === 0) {
                 throw new NoDelegatesError('No delegates to consult')
             }
             if (turn.isCantMove) {
@@ -323,11 +319,11 @@ class RobotDelegator extends Robot {
 
             if (this.isStoreLastResult) {
                 this.lastResult = {
-                    totals
-                  , maxWeight
-                  , selectedEndState
-                  , results
-                  , turn
+                    totals,
+                    maxWeight,
+                    selectedEndState,
+                    results,
+                    turn,
                 }
             }
 
@@ -421,7 +417,7 @@ class RobotDelegator extends Robot {
         const overallRankings = Object.keys(result.totals)
         overallRankings.sort(Sorters.overallRankings(result))
         const overallRankingsMap = {}
-        var rankTrack = 1
+        let rankTrack = 1
         overallRankings.forEach((endState, i) => {
             // score of zero ties for dead last
             if (result.totals[endState] == 0) {
@@ -458,7 +454,7 @@ class RobotDelegator extends Robot {
 
             // ties are much more likely
             const myRankedStatesMap = {}
-            var myRankTrack = 1
+            let myRankTrack = 1
             myRankedStates.forEach((endState, i) => {
                 // score of zero ties for dead last
                 if (res[endState] == 0) {
@@ -546,13 +542,14 @@ class RobotDelegator extends Robot {
    async _getDelegatesResults(turn, game, match) {
        const results = []
        const zeroScores = ConfidenceRobot.zeroScores(turn)
-       for (var i = 0, ilen = this.delegates.length; i < ilen; ++i) {
-           var delegate = this.delegates[i]
+       for (let i = 0, ilen = this.delegates.length; i < ilen; ++i) {
+           const delegate = this.delegates[i]
            Profiler.start(delegate.scoreTimerName)
+           let scores
            if (delegate.moveWeight == 0) {
-               var scores = zeroScores
+               scores = zeroScores
            } else {
-               var scores = await delegate.robot.getScores(turn, game, match)
+               scores = await delegate.robot.getScores(turn, game, match)
                if (scores === ZERO_SCORES) {
                    scores = zeroScores
                }
@@ -576,16 +573,16 @@ class RobotDelegator extends Robot {
        const totals = {}
        // Don't assume delegates will give good scores >= 0. Instead log a warning,
        // but still allow selecting the moves with the max score.
-       var maxWeight = -Infinity
-       var selectedEndState
-       for (var i = 0, ilen = results.length; i < ilen; ++i) {
-           var result = results[i]
-           var delegate = this.delegates[i]
-           for (var endState in result) {
+       let maxWeight = -Infinity
+       let selectedEndState
+       for (let i = 0, ilen = results.length; i < ilen; ++i) {
+           const result = results[i]
+           const delegate = this.delegates[i]
+           for (const endState in result) {
                if (!(endState in totals)) {
                    totals[endState] = 0
                }
-               var instanceScore = result[endState]
+               const instanceScore = result[endState]
                if (instanceScore > 1 || instanceScore < 0) {
                    this.logger.warn(delegate.robot.name, 'gave score', instanceScore)
                }
@@ -603,8 +600,8 @@ class RobotDelegator extends Robot {
 RobotDelegator.Sorters = Sorters
 
 module.exports = {
-    Robot
-  , ConfidenceRobot
-  , RobotDelegator
-  , ZERO_SCORES
+    Robot,
+    ConfidenceRobot,
+    RobotDelegator,
+    ZERO_SCORES,
 }

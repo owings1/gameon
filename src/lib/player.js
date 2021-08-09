@@ -22,19 +22,11 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-const Constants = require('./constants')
-const Core      = require('./core')
-const Errors    = require('./errors')
-const Logger    = require('./logger')
-const Util      = require('./util')
-
 const {EventEmitter} = require('events')
 
-const {Opponent} = Constants
-
-const {NotImplementedError} = Errors
-
-const {uuid} = Util
+const {Opponent} = require('./constants')
+const {NotImplementedError} = require('./errors')
+const {createLogger, uuid} = require('./util')
 
 const Listeners = {
 
@@ -78,7 +70,7 @@ class Player extends EventEmitter {
         super()
 
         this.id = uuid()
-        this.logger = new Logger(this.constructor.name, {named: true})
+        this.logger = createLogger(this, {type: 'named'})
 
         this.isPlayer = true
 

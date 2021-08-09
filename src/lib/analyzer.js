@@ -22,22 +22,16 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-const Constants = require('./constants')
-const Errors    = require('./errors')
-const Util      = require('./util')
-
 const {
-    Direction
-  , Opponent
-  , OriginPoints
-  , OutsideOrigins
-  , PointOrigins
-} = Constants
-
-const {Red, White} = Constants.Colors
-const {IllegalStateError} = Errors
-
-const Profiler = Util.Profiler.getDefaultInstance()
+    Colors: {Red, White},
+    Direction,
+    Opponent,
+    OriginPoints,
+    OutsideOrigins,
+    PointOrigins,
+} = require('./constants.js')
+const Profiler = require('./util/profiler.js').getDefaultInstance()
+const {IllegalStateError} = require('./errors.js')
 
 const CacheKeys = {}
 
@@ -89,8 +83,8 @@ class BoardAnalyzer {
         if (!this.cache[key]) {
             const origins = this.originsOccupied(color)
             const blotOrigins = []
-            for (var i = 0, ilen = origins.length; i < ilen; ++i) {
-                var origin = origins[i]
+            for (let i = 0, ilen = origins.length; i < ilen; ++i) {
+                const origin = origins[i]
                 if (this.board.slots[origin].length == 1) {
                     blotOrigins.push(origin)
                 }

@@ -22,80 +22,76 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-const Analyzer  = require('./analyzer')
-const Constants = require('./constants')
-const Dice      = require('./dice')
-const Errors    = require('./errors')
-const Moves     = require('./moves')
-const Trees     = require('./trees')
-const Util      = require('./util')
+const {
+    arrays : {arraySum},
+    types  : {castToArray},
+} = require('utils-h')
+
+const Analyzer = require('./analyzer.js')
+const Dice     = require('./dice.js')
+const {
+    Colors,
+    Colors: {Red, White},
+    ColorAbbr,
+    ColorNorm,
+    Direction,
+    Opponent,
+    InsideOrigins,
+    OutsideOrigins,
+    PointOrigins,
+    OriginPoints,
+    MoveHashes,
+    MoveCoords,
+} = require('./constants.js')
 
 const {
-    Red
-  , White
-  , Colors
-  , ColorAbbr
-  , ColorNorm
-  , Direction
-  , Opponent
-  , InsideOrigins
-  , OutsideOrigins
-  , PointOrigins
-  , OriginPoints
-  , MoveHashes
-  , MoveCoords
-} = Constants
+    AlreadyRolledError,
+    ArgumentError,
+    DoubleNotAllowedError,
+    GameAlreadyStartedError,
+    GameFinishedError,
+    GameNotFinishedError,
+    GameNotStartedError,
+    HasNotDoubledError,
+    HasNotRolledError,
+    IllegalMoveError,
+    InvalidRollError,
+    InvalidRollDataError,
+    MatchFinishedError,
+    MovesRemainingError,
+    NoMovesMadeError,
+    NoMovesRemainingError,
+    TurnAlreadyFinishedError,
+    TurnCanceledError,
+    TurnNotFinishedError,
+} = require('./errors.js')
 
 const {
-    AlreadyRolledError
-  , ArgumentError
-  , DoubleNotAllowedError
-  , GameAlreadyStartedError
-  , GameFinishedError
-  , GameNotFinishedError
-  , GameNotStartedError
-  , HasNotDoubledError
-  , HasNotRolledError
-  , IllegalMoveError
-  , InvalidRollError
-  , InvalidRollDataError
-  , MatchFinishedError
-  , MovesRemainingError
-  , NoMovesMadeError
-  , NoMovesRemainingError
-  , TurnAlreadyFinishedError
-  , TurnCanceledError
-  , TurnNotFinishedError
-} = Errors
+    defaults,
+    nmap,
+    sortNumericDesc,
+    uuid,
+} = require('./util.js')
 
 const {
-    castToArray
-  , defaults
-  , nmap
-  , sortNumericDesc
-  , sumArray
-  , uuid
-} = Util
+    BreadthBuilder,
+    DepthBuilder,
+    SequenceTree,
+} = require('./trees.js')
 
 const {
-    BreadthBuilder
-  , DepthBuilder
-  , SequenceTree
-} = Trees
-
-const {
-    BearoffMove
-  , ComeInMove
-  , Move
-  , RegularMove
-} = Moves
+    BearoffMove,
+    ComeInMove,
+    Move,
+    RegularMove,
+} = require('./moves.js')
 
 const CacheKeys = {
-    state28     : 'state28'
-  , stateString : 'stateString'
+    state28     : 'state28',
+    stateString : 'stateString',
 }
 
-const Profiler = Util.Profiler.getDefaultInstance()
+const Profiler = require('./util/profiler.js').getDefaultInstance()
 
 class Match {
 
@@ -104,21 +100,22 @@ class Match {
      */
     static defaults() {
         return {
-            cubeEnabled  : true
-          , isCrawford   : true
-          , isJacoby     : false
-          , breadthTrees : false
-          , roller       : null
-          , startState   : null
-          , forceFirst   : null
+            cubeEnabled  : true,
+            isCrawford   : true,
+            isJacoby     : false,
+            breadthTrees : false,
+            roller       : null,
+            startState   : null,
+            forceFirst   : null,
         }
     }
 
     /**
-     * @param integer
-     * @param {object} (optional)
+     * @throws {ArgumentError}
      *
-     * @throws {ArgumentError}     */
+     * @param {integer}
+     * @param {object} (optional)
+     */
     constructor(total, opts) {
 
         if (!Number.isInteger(total) || total < 1) {
@@ -143,10 +140,10 @@ class Match {
     }
 
     /**
-     * @throws GameError.IllegalStateError.GameNotFinishedError
-     * @throws GameError.IllegalStateError.MatchFinishedError
+     * @throws {GameError.IllegalStateError.GameNotFinishedError}
+     * @throws {GameError.IllegalStateError.MatchFinishedError}
      *
-     * @return Game
+     * @return {Game}
      */
     nextGame() {
 
@@ -160,11 +157,11 @@ class Match {
             this.thisGame.thisTurn = null
         }
 
-        var shouldCrawford = this.opts.isCrawford && !this.hasCrawforded
+        let shouldCrawford = this.opts.isCrawford && !this.hasCrawforded
         if (shouldCrawford) {
-            var isFound = false
-            for (var color in Colors) {
-                var score = this.scores[color]
+            let isFound = false
+            for (const color in Colors) {
+                const score = this.scores[color]
                 if (score + 1 == this.total) {
                     isFound = true
                     break
@@ -183,11 +180,11 @@ class Match {
     }
 
     /**
-     * @return self
+     * @return {self}
      */
     updateScore() {
-        for (var color in Colors) {
-            this.scores[color] = sumArray(
+        for (const color in Colors) {
+            this.scores[color] = arraySum(
                 this.games.filter(
                     game => game.getWinner() == color
                 ).map(game =>
@@ -199,7 +196,7 @@ class Match {
     }
 
     /**
-     * @return self
+     * @return {self}
      */
     cancel(err) {
         if (this.checkFinished()) {
@@ -215,7 +212,7 @@ class Match {
     }
 
     /**
-     * @return boolean
+     * @return {boolean}
      */
     checkFinished() {
         if (this.isFinished) {
@@ -232,17 +229,17 @@ class Match {
     }
 
     /**
-     * @return boolean
+     * @return {boolean}
      */
     hasWinner() {
         return this.getWinner() != null
     }
 
     /**
-     * @return string|null
+     * @return {string|null}
      */
     getWinner() {
-        for (var color in Colors) {
+        for (const color in Colors) {
             if (this.scores[color] >= this.total) {
                 return color
             }
@@ -251,7 +248,7 @@ class Match {
     }
 
     /**
-     * @return string|null
+     * @return {string|null}
      */
     getLoser() {
         if (this.hasWinner()) {
@@ -265,17 +262,17 @@ class Match {
      */
     meta() {
         return {
-            uuid          : this.uuid
-          , createDate    : this.createDate
-          , total         : this.total
-          , scores        : this.scores
-          , winner        : this.getWinner()
-          , loser         : this.getLoser()
-          , hasCrawforded : this.hasCrawforded
-          , isCanceled    : this.isCanceled
-          , isFinished    : this.isFinished
-          , gameCount     : this.games.length
-          , opts          : this.opts
+            uuid          : this.uuid,
+            createDate    : this.createDate,
+            total         : this.total,
+            scores        : this.scores,
+            winner        : this.getWinner(),
+            loser         : this.getLoser(),
+            hasCrawforded : this.hasCrawforded,
+            isCanceled    : this.isCanceled,
+            isFinished    : this.isFinished,
+            gameCount     : this.games.length,
+            opts          : this.opts,
         }
     }
 
@@ -287,8 +284,7 @@ class Match {
     }
 
     /**
-     * @param Match
-     *
+     * @param {Match}
      * @return {object}
      */
     static serialize(match) {
@@ -297,9 +293,8 @@ class Match {
     }
 
     /**
-     * @param object
-     *
-     * @return Match
+     * @param {object}
+     * @return {Match}
      */
     static unserialize(data) {
         const match = new Match(data.total, data.opts)
@@ -331,20 +326,21 @@ class Game {
      */
     static defaults() {
         return {
-            cubeEnabled  : true
-          , breadthTrees : false
-          , forceFirst   : null
-          , isCrawford   : false
-          , isJacoby     : false
-          , roller       : null
-          , startState   : null
+            cubeEnabled  : true,
+            breadthTrees : false,
+            forceFirst   : null,
+            isCrawford   : false,
+            isJacoby     : false,
+            roller       : null,
+            startState   : null,
         }
     }
 
     /**
-     * @param {object} (optional)
+     * @throws {TypeError}
      *
-     * @throws {TypeError}     */
+     * @param {object} (optional)
+     */
     constructor(opts) {
 
         this.opts  = defaults(Game.defaults(), opts)
@@ -376,9 +372,8 @@ class Game {
     }
 
     /**
-     * @param string
-     *
-     * @return boolean
+     * @param {string}
+     * @return {boolean}
      */
     canDouble(color) {
         if (!this.opts.cubeEnabled) {
@@ -394,11 +389,11 @@ class Game {
     }
 
     /**
-     * @throws GameError.IllegalStateError.DoubleNotAllowedError
-     * @throws GameError.IllegalStateError.GameFinishedError
-     * @throws GameError.IllegalStateError.GameNotStartedError
+     * @throws {GameError.IllegalStateError.DoubleNotAllowedError}
+     * @throws {GameError.IllegalStateError.GameFinishedError}
+     * @throws {GameError.IllegalStateError.GameNotStartedError}
      *
-     * @return self
+     * @return {self}
      */
     double() {
         if (this.isFinished) {
@@ -421,10 +416,10 @@ class Game {
     }
 
     /**
-     * @throws GameError.IllegalStateError.GameAlreadyStartedError
-     * @throws GameError.IllegalStateError.GameFinishedError
+     * @throws {GameError.IllegalStateError.GameAlreadyStartedError}
+     * @throws {GameError.IllegalStateError.GameFinishedError}
      *
-     * @return Turn
+     * @return {Turn}
      */
     firstTurn() {
 
@@ -455,11 +450,11 @@ class Game {
     /**
      * Will return null if the game has just finished, but will throw after that.
      *
-     * @throws GameError.IllegalStateError.GameFinishedError
-     * @throws GameError.IllegalStateError.GameNotStartedError
-     * @throws GameError.IllegalStateError.TurnNotFinishedError
+     * @throws {GameError.IllegalStateError.GameFinishedError}
+     * @throws {GameError.IllegalStateError.GameNotStartedError}
+     * @throws {GameError.IllegalStateError.TurnNotFinishedError}
      *
-     * @return Turn|null
+     * @return {Turn|null}
      */
     nextTurn() {
         if (this.isFinished) {
@@ -487,7 +482,7 @@ class Game {
     }
 
     /**
-     * @return boolean
+     * @return {boolean}
      */
     hasWinner() {
         this.checkFinished()
@@ -495,7 +490,7 @@ class Game {
     }
 
     /**
-     * @return string|null
+     * @return {string|null}
      */
     getWinner() {
         this.checkFinished()
@@ -503,7 +498,7 @@ class Game {
     }
 
     /**
-     * @return string|null
+     * @return {string|null}
      */
     getLoser() {
         const winner = this.getWinner()
@@ -511,7 +506,7 @@ class Game {
     }
 
     /**
-     * @return self
+     * @return {self}
      */
     cancel(err) {
         if (this.checkFinished()) {
@@ -529,7 +524,7 @@ class Game {
     }
 
     /**
-     * @return boolean
+     * @return {boolean}
      */
     checkFinished() {
         if (this.isFinished) {
@@ -572,7 +567,7 @@ class Game {
     }
 
     /**
-     * @return integer
+     * @return {integer}
      */
     getTurnCount() {
         return this.turnHistory.length + +!!this.thisTurn
@@ -583,19 +578,19 @@ class Game {
      */
     meta() {
         return {
-            uuid       : this.uuid
-          , opts       : this.opts
-          , board      : this.board.state28()
-          , winner     : this.getWinner()
-          , loser      : this.getLoser()
-          , finalValue : this.finalValue
-          , cubeOwner  : this.cubeOwner
-          , cubeValue  : this.cubeValue
-          , isFinished : this.isFinished
-          , isCanceled : this.isCanceled
-          , isPass     : this.isPass
-          , endState   : this.endState
-          , turnCount  : this.getTurnCount()
+            uuid       : this.uuid,
+            opts       : this.opts,
+            board      : this.board.state28(),
+            winner     : this.getWinner(),
+            loser      : this.getLoser(),
+            finalValue : this.finalValue,
+            cubeOwner  : this.cubeOwner,
+            cubeValue  : this.cubeValue,
+            isFinished : this.isFinished,
+            isCanceled : this.isCanceled,
+            isPass     : this.isPass,
+            endState   : this.endState,
+            turnCount  : this.getTurnCount(),
         }
     }
 
@@ -607,8 +602,7 @@ class Game {
     }
 
     /**
-     * @param Game
-     *
+     * @param {Game}
      * @return {object}
      */
     static serialize(game) {
@@ -621,9 +615,8 @@ class Game {
     }
 
     /**
-     * @param object
-     *
-     * @return Game
+     * @param {object}
+     * @return {Game}
      */
     static unserialize(data) {
 
@@ -657,17 +650,18 @@ class Turn {
      */
     static defaults() {
         return {
-            breadthTrees : false
-          , roller       : null
+            breadthTrees : false,
+            roller       : null,
         }
     }
 
     /**
-     * @param Board
-     * @param string
-     * @param {object} (optional)
+     * @throws {TypeError}
      *
-     * @throws {TypeError}     */
+     * @param {Board}
+     * @param {string}
+     * @param {object} (optional)
+     */
     constructor(board, color, opts) {
 
         this.board      = board
@@ -703,11 +697,11 @@ class Turn {
     }
 
     /**
-     * @throws GameError.IllegalStateError.TurnAlreadyFinishedError
-     * @throws GameError.IllegalStateError.TurnCanceledError
-     * @throws GameError.IllegalStateError.AlreadyRolledError
+     * @throws {GameError.IllegalStateError.TurnAlreadyFinishedError}
+     * @throws {GameError.IllegalStateError.TurnCanceledError}
+     * @throws {GameError.IllegalStateError.AlreadyRolledError}
      *
-     * @return self
+     * @return {self}
      */
     setDoubleOffered() {
 
@@ -722,12 +716,12 @@ class Turn {
     }
 
     /**
-     * @throws GameError.IllegalStateError.TurnAlreadyFinishedError
-     * @throws GameError.IllegalStateError.TurnCanceledError
-     * @throws GameError.IllegalStateError.AlreadyRolledError
-     * @throws GameError.IllegalStateError.HasNotDoubledError
+     * @throws {GameError.IllegalStateError.TurnAlreadyFinishedError}
+     * @throws {GameError.IllegalStateError.TurnCanceledError}
+     * @throws {GameError.IllegalStateError.AlreadyRolledError}
+     * @throws {GameError.IllegalStateError.HasNotDoubledError}
      *
-     * @return self
+     * @return {self}
      */
     setDoubleDeclined() {
 
@@ -752,14 +746,14 @@ class Turn {
     }
 
     /**
-     * @param integer|array
-     * @param integer (optional)
+     * @param {integer|array}
+     * @param {integer} (optional)
      *
-     * @throws GameError.IllegalStateError.TurnAlreadyFinishedError
-     * @throws GameError.IllegalStateError.TurnCanceledError
-     * @throws GameError.IllegalStateError.AlreadyRolledError
+     * @throws {GameError.IllegalStateError.TurnAlreadyFinishedError}
+     * @throws {GameError.IllegalStateError.TurnCanceledError}
+     * @throws {GameError.IllegalStateError.AlreadyRolledError}
      *
-     * @return self
+     * @return {self}
      */
     setRoll(...args) {
 
@@ -777,11 +771,11 @@ class Turn {
     }
 
     /**
-     * @throws GameError.IllegalStateError.TurnAlreadyFinishedError
-     * @throws GameError.IllegalStateError.TurnCanceledError
-     * @throws GameError.IllegalStateError.AlreadyRolledError
+     * @throws {GameError.IllegalStateError.TurnAlreadyFinishedError}
+     * @throws {GameError.IllegalStateError.TurnCanceledError}
+     * @throws {GameError.IllegalStateError.AlreadyRolledError}
      *
-     * @return self
+     * @return {self}
      */
     roll() {
 
@@ -797,11 +791,11 @@ class Turn {
     }
 
     /**
-     * @throws GameError.IllegalStateError.TurnAlreadyFinishedError
-     * @throws GameError.IllegalStateError.TurnCanceledError
-     * @throws GameError.IllegalStateError.HasNotRolledError
+     * @throws {GameError.IllegalStateError.TurnAlreadyFinishedError}
+     * @throws {GameError.IllegalStateError.TurnCanceledError}
+     * @throws {GameError.IllegalStateError.HasNotRolledError}
      *
-     * @return self
+     * @return {self}
      */
     afterRoll() {
 
@@ -843,24 +837,23 @@ class Turn {
     }
 
     /**
-     * @throws GameError.IllegalStateError.HasNotRolledError
+     * @throws {GameError.IllegalStateError.HasNotRolledError}
      *
-     * @return Array[Move]
+     * @return {array[Move]}
      */
     getNextAvailableMoves() {
 
         this.assertIsRolled()
         
-        var index = this.allowedMoveIndex
+        let index = this.allowedMoveIndex
 
-        for (var i = 0, ilen = this.moves.length; i < ilen; ++i) {
-            var move = this.moves[i]
-            index = index[move.hash].index
+        for (let i = 0, ilen = this.moves.length; i < ilen; ++i) {
+            index = index[this.moves[i].hash].index
         }
 
         const moves = []
 
-        for (var k in index) {
+        for (const k in index) {
             moves.push(index[k].move)
         }
 
@@ -868,16 +861,16 @@ class Turn {
     }
 
     /**
-     * @param integer
-     * @param integer
+     * @param {integer}
+     * @param {integer}
      *
-     * @throws GameError.IllegalMoveError
-     * @throws GameError.IllegalStateError.HasNotRolledError
-     * @throws GameError.IllegalStateError.NoMovesRemainingError
-     * @throws GameError.IllegalStateError.TurnAlreadyFinishedError
-     * @throws GameError.IllegalStateError.TurnCanceledError
+     * @throws {GameError.IllegalMoveError}
+     * @throws {GameError.IllegalStateError.HasNotRolledError}
+     * @throws {GameError.IllegalStateError.NoMovesRemainingError}
+     * @throws {GameError.IllegalStateError.TurnAlreadyFinishedError}
+     * @throws {GameError.IllegalStateError.TurnCanceledError}
      *
-     * @return Move
+     * @return {Move}
      */
     move(origin, face) {
 
@@ -916,11 +909,11 @@ class Turn {
     }
 
     /**
-     * @throws GameError.IllegalStateError.NoMovesMadeError
-     * @throws GameError.IllegalStateError.TurnAlreadyFinishedError
-     * @throws GameError.IllegalStateError.TurnCanceledError
+     * @throws {GameError.IllegalStateError.NoMovesMadeError}
+     * @throws {GameError.IllegalStateError.TurnAlreadyFinishedError}
+     * @throws {GameError.IllegalStateError.TurnCanceledError}
      *
-     * @return Move
+     * @return {Move}
      */
     unmove() {
 
@@ -941,10 +934,10 @@ class Turn {
     }
 
     /**
-     * @throws GameError.IllegalStateError.HasNotRolledError
-     * @throws GameError.IllegalStateError.MovesRemainingError
+     * @throws {GameError.IllegalStateError.HasNotRolledError}
+     * @throws {GameError.IllegalStateError.MovesRemainingError}
      *
-     * @return self
+     * @return {self}
      */
     finish() {
         if (this.isFinished) {
@@ -970,7 +963,7 @@ class Turn {
     }
 
     /**
-     * @return self
+     * @return {self}
      */
     cancel(err) {
         if (this.isFinished) {
@@ -990,10 +983,10 @@ class Turn {
     /**
      * Fetch cached. Cache is cleared on turn finish.
      *
-     * @param string
+     * @throws {TypeError}
      *
-     * @throws {TypeError}     *
-     * @return Board
+     * @param {string}
+     * @return {Board}
      */
     fetchBoard(state28) {
         if (!this.boardCache[state28]) {
@@ -1003,10 +996,10 @@ class Turn {
     }
 
     /**
-     * @throws GameError.IllegalStateError.TurnAlreadyFinishedError
-     * @throws GameError.IllegalStateError.TurnCanceledError
+     * @throws {GameError.IllegalStateError.TurnAlreadyFinishedError}
+     * @throws {GameError.IllegalStateError.TurnCanceledError}
      *
-     * @return self
+     * @return {self}
      */
     assertNotFinished() {
         if (this.isFinished) {
@@ -1022,9 +1015,9 @@ class Turn {
     }
 
     /**
-     * @throws GameError.IllegalStateError.HasNotRolledError
+     * @throws {GameError.IllegalStateError.HasNotRolledError}
      *
-     * @return self
+     * @return {self}
      */
     assertIsRolled() {
         if (!this.isRolled) {
@@ -1034,9 +1027,9 @@ class Turn {
     }
 
     /**
-     * @throws GameError.IllegalStateError.AlreadyRolledError
+     * @throws {GameError.IllegalStateError.AlreadyRolledError}
      *
-     * @return self
+     * @return {self}
      */
     assertNotRolled() {
         if (this.isRolled) {
@@ -1050,20 +1043,20 @@ class Turn {
      */
     meta() {
         return {
-            color            : this.color
-          , dice             : this.dice
-          , isCanceled       : this.isCanceled
-          , isCantMove       : this.isCantMove
-          , isDoubleDeclined : this.isDoubleDeclined
-          , isDoubleOffered  : this.isDoubleOffered
-          , isFinished       : this.isFinished
-          , isFirstTurn      : this.isFirstTurn
-          , isForceMove      : this.isForceMove
-          , isRolled         : this.isRolled
-          , startState       : this.startState
-          , endState         : this.endState
-          , moves            : this.moves.map(move => move.coords)
-          , opts             : this.opts
+            color            : this.color,
+            dice             : this.dice,
+            isCanceled       : this.isCanceled,
+            isCantMove       : this.isCantMove,
+            isDoubleDeclined : this.isDoubleDeclined,
+            isDoubleOffered  : this.isDoubleOffered,
+            isFinished       : this.isFinished,
+            isFirstTurn      : this.isFirstTurn,
+            isForceMove      : this.isForceMove,
+            isRolled         : this.isRolled,
+            startState       : this.startState,
+            endState         : this.endState,
+            moves            : this.moves.map(move => move.coords),
+            opts             : this.opts,
         }
     }
 
@@ -1075,26 +1068,24 @@ class Turn {
     }
 
     /**
-     * @param Turn
-     *
+     * @param {Turn}
      * @return {object}
      */
     static serialize(turn) {
         return {
-            ...turn.meta()
-          , allowedMoveCount   : turn.allowedMoveCount
-          , allowedEndStates   : turn.allowedEndStates
-          , allowedFaces       : turn.allowedFaces
-          , allowedMoveIndex   : SequenceTree.serializeIndex(turn.allowedMoveIndex)
-          , endStatesToSeries  : turn.endStatesToSeries
+            ...turn.meta(),
+            allowedMoveCount   : turn.allowedMoveCount,
+            allowedEndStates   : turn.allowedEndStates,
+            allowedFaces       : turn.allowedFaces,
+            allowedMoveIndex   : SequenceTree.serializeIndex(turn.allowedMoveIndex),
+            endStatesToSeries  : turn.endStatesToSeries,
         }
     }
 
     /**
-     * @param object
-     * @param Board (optional)
-     *
-     * @return Turn
+     * @param {object}
+     * @param {Board} (optional)
+     * @return {Turn}
      */
     static unserialize(data, board) {
 
@@ -1127,9 +1118,9 @@ class Turn {
 class Board {
 
     /**
-     * @param boolean (optional)
+     * @param {boolean} (optional)
      */
-    constructor(isSkipInit) {
+    constructor(isSkipInit = false) {
         Profiler.inc('board.create')
         this.analyzer = new Analyzer(this)
         this.cache = {}
@@ -1140,13 +1131,12 @@ class Board {
     }
 
     /**
-     * @param string
-     * @param integer
-     * @param integer
+     * @throws {GameError.IllegalMoveError}
      *
-     * @throws GameError.IllegalMoveError
-     *
-     * @return Move
+     * @param {string}
+     * @param {integer}
+     * @param {integer}
+     * @return {Move}
      */
     move(color, origin, face) {
         const move = this.buildMove(color, origin, face)
@@ -1155,13 +1145,12 @@ class Board {
     }
 
     /**
-     * @param string
-     * @param integer
-     * @param integer
+     * @throws {GameError.IllegalMoveError}
      *
-     * @throws GameError.IllegalMoveError
-     *
-     * @return Move
+     * @param {string}
+     * @param {integer}
+     * @param {integer}
+     * @return {Move}
      */
     buildMove(color, origin, face) {
         const {check, build} = Move.check(this, color, origin, face)
@@ -1172,10 +1161,9 @@ class Board {
     }
 
     /**
-     * @param string
-     * @param integer
-     *
-     * @return array[Move]
+     * @param {string}
+     * @param {integer}
+     * @return {array[Move]}
      */
     getPossibleMovesForFace(color, face) {
         Profiler.start('Board.getPossibleMovesForFace')
@@ -1234,14 +1222,14 @@ class Board {
     }
 
     /**
-     * @return boolean
+     * @return {boolean}
      */
     hasWinner() {
         return this.getWinner() != null
     }
 
     /**
-     * @return string|null
+     * @return {string|null}
      */
     getWinner() {
         if (this.analyzer.isAllHome(Red)) {
@@ -1254,7 +1242,7 @@ class Board {
     }
 
     /**
-     * @return boolean
+     * @return {boolean}
      */
     isGammon() {
         if (!this.hasWinner()) {
@@ -1265,7 +1253,7 @@ class Board {
     }
 
     /**
-     * @return boolean
+     * @return {boolean}
      */
     isBackgammon() {
 
@@ -1291,7 +1279,7 @@ class Board {
     }
 
     /**
-     * @return self
+     * @return {self}
      */
     clear() {
         this.slots = nmap(24, () => [])
@@ -1302,19 +1290,19 @@ class Board {
     }
 
     /**
-     * @return Board
+     * @return {Board}
      */
     copy() {
         Profiler.start('Board.copy')
         const board = new Board(true)
         board.slots = this.slots.map(slot => slot.slice(0))
         board.bars = {
-            Red   : this.bars.Red.slice(0)
-          , White : this.bars.White.slice(0)
+            Red   : this.bars.Red.slice(0),
+            White : this.bars.White.slice(0),
         }
         board.homes = {
-            Red   : this.homes.Red.slice(0)
-          , White : this.homes.White.slice(0)
+            Red   : this.homes.Red.slice(0),
+            White : this.homes.White.slice(0),
         }
         board.markChange()
         Profiler.stop('Board.copy')
@@ -1322,7 +1310,7 @@ class Board {
     }
 
     /**
-     * @return self
+     * @return {self}
      */
     setup() {
         this.clear()
@@ -1341,7 +1329,7 @@ class Board {
     /**
      * @cache
      *
-     * @return string
+     * @return {string}
      */
     state28() {
         Profiler.start('Board.state28')
@@ -1367,24 +1355,24 @@ class Board {
     }
 
     /**
-     * @param string|array|Buffer
+     * @throws {TypeError}
      *
-     * @throws {TypeError}     *
-     * @return self
+     * @param {string|array|Buffer}
+     * @return {self}
      */
     setState28(input) {
         const arr = Buffer.from(input)
         this.bars = {
-            White : Piece.make(~64 & arr[0], White)
-          , Red   : Piece.make(~64 & arr[1], Red)
+            White : Piece.make(~64 & arr[0], White),
+            Red   : Piece.make(~64 & arr[1], Red),
         }
         this.slots = []
-        for (var i = 2; i < 26; ++i) {
+        for (let i = 2; i < 26; ++i) {
             this.slots[i - 2] = Piece.make(~64 & arr[i] & ~16, (arr[i] & 16) == 16 ? White : Red)
         }
         this.homes = {
-            White :  Piece.make(~64 & arr[26], White)
-          , Red   :  Piece.make(~64 & arr[27], Red)
+            White :  Piece.make(~64 & arr[26], White),
+            Red   :  Piece.make(~64 & arr[27], Red),
         }
         this.markChange()
         return this
@@ -1393,7 +1381,7 @@ class Board {
     /**
      * @cache
      *
-     * @return string
+     * @return {string}
      */
     stateString() {
         Profiler.start('Board.stateString')
@@ -1401,9 +1389,9 @@ class Board {
         if (!this.cache[key]) {
             Profiler.inc('board.stateString.cache.miss')
             // <White bar count>|<Red bar count>|<slot count>:<Red/White/empty>|...|<White home count>|<Red home count>
-            var str = this.bars.White.length + '|' + this.bars.Red.length + '|'
-            for (var i = 0; i < 24; ++i) {
-                var slot = this.slots[i]
+            let str = this.bars.White.length + '|' + this.bars.Red.length + '|'
+            for (let i = 0; i < 24; ++i) {
+                const slot = this.slots[i]
                 str += slot.length + ':' + (slot.length ? slot[0].c : '') + '|'
             }
             this.cache[key] = str + this.homes.White.length + '|' + this.homes.Red.length
@@ -1415,49 +1403,48 @@ class Board {
     }
 
     /**
-     * @param string
+     * @throws {TypeError}
      *
-     * @throws {TypeError}     *
-     * @return self
+     * @param {string}
+     * @return {self}
      */
     setStateString(str) {
         if (str.length == 28) {
-            this.setState28(str)
-            return
+            return this.setState28(str)
         }
         const locs = str.split('|')
         this.bars = {
-            White : Piece.make(locs[0], White)
-          , Red   : Piece.make(locs[1], Red)
+            White : Piece.make(locs[0], White),
+            Red   : Piece.make(locs[1], Red),
         }
         this.slots = []
-        for (var i = 0; i < 24; ++i) {
+        for (let i = 0; i < 24; ++i) {
             this.slots[i] = Piece.make(...locs[i + 2].split(':'))
         }
         this.homes = {
-            White : Piece.make(locs[26], White)
-          , Red   : Piece.make(locs[27], Red)
+            White : Piece.make(locs[26], White),
+            Red   : Piece.make(locs[27], Red),
         }
         this.markChange()
         return this
     }
 
     /**
-     * @return Board
+     * @return {Board}
      */
     inverted() {
         const board = new Board(true)
         board.bars = {
-            White : Piece.make(this.bars.Red.length, White)
-          , Red   : Piece.make(this.bars.White.length, Red)
+            White : Piece.make(this.bars.Red.length, White),
+            Red   : Piece.make(this.bars.White.length, Red),
         }
         board.homes = {
-            White : Piece.make(this.homes.Red.length, White)
-          , Red   : Piece.make(this.homes.White.length, Red)
+            White : Piece.make(this.homes.Red.length, White),
+            Red   : Piece.make(this.homes.White.length, Red),
         }
         board.slots = []
-        for (var i = 0; i < 24; ++i) {
-            var slot = this.slots[i]
+        for (let i = 0; i < 24; ++i) {
+            const slot = this.slots[i]
             board.slots[23 - i] = slot[0] ? Piece.make(slot.length, Opponent[slot[0].color]) : []
         }
         board.markChange()
@@ -1477,9 +1464,8 @@ class Board {
      */
 
     /**
-     * @param string
-     *
-     * @return Piece
+     * @param {string}
+     * @return {Piece}
      */
     popBar(color) {
         const piece = this.bars[color].pop()
@@ -1488,22 +1474,20 @@ class Board {
     }
 
     /**
-     * @param string
-     * @param Piece (optional)
-     *
-     * @return self
+     * @param {string}
+     * @param {Piece} (optional)
+     * @return {self}
      */
     pushBar(color, piece) {
-        piece = piece || new Piece(color)
+        piece = piece ?? new Piece(color)
         this.bars[color].push(piece)
         this.markChange()
         return this
     }
 
     /**
-     * @param string
-     *
-     * @return Piece
+     * @param {string}
+     * @return {Piece}
      */
     popHome(color) {
         const piece = this.homes[color].pop()
@@ -1512,22 +1496,20 @@ class Board {
     }
 
     /**
-     * @param string
-     * @param Piece (optional)
-     *
-     * @return self
+     * @param {string}
+     * @param {Piece} (optional)
+     * @return {self}
      */
     pushHome(color, piece) {
-        piece = piece || new Piece(color)
+        piece = piece ?? new Piece(color)
         this.homes[color].push(piece)
         this.markChange()
         return this
     }
 
     /**
-     * @param integer
-     *
-     * @return Piece
+     * @param {integer}
+     * @return {Piece}
      */
     popOrigin(origin) {
         const piece = this.slots[origin].pop()
@@ -1536,10 +1518,9 @@ class Board {
     }
 
     /**
-     * @param integer
-     * @param string|Piece
-     *
-     * @return self
+     * @param {integer}
+     * @param {string|Piece}
+     * @return {self}
      */
     pushOrigin(origin, piece) {
         if (!(piece instanceof Piece)) {
@@ -1551,7 +1532,7 @@ class Board {
     }
 
     /**
-     * @return self
+     * @return {self}
      */
     markChange() {
         this.cache = {}
@@ -1560,50 +1541,44 @@ class Board {
     }
 
     /**
-     * @return string
+     * @return {string}
      */
     toString() {
         return this.state28()
     }
 
     /**
-     * @return Board
+     * @return {Board}
      */
     static setup() {
-        const board = new Board(true)
-        board.setup()
-        return board
+        return new Board(true).setup()
     }
 
     /**
-     * @param string
+     * @throws {TypeError}
      *
-     * @throws {TypeError}     *
-     * @return Board
+     * @param {string}
+     * @return {Board}
      */
     static fromStateString(str) {
-        const board = new Board(true)
-        board.setStateString(str)
-        return board
+        return new Board(true).setStateString(str)
     }
 
     /**
-     * @param string|array|Buffer
+     * @throws {TypeError}
      *
-     * @throws {TypeError}     *
-     * @return Board
+     * @param {string|array|Buffer}
+     * @return {Board}
      */
     static fromState28(input) {
-        const board = new Board(true)
-        board.setState28(input)
-        return board
+        return new Board(true).setState28(input)
     }
 }
 
 class Piece {
 
     /**
-     * @param string
+     * @param {string}
      */
     constructor(color) {
         if (color instanceof Piece) {
@@ -1614,17 +1589,16 @@ class Piece {
     }
 
     /**
-     * @return string
+     * @return {string}
      */
     toString() {
         return this.color
     }
 
     /**
-     * @param integer
-     * @param string
-     *
-     * @return array[Piece]
+     * @param {integer}
+     * @param {string}
+     * @return {array[Piece]}
      */
     static make(n, color) {
         return nmap(+n, () => new Piece(color))
@@ -1632,9 +1606,9 @@ class Piece {
 }
 
 module.exports = {
-    Match
-  , Game
-  , Turn
-  , Board
-  , Piece
+    Match,
+    Game,
+    Turn,
+    Board,
+    Piece,
 }

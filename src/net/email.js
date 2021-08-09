@@ -22,8 +22,6 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-const {Logger} = require('utils-h')
-
 const {
     DefaultEmailFromAddress,
     DefaultEmailFromName,
@@ -32,7 +30,7 @@ const {
 
 const {InternalError} = require('../lib/errors')
 
-const {defaults, loggerPrefixServer} = require('../lib/util')
+const {createLogger, defaults} = require('../lib/util')
 
 const ImplClasses = {
     get mock() { return require('./email/mock') },
@@ -62,7 +60,7 @@ class Email {
     constructor(impl, opts) {
         this.impl = impl
         this.opts = defaults(Email.defaults(process.env), opts)
-        this.logger = new Logger({name: 'Email', prefix: loggerPrefixServer})
+        this.logger = createLogger(this, {type: 'server'})
     }
 
     // standard is SES sendEmail structure

@@ -22,30 +22,31 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-const Coordinator = require('../lib/coordinator')
-const Constants   = require('../lib/constants')
-const Core        = require('../lib/core')
-const Logger      = require('../lib/logger')
-const Robot       = require('./player')
-const Util        = require('../lib/util')
+const Coordinator    = require('../lib/coordinator.js')
+const {Match, Board} = require('../lib/core.js')
+const Robot          = require('./player.js')
+const {
+    arrayIncrement,
+    chunkArray,
+    createLogger,
+    defaults,
+    sp,
+} = require('../lib/util.js')
+const {
+    Colors: {Red, White},
+} = require('../lib/constants.js')
+const {
+    ConfidenceRobot,
+    RobotDelegator,
+} = require('./player.js')
 
 const fs   = require('fs')
 const fse  = require('fs-extra')
-const path = require('path')
-const {sp} = Util
-
-const {resolve} = path
-
-const {Colors} = Constants
-const {White, Red} = Colors
-const {Match, Board} = Core
-
-const {ConfidenceRobot} = Robot
-const {RobotDelegator} = Robot
+const path = {resolve} = require('path')
 
 const E_Action = {
-    Run      : 'run'
-  , Generate : 'generate'
+    Run      : 'run',
+    Generate : 'generate',
 }
 
 class Helper {
@@ -64,14 +65,14 @@ class Helper {
     }
 
     constructor(opts) {
-        this.opts = Util.defaults(Helper.defaults(), opts)
+        this.opts = defaults(Helper.defaults(), opts)
         this.outDir = resolve(this.opts.outDir)
         this.casesDir = resolve(this.outDir, 'cases')
         this.chunksDir = resolve(this.outDir, 'chunks')
         this.casePad = null
         this.caseNumber = null
         this.bestCases = null
-        this.logger = new Logger
+        this.logger = createLogger(this)
         this.coordinator = new Coordinator
     }
 
@@ -98,7 +99,7 @@ class Helper {
         this.logger.info('Generated', numCases, 'cases')
         const numChunks = Math.ceil(numCases / this.opts.chunkSize)
         this.logger.info('Writing', numChunks, 'chunk files')
-        const chunks = Util.chunkArray(configsCases, numChunks)
+        const chunks = chunkArray(configsCases, numChunks)
         const chunkPad = numChunks.toString().length
         const casePad = numCases.toString().length
         var chunkNumber = 1
@@ -219,7 +220,7 @@ class Helper {
                     return {name, version, moveWeight: weights[i], doubleWeight: 0}
                 })
             })
-        } while (Util.arrayIncrement(weights, opts.increment, opts.startWeight, opts.endWeight))
+        } while (arrayIncrement(weights, opts.increment, opts.startWeight, opts.endWeight))
         return configsCases
     }
 

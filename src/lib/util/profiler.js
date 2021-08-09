@@ -22,8 +22,8 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-const Counter = require('./counter')
-const Timer   = require('./timer')
+const Counter = require('./counter.js')
+const Timer   = require('./timer.js')
 
 class Profiler {
 

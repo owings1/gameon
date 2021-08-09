@@ -140,16 +140,22 @@
  * ┗━━━━━━━━━━━━━━━━━┻━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
  */
 const Constants = require('./constants')
-const Logger    = require('./logger')
-const Util      = require('./util')
 
 const fse  = require('fs-extra')
 const path = require('path')
-const {arrays: {append}, types: {castToArray}} = require('utils-h')
+const {
+    arrays : {append},
+    types  : {castToArray},
+} = require('utils-h')
 
 const {InvalidDirError} = require('./errors')
 
-const {defaults, fileDateString, homeTilde} = Util
+const {
+    defaults,
+    createLogger,
+    fileDateString,
+    homeTilde,
+} = require('./util')
 
 class Coordinator {
 
@@ -176,7 +182,7 @@ class Coordinator {
 
         this.opts = defaults(Coordinator.defaults(), opts)
         this.name = this.constructor.name
-        this.logger = new Logger(this.name, {named: true})
+        this.logger = createLogger(this, {type: 'named'})
 
         if (this.opts.isRecord) {
             try {

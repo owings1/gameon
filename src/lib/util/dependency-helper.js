@@ -23,11 +23,11 @@
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 const {
-    CircularDependencyError
-  , DependencyError
-  , MissingDependencyError
-  , UnresolvedDependencyError
-} = require('../errors')
+    CircularDependencyError,
+    DependencyError,
+    MissingDependencyError,
+    UnresolvedDependencyError,
+} = require('../errors.js')
 
 class DependencyHelper {
 

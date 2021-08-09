@@ -221,7 +221,7 @@ class Util {
             name = inst
         } else if (isObject(inst)) {
             name = lget(inst, 'name') ?? lget(inst, 'constructor.name') ?? name
-            opts = mergePlain(opts, lget(inst, 'opts.logging'))
+            opts = mergePlain(opts, {name}, lget(inst, 'opts.logging'))
         }
         opts = mergePlain(opts)
         if (!('prefix' in opts) && (opts.type in LoggerPrefix)) {

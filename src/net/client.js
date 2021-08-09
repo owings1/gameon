@@ -22,7 +22,7 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-const {Logger}  = require('utils-h')
+const {objects: {update}}  = require('utils-h')
 const {Match} = require('../lib/core')
 
 const {EventEmitter} = require('events')
@@ -31,23 +31,22 @@ const WsClient       = require('websocket').client
 const {White, Red} = require('../lib/constants')
 
 const {
+    createLogger,
     httpToWs,
-    loggerPrefixNamed,
     secret1,
     stripTrailingSlash,
     trimMessageData,
-    update,
     wsToHttp,
 } = require('../lib/util')
 
 const {
-    ClientError
-  , ConnectionClosedError
-  , ConnectionFailedError
-  , MatchCanceledError
-  , ParallelRequestError
-  , UnexpectedResponseError
-  , UnhandledMessageError
+    ClientError,
+    ConnectionClosedError,
+    ConnectionFailedError,
+    MatchCanceledError,
+    ParallelRequestError,
+    UnexpectedResponseError,
+    UnhandledMessageError,
 } = require('../lib/errors')
 
 /**
@@ -80,7 +79,7 @@ class Client extends EventEmitter {
         super()
 
         this.name = this.constructor.name
-        this.logger = new Logger({name: this.constructor.name, prefix: loggerPrefixNamed})
+        this.logger = createLogger(this, {type: 'named'})//new Logger({name: this.constructor.name, prefix: loggerPrefixNamed})
 
         const {serverUrl, username, password} = credentials || {}
 

@@ -22,22 +22,23 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-const Constants   = require('../lib/constants')
-const Coordinator = require('../lib/coordinator')
-const Core        = require('../lib/core')
-const Logger      = require('../lib/logger')
-const Robot       = require('./player')
-const Util        = require('../lib/util')
+const Coordinator   = require('../lib/coordinator')
+const {Game, Board} = require('../lib/core')
+const Robot         = require('./player')
+const {
+    Direction,
+    Colors: {Red, White},
+} = require('../lib/constants.js')
+const {
+    createLogger,
+    defaults,
+    destroyAll,
+    spreadScore,
+} = require('../lib/util.js')
 
 const fs   = require('fs')
 const fse  = require('fs-extra')
-const path = require('path')
-
-const {resolve} = path
-
-const {Colors, Direction} = Constants
-const {White, Red} = Colors
-const {Game, Board} = Core
+const path = {resolve} = require('path')
 
 class Helper {
 
@@ -50,9 +51,9 @@ class Helper {
     }
 
     constructor(opts) {
-        this.opts = Util.defaults(Helper.defaults(), opts)
+        this.opts = defaults(Helper.defaults(), opts)
         this.outDir = resolve(this.opts.outDir)
-        this.logger = new Logger
+        this.logger = createLogger(this)
     }
 
     newBestRobot(...args) {
@@ -98,21 +99,21 @@ class Helper {
             }
             this.logger.info('Done')
         } finally {
-            await Util.destroyAll(parr)
+            await destroyAll(parr)
         }
     }
 
     prepTurnsData(turnDatas) {
         const trains = []
         turnDatas.forEach(({startState, totals}) => {
-            const spreadScores = Util.spreadScore(totals)
+            const spreadScores = spreadScore(totals)
             const startStructure = Helper.boardStructure(Board.fromStateString(startState))
             const startPos = startStructure.map(i => 1 / (i + 15))
-            const startSpread = Util.spreadScore(startStructure)
+            const startSpread = spreadScore(startStructure)
             Object.entries(totals).forEach(([endState, score]) => {
                 const endStructure = Helper.boardStructure(Board.fromStateString(endState))
                 const endPos = endStructure.map(i => 1 / (i + 15))
-                const endSpread = Util.spreadScore(endStructure)
+                const endSpread = spreadScore(endStructure)
                 const scoreSpread = spreadScores[endState]
                 trains.push({
                     input  : startPos.concat(endPos)

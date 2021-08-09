@@ -38,7 +38,11 @@ const fs    = require('fs')
 const fse   = require('fs-extra')
 const path  = require('path')
 const utilh = require('utils-h')
-const {merging: {merge}} = utilh
+const {
+    strings : {stripAnsi, ucfirst},
+    objects : {isEmptyObject},
+    types   : {castToArray},
+} = utilh
 
 const {Board, Match, Turn} = Core
 
@@ -48,36 +52,32 @@ const {RobotDelegator} = Robot
 const {inquirer} = require('./inquirer')
 
 const {
-    BoardStrings
-  , Chars
-  , ColorAbbr
-  , ColorNorm
-  , Colors
-  , DefaultThemeName
-  , DefaultTermEnabled
-  , Opponent
-  , OriginPoints
-  , PointOrigins
-  , Red
-  , White
+    BoardStrings,
+    Chars,
+    ColorAbbr,
+    ColorNorm,
+    Colors,
+    DefaultThemeName,
+    DefaultTermEnabled,
+    Opponent,
+    OriginPoints,
+    PointOrigins,
+    Red,
+    White,
 } = Constants
 
 const {
-    castToArray,
     createLogger,
     defaults,
     destroyAll,
     errMessage,
     fileDateString,
     homeTilde,
-    isEmptyObject,
     nchars,
     padEnd,
     sp,
     StringBuilder,
-    stripAnsi,
     tildeHome,
-    ucfirst,
 } = Util
 
 function stringify(data, indent = 2) {
@@ -106,7 +106,7 @@ class LabHelper {
 
         this.board = opts.board
 
-        this.opts = merge(LabHelper.defaults(), opts)
+        this.opts = defaults(LabHelper.defaults(), opts)
         this.persp = this.opts.persp
 
         this.logs   = []        

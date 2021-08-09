@@ -22,21 +22,20 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
+const lingui  = require('@lingui/core')
+const plurals = require('make-plural/plurals')
+
 const {
     DefaultLocale,
     LocaleNames,
     LocalesDir,
-} = require('../constants')
+} = require('../constants.js')
+const {ArgumentError} = require('../errors.js')
 
-const {ArgumentError} = require('../errors')
-
-const lingui  = require('@lingui/core')
-const path    = require('path')
-const plurals = require('make-plural/plurals')
-
-const LocalesHash = Object.fromEntries(LocaleNames.map(name => [name, true]))
+const path = require('path')
 
 const Cache = {messages: {}}
+const LocalesHash = Object.fromEntries(LocaleNames.map(name => [name, true]))
 
 function getMessages (locale) {
     if (!Cache.messages[locale]) {

@@ -22,13 +22,14 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-const chai     = require('chai')
-const {expect} = chai
+const {expect} = require('chai')
 const tmp      = require('tmp')
 const Util    = require('../src/lib/util')
-const {strings: {endsWith}} = require('utils-h')
-const {Assertion} = chai
-
+const {
+    arrays: {append},
+    strings: {endsWith, stripAnsi, ucfirst},
+    objects: {update},
+} = require('utils-h')
 
 
 const {Board} = require('../src/lib/core')
@@ -111,14 +112,14 @@ const TestUtil = {
     NullOutput,
     States,
     // Util methods
-    append            : Util.append,
+    append,
     destroyAll        : Util.destroyAll,
     keyValuesTrue     : Util.keyValuesTrue,
     mapValues         : Util.mapValues,
     randomElement     : Util.randomElement,
-    stripAnsi         : Util.stripAnsi,
+    stripAnsi,
     stripLeadingSlash : Util.stripLeadingSlash,
-    ucfirst           : Util.ucfirst,
-    update            : Util.update,
+    ucfirst,
+    update,
 }
 module.exports = TestUtil

@@ -22,8 +22,6 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-const {Logger} = require('utils-h')
-
 const {
     DefaultSessionCookie,
     DefaultSessionSecret,
@@ -32,8 +30,8 @@ const {
 } = require('../lib/constants')
 
 const {
+    createLogger,
     defaults,
-    loggerPrefixServer,
     securityCheck,
 } = require('../lib/util')
 
@@ -67,7 +65,7 @@ class Web {
 
     constructor(auth, opts) {
 
-        this.logger = new Logger({name: this.constructor.name, prefix: loggerPrefixServer})
+        this.logger = createLogger(this, {type: 'server'})
 
         this.opts = defaults(Web.defaults(process.env), opts)
         this.auth = auth
