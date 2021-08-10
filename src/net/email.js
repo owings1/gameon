@@ -26,25 +26,25 @@ const {
     DefaultEmailFromAddress,
     DefaultEmailFromName,
     DefaultEmailType,
-} = require('../lib/constants')
+} = require('../lib/constants.js')
 
-const {InternalError} = require('../lib/errors')
+const {InternalError} = require('../lib/errors.js')
 
-const {createLogger, defaults} = require('../lib/util')
+const {createLogger, defaults} = require('../lib/util.js')
 
 const ImplClasses = {
-    get mock() { return require('./email/mock') },
-    get ses()  { return require('./email/ses') },
+    get mock() { return require('./email/mock.js') },
+    get ses()  { return require('./email/ses.js') },
 }
 
 class Email {
 
     static defaults(env) {
         return {
-            fromName       : env.EMAIL_FROM_NAME    || DefaultEmailFromName
-          , fromAddress    : env.EMAIL_FROM_ADDRESS || DefaultEmailFromAddress
-          , connectTimeout : +env.EMAIL_CONNECTTIMEOUT || 60 * 1000
-          , logAllMessages : !!env.EMAIL_LOGALLMESSAGES
+            fromName       : env.EMAIL_FROM_NAME    || DefaultEmailFromName,
+            fromAddress    : env.EMAIL_FROM_ADDRESS || DefaultEmailFromAddress,
+            connectTimeout : +env.EMAIL_CONNECTTIMEOUT || 60 * 1000,
+            logAllMessages : !!env.EMAIL_LOGALLMESSAGES,
         }
     }
 
@@ -60,7 +60,7 @@ class Email {
     constructor(impl, opts) {
         this.impl = impl
         this.opts = defaults(Email.defaults(process.env), opts)
-        this.logger = createLogger(this, {type: 'server'})
+        this.logger = createLogger(this, {type: 'server', formatting: {depth: 4}})
     }
 
     // standard is SES sendEmail structure

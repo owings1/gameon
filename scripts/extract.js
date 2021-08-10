@@ -22,35 +22,31 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
+const {Extractor, Merger} = require('po-extractor')
+const fse = require('fs-extra')
+
 const fs     = require('fs')
-const fse    = require('fs-extra')
 const path   = require('path')
 const {resolve} = path
 
-const {Extractor, Merger} = require('../../po-extractor')
-
-const {BaseDir, LocalesDir} = require('../src/lib/constants')
-const Diffs   = require('../test/util/diffs')
+const {BaseDir, LocalesDir} = require('../src/lib/constants.js')
+const Diffs   = require('../test/util/diffs.js')
 
 const poGlob = LocalesDir + '/*/messages.po'
 const srcGlobs = ['src/**/*.js']
-//const srcGlobs = ['extras/intl-test.js']
+
 const opts = {
     //dryRun: true,
     //verbose: 3,
     marker: ['__'],
     members: true,
     baseDir: BaseDir,
-    //verbosity: 1,
     sort: 'msgid',
     references: {
         perLine: 1,
     },
 }
 
-/**
- * Extract messages, backup and update po files.
- */
 function main () {
     const merger = new Merger(opts)
     const extractor = new Extractor(opts)

@@ -137,15 +137,6 @@ describe('Util', () => {
         })        
     })
 
-    describe('#breakLines', () => {
-
-        makeCases('breakLines', {isJson: true}, [
-            [[[]]                           ,  ['']                          , 80]
-          , [[[chalk.green('abcd'), 'efg']] ,  [chalk.green('abcd') + 'efg'] ,  4]
-          , [[[chalk.green('abcd')]]        ,  [chalk.green('abcd')]         ,  4]
-        ])
-    })
-
     describe('#chunkArray', () => {
 
         makeCases('chunkArray', {isJson: true}, [

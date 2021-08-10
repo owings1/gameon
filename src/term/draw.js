@@ -22,10 +22,9 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-const ansiEscapes = require('ansi-escapes')
-const TermKit     = require('terminal-kit')
 const {
-    strings: {stripAnsi, ucfirst}
+    strings: {stripAnsi, ucfirst},
+    types: {isWriteableStream},
 } = require('utils-h')
 
 const {Board} = require('../lib/core.js')
@@ -44,15 +43,14 @@ const {
     ColorAbbr,
     ColorNorm,
     Colors,
+    Colors: {Red, White},
     DefaultTermEnabled,
     DefaultThemeName,
     Direction,
     Opponent,
     OriginPoints,
     PointOrigins,
-    Red,
     TopPoints,
-    White,
 } = require('../lib/constants.js')
 
 
@@ -114,7 +112,7 @@ class DrawHelper {
 
         const {game, match} = this
 
-        for (let color in Colors) {
+        for (const color in Colors) {
             this.barCounts[color]  = analyzer.piecesOnBar(color)
             this.homeCounts[color] = analyzer.piecesHome(color)
             if (match) {
@@ -837,35 +835,55 @@ class Reporter {
     }
 }
 
+function safeNumber(n) {
+    if (Number.isFinite(n) && Number.isInteger(n) && n > 0) {
+        return n
+    }
+    return 0
+}
 class TermHelper {
 
     constructor(enabled) {
         this.enabled = Boolean(enabled)
-        this.term = TermKit.terminal
+        if (isWriteableStream(enabled)) {
+            this.output = enabled
+        }
+        //this.term = TermKit.terminal
     }
 
+    clearLine(len) {
+        return this.write(ansiEscapes.eraseLines(len))
+    }
+
+    // '\x1B[H\x1B[2J'
     clear() {
-        return this.write(this.str.clear())
+        return this.write('\x1B[H\x1B[2J')
+        //return this.write(this.str.clear())
     }
 
     // \x1B[1X
     // must hack this, see https://bitbucket.org/owings1/gameon/addon/pipelines/home#!/results/40
     erase(n) {
+        n = safeNumber(n)
+        if (n) {
+            this.write(`\x1B[${n}X`)
+        }
+        return this
+        /*
         n = n || 0
         if (!n) {
             return this
         }
         const str = '\x1B[' + n + 'X'
         return this.write(str)
+        */
         //return this.write(this.str.erase(n))
     }
 
-    eraseArea(left, top, width, height) {
-        return this.write(this.str.eraseArea(left, top, width, height))
-    }
-
+    // \x1B[0J
     eraseDisplayBelow() {
-        return this.write(this.str.eraseDisplayBelow())
+        return this.write('\x1B[0J')
+        //return this.write(this.str.eraseDisplayBelow())
     }
 
     writeRows(left, top, height, str) {
@@ -875,51 +893,88 @@ class TermHelper {
         }
         return this
     }
-
+    // `\x1B[${y};${x}H`
     moveTo(x, y) {
-        return this.write(this.str.moveTo(x, y))
+        x = safeNumber(x) || 1
+        y = safeNumber(y) || 1
+        return this.write(`\x1B[${y};${x}H`)
+        //return this.write(this.str.moveTo(x, y))
     }
 
+    // `\x1B[${n}A` (min 1)
     up(n) {
-        return this.write(this.str.up(n))
+        n = safeNumber(n)
+        if (n) {
+            this.write(`\x1B[${n}A`)
+        }
+        return this
+        //return this.write(this.str.up(n))
     }
 
+    // `\x1B[${n}B` (min 1)
     down(n) {
-        return this.write(this.str.down(n))
+        n = safeNumber(n)
+        if (n) {
+            this.write(`\x1B[${n}B`)
+        }
+        return this
+        //return this.write(this.str.down(n))
     }
 
+    // `\x1B[${n}D`
     left(n) {
-        return this.write(this.str.left(n))
+        n = safeNumber(n)
+        if (n) {
+            this.write(`\x1B[${n}D`)
+        }
+        return this
+        //return this.write(this.str.left(n))
     }
 
+    // `\x1B[${n}C`
     right(n) {
-        return this.write(this.str.right(n))
+        n = safeNumber(n)
+        if (n) {
+            this.write(`\x1B[${n}C`)
+        }
+        return this
+        //return this.write(this.str.right(n))
     }
 
+    // `\x1B[${n}G`
     column(n) {
-        return this.write(this.str.column(n))
+        n = safeNumber(n)
+        if (n) {
+            this.write(`\x1B[${n}G`)
+        }
+        return this
+        //return this.write(this.str.column(n))
     }
 
+    // '\x1B7'
     saveCursor() {
         if (this.enabled) {
-            this.term.saveCursor()
+            this.write('\x1B7')
+            //this.term.saveCursor()
         }
         return this
     }
 
+    // '\x1B8'
     restoreCursor() {
         if (this.enabled) {
-            this.term.restoreCursor()
+            this.write('\x1B8')
+            //this.term.restoreCursor()
         }
         return this
     }
 
     hideCursor(isShow) {
-        return isShow ? this.showCursor() : this.write('\u001b[?25l')
+        return isShow ? this.showCursor() : this.write('\x1B[?25l')
     }
 
     showCursor(isHide) {
-        return isHide ? this.hideCursor() : this.write('\u001b[?25h')
+        return isHide ? this.hideCursor() : this.write('\x1B[?25h')
     }
 
     noCursor(cb) {
@@ -946,27 +1001,29 @@ class TermHelper {
         return this
     }
 
-    get str() {
-        return this.term.str
-    }
-
+    //get str() {
+    //    return this.term.str
+    //}
+    //
     get height() {
         if (this.enabled) {
-            return this.term.height
+            return this.output.rows
+            //return this.term.height
         }
         return 512
     }
 
     get width() {
         if (this.enabled) {
-            return this.term.width
+            return this.output.columns
+            //return this.term.width
         }
         return 1024
     }
 
     // Always return stdout even if disabled.
     get stdout() {
-        return this._output || this.term.stdout
+        return this._output || process.stdout//this.term.stdout
     }
 
     set stdout(strm) {
@@ -983,49 +1040,16 @@ class TermHelper {
     }
 }
 
-class AnsiHelper {
-
-    constructor(output) {
-        this.output = output
-    }
-
-    left(x) {
-        return this.write(ansiEscapes.cursorBackward(x))
-    }
-
-    right(x) {
-        return this.write(ansiEscapes.cursorForward(x))
-    }
-
-    up(x) {
-        return this.write(ansiEscapes.cursorUp(x))
-    }
-
-    down(x) {
-        return this.write(ansiEscapes.cursorDown(x))
-    }
-
-    moveTo(x, y) {
-        return this.write(ansiEscapes.cursorTo(x, y))
-    }
+class AnsiHelper extends TermHelper {
 
     column(x) {
-        return this.write(ansiEscapes.cursorTo(x))
-    }
-
-    clearLine(len) {
-        return this.write(ansiEscapes.eraseLines(len))
-    }
-
-    write(str) {
-        this.output.write(str)
-        return this
+        return super.column(x + 1)
     }
 }
 
 module.exports = {
-    AnsiHelper
-  , DrawHelper
-  , Reporter
-  , TermHelper
+    AnsiHelper,
+    DrawHelper,
+    Reporter,
+    TermHelper,
 }

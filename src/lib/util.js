@@ -22,22 +22,22 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-const cliWidth    = require('cli-width')
-const crypto      = require('crypto')
-const emailval    = require('email-validator')
-const os          = require('os')
-const path        = require('path')
-const roundTo     = require('round-to')
-const stringWidth = require('string-width')
-const uuid        = require('uuid')
-
 const {
     Logger,
     merging : {mergePlain},
     objects : {lget, lset, update, valueHash},
-    strings : {stripAnsi},
+    strings : {breakLines, stringWidth},
     types   : {isString, isObject, castToArray},
 } = require('utils-h')
+const cliWidth = require('cli-width')
+const emailval = require('email-validator')
+const roundTo  = require('round-to')
+const uuid     = require('uuid')
+
+const crypto = require('crypto')
+const os     = require('os')
+const path   = require('path')
+
 const {
     ArgumentError,
     ProgrammerError,
@@ -102,51 +102,6 @@ class Util {
             return true
         }
         return false
-    }
-
-    /**
-     *
-     * @param {array} The lines to chunk
-     * @param {integer} The max width
-     * @return {array} One array of chunked lines for each input line
-     */
-    static breakLines(lines, width) {
-        if (!Number.isInteger(width) || width < 2) {
-            // Allow for width Infinity, protect againt NaN or < 1, still make a copy.
-            return lines.slice(0)
-        }
-        // Matches all consecutive ANSI sequences from the beginning of the string.
-        const ansiRegex = /^(\x1B([[0-9;]*m)?)+/
-        return lines.map(line => {
-            const chunk = []
-            let thisLine = ''
-            for (let i = 0; i < line.length; ++i) {
-                const ansiMatch = line.substr(i).match(ansiRegex)
-                if (ansiMatch) {
-                    // Add all consecutive ANSI controls, since they do not increase the
-                    // width. This also prevents an extra line at the end if it is just a
-                    // closing color code.
-                    const ansiLength = ansiMatch[0].length
-                    thisLine += line.substr(i, ansiLength)
-                    i += ansiLength
-                }
-                // We could try to optimize here by grabbing more than just the next
-                // character, but we would have to be prepared to backtrack if we end
-                // up exceeding the width.
-                const nextChar = line[i] || ''
-                if (Util.stringWidth(thisLine + nextChar) > width) {
-                    // If adding the next character to the line would exceed the width,
-                    // then start a new line.
-                    chunk.push(thisLine)
-                    thisLine = ''
-                }
-                thisLine += nextChar
-            }
-            if (thisLine) {
-                chunk.push(thisLine)
-            }
-            return chunk
-        })
     }
 
     /**
@@ -459,7 +414,7 @@ class Util {
      * @return {string}
      */
     static forceLineReturn(content, width) {
-        return Util.breakLines(content.split('\n'), width).flat().join('\n')
+        return breakLines(content.split('\n'), width).flat().join('\n')
     }
 
     static getOrCall(thing, ...args) {
@@ -628,8 +583,6 @@ class Util {
         }
         return e.value || ''
     }
-
-
 
     /**
      * Create a plain object from an Error, suitable for serialization.
@@ -1006,16 +959,6 @@ class Util {
             }
         }
         return spreadObj
-    }
-
-    /**
-     * Strip all ANSI escape sequences from a string.
-     *
-     * @param {string} The input string
-     * @return {string} The result string
-     */
-    static stripAnsi(str) {
-        return stripAnsi(str)
     }
 
     /**
