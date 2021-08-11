@@ -25,7 +25,7 @@
 const {
     merging : {merge},
     objects : {lget, lset, update, isNonEmptyObject},
-    types   : {castToArray},
+    types   : {castToArray, isFunction},
     arrays  : {append, sumArray},
     strings : {stripAnsi},
 } = require('utils-h')
@@ -34,19 +34,24 @@ const globby = require('globby')
 
 const {Screen} = require('./helpers/screen.js')
 
+const fs   = require('fs')
+const os   = require('os')
+const path = require('path')
+const {EventEmitter} = require('events')
+
 const Dice   = require('../lib/dice.js')
 const Client = require('../net/client.js')
 const Themes = require('./themes.js')
-const NetPlayer    = require('../net/player.js')
-const {inquirer}   = require('./inquirer.js')
-const LabHelper    = require('./lab.js')
-const TermPlayer   = require('./player.js')
+const Alerts = require('./helpers/alerts.js')
+const ApiHelper  = require('./helpers/menu.api.js')
+const Questions  = require('./helpers/menu.questions.js')
+const TermBox    = require('./helpers/term.box.js')
+const NetPlayer  = require('../net/player.js')
+const {inquirer} = require('./inquirer.js')
+const LabHelper  = require('./lab.js')
+const TermPlayer = require('./player.js')
 const Coordinator    = require('../lib/coordinator.js')
 const {Board, Match} = require('../lib/core.js')
-const Alerts    = require('./helpers/alerts.js')
-const ApiHelper = require('./helpers/menu.api.js')
-const Questions = require('./helpers/menu.questions.js')
-const TermBox   = require('./helpers/term.box.js')
 const {
     ConfidenceRobot,
     RobotDelegator,
@@ -72,11 +77,6 @@ const {
 } = require('../lib/util')
 const {
     Colors: {Red, White},
-    Menu: {
-        LoginChoiceMap,
-        MainChoiceMap,
-        PlayChoiceMap,
-    },
     Chars,
     CHash,
     DefaultAnsiEnabled,
@@ -95,32 +95,24 @@ const {
     WaitingAbortedError,
 } = require('../lib/errors.js')
 
-const fs   = require('fs')
-const os   = require('os')
-const path = require('path')
-const {EventEmitter} = require('events')
-
 const ResizeTimoutMs = 300
-
 const InterruptCancelEvent = {
-    interrupt: true
-  , key: {name: 'c', ctrl: true}
+    interrupt: true,
+    key: {name: 'c', ctrl: true},
 }
-
 const InterruptCancelAnswers = {
-    _cancelEvent: InterruptCancelEvent
+    _cancelEvent: InterruptCancelEvent,
 }
 
 class Menu extends EventEmitter {
 
     constructor(configDir) {
-
         super()
-
         this.configDir = configDir
-
-        this.settings = Menu.settingsDefaults()
-        this.credentials = Menu.credentialDefaults()
+        Object.defineProperties(this, {
+            settings    : {value: Menu.settingsDefaults()},
+            credentials : {value: Menu.credentialDefaults()},
+        })
         this.intl = Intl.getDefaultInstance()
 
         this.chash = CHash
@@ -140,6 +132,7 @@ class Menu extends EventEmitter {
         this.isThemesLoaded = false
 
         this.q = new Questions(this)
+        this.m = this.q.m
 
         this.handleResize = this.handleResize.bind(this)
         this.on('resize', this.handleResize)
@@ -238,6 +231,13 @@ class Menu extends EventEmitter {
 
     mainMenu() {
 
+        const methods = {
+            play     : 'playMenu',
+            account  : 'accountMenu',
+            settings : 'settingsMenu',
+            lab      : 'runLab',
+        }
+
         return this.runMenu('main', this.__('Main'), async (choose, loop) => {
 
             await loop(async () => {
@@ -248,8 +248,7 @@ class Menu extends EventEmitter {
                     return
                 }
 
-                const {method} = MainChoiceMap[choice]
-                const isContinue = await this[method]()
+                const isContinue = await this[methods[choice]]()
                 if (choice == 'lab') {
                     await this.eraseScreen()
                 }
@@ -274,16 +273,16 @@ class Menu extends EventEmitter {
 
                 const {choice, ask} = await choose()
 
-                if (choice == 'back') {
+                if (choice === 'back') {
                     return
                 }
 
-                if (choice == 'quit') {
+                if (choice === 'quit') {
                     isContinue = false
                     return
                 }
 
-                if (this.settings.lastPlayChoice != choice) {
+                if (this.settings.lastPlayChoice !== choice) {
                     this.settings.lastPlayChoice = choice
                     await this.saveSettings()
                 }
@@ -308,9 +307,19 @@ class Menu extends EventEmitter {
 
     matchMenu(playChoice) {
 
+        const methods = {
+            startOnline : 'startOnlineMatch',
+            joinOnline  : 'joinOnlineMatch',
+            playHumans  : 'playHumans',
+            playRobot   : 'playRobot',
+            playRobots  : 'playRobots',
+        }
+
         return this.runMenu('match', this.__('Match'), async (choose, loop) => {
 
-            const {message, method, isAdvanced, isJoin} = PlayChoiceMap[playChoice]
+            const isJoin = playChoice === 'joinOnline'
+            const isAdvanced = ['playHumans', 'playRobot', 'playRobots'].includes(playChoice)
+            const method = methods[playChoice]
 
             let isContinue = true
             let advancedOpts = {}
@@ -321,11 +330,11 @@ class Menu extends EventEmitter {
 
                 const {choice, toggle, ask} = await choose(playChoice)
 
-                if (choice == 'back') {
+                if (choice === 'back') {
                     return
                 }
 
-                if (choice == 'quit') {
+                if (choice === 'quit') {
                     isContinue = false
                     return
                 }
@@ -336,12 +345,12 @@ class Menu extends EventEmitter {
                     return true
                 }
 
-                if (choice == 'advanced') {
+                if (choice === 'advanced') {
                     advancedOpts = await this.promptMatchAdvancedOpts(advancedOpts)
                     return true
                 }
 
-                if (choice == 'start') {
+                if (choice === 'start') {
                     const args = []
                     if (isJoin) {
                         const join = await ask()
@@ -378,6 +387,14 @@ class Menu extends EventEmitter {
 
     accountMenu() {
 
+        const methods = {
+            changePassword : 'promptChangePassword',
+            confirmAccount : 'promptConfirmAccount',
+            createAccount  : 'promptCreateAccount',
+            forgotPassword : 'promptForgotPassword',
+            newConfirmKey  : 'promptNewConfirmKey',
+        }
+
         return this.runMenu('account', this.__('Account'), async (choose, loop) => {
 
             await loop(async () => {
@@ -396,15 +413,13 @@ class Menu extends EventEmitter {
 
                 const {credentials} = this
 
-                if (LoginChoiceMap[choice]) {
+                const method = methods[choice]
+                if (method) {
                     try {
-                        const {message, method} = LoginChoiceMap[choice]
-                        if (method) {
-                            if (await this[method].call(this)) {
-                                this.alerts.info(message)
-                            } else {
-                                return true
-                            }
+                        if (await this[method].call(this)) {
+                            this.alerts.info(this.m.login(choice))
+                        } else {
+                            return true
                         }
                     } catch (err) {
                         this.alerts.error(err)
@@ -419,7 +434,7 @@ class Menu extends EventEmitter {
                     }
 
                     credentials.isTested = false
-                    if (choice == 'password') {
+                    if (choice === 'password') {
                         credentials[choice] = this.encryptPassword(answer)
                     } else {
                         credentials[choice] = answer
@@ -457,7 +472,7 @@ class Menu extends EventEmitter {
 
                 const {choice, toggle, ask} = await choose()
 
-                if (choice == 'done') {
+                if (choice === 'done') {
                     return
                 }
 
@@ -471,7 +486,7 @@ class Menu extends EventEmitter {
                     return true
                 }
 
-                if (choice == 'robotConfigs') {
+                if (choice === 'robotConfigs') {
                     await this.robotsMenu()
                     return true
                 }
@@ -485,14 +500,14 @@ class Menu extends EventEmitter {
                 this.settings[choice] = answer
                 await this.saveSettings()
 
-                if (choice == 'isCustomRobot') {
+                if (choice === 'isCustomRobot') {
                     // We changed to custom robot, go directly to robots menu.
                     // This excludes toggle above.
                     await this.robotsMenu()
                     return true
                 }
 
-                if (choice == 'locale') {
+                if (choice === 'locale') {
                     // Set the new locale.
                     this.intl.locale = answer
                 } else if (choice === 'theme' || choice === 'isAnsi') {
@@ -597,11 +612,10 @@ class Menu extends EventEmitter {
         try {
             this.screen.hideCursor()
             const {passwordEncrypted} = await this.api.signup(
-                credentials.serverUrl
-              , answers.username
-              , answers.password
+                credentials.serverUrl,
+                answers.username,
+                answers.password,
             )
-
             credentials.username = answers.username
             credentials.password = this.encryptPassword(passwordEncrypted)
         } finally {
@@ -857,14 +871,11 @@ class Menu extends EventEmitter {
             await this.runMatch(match, players)
 
         } catch (err) {
-
             if (err.isWaitingAbortedError) {
                 this.alerts.warn(err)
                 return
             }
-
             throw err
-
         } finally {
             this.captureInterrupt = null
             try {
@@ -948,14 +959,15 @@ class Menu extends EventEmitter {
         await this.ensureSettingsLoaded()
         await this.ensureThemesLoaded()
         const config = await this.loadLabConfig()
+        let board, persp, rollsFile
         if (config) {
-            var board = Board.fromStateString(config.lastState)
-            var persp = config.persp
-            var rollsFile = config.rollsFile
+            board = Board.fromStateString(config.lastState)
+            persp = config.persp
+            rollsFile = config.rollsFile
         } else {
-            var board = Board.setup()
-            var persp = White
-            var rollsFile = null
+            board = Board.setup()
+            persp = White
+            rollsFile = null
         }
         const {theme, isCustomRobot, robots, recordDir} = this.settings
         const {screen} = this
@@ -1049,9 +1061,6 @@ class Menu extends EventEmitter {
             if (rejectDuplicatePrompter(this.prompter, reject)) {
                 return
             }
-
-            opts = this.getPromptOpts(opts)
-
             const cleanup = () => {
                 this.captureInterrupt = null
                 this.prompter = null
@@ -1059,6 +1068,7 @@ class Menu extends EventEmitter {
                 box.status.removeListener('render', onRender)
             }
 
+            opts = this.getPromptOpts(opts)
             if (opts.cancelOnInterrupt) {
                 this.captureInterrupt = () => {
                     try {
@@ -1117,10 +1127,8 @@ class Menu extends EventEmitter {
         }
         if (this.resizeTimeoutId) {
             clearTimeout(this.resizeTimeoutId)
-        } else {
-            if (this.prompter) {
-                this.eraseScreen()
-            }
+        } else if (this.prompter) {
+            this.eraseScreen()
         }
         this.resizeTimeoutId = setTimeout(() => {
             this.resizeTimeoutId = null
@@ -1129,7 +1137,7 @@ class Menu extends EventEmitter {
                 return
             }
             const {ui} = prompter
-            if (typeof ui.onResize != 'function') {
+            if (!isFunction(ui.onResize)) {
                 return
             }
             const opts = this.getPromptOpts()
@@ -1143,30 +1151,26 @@ class Menu extends EventEmitter {
     }
 
     async runMenu(name, title, run) {
+        const box = this.boxes.menu
+        this.lastMenuChoice = null
+        this.lastToggleChoice = null
         this.bread.push(title)
         try {
             this.ensureClearScreen()
             await this.ensureLoaded(true)
             this.eraseAlerts()
             this.ensureMenuBackground()
-            this.lastMenuChoice = null
-            this.lastToggleChoice = null
-
-            const box = this.boxes.menu
             this.screen.moveTo(1, box.params.top)
-
             return await run(
-                (...hints) => this.menuChoice(title, this.q.menuq(name, ...hints))
-              , async loop => {
+                (...hints) => this.menuChoice(title, this.q.menuq(name, ...hints)),
+                async loop => {
                     let ret
                     while (true) {
                         this.ensureMenuBackground()
                         // Save alerts to re-render on resize.
                         this.currentAlerts = this.consumeAlerts()
                         this.eraseMenu()
-
                         this.screen.moveTo(1, box.params.top)
-
                         ret = await loop()
                         if (ret !== true) {
                             break
@@ -1197,9 +1201,9 @@ class Menu extends EventEmitter {
         }
 
         const box = this.boxes.alerts
-
-        const {maxWidth, minWidth, left, top} = box.params
         const {format} = box.opts
+        const {maxWidth, minWidth, left, top} = box.params
+        const indent = left - 1
 
         const errors = []
         const levelsLines = alerts.map(alert => {
@@ -1216,15 +1220,12 @@ class Menu extends EventEmitter {
         }
 
         this.screen.saveCursor()
-
-        const indent = left - 1
         levelsLines.forEach(([logLevel, line], i) => {
             this.screen.moveTo(left, top + i)
             const param = {indent, width: stringWidth(line)}
             this.alerter[logLevel](line)
             box.status.emit('line', param)
         })
-
         this.screen.restoreCursor()
 
         box.drawBorder()
@@ -1235,11 +1236,11 @@ class Menu extends EventEmitter {
         const box = this.boxes.menu
 
         question = {
-            name     : 'choice'
-          , type     : 'rawlist'
-          , pageSize : box.opts.maxHeight - 4
-          , prefix   : this.getMenuPrefix()
-          , ...question
+            name     : 'choice',
+            type     : 'rawlist',
+            pageSize : box.opts.maxHeight - 4,
+            prefix   : this.getMenuPrefix(),
+            ...question,
         }
 
         const promise = this.questionAnswer(question, opts)
@@ -1258,7 +1259,7 @@ class Menu extends EventEmitter {
 
         const {answer, isCancel, toggle, ...result} = res
         const choice = answer
-        question = (question.choices.find(c => c.value == choice) || {}).question
+        question = (question.choices.find(c => c.value === choice) || {}).question
         const ask = () => this.questionAnswer(question, opts)
         if (!isCancel) {
             this.lastMenuChoice = choice
@@ -1347,20 +1348,15 @@ class Menu extends EventEmitter {
     }
 
     writeMenuBackground() {
-
         const {screen} = this
         const {width, height} = screen
-
-        this.resetBoxes()
-
         const chlk = this.theme.menu
-        const str = chlk.screen(screen.str.erase(width))
-        screen.saveCursor()
-            .writeRows(1, 1, height, str)
-            .restoreCursor()
-
+        const line = chlk.screen(screen.str.erase(width))
         const box = this.boxes.screen
-
+        this.resetBoxes()
+        screen.saveCursor()
+            .writeRows(1, 1, height, line)
+            .restoreCursor()
         update(box.opts, {
             minWidth  : width,
             maxWidth  : width,
@@ -1368,7 +1364,6 @@ class Menu extends EventEmitter {
             maxHeight : height,
         })
         box.drawBorder()
-
         this.hasMenuBackground = true
     }
 
@@ -1401,33 +1396,27 @@ class Menu extends EventEmitter {
         if (!fs.existsSync(settingsFile)) {
             await this.saveSettings()
         }
-
-        const {__} = this
+        const {__, settings, intl} = this
         const loaded = await fse.readJson(settingsFile)
-
         const defs = Menu.settingsDefaults()
-        update(this.settings, defaults(defs, this.settings, loaded))
-        update(this.settings.matchOpts, defaults(defs.matchOpts, loaded.matchOpts))
-
-        if (this.intl.locale != this.settings.locale) {
-            this.intl.locale = this.settings.locale
+        update(settings, defaults(defs, settings, loaded))
+        update(settings.matchOpts, defaults(defs.matchOpts, loaded.matchOpts))
+        if (intl.locale !== settings.locale) {
+            intl.locale = settings.locale
         }
-        if (this.settings.isCustomRobot && !isNonEmptyObject(this.settings.robots)) {
+        if (settings.isCustomRobot && !isNonEmptyObject(settings.robots)) {
             // populate for legacy format
-            update(this.settings.robots,  Menu.robotsDefaults())
+            update(settings.robots,  Menu.robotsDefaults())
             this.alerts.info(__('Migrating legacy robot config'))
             await this.saveSettings()
         }
-
         if (this.isThemesLoaded) {
-            this.theme = Themes.getInstance(this.settings.theme)
+            this.theme = Themes.getInstance(settings.theme)
             this.alerter.theme = this.theme
         }
-
-        if (this.screen.isAnsi !== this.settings.isAnsi) {
-            this.screen.isAnsi = this.settings.isAnsi
+        if (this.screen.isAnsi !== settings.isAnsi) {
+            this.screen.isAnsi = settings.isAnsi
         }
-
         this.isSettingsLoaded = true
     }
 
@@ -1468,9 +1457,7 @@ class Menu extends EventEmitter {
         if (ObsoleteServerUrls.indexOf(credentials.serverUrl) > -1) {
             credentials.serverUrl = Menu.getDefaultServerUrl()
         }
-
         update(this.credentials, defaults(Menu.credentialDefaults(), credentials))
-
         this.isCredentialsLoaded = true
     }
 
@@ -1491,10 +1478,10 @@ class Menu extends EventEmitter {
 
     clearCredentials() {
         update(this.credentials, {
-            username     : ''
-          , password     : ''
-          , needsConfirm : false
-          , isTested     : false
+            username     : '',
+            password     : '',
+            needsConfirm : false,
+            isTested     : false,
         })
     }
 
@@ -1505,8 +1492,7 @@ class Menu extends EventEmitter {
         }
         if (fs.existsSync(configFile)) {
             try {
-                const data = await fse.readJson(configFile)
-                return data
+                return await fse.readJson(configFile)
             } catch (err) {
                 this.logger.debug(err)
                 this.logger.error('Failed to load saved lab state:', err.message)
@@ -1520,22 +1506,19 @@ class Menu extends EventEmitter {
             return
         }
         const data = {
-            lastState : helper.board.state28()
-          , persp     : helper.persp
-          , rollsFile : helper.opts.rollsFile
+            lastState : helper.board.state28(),
+            persp     : helper.persp,
+            rollsFile : helper.opts.rollsFile,
         }
         await fse.ensureDir(path.dirname(configFile))
         await fse.writeJson(configFile, data, {spaces: 2})
     }
 
     async loadCustomThemes(isQuiet) {
-
         const themesDir = this.getThemesDir()
-
         if (!themesDir) {
             return
         }
-
         const {__} = this
         const {loaded, errors} = await Themes.loadDirectory(themesDir)
         errors.forEach(info => {
@@ -1546,12 +1529,9 @@ class Menu extends EventEmitter {
             const count = loaded.length
             this.alerts.info(__('Loaded {count} custom themes.', {count}))
         }
-
         this.theme = Themes.getInstance(this.settings.theme)
         this.alerter.theme = this.theme
-
         this.isThemesLoaded = true
-
         return loaded
     }
 
@@ -1678,8 +1658,8 @@ class Menu extends EventEmitter {
     }
 
     static robotMeta(name) {
-        const {defaults, versions} = ConfidenceRobot.getClassMeta(name)
-        return {defaults, versions}
+        const meta = {defaults, versions} = ConfidenceRobot.getClassMeta(name)
+        return meta
     }
 
     static robotDefaults(name) {

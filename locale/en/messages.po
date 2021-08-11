@@ -13,258 +13,330 @@ msgstr ""
 "Language-Team: \n"
 "Plural-Forms: \n"
 
-#: src/term/menu.js:913
+#: src/term/menu.js:931
 msgid "{winner} won the match {winning} to {losing}"
 msgstr ""
 
-#: src/term/menu.js:822
+#: src/term/menu.js:839
 msgid "Aborting waiting"
 msgstr ""
 
-#: src/term/menu.js:680
+#: src/term/helpers/menu.questions.js:154
+#: src/term/menu.js:398
+msgid "Account"
+msgstr ""
+
+#: src/term/menu.js:695
 msgid "Account already confirmed"
 msgstr ""
 
-#: src/term/helpers/menu.questions.js:208
+#: src/term/helpers/menu.messages.js:17
+msgid "Account confirmed"
+msgstr ""
+
+#: src/term/helpers/menu.messages.js:20
+msgid "Account created"
+msgstr ""
+
+#: src/term/helpers/menu.questions.js:229
 msgid "Advanced"
+msgstr ""
+
+#: src/term/helpers/menu.questions.js:679
+msgid "ANSI Cursoring"
 msgstr ""
 
 #: src/term/menu.js:296
 msgid "Authentication failed. Go to Account to sign up or log in."
 msgstr ""
 
-#: src/term/helpers/menu.questions.js:187
-#: src/term/helpers/menu.questions.js:214
+#: src/term/helpers/menu.questions.js:208
+#: src/term/helpers/menu.questions.js:235
 msgid "Back"
 msgstr ""
 
-#: src/term/menu.js:892
+#: src/term/menu.js:910
 msgid "Canceling match"
 msgstr ""
 
-#: src/term/helpers/menu.questions.js:458
+#: src/term/helpers/menu.questions.js:478
 msgid "Change Password"
 msgstr ""
 
-#: src/term/helpers/menu.questions.js:601
+#: src/term/helpers/menu.questions.js:621
 msgid "Check your email for a confirmation key."
 msgstr ""
 
-#: src/term/helpers/menu.questions.js:649
+#: src/term/helpers/menu.questions.js:669
 msgid "Choose a theme"
 msgstr ""
 
-#: src/term/helpers/menu.questions.js:636
+#: src/term/helpers/menu.questions.js:656
 msgid "Choose your locale"
 msgstr ""
 
-#: src/term/helpers/menu.questions.js:463
+#: src/term/helpers/menu.questions.js:483
 msgid "Clear Credentials"
 msgstr ""
 
-#: src/term/helpers/menu.questions.js:283
-#: src/term/helpers/menu.questions.js:288
+#: src/term/helpers/menu.questions.js:303
+#: src/term/helpers/menu.questions.js:308
 msgid "Crawford Rule"
 msgstr ""
 
-#: src/term/helpers/menu.questions.js:432
+#: src/term/helpers/menu.questions.js:452
 msgid "Create Account"
 msgstr ""
 
-#: src/term/helpers/menu.questions.js:270
-#: src/term/helpers/menu.questions.js:274
+#: src/term/helpers/menu.questions.js:290
+#: src/term/helpers/menu.questions.js:294
 msgid "Cube Enabled"
 msgstr ""
 
-#: src/term/helpers/menu.questions.js:540
+#: src/term/helpers/menu.questions.js:560
 msgid "Current password"
 msgstr ""
 
-#: src/term/helpers/menu.questions.js:398
-#: src/term/helpers/menu.questions.js:626
-#: src/term/helpers/menu.questions.js:767
-#: src/term/helpers/menu.questions.js:847
+#: src/term/helpers/menu.questions.js:418
+#: src/term/helpers/menu.questions.js:646
+#: src/term/helpers/menu.questions.js:787
+#: src/term/helpers/menu.questions.js:867
 msgid "Done"
 msgstr ""
 
-#: src/term/helpers/menu.questions.js:882
-#: src/term/helpers/menu.questions.js:886
+#: src/term/helpers/menu.questions.js:902
+#: src/term/helpers/menu.questions.js:906
 msgid "Double Weight"
 msgstr ""
 
-#: src/term/helpers/menu.questions.js:793
+#: src/term/helpers/menu.questions.js:813
 msgid "double:"
+msgstr ""
+
+#: src/term/helpers/menu.questions.js:683
+msgid "Enable ANSI cursoring"
 msgstr ""
 
 #: src/term/helpers/menu.questions.js:663
 msgid "Enable terminal cursoring"
 msgstr ""
 
-#: src/term/helpers/menu.questions.js:442
-#: src/term/helpers/menu.questions.js:598
+#: src/term/helpers/menu.questions.js:462
+#: src/term/helpers/menu.questions.js:618
 msgid "Enter confirm key"
 msgstr ""
 
-#: src/term/helpers/menu.questions.js:567
+#: src/term/helpers/menu.questions.js:587
 msgid "Enter reset key"
 msgstr ""
 
-#: src/term/helpers/menu.questions.js:673
-#: src/term/helpers/menu.questions.js:677
+#: src/term/helpers/menu.questions.js:693
+#: src/term/helpers/menu.questions.js:697
 msgid "Fast Forced Moves"
 msgstr ""
 
-#: src/term/helpers/menu.questions.js:437
+#: src/term/helpers/menu.questions.js:457
 msgid "Forgot Password"
 msgstr ""
 
-#: src/term/helpers/menu.questions.js:447
+#: src/term/helpers/menu.questions.js:467
 msgid "Get new confirm key"
 msgstr ""
 
-#: src/term/helpers/menu.questions.js:372
+#: src/term/helpers/menu.messages.js:49
+msgid "Human vs Human"
+msgstr ""
+
+#: src/term/helpers/menu.messages.js:52
+msgid "Human vs Robot"
+msgstr ""
+
+#: src/term/helpers/menu.questions.js:392
 msgid "Invalid match ID format"
 msgstr ""
 
-#: src/term/helpers/menu.questions.js:297
-#: src/term/helpers/menu.questions.js:301
+#: src/term/helpers/menu.questions.js:317
+#: src/term/helpers/menu.questions.js:321
 msgid "Jacoby Rule"
 msgstr ""
 
-#: src/term/menu.js:1533
+#: src/term/helpers/menu.messages.js:46
+msgid "Join Online Match"
+msgstr ""
+
+#: src/term/helpers/menu.questions.js:164
+msgid "Lab"
+msgstr ""
+
+#: src/term/menu.js:1530
 msgid "Loaded {count} custom themes."
 msgstr ""
 
-#: src/term/menu.js:516
+#: src/term/menu.js:532
 msgid "Loading robot defaults"
 msgstr ""
 
-#: src/term/helpers/menu.questions.js:633
+#: src/term/helpers/menu.questions.js:653
 msgid "Locale"
 msgstr ""
 
-#: src/term/menu.js:748
+#: src/term/menu.js:763
 msgid "Login failed to {url}"
 msgstr ""
 
-#: src/term/menu.js:753
+#: src/term/menu.js:768
 msgid "Login success to {url}"
 msgstr ""
 
-#: src/term/helpers/menu.questions.js:378
+#: src/term/menu.js:241
+msgid "Main"
+msgstr ""
+
+#: src/term/menu.js:318
+msgid "Match"
+msgstr ""
+
+#: src/term/helpers/menu.questions.js:398
 msgid "Match ID"
 msgstr ""
 
-#: src/term/helpers/menu.questions.js:254
-#: src/term/helpers/menu.questions.js:258
+#: src/term/helpers/menu.questions.js:274
+#: src/term/helpers/menu.questions.js:278
 msgid "Match Total"
 msgstr ""
 
-#: src/term/menu.js:1404
+#: src/term/menu.js:1410
 msgid "Migrating legacy robot config"
-msgstr[0] ""
+msgstr ""
 
-#: src/term/helpers/menu.questions.js:872
-#: src/term/helpers/menu.questions.js:876
+#: src/term/helpers/menu.questions.js:892
+#: src/term/helpers/menu.questions.js:896
 msgid "Move Weight"
 msgstr ""
 
-#: src/term/helpers/menu.questions.js:791
+#: src/term/helpers/menu.questions.js:811
 msgid "move:"
 msgstr ""
 
-#: src/term/helpers/menu.questions.js:546
-#: src/term/helpers/menu.questions.js:573
+#: src/term/helpers/menu.messages.js:26
+msgid "New confirmation key requested. Check your email."
+msgstr ""
+
+#: src/term/helpers/menu.questions.js:566
+#: src/term/helpers/menu.questions.js:593
 msgid "New password"
 msgstr ""
 
-#: src/term/helpers/menu.questions.js:424
-#: src/term/helpers/menu.questions.js:497
+#: src/term/helpers/menu.questions.js:444
+#: src/term/helpers/menu.questions.js:517
 msgid "Password"
 msgstr ""
 
-#: src/term/helpers/menu.questions.js:517
+#: src/term/helpers/menu.messages.js:14
+msgid "Password changed"
+msgstr ""
+
+#: src/term/helpers/menu.messages.js:23
+msgid "Password reset"
+msgstr ""
+
+#: src/term/helpers/menu.questions.js:537
 msgid "Passwords do not match"
 msgstr ""
 
-#: src/term/menu.js:264
+#: src/term/helpers/menu.questions.js:149
+#: src/term/menu.js:266
 msgid "Play"
 msgstr ""
 
-#: src/term/helpers/menu.questions.js:239
+#: src/term/helpers/menu.questions.js:259
 msgid "Please enter a number > 0"
 msgstr ""
 
-#: src/term/helpers/menu.questions.js:618
+#: src/term/helpers/menu.questions.js:638
 msgid "Please enter a number >= 0"
 msgstr ""
 
-#: src/term/helpers/menu.questions.js:163
-#: src/term/helpers/menu.questions.js:193
-#: src/term/helpers/menu.questions.js:220
+#: src/term/helpers/menu.questions.js:170
+#: src/term/helpers/menu.questions.js:214
+#: src/term/helpers/menu.questions.js:241
 msgid "Quit"
 msgstr ""
 
-#: src/term/helpers/menu.questions.js:686
-#: src/term/helpers/menu.questions.js:689
+#: src/term/helpers/menu.questions.js:706
+#: src/term/helpers/menu.questions.js:709
 msgid "Record Dir"
 msgstr ""
 
-#: src/term/helpers/menu.questions.js:701
-#: src/term/helpers/menu.questions.js:705
+#: src/term/helpers/menu.questions.js:721
+#: src/term/helpers/menu.questions.js:725
 msgid "Record Matches"
 msgstr ""
 
-#: src/term/helpers/menu.questions.js:774
-#: src/term/helpers/menu.questions.js:854
+#: src/term/helpers/menu.questions.js:794
+#: src/term/helpers/menu.questions.js:874
 msgid "Reset defaults"
 msgstr ""
 
-#: src/term/helpers/menu.questions.js:568
+#: src/term/helpers/menu.questions.js:588
 msgid "Reset key requested, check your email."
 msgstr ""
 
-#: src/term/helpers/menu.questions.js:744
+#: src/term/menu.js:562
+msgid "Robot"
+msgstr ""
+
+#: src/term/helpers/menu.questions.js:764
 msgid "Robot Configuration"
 msgstr ""
 
-#: src/term/helpers/menu.questions.js:715
+#: src/term/helpers/menu.questions.js:735
 msgid "Robot Delay"
 msgstr ""
 
-#: src/term/helpers/menu.questions.js:718
+#: src/term/helpers/menu.questions.js:738
 msgid "Robot Delay (seconds)"
 msgstr ""
 
-#: src/term/menu.js:513
+#: src/term/helpers/menu.messages.js:55
+msgid "Robot vs Robot"
+msgstr ""
+
+#: src/term/menu.js:529
 msgid "Robots"
 msgstr ""
 
-#: src/term/helpers/menu.questions.js:352
+#: src/term/helpers/menu.questions.js:372
 msgid "Rolls File"
 msgstr ""
 
-#: src/term/helpers/menu.questions.js:406
+#: src/term/helpers/menu.questions.js:426
 msgid "Server"
 msgstr ""
 
-#: src/term/helpers/menu.questions.js:409
+#: src/term/helpers/menu.questions.js:429
 msgid "Server URL"
 msgstr ""
 
-#: src/term/menu.js:983
+#: src/term/menu.js:1002
+#. logger
 msgid "Setting initial state"
 msgstr ""
 
-#: src/term/menu.js:453
+#: src/term/helpers/menu.questions.js:159
+#: src/term/menu.js:469
 msgid "Settings"
 msgstr ""
 
-#: src/term/helpers/menu.questions.js:247
+#: src/term/helpers/menu.questions.js:267
 msgid "Start Match"
 msgstr ""
 
-#: src/term/helpers/menu.questions.js:344
+#: src/term/helpers/menu.messages.js:43
+msgid "Start Online Match"
+msgstr ""
+
+#: src/term/helpers/menu.questions.js:364
 msgid "Start State"
 msgstr ""
 
@@ -272,33 +344,38 @@ msgstr ""
 msgid "Term Cursoring"
 msgstr ""
 
-#: src/term/helpers/menu.questions.js:453
+#: src/term/helpers/menu.questions.js:473
 msgid "Test Credentials"
 msgstr ""
 
-#: src/term/helpers/menu.questions.js:646
+#: src/term/helpers/menu.messages.js:29
+msgid "Testing credentials"
+msgstr ""
+
+#: src/term/helpers/menu.questions.js:666
 msgid "Theme"
 msgstr ""
 
-#: src/term/helpers/menu.questions.js:731
-#: src/term/helpers/menu.questions.js:735
+#: src/term/helpers/menu.questions.js:751
+#: src/term/helpers/menu.questions.js:755
 msgid "Use Custom Robot"
 msgstr ""
 
-#: src/term/helpers/menu.questions.js:419
-#: src/term/helpers/menu.questions.js:480
+#: src/term/helpers/menu.questions.js:439
+#: src/term/helpers/menu.questions.js:500
 msgid "Username"
 msgstr ""
 
-#: src/term/menu.js:988
+#: src/term/menu.js:1007
+#. log
 msgid "Using custom rolls file"
 msgstr ""
 
-#: src/term/helpers/menu.questions.js:860
-#: src/term/helpers/menu.questions.js:864
+#: src/term/helpers/menu.questions.js:880
+#: src/term/helpers/menu.questions.js:884
 msgid "Version"
 msgstr ""
 
-#: src/term/helpers/menu.questions.js:600
+#: src/term/helpers/menu.questions.js:620
 msgid "You must confirm your account."
 msgstr ""

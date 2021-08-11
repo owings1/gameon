@@ -28,9 +28,11 @@ const fse = require('fs-extra')
 const fs    = require('fs')
 const path  = require('path')
 
-const {Board} = require('../../lib/core.js')
 const Dice    = require('../../lib/dice.js')
+const {Board} = require('../../lib/core.js')
+const {Chars} = require('../../lib/constants.js')
 const Themes  = require('../themes.js')
+const Messages = require('./menu.messages.js')
 const {
     errMessage,
     homeTilde,
@@ -46,10 +48,6 @@ const {
     ConfidenceRobot,
     RobotDelegator,
 } = require('../../robot/player.js')
-const {
-    Chars,
-    Menu: {MainChoiceMap, PlayChoiceMap},
-} = require('../../lib/constants.js')
 
 
 function getDiffChalk(a, b, chlk) {
@@ -89,52 +87,53 @@ class Questions {
 
     constructor(menu) {
         this.menu = menu
+        this.m = new Messages(menu)
     }
 
     menuq(name, extra) {
-        const {menu, settings} = this
+        const {menu, settings, m} = this
         switch (name) {
             case 'main':
                 return {
-                    message : name
-                  , choices : this.mainChoices(extra)
+                    message : name,
+                    choices : this.mainChoices(extra),
                 }
             case 'play':
                 return {
-                    message : name
-                  , choices : this.playChoices(extra)
-                  , default : () => settings.lastPlayChoice
+                    message : name,
+                    choices : this.playChoices(extra),
+                    default : () => settings.lastPlayChoice,
                 }
             case 'match':
                 return {
-                    message : PlayChoiceMap[extra].message
-                  , choices : this.matchChoices(extra)
-                  , default : () => menu.lastToggleChoice
-                  , action  : {char: 'tab', name: '#toggle', all: false}
+                    message : m.play(extra),
+                    choices : this.matchChoices(extra),
+                    default : () => menu.lastToggleChoice,
+                    action  : {char: 'tab', name: '#toggle', all: false},
                     // This skips the match menu for joinOnline.
-                  , answer  : PlayChoiceMap[extra].matchAnswer
+                    answer  : extra === 'joinOnline' ? 'start' : null,
                 }
             case 'account':
                 return {
-                    message : name
-                  , choices : this.accountChoices(extra)
+                    message : name,
+                    choices : this.accountChoices(extra),
                 }
             case 'settings':
                 return {
-                    message  : name
-                  , choices  : this.settingsChoices(extra)
-                  , default  : () => menu.lastMenuChoice
-                  , action   : {char: 'tab', name: '#toggle', all: false}
+                    message  : name,
+                    choices  : this.settingsChoices(extra),
+                    default  : () => menu.lastMenuChoice,
+                    action   : {char: 'tab', name: '#toggle', all: false},
                 }
             case 'robots':
                 return {
-                    message  : name
-                  , choices  : this.robotsChoices(extra)
+                    message  : name,
+                    choices  : this.robotsChoices(extra),
                 }
             case 'robot':
                 return {
-                    message  : extra
-                  , choices  : this.robotChoices(extra)
+                    message  : extra,
+                    choices  : this.robotChoices(extra),
                 }
             }
     }
@@ -143,77 +142,106 @@ class Questions {
 
         const {__} = this
 
-        const entries = Object.entries(MainChoiceMap)
-        const toChoice = ([value, {name, select}]) => ({name, value, select})
-
-        // TODO: refactor for translation.
         return this.formatChoices([
-            this.br()
-          , entries.map(toChoice)
-          , this.hr()
-          , {
-                value  : 'quit'
-              , name   : __('Quit')
-              , select : 'q'
-              , enter  : EnterChars.quit
-            }
-          , this.br()
+            this.br(),
+            {
+                value  : 'play',
+                name   : __('Play'),
+                select : 'p',
+            },
+            {
+                value  : 'account',
+                name   : __('Account'),
+                select : 'a',
+            },
+            {
+                value  : 'settings',
+                name   : __('Settings'),
+                select : 's',
+            },
+            {
+                value  : 'lab',
+                name   : __('Lab'),
+                select : 'l',
+            },
+            this.hr(),
+            {
+                value  : 'quit',
+                name   : __('Quit'),
+                select : 'q',
+                enter  : EnterChars.quit,
+            },
+            this.br(),
         ].flat())
     }
 
     playChoices() {
 
-        const {menu, __} = this
+        const {menu, __, m} = this
 
-        const entries = Object.entries(PlayChoiceMap)
-        const toChoice = ([name, {message}]) => ({value: name, name: message})
-
-        // TODO: refactor for translation.
         return this.formatChoices([
-            this.br()
-          , entries.filter(([name, {isOnline}]) => isOnline).map(toChoice)
-          , this.hr()
-          , entries.filter(([name, {isOnline}]) => !isOnline).map(toChoice)
-          , this.hr()
-          , {
+            this.br(),
+            {
+                value: 'startOnline',
+                name: m.play('startOnline'),
+            },
+            {
+                value: 'joinOnline',
+                name: m.play('joinOnline'),
+            },
+            this.hr(),
+            {
+                value: 'playHumans',
+                name: m.play('playHumans'),
+            },
+            {
+                value: 'playRobot',
+                name: m.play('playRobot'),
+            },
+            {
+                value: 'playRobots',
+                name: m.play('playRobots'),
+            },
+            this.hr(),
+            {
                 value : 'back',
                 name  : __('Back'),
                 when  : menu.bread.length > 1,
                 enter : EnterChars.back,
-            }
-          , {
+            },
+            {
                 value  : 'quit',
                 name   : __('Quit'),
                 select : 'q',
-            }
-          , this.br()
+            },
+            this.br(),
         ].flat())
     }
 
     matchChoices(playChoice) {
         const {menu, __} = this
-        const {isOnline, isJoin} = PlayChoiceMap[playChoice]
+        const isOnline = ['startOnline', 'joinOnline'].includes(playChoice)
         return this.formatChoices(
             this.matchInitialChoices(playChoice).concat([
                 // Only show advanced for local matches.
                 {
-                    value : 'advanced'
-                  , name  : __('Advanced')
-                  , when  : !isOnline
-                }
-              , this.hr().when(!isOnline)
-              , {
+                    value : 'advanced',
+                    name  : __('Advanced'),
+                    when  : !isOnline,
+                },
+                this.hr().when(!isOnline),
+                {
                     value : 'back'
                   , name  : __('Back')
                   , when  : menu.bread.length > 1
                   , enter : EnterChars.back
-                }
-              , {
+                },
+                {
                     value  : 'quit'
                   , name   : __('Quit')
                   , select : 'q'
-                }
-              , this.br()
+                },
+                this.br(),
             ])
         )
     }
@@ -222,8 +250,7 @@ class Questions {
 
         const {__} = this
         const mopts = this.settings.matchOpts
-        const {isJoin} = PlayChoiceMap[playChoice]
-
+        const isJoin = playChoice === 'joinOnline'
         const validate = {
             total: value => {
                 if (Number.isInteger(value) && value > 0) {
@@ -234,15 +261,15 @@ class Questions {
         }
 
         return [
-            this.br()
-          , {
+            this.br(),
+            {
                 value    : 'start',
                 name     : __('Start Match'),
                 select   : 's',
                 question : isJoin ? this.matchId() : null,
-            }
-          , this.hr()
-          , {
+            },
+            this.hr(),
+            {
                 value : 'total',
                 name  : __('Match Total'),
                 select  : 't',
@@ -257,8 +284,8 @@ class Questions {
                     restore  : RestoreChars.input,
                     expand   : ExpandChars.input,
                 },
-            }
-          , {
+            },
+            {
                 value  : 'cubeEnabled',
                 name   : __('Cube Enabled'),
                 action : ['#toggle'],
@@ -270,8 +297,8 @@ class Questions {
                     cancel  : CancelChars.bool,
                     toggle  : ToggleChars.bool,
                 },
-            }
-          , {
+            },
+            {
                 value  : 'isCrawford',
                 name   : __('Crawford Rule'),
                 when   : () => mopts.cubeEnabled,
@@ -284,8 +311,8 @@ class Questions {
                     cancel  : CancelChars.bool,
                     toggle  : ToggleChars.bool,
                 },
-            }
-          , {
+            },
+            {
                 value  : 'isJacoby',
                 name   : __('Jacoby Rule'),
                 action : ['#toggle'],
@@ -297,8 +324,8 @@ class Questions {
                     cancel  : CancelChars.bool,
                     toggle  : ToggleChars.bool,
                 },
-            }
-          , this.hr()
+            },
+            this.hr(),
         ]
     }
 
@@ -339,8 +366,8 @@ class Questions {
                 default  : () => aopts.startState,
                 validate : validate.state,
                 cancel   : CancelChars.input,
-            }
-          , {
+            },
+            {
                 name     : 'rollsFile',
                 message  : __('Rolls File'),
                 type     : 'input',
@@ -349,7 +376,7 @@ class Questions {
                 validate : validate.rollsFile,
                 cancel   : CancelChars.input,
                 when     : answers => !answers._cancelEvent,
-            }
+            },
         ]
     }
 
@@ -385,16 +412,16 @@ class Questions {
 
         return [
             [
-                this.br()
-              , {
+                this.br(),
+                {
                     value : 'done',
                     name  : __('Done'),
                     enter : EnterChars.back,
-                }
-            ]
-          , [
-                this.hr()
-              , {
+                },
+            ],
+            [
+                this.hr(),
+                {
                     value : 'serverUrl',
                     name  : __('Server'),
                     question : {
@@ -406,58 +433,58 @@ class Questions {
                         restore : RestoreChars.input,
                         expand  : ExpandChars.input,
                     },
-                }
-              , {
+                },
+                {
                     value    : 'username',
                     name     : __('Username'),
                     question : this.username(),
-                }
-              , {
+                },
+                {
                     value    : 'password',
                     name     : __('Password'),
                     question : this.password(),
-                }
-              , this.hr()
-            ]
-          , [
+                },
+                this.hr(),
+            ],
+            [
                 {
                     value : 'createAccount',
                     name  : __('Create Account'),
                     when  : !isFilled,
-                }
-              , {
+                },
+                {
                     value : 'forgotPassword',
                     name  : __('Forgot Password'),
                     when  : !isFilled,
-                }
-              , {
+                },
+                {
                     value : 'confirmAccount',
                     name  : __('Enter confirm key'),
                     when  : isFilled && needsConfirm,
-                }
-              , {
+                },
+                {
                     value : 'newConfirmKey',
                     name  : __('Get new confirm key'),
                     when  : isFilled && needsConfirm,
-                }
-              , this.hr().when(isFilled && needsConfirm)
-              , {
+                },
+                this.hr().when(isFilled && needsConfirm),
+                {
                     value : 'testCredentials',
                     name  : __('Test Credentials'),
                     when  : isFilled && !needsConfirm,
-                }
-              , {
+                },
+                {
                     value : 'changePassword',
                     name  : __('Change Password'),
                     when  : isFilled && !needsConfirm,
-                }
-              , {
+                },
+                {
                     value : 'clearCredentials',
                     name  : __('Clear Credentials'),
                     when  : hasCred,
-                }
-              , this.br()
-            ]
+                },
+                this.br(),
+            ],
         ].map(group => this.formatChoices(group)).flat()
     }
 
@@ -508,7 +535,7 @@ class Questions {
                     return true
                 }
                 return __('Passwords do not match')
-            }
+            },
         }
 
         return {
@@ -528,18 +555,18 @@ class Questions {
 
         return [
             {
-                ...this.password()
-              , name    : 'oldPassword'
-              , message : __('Current password')
-              , default : ''
-            }
-          , {
-                ...this.password()
-              , name    : 'newPassword'
-              , message : __('New password')
-              , default : ''
-            }
-          , this.passwordConfirm('newPassword')
+                ...this.password(),
+                name    : 'oldPassword',
+                message : __('Current password'),
+                default : '',
+            },
+            {
+                ...this.password(),
+                name    : 'newPassword',
+                message : __('New password'),
+                default : '',
+            },
+            this.passwordConfirm('newPassword'),
         ]
     }
 
@@ -560,24 +587,24 @@ class Questions {
                 message : __('Enter reset key'),
                 prefix  : __('Reset key requested, check your email.') + '\n',
                 cancel  : CancelChars.input,
-            }
-          , {
+            },
+            {
                 ...this.password(),
                 message : __('New password'),
                 when    : when.keyEntered,
-            }
-          , {
+            },
+            {
                 ...this.passwordConfirm(),
                 when: when.keyEntered,
-            }
+            },
         ]
     }
 
     createAccount() {
         return [
-            this.username()
-          , this.password()
-          , this.passwordConfirm()
+            this.username(),
+            this.password(),
+            this.passwordConfirm(),
         ]
     }
 
@@ -613,15 +640,15 @@ class Questions {
         }
 
         return this.formatChoices([
-            this.br()
-          , {
+            this.br(),
+            {
                 value  : 'done',
                 name   : __('Done'),
                 enter  : EnterChars.back,
                 select : 'd',
-            }
-          , this.hr()
-          , {
+            },
+            this.hr(),
+            {
                 value : 'locale',
                 name  : __('Locale'),
                 question : {
@@ -633,8 +660,8 @@ class Questions {
                     cancel  : CancelChars.list,
                     prefix  : '',
                 },
-            }
-          , {
+            },
+            {
                 value : 'theme',
                 name  : __('Theme'),
                 question : {
@@ -646,8 +673,8 @@ class Questions {
                     cancel  : CancelChars.list,
                     prefix  : '',
                 },
-            }
-          , {
+            },
+            {
                 value  : 'isAnsi',
                 name   : __('ANSI Cursoring'),
                 action : ['#toggle'],
@@ -659,9 +686,9 @@ class Questions {
                     cancel  : CancelChars.bool,
                     toggle  : ToggleChars.bool,
                 },
-            }
-          , this.hr()
-          , {
+            },
+            this.hr(),
+            {
                 value  : 'fastForced',
                 name   : __('Fast Forced Moves'),
                 action : ['#toggle'],
@@ -673,8 +700,8 @@ class Questions {
                     cancel  : CancelChars.bool,
                     toggle  : ToggleChars.bool,
                 },
-            }
-          , {
+            },
+            {
                 value : 'recordDir',
                 name  : __('Record Dir'),
                 question : {
@@ -688,8 +715,8 @@ class Questions {
                     restore : RestoreChars.input,
                     expand  : ExpandChars.input,
                 },
-            }
-          , {
+            },
+            {
                 value  : 'isRecord',
                 name   : __('Record Matches'),
                 action : ['#toggle'],
@@ -701,9 +728,9 @@ class Questions {
                     cancel  : CancelChars.bool,
                     toggle  : ToggleChars.bool,
                 },
-            }
-          , this.hr()
-          , {
+            },
+            this.hr(),
+            {
                 value : 'delay',
                 name  : __('Robot Delay'),
                 question : {
@@ -718,8 +745,8 @@ class Questions {
                     expand   : ExpandChars.input,
                     writeInvalid : () => '',
                 },
-            }
-          , {
+            },
+            {
                 value  : 'isCustomRobot',
                 name   : __('Use Custom Robot'),
                 action : ['#toggle'],
@@ -731,13 +758,13 @@ class Questions {
                     cancel  : CancelChars.bool,
                     toggle  : ToggleChars.bool,
                 }
-            }
-          , {
+            },
+            {
                 value : 'robotConfigs',
                 name  : __('Robot Configuration'),
                 when  : settings.isCustomRobot,
-            }
-          , this.br()
+            },
+            this.br(),
         ])
     }
 
@@ -754,21 +781,21 @@ class Questions {
         const entries = Object.entries(menu.robotsDefaults())
 
         return this.formatChoices([
-            this.br()
-          , {
+            this.br(),
+            {
                 value  : 'done',
                 name   : __('Done'),
                 enter  : EnterChars.back,
                 select : 'd',
-            }
-          , this.hr()
-          , {
+            },
+            this.hr(),
+            {
                 value  : 'reset',
                 name   : __('Reset defaults'),
                 select : 'r',
-            }
-          , this.hr()
-          , entries.map(([name, defaults]) => ({
+            },
+            this.hr(),
+            entries.map(([name, defaults]) => ({
                 value : name,
                 name  : name,
                 // TODO: We shouldn't have to use question key since it is a submenu.
@@ -780,16 +807,16 @@ class Questions {
                             return chalkDiff(actual, expected, chlk)
                         }
                         return [
-                            differ('version') + ','
-                          , __('move:')
-                          , padEnd(differ('moveWeight'), 4, ' ') + ','
-                          , __('double:')
-                          , differ('doubleWeight')
+                            differ('version') + ',',
+                            __('move:'),
+                            padEnd(differ('moveWeight'), 4, ' ') + ',',
+                            __('double:'),
+                            differ('doubleWeight'),
                         ].join(' ')
                     },
                 },
-            }))
-          , this.br()
+            })),
+            this.br(),
         ].flat())
     }
 
@@ -805,7 +832,7 @@ class Questions {
                 return errMessage(() =>
                     RobotDelegator.validateWeight(value)
                 )
-            }
+            },
         }
 
         const config = prop => {
@@ -830,25 +857,25 @@ class Questions {
                 restore  : RestoreChars.input,
                 expand   : ExpandChars.input,
                 writeInvalid : () => '',
-            }
+            },
         }
 
         return this.formatChoices([
-            this.br()
-          , {
+            this.br(),
+            {
                 value  : 'done',
                 name   : __('Done'),
                 enter  : EnterChars.back,
                 select : 'd',
-            }
-          , this.hr()
-          , {
+            },
+            this.hr(),
+            {
                 value  : 'reset',
                 name   : __('Reset defaults'),
                 select : 'r',
-            }
-          , this.hr()
-          , {
+            },
+            this.hr(),
+            {
                 value  : 'version',
                 name   : __('Version'),
                 select : 'v',
@@ -859,8 +886,8 @@ class Questions {
                     choices : () => Object.keys(versions),
                     cancel  : CancelChars.list,
                 },
-            }
-          , {
+            },
+            {
                 value  : 'moveWeight',
                 name   : __('Move Weight'),
                 select : 'm',
@@ -869,8 +896,8 @@ class Questions {
                     message  : __('Move Weight'),
                     ...common.weight,
                 },
-            }
-          , {
+            },
+            {
                 value  : 'doubleWeight',
                 name   : __('Double Weight'),
                 select : 'b',
@@ -879,8 +906,8 @@ class Questions {
                     message  : __('Double Weight'),
                     ...common.weight,
                 },
-            }
-          , this.br()
+            },
+            this.br(),
         ])
     }
 

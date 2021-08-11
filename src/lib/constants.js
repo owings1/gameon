@@ -248,104 +248,6 @@ const DefaultPasswordRegex = '^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)[a-zA-Z\\d\\w\\W]{
 const InvalidUsernameChars = '/\\?%*:|"\'&#'.split('')
 const EncryptedFlagPrefix = 'encrypted_'
 
-const Menu = {
-
-    // TODO: make messages translatable
-
-    LoginChoiceMap : {
-        changePassword  : {
-            message : 'Password changed',
-            method  : 'promptChangePassword',
-        },
-        confirmAccount  : {
-            message : 'Account confirmed',
-            method  : 'promptConfirmAccount',
-        },
-        createAccount   : {
-            message : 'Account created',
-            method  : 'promptCreateAccount',
-        },
-        forgotPassword  : {
-            message : 'Password reset',
-            method  : 'promptForgotPassword',
-        },
-        newConfirmKey   : {
-            message : 'New confirmation key requested. Check your email.',
-            method  : 'promptNewConfirmKey',
-        },
-        testCredentials : {
-            message : 'Testing credentials',
-            method  : null,
-        },
-    },
-
-    MainChoiceMap : {
-        play : {
-            name   : 'Play',
-            method : 'playMenu',
-            select : 'p',
-        },
-        account : {
-            name   : 'Account',
-            method : 'accountMenu',
-            select : 'a',
-        },
-        settings : {
-            name   : 'Settings',
-            method : 'settingsMenu',
-            select : 's',
-        },
-        lab : {
-            name   : 'Lab',
-            method : 'runLab',
-            select : 'l',
-        },
-    },
-
-    PlayChoiceMap : {
-        startOnline   : {
-            message    : 'Start Online Match',
-            method     : 'startOnlineMatch',
-            isAdvanced : false,
-            isOnline   : true,
-            isCreate   : true,
-            isJoin     : false,
-        },
-        joinOnline : {
-            message     : 'Join Online Match',
-            method      : 'joinOnlineMatch',
-            isAdvanced  : false,
-            isOnline    : true,
-            isCreate    : false,
-            isJoin      : true,
-            matchAnswer : 'start',
-        },
-        playHumans : {
-            message    : 'Human vs Human',
-            method     : 'playHumans',
-            isAdvanced : true,
-            isOnline   : false,
-            isCreate   : true,
-            isJoin     : false,
-        },
-        playRobot   : {
-            message    : 'Human vs Robot',
-            method     : 'playRobot',
-            isAdvanced : true,
-            isOnline   : false,
-            isCreate   : true,
-            isJoin     : false,
-        },
-        playRobots : {
-            message    : 'Robot vs Robot',
-            method     : 'playRobots',
-            isAdvanced : true,
-            isOnline   : false,
-            isCreate   : true,
-            isJoin     : false,
-        },
-    },
-}
 
 const MatchCancelRef = {
     peerDisconnected: {
@@ -399,7 +301,6 @@ const Constants = {
     LocaleNames,
     LocalesDir,
     MatchCancelRef,
-    Menu,
     MoveCoords,
     MoveHashes,
     ObsoleteServerUrls,
