@@ -28,13 +28,14 @@ const {
     types   : {castToArray},
 } = require('utils-h')
 
+const {Screen} = require('./helpers/screen.js')
+
 const Themes = require('./themes.js')
 const Questions    = require('./helpers/tables.questions.js')
 const {inquirer}   = require('./inquirer.js')
-const {TermHelper} = require('./draw.js')
 const {
     Chars,
-    DefaultTermEnabled,
+    DefaultAnsiEnabled,
     DefaultThemeName,
 } = require('../lib/constants.js')
 const {
@@ -51,22 +52,22 @@ const {
     InvalidRegexError,
 } = require('../lib/errors.js')
 
-const DefaultTerm = new TermHelper(DefaultTermEnabled)
+const DefaultScreen = new Screen({isAnsi: DefaultAnsiEnabled})
 
 class TableHelper {
 
     static defaults() {
         return {
             indent : 0,
+            screen : DefaultScreen,
             theme  : DefaultThemeName,
-            term   : DefaultTerm,
         }
     }
 
     constructor(opts) {
         this.opts = defaults(TableHelper.defaults(), opts)
-        this.term = this.opts.term
-        this.logger = createLogger(this, {oneout: true, stdout: this.term.output})
+        this.screen = this.opts.screen
+        this.logger = createLogger(this, {oneout: true, stdout: this.screen.output})
         this.theme = Themes.getInstance(this.opts.theme)
         this.inquirer = inquirer.createPromptModule()
     }
@@ -160,11 +161,11 @@ class TableHelper {
     }
 
     get output() {
-        return this.term.stdout
+        return this.screen.output
     }
 
     set output(strm) {
-        this.term.stdout = strm
+        this.screen.output = strm
         this.logger.stdout = strm
     }
 }

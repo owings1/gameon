@@ -27,6 +27,8 @@ const {
     types: {isWriteableStream},
 } = require('utils-h')
 
+const {Screen} = require('./helpers/screen.js')
+
 const {Board} = require('../lib/core.js')
 const Themes  = require('./themes.js')
 const {ArgumentError} = require('../lib/errors')
@@ -44,7 +46,7 @@ const {
     ColorNorm,
     Colors,
     Colors: {Red, White},
-    DefaultTermEnabled,
+    DefaultAnsiEnabled,
     DefaultThemeName,
     Direction,
     Opponent,
@@ -53,22 +55,23 @@ const {
     TopPoints,
 } = require('../lib/constants.js')
 
+const DefaultScreen = new Screen({isAnsi: DefaultAnsiEnabled})
 
 class DrawHelper {
 
-    static forBoard(board, persp, logs, theme, term) {
-        return new DrawHelper(board, null, null, persp, logs, theme, term)
+    static forBoard(board, persp, logs, theme, screen) {
+        return new DrawHelper(board, null, null, persp, logs, theme, screen)
     }
 
-    static forGame(game, match, persp, logs, theme, term) {
-        return new DrawHelper(game.board, game, match, persp, logs, theme, term)
+    static forGame(game, match, persp, logs, theme, screen) {
+        return new DrawHelper(game.board, game, match, persp, logs, theme, screen)
     }
 
     static forTermPlayer(player) {
-        return new DrawHelper(null, null, null, player.persp, player.logs, player.theme, player.term)
+        return new DrawHelper(null, null, null, player.persp, player.logs, player.theme, player.screen)
     }
 
-    constructor(board, game, match, persp, logs, theme, term) {
+    constructor(board, game, match, persp, logs, theme, screen) {
 
         this.board = board
         this.game  = game
@@ -77,7 +80,7 @@ class DrawHelper {
         this.logs  = logs || []
 
         this.theme    = Themes.getInstance(theme || DefaultThemeName)
-        this.term     = term || new TermHelper(DefaultTermEnabled)
+        this.screen     = screen || DefaultScreen
         this.chars    = Chars.table
         this.reporter = new Reporter(this)
 
@@ -94,8 +97,8 @@ class DrawHelper {
 
         this.opersp = Opponent[this.persp]
 
-        this.columns     = this.term.width
-        this.rows        = this.term.height
+        this.columns     = this.screen.width
+        this.rows        = this.screen.height
         this.maxLogWidth = Math.max(0, this.columns - this.BoardWidth - this.AfterWidth - 1)
         this.maxLogWidth = Math.min(this.maxLogWidth, 36)
 
@@ -835,221 +838,7 @@ class Reporter {
     }
 }
 
-function safeNumber(n) {
-    if (Number.isFinite(n) && Number.isInteger(n) && n > 0) {
-        return n
-    }
-    return 0
-}
-class TermHelper {
-
-    constructor(enabled) {
-        this.enabled = Boolean(enabled)
-        if (isWriteableStream(enabled)) {
-            this.output = enabled
-        }
-        //this.term = TermKit.terminal
-    }
-
-    clearLine(len) {
-        return this.write(ansiEscapes.eraseLines(len))
-    }
-
-    // '\x1B[H\x1B[2J'
-    clear() {
-        return this.write('\x1B[H\x1B[2J')
-        //return this.write(this.str.clear())
-    }
-
-    // \x1B[1X
-    // must hack this, see https://bitbucket.org/owings1/gameon/addon/pipelines/home#!/results/40
-    erase(n) {
-        n = safeNumber(n)
-        if (n) {
-            this.write(`\x1B[${n}X`)
-        }
-        return this
-        /*
-        n = n || 0
-        if (!n) {
-            return this
-        }
-        const str = '\x1B[' + n + 'X'
-        return this.write(str)
-        */
-        //return this.write(this.str.erase(n))
-    }
-
-    // \x1B[0J
-    eraseDisplayBelow() {
-        return this.write('\x1B[0J')
-        //return this.write(this.str.eraseDisplayBelow())
-    }
-
-    writeRows(left, top, height, str) {
-        for (let i = 0; i < height; ++i) {
-            this.moveTo(left, top + i)
-            this.write(str)
-        }
-        return this
-    }
-    // `\x1B[${y};${x}H`
-    moveTo(x, y) {
-        x = safeNumber(x) || 1
-        y = safeNumber(y) || 1
-        return this.write(`\x1B[${y};${x}H`)
-        //return this.write(this.str.moveTo(x, y))
-    }
-
-    // `\x1B[${n}A` (min 1)
-    up(n) {
-        n = safeNumber(n)
-        if (n) {
-            this.write(`\x1B[${n}A`)
-        }
-        return this
-        //return this.write(this.str.up(n))
-    }
-
-    // `\x1B[${n}B` (min 1)
-    down(n) {
-        n = safeNumber(n)
-        if (n) {
-            this.write(`\x1B[${n}B`)
-        }
-        return this
-        //return this.write(this.str.down(n))
-    }
-
-    // `\x1B[${n}D`
-    left(n) {
-        n = safeNumber(n)
-        if (n) {
-            this.write(`\x1B[${n}D`)
-        }
-        return this
-        //return this.write(this.str.left(n))
-    }
-
-    // `\x1B[${n}C`
-    right(n) {
-        n = safeNumber(n)
-        if (n) {
-            this.write(`\x1B[${n}C`)
-        }
-        return this
-        //return this.write(this.str.right(n))
-    }
-
-    // `\x1B[${n}G`
-    column(n) {
-        n = safeNumber(n)
-        if (n) {
-            this.write(`\x1B[${n}G`)
-        }
-        return this
-        //return this.write(this.str.column(n))
-    }
-
-    // '\x1B7'
-    saveCursor() {
-        if (this.enabled) {
-            this.write('\x1B7')
-            //this.term.saveCursor()
-        }
-        return this
-    }
-
-    // '\x1B8'
-    restoreCursor() {
-        if (this.enabled) {
-            this.write('\x1B8')
-            //this.term.restoreCursor()
-        }
-        return this
-    }
-
-    hideCursor(isShow) {
-        return isShow ? this.showCursor() : this.write('\x1B[?25l')
-    }
-
-    showCursor(isHide) {
-        return isHide ? this.hideCursor() : this.write('\x1B[?25h')
-    }
-
-    noCursor(cb) {
-        let isAsync = false
-        let ret
-        try {
-            this.hideCursor()
-            ret = cb()
-            isAsync = ret instanceof Promise
-            if (isAsync) {
-                return ret.finally(() => this.showCursor())
-            }
-        } finally {
-            if (!isAsync) {
-                this.showCursor()
-            }
-        }
-    }
-
-    write(str) {
-        if (this.enabled) {
-            this.stdout.write(str)
-        }
-        return this
-    }
-
-    //get str() {
-    //    return this.term.str
-    //}
-    //
-    get height() {
-        if (this.enabled) {
-            return this.output.rows
-            //return this.term.height
-        }
-        return 512
-    }
-
-    get width() {
-        if (this.enabled) {
-            return this.output.columns
-            //return this.term.width
-        }
-        return 1024
-    }
-
-    // Always return stdout even if disabled.
-    get stdout() {
-        return this._output || process.stdout//this.term.stdout
-    }
-
-    set stdout(strm) {
-        this._output = strm
-    }
-
-    // Aliases for stdout
-    get output() {
-        return this.stdout
-    }
-
-    set output(strm) {
-        this.stdout = strm
-    }
-}
-
-class AnsiHelper extends TermHelper {
-
-    column(x) {
-        return super.column(x + 1)
-    }
-}
-
 module.exports = {
-    AnsiHelper,
     DrawHelper,
     Reporter,
-    TermHelper,
 }

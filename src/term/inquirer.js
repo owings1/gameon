@@ -58,17 +58,15 @@ const {defer, from} = require('rxjs')
 const Inquirer      = require('inquirer')
 const ScreenBase    = require('inquirer/lib/utils/screen-manager')
 
+const {Screen} = require('./helpers/screen.js')
+
 const {EventEmitter} = require('events')
 
-const {
-    AnsiHelper,
-    TermHelper,
-} = require('./draw.js')
 const Prompts = require('./prompts.js')
 const {debug} = require('./helpers/prompt.methods.js')
 const {
     Chars,
-    DefaultTermEnabled,
+    DefaultAnsiEnabled,
 } = require('../lib/constants.js')
 const {
     cliWidth,
@@ -80,7 +78,7 @@ const {
 } = require('../lib/util.js')
 
 const NullEmitter = new EventEmitter
-const DefaultTerm = new TermHelper(DefaultTermEnabled)
+const DefaultScreen = new Screen({isAnsi: DefaultAnsiEnabled})
 
 /**
  * Create prompter module.
@@ -225,15 +223,16 @@ class ScreenManager extends ScreenBase {
         super(rl)
         this.cur = new AnsiHelper(this.rl.output)
         this.opts = {
-            indent       : 0
-          , maxWidth     : Infinity
-          , defaultWidth : 80
-          , emitter      : NullEmitter
-          , clearMaxWidth: false
-          , term         : DefaultTerm
-          , ...opts
+            indent       : 0,
+            maxWidth     : Infinity,
+            defaultWidth : 80,
+            emitter      : NullEmitter,
+            clearMaxWidth: false,
+            screen       : DefaultScreen,
+            ...opts,
         }
 
+        //this.opts.emitter = NullEmitter
         //this.opts.indent = this.opts.indent || 0
         //this.opts.maxWidth = this.opts.maxWidth || 0
         //this.opts.defaultWidth = this.opts.defaultWidth || 0
@@ -267,7 +266,7 @@ class ScreenManager extends ScreenBase {
         this._lastRender = [body, foot, spinning]
 
         const {opts, cur, rl} = this
-        const {emitter, term, indent} = opts
+        const {emitter, screen, indent} = opts
 
         if (this.spinnerId && !spinning) {
             clearInterval(this.spinnerId)
@@ -344,7 +343,7 @@ class ScreenManager extends ScreenBase {
                 cur.right(indent)
             }
             if (this.isFirstRender || i >= this.height) {
-                term.erase(clearWidth)
+                screen.erase(clearWidth)
             }
             rl.output.write(line)
         })
@@ -390,9 +389,9 @@ class ScreenManager extends ScreenBase {
         }
 
         const {height} = this
-        const {term, indent, clearMaxWidth, maxWidth} = this.opts
+        const {screen, indent, clearMaxWidth, maxWidth} = this.opts
 
-        if (!term.enabled) {
+        if (!screen.isAnsi) {
             return super.clean(footHeight)
         }
 
@@ -401,16 +400,15 @@ class ScreenManager extends ScreenBase {
         if (this.isFirstRender || !width || !height) {
             return
         }
-
-        const down = () => term.down(1).column(indent + 1)
+        const down = () => screen.down(1).column(indent + 1)
 
         ntimes(footHeight, () => down().erase(width))
 
-        term.up(height)
+        screen.up(height)
 
         ntimes(height, () => down().erase(width))
 
-        ntimes(height > 1, () => term.up(height - 1))
+        ntimes(height > 1, () => screen.up(height - 1))
 
         return this
     }
@@ -487,6 +485,12 @@ class Separator extends Inquirer.Separator {
     text(line) {
         this.line = line
         return this        
+    }
+}
+
+class AnsiHelper extends Screen {
+    column(x) {
+        return super.column(x + 1)
     }
 }
 

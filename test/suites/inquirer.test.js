@@ -26,6 +26,9 @@ const {
     objects: {update},
     strings: {stripAnsi},
 } = require('utils-h')
+
+const {Screen} = require('../../src/term/helpers/screen.js')
+
 const {
     expect,
     getError,
@@ -36,15 +39,14 @@ const {
 describe('inquirer', () => {
 
     const {inquirer} = requireSrc('term/inquirer.js')
-    const {TermHelper} = requireSrc('term/draw.js')
 
     beforeEach(function () {
         this.rl = new ReadlineStub
         this.output = this.rl.output
         this.input = this.rl.input
         this.inquirer = inquirer.createPromptModule({rl: this.rl})
-        this.term = new TermHelper(true)
-        this.term.output = this.rl.output
+        this.screen = new Screen({isAnsi: true})
+        this.screen.output = this.rl.output
         this.create = function () {
             const {questions, answers, opts} = this.fixture
             const promise = this.inquirer.prompt(questions, answers, opts)
@@ -60,7 +62,7 @@ describe('inquirer', () => {
         }
         this.fixture = {
             questions : {name: 'test'},
-            opts      : {term: this.term},
+            opts      : {screen: this.screen},
         }
     })
 
@@ -143,8 +145,8 @@ describe('inquirer', () => {
 
         describe('#render', () => {
 
-            it('should render with term disabled', function () {
-                this.term.enabled = false
+            it('should render with ansi disabled', function () {
+                this.screen.isAnsi = false
                 this.create()
                     .render('test-content')
                 expect(this.output.raw).to.contain('test-content')
@@ -300,11 +302,7 @@ describe('inquirer', () => {
                 return this.run(rl => {
                     // Debugging strange error:
                     // https://bitbucket.org/owings1/gameon/addon/pipelines/home#!/results/40
-                    //console.log('term',this.ui.activePrompt.screen.opts.term)
-                    //console.log('term.str',this.ui.activePrompt.screen.opts.term.str)
-                    //console.log('term.str.erase',this.ui.activePrompt.screen.opts.term.str.erase)
-                    //console.log('term.str.down',this.ui.activePrompt.screen.opts.term.str.down)
-                    //console.log(require('terminal-kit/package'))
+                    //console.log('screen',this.ui.activePrompt.screen.opts.screen)
                     this.ui.activePrompt.screen._lastRender = ['test-resize', '']
                     this.ui.onResize()
                     rl.emit('line', 'foo')

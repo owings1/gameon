@@ -32,13 +32,14 @@ const {
 const fse    = require('fs-extra')
 const globby = require('globby')
 
+const {Screen} = require('./helpers/screen.js')
+
 const Dice   = require('../lib/dice.js')
 const Client = require('../net/client.js')
 const Themes = require('./themes.js')
 const NetPlayer    = require('../net/player.js')
 const {inquirer}   = require('./inquirer.js')
 const LabHelper    = require('./lab.js')
-const {TermHelper} = require('./draw.js')
 const TermPlayer   = require('./player.js')
 const Coordinator    = require('../lib/coordinator.js')
 const {Board, Match} = require('../lib/core.js')
@@ -78,9 +79,9 @@ const {
     },
     Chars,
     CHash,
+    DefaultAnsiEnabled,
     DefaultLocale,
     DefaultServerUrl,
-    DefaultTermEnabled,
     DefaultThemeName,
     ObsoleteServerUrls,
     States,
@@ -126,13 +127,13 @@ class Menu extends EventEmitter {
         this.bread = []
 
         this.theme = Themes.getDefaultInstance()
-        this.term  = new TermHelper(this.settings.termEnabled)
+        this.screen = new Screen({isAnsi: this.settings.isAnsi})
         this.inquirer = inquirer.createPromptModule({escapeCodeTimeout: 100})
 
         this.logger = createLogger(this, {type: 'named', oneout: true})
         this.alerter = createLogger('Alerter', {type: 'raw', oneout: true})
         this.alerts = new Alerts
-        this.api = new ApiHelper(this.term)
+        this.api = new ApiHelper(this.screen)
 
         this.isCredentialsLoaded = false
         this.isSettingsLoaded = false
@@ -151,7 +152,7 @@ class Menu extends EventEmitter {
                 minWidth    : 50,
                 maxHeight   : 20,
                 pad         : 1,
-                term        : this.term,
+                screen        : this.screen,
                 isBorder    : true,
                 borderStyle : 'solid',
                 format : {
@@ -166,7 +167,7 @@ class Menu extends EventEmitter {
                 maxWidth    : 79,
                 minWidth    : 79,
                 maxHeight   : 5,
-                term        : this.term,
+                screen        : this.screen,
                 isBorder    : true,
                 borderStyle : 'solid',
                 pad         : 0,
@@ -178,7 +179,7 @@ class Menu extends EventEmitter {
             }),
             screen: new TermBox({
                 top         : 1,
-                term        : this.term,
+                screen        : this.screen,
                 isBorder    : true,
                 borderStyle : 'solid',
                 format : {
@@ -189,11 +190,11 @@ class Menu extends EventEmitter {
     }
 
     get output() {
-        return this.term.output
+        return this.screen.output
     }
     
     set output(strm) {
-        this.term.output = strm
+        this.screen.output = strm
         this.inquirer.opt.output = strm
         this.logger.stdout = strm
         this.alerter.stdout = strm
@@ -463,7 +464,7 @@ class Menu extends EventEmitter {
                 if (toggle) {
                     this.settings[choice] = !this.settings[choice]
                     await this.saveSettings()
-                    if (choice == 'termEnabled' && this.settings[choice]) {
+                    if (choice === 'isAnsi' && this.settings[choice]) {
                         // we have to repeat the logic below since we continue.
                         this.eraseScreen()
                     }
@@ -494,7 +495,7 @@ class Menu extends EventEmitter {
                 if (choice == 'locale') {
                     // Set the new locale.
                     this.intl.locale = answer
-                } else if (choice == 'theme' || choice == 'termEnabled') {
+                } else if (choice === 'theme' || choice === 'isAnsi') {
                     // Erase the screen because the background may change.
                     this.eraseScreen()
                 }
@@ -594,7 +595,7 @@ class Menu extends EventEmitter {
         }
 
         try {
-            this.term.hideCursor()
+            this.screen.hideCursor()
             const {passwordEncrypted} = await this.api.signup(
                 credentials.serverUrl
               , answers.username
@@ -604,7 +605,7 @@ class Menu extends EventEmitter {
             credentials.username = answers.username
             credentials.password = this.encryptPassword(passwordEncrypted)
         } finally {
-            this.term.showCursor()
+            this.screen.showCursor()
         }
 
         return true
@@ -769,7 +770,7 @@ class Menu extends EventEmitter {
     async playRobot(matchOpts) {
         await this.ensureLoaded()
         const match = new Match(matchOpts.total, matchOpts)
-        const playerOpts = {term: this.term, ...this.settings}
+        const playerOpts = {screen: this.screen, ...this.settings}
         const players = {
             White : new TermPlayer(White, playerOpts),
             Red   : new TermPlayer.Robot(this.newRobot(Red), playerOpts),
@@ -780,7 +781,7 @@ class Menu extends EventEmitter {
     async playRobots(matchOpts) {
         await this.ensureLoaded()
         const match = new Match(matchOpts.total, matchOpts)
-        const playerOpts = {term: this.term, ...this.settings}
+        const playerOpts = {screen: this.screen, ...this.settings}
         const players = {
             White : new TermPlayer.Robot(this.newRobot(White), playerOpts),
             Red   : new TermPlayer.Robot(this.newDefaultRobot(Red), playerOpts),
@@ -791,7 +792,7 @@ class Menu extends EventEmitter {
     async playHumans(matchOpts) {
         await this.ensureLoaded()
         const match = new Match(matchOpts.total, matchOpts)
-        const playerOpts = {term: this.term, ...this.settings}
+        const playerOpts = {screen: this.screen, ...this.settings}
         const players = {
             White : new TermPlayer(White, playerOpts),
             Red   : new TermPlayer(Red, playerOpts),
@@ -809,15 +810,15 @@ class Menu extends EventEmitter {
         try {
 
             const termPlayer = new TermPlayer(isStart ? White : Red, {
-                term: this.term,
+                screen: this.screen,
                 ...this.settings,
             })
             const netPlayer  = new NetPlayer(client, isStart ? Red : White)
             netPlayer.logger.stdout = this.output
             netPlayer.logger.opts.oneout = true
             const players = {
-                White : isStart ? termPlayer : netPlayer
-              , Red   : isStart ? netPlayer  : termPlayer
+                White : isStart ? termPlayer : netPlayer,
+                Red   : isStart ? netPlayer  : termPlayer,
             }
 
             this.captureInterrupt = () => {
@@ -957,7 +958,7 @@ class Menu extends EventEmitter {
             var rollsFile = null
         }
         const {theme, isCustomRobot, robots, recordDir} = this.settings
-        const {term} = this
+        const {screen} = this
         const labOpts = {
             board,
             persp,
@@ -966,7 +967,7 @@ class Menu extends EventEmitter {
             robots,
             recordDir,
             rollsFile,
-            term,
+            screen,
         }
         const helper = new LabHelper(labOpts)
         this.emit('beforeRunLab', helper)
@@ -1093,14 +1094,14 @@ class Menu extends EventEmitter {
     getPromptOpts(opts) {
         const box = this.boxes.menu
         const {maxWidth, left} = box.params
-        const indent = (left - 1) * Boolean(this.settings.termEnabled)
+        const indent = (left - 1) * Boolean(this.settings.isAnsi)
         return {
-            theme         : this.theme
-          , emitter       : box.status
-          , term          : this.term
-          , clearMaxWidth : true
-          , maxWidth
-          , indent
+            theme         : this.theme,
+            emitter       : box.status,
+            screen        : this.screen,
+            clearMaxWidth : true,
+            maxWidth,
+            indent,
         }
     }
 
@@ -1111,7 +1112,7 @@ class Menu extends EventEmitter {
                 player.emit('resize')
             )
         }
-        if (!this.settings.termEnabled) {
+        if (!this.settings.isAnsi) {
             return
         }
         if (this.resizeTimeoutId) {
@@ -1136,7 +1137,7 @@ class Menu extends EventEmitter {
             this.renderAlerts(this.currentAlerts)
             // We don't know exactly where the cursor will end up after boxes
             // resize so we have to render the current prompt only.
-            this.term.moveTo(1, this.boxes.menu.params.top)
+            this.screen.moveTo(1, this.boxes.menu.params.top)
             ui.onResize(opts, true)
         }, ResizeTimoutMs)
     }
@@ -1152,7 +1153,7 @@ class Menu extends EventEmitter {
             this.lastToggleChoice = null
 
             const box = this.boxes.menu
-            this.term.moveTo(1, box.params.top)
+            this.screen.moveTo(1, box.params.top)
 
             return await run(
                 (...hints) => this.menuChoice(title, this.q.menuq(name, ...hints))
@@ -1164,7 +1165,7 @@ class Menu extends EventEmitter {
                         this.currentAlerts = this.consumeAlerts()
                         this.eraseMenu()
 
-                        this.term.moveTo(1, box.params.top)
+                        this.screen.moveTo(1, box.params.top)
 
                         ret = await loop()
                         if (ret !== true) {
@@ -1209,22 +1210,22 @@ class Menu extends EventEmitter {
             )
         }).flat()
 
-        // Debug errors if term not enabled.
-        if (this.logLevel > 3 && !this.settings.termEnabled) {
+        // Debug errors if ansi not enabled.
+        if (this.logLevel > 3 && !this.settings.isAnsi) {
             errors.forEach(error => this.logger.error(error))
         }
 
-        this.term.saveCursor()
+        this.screen.saveCursor()
 
         const indent = left - 1
         levelsLines.forEach(([logLevel, line], i) => {
-            this.term.moveTo(left, top + i)
+            this.screen.moveTo(left, top + i)
             const param = {indent, width: stringWidth(line)}
             this.alerter[logLevel](line)
             box.status.emit('line', param)
         })
 
-        this.term.restoreCursor()
+        this.screen.restoreCursor()
 
         box.drawBorder()
     }
@@ -1318,12 +1319,12 @@ class Menu extends EventEmitter {
         }
         const handler = this.captureInterrupt
         this.captureInterrupt = null
-        this.term.output.write('\n')
+        this.output.write('\n')
         return handler()
     }
 
     clearScreen() {
-        this.term.clear()
+        this.screen.clear()
         this.hasClearedScreen = true
         this.hasMenuBackground = false
     }
@@ -1336,7 +1337,7 @@ class Menu extends EventEmitter {
     }
 
     eraseScreen() {
-        this.term.moveTo(1, 1).eraseDisplayBelow()
+        this.screen.moveTo(1, 1).eraseDisplayBelow()
         this.hasMenuBackground = false
         this.resetBoxes()
     }
@@ -1347,25 +1348,24 @@ class Menu extends EventEmitter {
 
     writeMenuBackground() {
 
-        const {term} = this
-        const {width, height} = term
+        const {screen} = this
+        const {width, height} = screen
 
         this.resetBoxes()
 
         const chlk = this.theme.menu
-        const str = chlk.screen(nchars(width - 0, ' '))
-
-        term.saveCursor()
-            .writeRows(1, 1, height - 0, str)
+        const str = chlk.screen(screen.str.erase(width))
+        screen.saveCursor()
+            .writeRows(1, 1, height, str)
             .restoreCursor()
 
         const box = this.boxes.screen
 
         update(box.opts, {
-            minWidth  : width
-          , maxWidth  : width
-          , minHeight : height
-          , maxHeight : height
+            minWidth  : width,
+            maxWidth  : width,
+            minHeight : height,
+            maxHeight : height,
         })
         box.drawBorder()
 
@@ -1424,8 +1424,8 @@ class Menu extends EventEmitter {
             this.alerter.theme = this.theme
         }
 
-        if (this.term.enabled != this.settings.termEnabled) {
-            this.term.enabled = this.settings.termEnabled
+        if (this.screen.isAnsi !== this.settings.isAnsi) {
+            this.screen.isAnsi = this.settings.isAnsi
         }
 
         this.isSettingsLoaded = true
@@ -1446,13 +1446,13 @@ class Menu extends EventEmitter {
             await fse.writeJson(settingsFile, settings, {spaces: 2})
         }
         // Load current theme
-        if (this.settings.theme != this.theme.name) {
+        if (this.settings.theme !== this.theme.name) {
             this.theme = Themes.getInstance(this.settings.theme)
             this.alerter.theme = this.theme
         }
-        // Set term enabled
-        if (this.term.enabled != this.settings.termEnabled) {
-            this.term.enabled = this.settings.termEnabled
+        // Set ansi enabled
+        if (this.screen.isAnsi !== this.settings.isAnsi) {
+            this.screen.isAnsi = this.settings.isAnsi
         }
     }
 
@@ -1640,32 +1640,32 @@ class Menu extends EventEmitter {
     static settingsDefaults() {
         const matchDefaults = Match.defaults()
         return {
-            delay         : 0.5
-          , isRecord      : false
-          , recordDir     : this.getDefaultRecordDir()
-          , fastForced    : false
-          , isCustomRobot : false
-          , theme         : DefaultThemeName
-          , termEnabled   : DefaultTermEnabled
-          , matchOpts     : {
-                total       : 1
-              , isJacoby    : matchDefaults.isJacoby
-              , isCrawford  : matchDefaults.isCrawford
-              , cubeEnabled : matchDefaults.cubeEnabled
-            }
-          , robots         : {}
-          , lastPlayChoice : undefined
-          , locale         : DefaultLocale
+            delay         : 0.5,
+            isRecord      : false,
+            recordDir     : this.getDefaultRecordDir(),
+            fastForced    : false,
+            isCustomRobot : false,
+            theme         : DefaultThemeName,
+            isAnsi        : DefaultAnsiEnabled,
+            matchOpts     : {
+                total       : 1,
+                isJacoby    : matchDefaults.isJacoby,
+                isCrawford  : matchDefaults.isCrawford,
+                cubeEnabled : matchDefaults.cubeEnabled,
+            },
+            robots         : {},
+            lastPlayChoice : undefined,
+            locale         : DefaultLocale,
         }
     }
 
     static credentialDefaults() {
         return {
-            serverUrl    : this.getDefaultServerUrl()
-          , username     : ''
-          , password     : ''
-          , needsConfirm : false
-          , isTested     : false
+            serverUrl    : this.getDefaultServerUrl(),
+            username     : '',
+            password     : '',
+            needsConfirm : false,
+            isTested     : false,
         }
     }
 
@@ -1688,9 +1688,9 @@ class Menu extends EventEmitter {
 
     static robotMinimalConfig(name) {
         return {
-            ...Menu.robotDefaults(name)
-          , moveWeight   : 0
-          , doubleWeight : 0
+            ...Menu.robotDefaults(name),
+            moveWeight   : 0,
+            doubleWeight : 0,
         }
     }
 

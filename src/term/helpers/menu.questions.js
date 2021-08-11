@@ -648,14 +648,14 @@ class Questions {
                 },
             }
           , {
-                value  : 'termEnabled',
-                name   : __('Term Cursoring'),
+                value  : 'isAnsi',
+                name   : __('ANSI Cursoring'),
                 action : ['#toggle'],
                 question : {
-                    name    : 'termEnabled',
-                    message : __('Enable terminal cursoring'),
+                    name    : 'isAnsi',
+                    message : __('Enable ANSI cursoring'),
                     type    : 'confirm',
-                    default : () => settings.termEnabled,
+                    default : () => settings.isAnsi,
                     cancel  : CancelChars.bool,
                     toggle  : ToggleChars.bool,
                 },

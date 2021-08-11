@@ -124,8 +124,7 @@ describe('Reporter', () => {
 
     beforeEach(() => {
         player = new TermPlayer(White)
-        player.logger.logLevel = 1
-        player.logger.stdout = {write: () => {}}
+        player.output = new NullOutput
     })
 
     describe('#move', () => {

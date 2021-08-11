@@ -26,6 +26,8 @@ const {
     types: {castToArray},
 } = require('utils-h')
 
+const {Screen} = require('./helpers/screen.js')
+
 const {EventEmitter} = require('events')
 
 const Base    = require('../lib/player.js')
@@ -33,14 +35,11 @@ const {Board} = require('../lib/core.js')
 const Themes  = require('./themes.js')
 const {inquirer} = require('./inquirer.js')
 const {RobotDelegator} = require('../robot/player.js')
-const {
-    DrawHelper,
-    TermHelper,
-} = require('./draw.js')
+const {DrawHelper} = require('./draw.js')
 const {
     Colors,
+    DefaultAnsiEnabled,
     DefaultThemeName,
-    DefaultTermEnabled,
     Opponent,
     OriginPoints,
     PointOrigins,
@@ -95,9 +94,9 @@ const Listeners = {
         }
 
         this.addOpponentListeners(this.opponent, listenersMap)
-    }
+    },
 
-  , gameStart: function(game, match, players) {
+    gameStart: function(game, match, players) {
 
         this.drawer.game = game
         this.drawer.board = game.board
@@ -107,14 +106,14 @@ const Listeners = {
         if (!this.isDualTerm || this.color == Colors.White) {
             this.output.write(nchars(21, '\n'))
         }
-    }
+    },
 
-  , firstRoll: function(turn, game, match) {
+    firstRoll: function(turn, game, match) {
         this.report('firstRollWinner', turn.color, turn.dice)
         this.report('turnStart', turn.color)
-    }
+    },
 
-  , afterRoll: function(turn) {
+    afterRoll: function(turn) {
         this.report('playerRoll', turn.color, turn.diceSorted)
         if (turn.color != this.color) {
             // Drawing for this player happens in playRoll
@@ -125,22 +124,22 @@ const Listeners = {
                 this.promptWaitingForOpponent('Waiting for opponent to play')
             }
         }
-    }
+    },
 
-  , turnStart: function(turn) {
+    turnStart: function(turn) {
         this.report('turnStart', turn.color)
         if (!this.isDualTerm || turn.color == this.color) {
             this.drawBoard()
         }
-    }
+    },
 
-  , beforeOption: function(turn) {
+    beforeOption: function(turn) {
         if (this.opponent.isNet && turn.color != this.color) {
             this.promptWaitingForOpponent('Waiting for opponent option')
         }
-    }
+    },
 
-  , turnEnd: function(turn) {
+    turnEnd: function(turn) {
         if (turn.isCantMove) {
             this.report('cantMove', turn.color)
         }
@@ -153,9 +152,9 @@ const Listeners = {
                 turn.moves.forEach(move => this.report('move', move))
             }
         }
-    }
+    },
 
-  , doubleOffered: function(turn, game) {
+    doubleOffered: function(turn, game) {
         this.report('doubleOffered', turn.color)
         if (!this.isDualTerm || turn.color != this.color) {
             this.drawBoard()
@@ -163,26 +162,26 @@ const Listeners = {
         if (this.opponent.isNet && turn.color == this.color) {
             this.promptWaitingForOpponent('Waiting for opponent to respond')
         }
-    }
+    },
 
-  , doubleDeclined: function(turn) {
+    doubleDeclined: function(turn) {
         this.report('doubleDeclined', turn.opponent)
-    }
+    },
 
-  , doubleAccepted: function(turn, game) {
+    doubleAccepted: function(turn, game) {
         this.report('gameDoubled', turn.opponent, game.cubeValue)
-    }
+    },
 
-  , gameEnd: function(game) {
+    gameEnd: function(game) {
         const winner = game.getWinner()
         this.report('hr')
         this.report('gameEnd', winner, game.finalValue)
         if (!this.isDualTerm || winner == this.color) {
-            this.term.clear()
+            this.screen.clear()
         }
-    }
+    },
 
-  , matchEnd: function(match) {
+    matchEnd: function(match) {
         const winner = match.getWinner()
         const loser = match.getLoser()
         const {scores} = match
@@ -192,31 +191,31 @@ const Listeners = {
         if (!this.isDualTerm || winner == this.color) {
             this.drawBoard()
         }
-    }
+    },
 
-  , matchCanceled: function(err) {
+    matchCanceled: function(err) {
         this.cancelPrompt(err)
-    }
+    },
 
-  , resize: function() {
+    resize: function() {
         if (!this.isDualTerm || this.color == Colors.White) {
             this.handleResize()
         }
-    }
+    },
 }
 
-const DefaultTerm = new TermHelper(DefaultTermEnabled)
+const DefaultScreen = new Screen({isAnsi: DefaultAnsiEnabled})
 
 class TermPlayer extends Base {
 
     static defaults() {
         return {
-            fastForced  : false
-          , theme       : DefaultThemeName
-          , term        : DefaultTerm
+            fastForced : false,
+            theme      : DefaultThemeName,
+            screen     : DefaultScreen,
             // for suggesting
-          , isCustomRobot : false
-          , robots        : null
+            isCustomRobot : false,
+            robots        : null,
         }
     }
 
@@ -248,22 +247,22 @@ class TermPlayer extends Base {
     }
 
     get output() {
-        return this.term.stdout
+        return this.screen.output
     }
 
     set output(strm) {
-        this.term.stdout = strm
+        this.screen.output = strm
         this.inquirer.opt.output = strm
         this.logger.stdout = strm
     }
 
-    get term() {
-        return this.opts.term
+    get screen() {
+        return this.opts.screen
     }
 
-    set term(term) {
-        this.opts.term = term
-        this.drawer.term = term
+    set screen(screen) {
+        this.opts.screen = screen
+        this.drawer.screen = screen
     }
 
     // @override
@@ -429,11 +428,11 @@ class TermPlayer extends Base {
         const choices = faces.map(face => face.toString())
         const message = 'Die [' + choices.join() + ']'
         const answers = await this.prompt({
-            name     : 'face'
-          , type     : 'input'
-          , message
-          , default  : choices[0]
-          , validate : this.choicesValidator(choices)
+            name     : 'face',
+            type     : 'input',
+            message,
+            default  : choices[0],
+            validate : this.choicesValidator(choices),
         })
         return +answers.face
     }
@@ -458,10 +457,10 @@ class TermPlayer extends Base {
 
     async checkQuit() {
         const answers = await this.prompt({
-            name     : 'confirm'
-          , message  : 'Are you sure you want to quit?'
-          , type     : 'confirm'
-          , default  : () => false
+            name     : 'confirm',
+            message  : 'Are you sure you want to quit?',
+            type     : 'confirm',
+            default  : () => false,
         })
         if (answers.confirm) {
             throw new MatchCanceledError(this.color + ' quit')
@@ -537,7 +536,7 @@ class TermPlayer extends Base {
 
         const choices = points.map(p => p.toString())
 
-        var message = 'Origin '
+        let message = 'Origin '
         if (points[0] == -1) {
             message += ' [(b)ar]'
             choices[0] = 'b'
@@ -552,11 +551,11 @@ class TermPlayer extends Base {
         choices.push('q')
 
         const question = {
-            name     : 'origin'
-          , type     : 'input'
-          , message
-          , prefix
-          , validate : this.choicesValidator(choices, true)
+            name     : 'origin',
+            type     : 'input',
+            message,
+            prefix,
+            validate : this.choicesValidator(choices, true),
         }
 
         if (points.length == 1) {
@@ -570,8 +569,7 @@ class TermPlayer extends Base {
         if (!this.drawer) {
             return
         }
-        this.term.moveTo(1, 1)
-        this.term.eraseDisplayBelow()
+        this.screen.moveTo(1, 1).eraseDisplayBelow()
         this.output.write(this.drawer.getString())
     }
 
@@ -602,8 +600,8 @@ class TermPlayer extends Base {
             }
 
             opts = {
-                theme: this.theme
-              , ...opts
+                theme: this.theme,
+                ...opts,
             }
 
             this.logger.debug('prompter.create')
@@ -657,15 +655,15 @@ class TermPlayer extends Base {
             return
         }
         const emitter = new EventEmitter
-        emitter.on('afterRender', () => this.term.hideCursor())
+        emitter.on('afterRender', () => this.screen.hideCursor())
         const question = {
-            name     : 'waiter'
-          , type     : 'input'
-          , prefix   : ''
-          , validate : () => ''
-          , mute     : true
-          , spin     : true
-          , message
+            name     : 'waiter',
+            type     : 'input',
+            prefix   : '',
+            validate : () => '',
+            mute     : true,
+            spin     : true,
+            message,
         }
         const opts = {emitter}
         this.isWaitingPrompt = true
@@ -678,14 +676,14 @@ class TermPlayer extends Base {
             }
             this.cancelPrompt(err)
         } finally {
-            this.term.showCursor()
+            this.screen.showCursor()
             emitter.removeAllListeners()
             this.isWaitingPrompt = false
         }
     }
 
     handleResize() {
-        if (!this.term.enabled) {
+        if (!this.screen.isAnsi) {
             return
         }
         const {prompter} = this

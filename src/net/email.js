@@ -60,7 +60,7 @@ class Email {
     constructor(impl, opts) {
         this.impl = impl
         this.opts = defaults(Email.defaults(process.env), opts)
-        this.logger = createLogger(this, {type: 'server', formatting: {depth: 4}})
+        this.logger = createLogger(this, {type: 'server', inspect: {depth: 4}})
     }
 
     // standard is SES sendEmail structure

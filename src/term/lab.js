@@ -30,6 +30,8 @@ const {
 } = require('utils-h')
 const fse = require('fs-extra')
 
+const {Screen} = require('./helpers/screen.js')
+
 const fs    = require('fs')
 const path  = require('path')
 
@@ -40,7 +42,7 @@ const Coordinator = require('../lib/coordinator.js')
 const {inquirer}  = require('./inquirer.js')
 const {RobotDelegator} = require('../robot/player.js')
 const {Board, Match, Turn} = require('../lib/core.js')
-const {DrawHelper, TermHelper} = require('./draw.js')
+const {DrawHelper} = require('./draw.js')
 const {
     Colors: {Red, White},
     BoardStrings,
@@ -48,8 +50,8 @@ const {
     ColorAbbr,
     ColorNorm,
     Colors,
+    DefaultAnsiEnabled,
     DefaultThemeName,
-    DefaultTermEnabled,
     Opponent,
     OriginPoints,
     PointOrigins,
@@ -70,7 +72,7 @@ const {
 } = require('../lib/util.js')
 
 const chalk = new Chalk()
-const DefaultTerm = new TermHelper(DefaultTermEnabled)
+const DefaultScreen = new Screen({isAnsi: DefaultAnsiEnabled})
 
 function stringify(data, indent = 2) {
     return JSON.stringify(data, null, indent)
@@ -84,7 +86,7 @@ class LabHelper {
             recordDir     : null,
             persp         : White,
             theme         : DefaultThemeName,
-            term          : DefaultTerm,
+            screen        : DefaultScreen,
             rollsFile     : null,
             isCustomRobot : false,
             robots        : {},
@@ -107,7 +109,7 @@ class LabHelper {
         this.inquirer = inquirer.createPromptModule()
         this.logger = createLogger(this, {oneout: true, stdout: this.output})
         this.theme = Themes.getInstance(this.opts.theme)
-        this.drawer = DrawHelper.forBoard(this.board, this.persp, this.logs, this.opts.theme, this.term)
+        this.drawer = DrawHelper.forBoard(this.board, this.persp, this.logs, this.opts.theme, this.screen)
     }
 
     get output() {
@@ -116,18 +118,18 @@ class LabHelper {
 
     set output(strm) {
         this.opts.output = strm
-        this.term.stdout = strm
+        this.screen.output = strm
         this.inquirer.opt.output = strm
         this.logger.stdout = strm
     }
 
-    get term() {
-        return this.opts.term
+    get screen() {
+        return this.opts.screen
     }
 
-    set term(term) {
-        this.opts.term = term
-        this.drawer.term = term
+    set screen(screen) {
+        this.opts.screen = screen
+        this.drawer.screen = screen
     }
 
     async interactive() {
@@ -970,10 +972,10 @@ class LabHelper {
         const output = this.drawer.getString()
         if (isPrint) {
             if (this.canErase) {
-                this.term.moveTo(1, 1)
-                this.term.eraseDisplayBelow()
+                this.screen.moveTo(1, 1)
+                this.screen.eraseDisplayBelow()
             } else {
-                this.term.clear()
+                this.screen.clear()
             }
             this.output.write(output)
         }

@@ -24,13 +24,14 @@
  */
 const {objects: {update}} = require('utils-h')
 
+const {Screen} = require('./screen.js')
+
 const {EventEmitter} = require('events')
 
-const {TermHelper} = require('../draw.js')
 const {defaults, nchars} = require('../../lib/util.js')
-const {Chars, DefaultTermEnabled} = require('../../lib/constants.js')
+const {Chars, DefaultAnsiEnabled} = require('../../lib/constants.js')
 
-const DefaultTerm = new TermHelper(DefaultTermEnabled)
+const DefaultScreen = new Screen({isAnsi: DefaultAnsiEnabled})
 
 class TermBox {
 
@@ -45,7 +46,7 @@ class TermBox {
             pad         : 0,
             vcenter     : false,
             hcenter     : false,
-            term        : DefaultTerm,
+            screen      : DefaultScreen,
             isBorder    : false,
             borderStyle : 'solid',
             format : {
@@ -62,23 +63,23 @@ class TermBox {
         this.opts.format = defaults(defs.format, this.opts.format)
         this.status = new BoxStatus
         this.status.on('render', () => {
-            this.term.saveCursor()
+            this.screen.saveCursor()
             this.drawBorder()
-            this.term.restoreCursor()
+            this.screen.restoreCursor()
         })
     }
 
-    get term() {
-        return this.opts.term
+    get screen() {
+        return this.opts.screen
     }
 
-    set term(term) {
-        this.opts.term = term
+    set screen(screen) {
+        this.opts.screen = screen
     }
 
     get params() {
 
-        const {term, opts} = this
+        const {screen, opts} = this
         const {isBorder, pad} = opts
         const pad2 = pad * 2
         const b2 = +isBorder * 2
@@ -86,26 +87,26 @@ class TermBox {
         let {top, left} = opts
 
         if (opts.vcenter) {
-            const heightSurplus = term.height - opts.maxHeight
+            const heightSurplus = screen.height - opts.maxHeight
             top = Math.max(0, Math.floor(heightSurplus / 2)) + 1
         }
 
         if (opts.hcenter) {
-            const widthSurplus = term.width - opts.maxWidth
+            const widthSurplus = screen.width - opts.maxWidth
             left = Math.max(0, Math.floor(widthSurplus / 2)) + 1
         }
 
         top  += isBorder + pad
         left += isBorder + pad
 
-        const termHeightAdj = term.height - isBorder - pad - (top - 1)
-        const termWidthAdj = term.width - isBorder - pad - (left - 1)
+        const screenHeightAdj = screen.height - isBorder - pad - (top - 1)
+        const screenWidthAdj = screen.width - isBorder - pad - (left - 1)
 
-        const minHeight = Math.min(termHeightAdj, opts.minHeight)
-        const maxHeight = Math.min(termHeightAdj, opts.maxHeight)
+        const minHeight = Math.min(screenHeightAdj, opts.minHeight)
+        const maxHeight = Math.min(screenHeightAdj, opts.maxHeight)
 
-        const minWidth  = Math.min(termWidthAdj, opts.minWidth)
-        const maxWidth  = Math.min(termWidthAdj, opts.maxWidth)
+        const minWidth  = Math.min(screenWidthAdj, opts.minWidth)
+        const maxWidth  = Math.min(screenWidthAdj, opts.maxWidth)
 
         return {top, left, minWidth, maxWidth, minHeight, maxHeight}
     }
@@ -126,9 +127,10 @@ class TermBox {
         const outerHeight = height + b2 + pad2
 
         const {format} = this.opts
-        const line = format.erase(nchars(outerWidth, ' '))
+        const line = format.erase(`\x1B[${outerWidth}X`)
+        //const line = format.erase(nchars(outerWidth, ' '))
 
-        this.term
+        this.screen
             .saveCursor()
             .writeRows(outerLeft, outerTop, outerHeight, line)
             .restoreCursor()
@@ -138,7 +140,10 @@ class TermBox {
 
     drawBorder() {
 
-        const {term} = this
+        const {screen} = this
+        if (!screen.isAnsi) {
+            return
+        }
         const {pad, isBorder} = this.opts
         const pad2 = pad * 2
         //??const b2 = +isBorder * 2
@@ -155,37 +160,37 @@ class TermBox {
         const borders = this.getBorders(width)
         const pads = this.getPadStrings(width)
 
-        term.saveCursor()
+        screen.saveCursor()
 
         if (isBorder) {
-            term.moveTo(outerLeft, outerTop).write(borders.top)
+            screen.moveTo(outerLeft, outerTop).write(borders.top)
         }
         for (let i = 0; i < outerHeight; ++i) {
-            term.moveTo(outerLeft, outerTop + i + isBorder)
+            screen.moveTo(outerLeft, outerTop + i + isBorder)
             if (isBorder) {
-                term.write(borders.side)
+                screen.write(borders.side)
             }
             let isFullPad = pad && (i < pad || outerHeight - i - 1 <= pad)
             if (pad) {
                 if (isFullPad) {
-                    term.write(pads.full)
+                    screen.write(pads.full)
                 } else {
-                    term.write(pads.side).right(width)
+                    screen.write(pads.side).right(width)
                 }
             } else {
-                term.right(width)
+                screen.right(width)
             }
             if (pad && !isFullPad) {
-                term.write(pads.side)
+                screen.write(pads.side)
             }
             if (isBorder) {
-                term.write(borders.side)
+                screen.write(borders.side)
             }
         }
         if (isBorder) {
-            term.moveTo(outerLeft, outerTop + outerHeight).write(borders.foot)
+            screen.moveTo(outerLeft, outerTop + outerHeight).write(borders.foot)
         }
-        term.restoreCursor()
+        screen.restoreCursor()
     }
 
     getBorders(width) {

@@ -30,10 +30,10 @@ const fetch = require('node-fetch')
 
 class MenuApiHelper {
 
-    constructor(term) {
+    constructor(screen) {
         this.client = new Client
         this.logger = createLogger(this)
-        this.term = term
+        this.screen = screen
     }
 
     get logLevel() {
@@ -87,7 +87,7 @@ class MenuApiHelper {
           , body    : JSON.stringify(data)
         }
         uri = 'api/v1/' + uri
-        return this.term.noCursor(async () => {
+        return this.screen.noCursor(async () => {
             this.client.setServerUrl(serverUrl)
             const url = [this.client.serverHttpUrl, uri].join('/')
             const res = await fetch(url, params)

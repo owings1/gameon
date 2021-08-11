@@ -49,30 +49,30 @@ const Red   = 'Red'
 const Colors = {White, Red}
 
 const ColorAbbr = {
-    White : 'W'
-  , Red   : 'R'
+    White : 'W',
+    Red   : 'R',
 }
 
 const ColorNorm = {
-    White
-  , Red
-  , W : White
-  , R : Red
+    White,
+    Red,
+    W : White,
+    R : Red,
 }
 
 const Direction = {
-    White : 1
-  , Red   : -1
+    White : 1,
+    Red   : -1,
 }
 
 const Opponent = {
-    White : Red
-  , Red   : White
+    White : Red,
+    Red   : White,
 }
 
 const InsideOrigins = {
-    White : [ 18, 19, 20, 21, 22, 23 ]
-  , Red   : [ 5, 4, 3, 2, 1, 0 ]
+    White : [ 18, 19, 20, 21, 22, 23 ],
+    Red   : [ 5, 4, 3, 2, 1, 0 ],
 }
 
 const OutsideOrigins = {
@@ -80,12 +80,12 @@ const OutsideOrigins = {
        0,  1,  2,  3,  4,  5,  6,
        7,  8,  9, 10, 11, 12, 13,
       14, 15, 16, 17
-    ]
-  , Red   : [
+    ],
+    Red   : [
       23, 22, 21, 20, 19, 18, 17,
       16, 15, 14, 13, 12, 11, 10,
        9,  8,  7,  6
-    ]
+    ],
 }
 
 const TopPoints = [
@@ -100,12 +100,12 @@ const BottomPoints = [
 ]
 
 const PointOrigins = {
-    Red   : {'-1': -1}
-  , White : {'-1': -1}
+    Red   : {'-1': -1},
+    White : {'-1': -1},
 }
 const OriginPoints = {
-    Red   : {'-1': -1}
-  , White : {'-1': -1}
+    Red   : {'-1': -1},
+    White : {'-1': -1},
 }
 
 function populatePointsAndOrigins(pointOrigins, originPoints) {
@@ -131,7 +131,7 @@ const MoveCoords = {}
 
 function populateMoveHashesCoords(hashes, coords) {
     const faces = [ 1, 2, 3, 4, 5, 6 ]
-    for (var origin = -1; origin < 24; ++origin) {
+    for (let origin = -1; origin < 24; ++origin) {
         hashes[origin] = {}
         coords[origin] = {}
         faces.forEach(face => {
@@ -144,59 +144,59 @@ function populateMoveHashesCoords(hashes, coords) {
 populateMoveHashesCoords(MoveHashes, MoveCoords)
 
 const BoardStrings = {
-    Initial: '0|0|2:W|0:|0:|0:|0:|5:R|0:|3:R|0:|0:|0:|5:W|5:R|0:|0:|0:|3:W|0:|5:W|0:|0:|0:|0:|2:R|0|0'
+    Initial: '0|0|2:W|0:|0:|0:|0:|5:R|0:|3:R|0:|0:|0:|5:W|5:R|0:|0:|0:|3:W|0:|5:W|0:|0:|0:|0:|2:R|0|0',
 }
 
 /**
  * Symbols
  */
 const Chars = {
-    empty : ''
-  , sp    : ' '
-  , dblSp : '  '
-  , br    : '\n'
-  , hr    : '\u2501'
-  , info  : '\u2139'
-  , warn  : '\u26a0'
-  , error : '\u2716'
-  , check : '\u2713' // \u2714 \u221a
-  , pointer : '\u276f'
-  , bullet  : '\u2022'
+    empty : '',
+    sp    : ' ',
+    dblSp : '  ',
+    br    : '\n',
+    hr    : '\u2501',
+    info  : '\u2139',
+    warn  : '\u26a0',
+    error : '\u2716',
+    check : '\u2713', // \u2714 \u221a
+    pointer : '\u276f',
+    bullet  : '\u2022',
     //https://unicode-table.com/en/sets/arrow-symbols/#down-arrows
-  , arrow : {
-        left  : '\u2190'
-      , up    : '\u2191'
-      , right : '\u2192'
-      , down  : '\u2193'
-    }
+    arrow : {
+        left  : '\u2190',
+        up    : '\u2191',
+        right : '\u2192',
+        down  : '\u2193',
+    },
     // https://codepoints.net/box_drawing
-  , table: {
-      dash    : '\u2501'  // console: 2500
-      , pipe    : '\u2503' // console: 2502
-      , vdash   : '|'
-      , dot     : '\u2022'
-      , dblPipe : '\u2503\u2503'
-      , top     : {
-          left   : '\u250f' // console: 250c
-          , middle : '\u2533'
-          , right  : '\u2513'
-        }
-      , middle  : {
-          left   : '\u2523'  // console: 251c
-          , middle : '\u254b'
-          , right  : '\u252b' // console: 2524
-        }
-      , bottom  : {
-            left   : '\u2523'// \u2517
-          , middle : '\u253b'
-          , right  : '\u252b'// \u251b
-        }
-      , footer  : {
-          left   : '\u2517'       // console: 2518
-          , middle : '\u2501'
-          , right  : '\u251b'
-        }
-    }
+    table: {
+        dash    : '\u2501',  // console: 2500
+        pipe    : '\u2503', // console: 2502
+        vdash   : '|',
+        dot     : '\u2022',
+        dblPipe : '\u2503\u2503',
+        top     : {
+            left   : '\u250f', // console: 250c
+            middle : '\u2533',
+            right  : '\u2513',
+        },
+        middle  : {
+            left   : '\u2523',  // console: 251c
+            middle : '\u254b', 
+            right  : '\u252b', // console: 2524
+        },
+        bottom  : {
+            left   : '\u2523',// \u2517
+            middle : '\u253b',
+            right  : '\u252b',// \u251b
+        },
+        footer  : {
+            left   : '\u2517', // console: 2518
+            middle : '\u2501',
+            right  : '\u251b',
+        },
+    },
 }
 // Convenience aliases
 Chars.table.top.mid    = Chars.table.top.middle
@@ -211,13 +211,13 @@ Chars.table.bot  = Chars.table.bottom
 /**
  * User settings.
  */
-const DefaultTermEnabled = !IsTest
+const DefaultAnsiEnabled = !IsTest
 const DefaultThemeName = 'Default'
 const DefaultServerUrl = 'https://gameon.dougowings.net'
 const ObsoleteServerUrls = [
-    'ws://bg.dougowings.net:8080'
-  , 'wss://bg.dougowings.net'
-  , 'https://bg.dougowings.net'
+    'ws://bg.dougowings.net:8080',
+    'wss://bg.dougowings.net',
+    'https://bg.dougowings.net',
 ]
 const CHash = 'a9c0fc569fd231b004d44e718add99e2'
 
@@ -254,115 +254,115 @@ const Menu = {
 
     LoginChoiceMap : {
         changePassword  : {
-            message : 'Password changed'
-          , method  : 'promptChangePassword'
-        }
-      , confirmAccount  : {
-            message : 'Account confirmed'
-          , method  : 'promptConfirmAccount'
-        }
-      , createAccount   : {
-            message : 'Account created'
-          , method  : 'promptCreateAccount'
-        }
-      , forgotPassword  : {
-            message : 'Password reset'
-          , method  : 'promptForgotPassword'
-        }
-      , newConfirmKey   : {
-            message : 'New confirmation key requested. Check your email.'
-          , method  : 'promptNewConfirmKey'
-        }
-      , testCredentials : {
-            message : 'Testing credentials'
-          , method  : null
-        }
-    }
+            message : 'Password changed',
+            method  : 'promptChangePassword',
+        },
+        confirmAccount  : {
+            message : 'Account confirmed',
+            method  : 'promptConfirmAccount',
+        },
+        createAccount   : {
+            message : 'Account created',
+            method  : 'promptCreateAccount',
+        },
+        forgotPassword  : {
+            message : 'Password reset',
+            method  : 'promptForgotPassword',
+        },
+        newConfirmKey   : {
+            message : 'New confirmation key requested. Check your email.',
+            method  : 'promptNewConfirmKey',
+        },
+        testCredentials : {
+            message : 'Testing credentials',
+            method  : null,
+        },
+    },
 
-  , MainChoiceMap : {
+    MainChoiceMap : {
         play : {
-            name   : 'Play'
-          , method : 'playMenu'
-          , select : 'p'
-        }
-      , account : {
-            name   : 'Account'
-          , method : 'accountMenu'
-          , select : 'a'
-        }
-      , settings : {
-            name   : 'Settings'
-          , method : 'settingsMenu'
-          , select : 's'
-        }
-      , lab : {
-            name   : 'Lab'
-          , method : 'runLab'
-          , select : 'l'
-        }
-    }
+            name   : 'Play',
+            method : 'playMenu',
+            select : 'p',
+        },
+        account : {
+            name   : 'Account',
+            method : 'accountMenu',
+            select : 'a',
+        },
+        settings : {
+            name   : 'Settings',
+            method : 'settingsMenu',
+            select : 's',
+        },
+        lab : {
+            name   : 'Lab',
+            method : 'runLab',
+            select : 'l',
+        },
+    },
 
- ,  PlayChoiceMap : {
+    PlayChoiceMap : {
         startOnline   : {
-            message    : 'Start Online Match'
-          , method     : 'startOnlineMatch'
-          , isAdvanced : false
-          , isOnline   : true
-          , isCreate   : true
-          , isJoin     : false
-        }
-      , joinOnline : {
-            message     : 'Join Online Match'
-          , method      : 'joinOnlineMatch'
-          , isAdvanced  : false
-          , isOnline    : true
-          , isCreate    : false
-          , isJoin      : true
-          , matchAnswer : 'start'
-        }
-      , playHumans : {
-            message    : 'Human vs Human'
-          , method     : 'playHumans'
-          , isAdvanced : true
-          , isOnline   : false
-          , isCreate   : true
-          , isJoin     : false
-        }
-      , playRobot   : {
-            message    : 'Human vs Robot'
-          , method     : 'playRobot'
-          , isAdvanced : true
-          , isOnline   : false
-          , isCreate   : true
-          , isJoin     : false
-        }
-      , playRobots : {
-            message    : 'Robot vs Robot'
-          , method     : 'playRobots'
-          , isAdvanced : true
-          , isOnline   : false
-          , isCreate   : true
-          , isJoin     : false
-        }
-    }
+            message    : 'Start Online Match',
+            method     : 'startOnlineMatch',
+            isAdvanced : false,
+            isOnline   : true,
+            isCreate   : true,
+            isJoin     : false,
+        },
+        joinOnline : {
+            message     : 'Join Online Match',
+            method      : 'joinOnlineMatch',
+            isAdvanced  : false,
+            isOnline    : true,
+            isCreate    : false,
+            isJoin      : true,
+            matchAnswer : 'start',
+        },
+        playHumans : {
+            message    : 'Human vs Human',
+            method     : 'playHumans',
+            isAdvanced : true,
+            isOnline   : false,
+            isCreate   : true,
+            isJoin     : false,
+        },
+        playRobot   : {
+            message    : 'Human vs Robot',
+            method     : 'playRobot',
+            isAdvanced : true,
+            isOnline   : false,
+            isCreate   : true,
+            isJoin     : false,
+        },
+        playRobots : {
+            message    : 'Robot vs Robot',
+            method     : 'playRobots',
+            isAdvanced : true,
+            isOnline   : false,
+            isCreate   : true,
+            isJoin     : false,
+        },
+    },
 }
 
 const MatchCancelRef = {
     peerDisconnected: {
-        reason: 'Peer disconnected'
-      , attrs: {
-            isClientShouldClose : false
-          , isNet               : true
-        }
-    }
-  , serverShutdown: {
-        reason: 'Server Shutdown'
-      , attrs: {
-            isServerShutdown    : true
-          , isClientShouldClose : true
-          , isNet               : true
-        }
-    }
+        reason: 'Peer disconnected',
+        attrs: {
+            isClientShouldClose : false,
+            isNet               : true,
+        },
+    },
+    serverShutdown: {
+        reason: 'Server Shutdown',
+        attrs: {
+            isServerShutdown    : true,
+            isClientShouldClose : true,
+            isNet               : true,
+        },
+    },
 }
 
 const Constants = {
@@ -374,6 +374,7 @@ const Constants = {
     ColorAbbr,
     ColorNorm,
     Colors,
+    DefaultAnsiEnabled,
     DefaultAuthHash,
     DefaultAuthSaltHash,
     DefaultAuthType,
