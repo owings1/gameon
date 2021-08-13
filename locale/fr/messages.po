@@ -24,7 +24,7 @@ msgstr "Arrêté d'attendre"
 #: src/term/helpers/menu.questions.js:154
 #: src/term/menu.js:398
 msgid "Account"
-msgstr ""
+msgstr "Compte"
 
 #: src/term/menu.js:695
 msgid "Account already confirmed"
@@ -32,11 +32,11 @@ msgstr "Le compte est déjà confirmé"
 
 #: src/term/helpers/menu.messages.js:17
 msgid "Account confirmed"
-msgstr ""
+msgstr "Le compte est confirmé"
 
 #: src/term/helpers/menu.messages.js:20
 msgid "Account created"
-msgstr ""
+msgstr "Le compte est creé"
 
 #: src/term/helpers/menu.questions.js:229
 msgid "Advanced"
@@ -58,11 +58,11 @@ msgstr "Retourner"
 
 #: src/term/menu.js:910
 msgid "Canceling match"
-msgstr ""
+msgstr "Annuler le match"
 
 #: src/term/helpers/menu.questions.js:478
 msgid "Change Password"
-msgstr ""
+msgstr "Changer le mot de passe"
 
 #: src/term/helpers/menu.questions.js:621
 msgid "Check your email for a confirmation key."
@@ -87,7 +87,7 @@ msgstr "Règle Crawford"
 
 #: src/term/helpers/menu.questions.js:452
 msgid "Create Account"
-msgstr ""
+msgstr "Creer un compte"
 
 #: src/term/helpers/menu.questions.js:290
 #: src/term/helpers/menu.questions.js:294
@@ -112,14 +112,10 @@ msgstr ""
 
 #: src/term/helpers/menu.questions.js:813
 msgid "double:"
-msgstr ""
+msgstr "doublé:"
 
 #: src/term/helpers/menu.questions.js:683
 msgid "Enable ANSI cursoring"
-msgstr ""
-
-#: src/term/helpers/menu.questions.js:663
-msgid "Enable terminal cursoring"
 msgstr ""
 
 #: src/term/helpers/menu.questions.js:462
@@ -130,6 +126,12 @@ msgstr ""
 #: src/term/helpers/menu.questions.js:587
 msgid "Enter reset key"
 msgstr ""
+
+#: src/term/helpers/menu.questions.js:170
+#: src/term/helpers/menu.questions.js:214
+#: src/term/helpers/menu.questions.js:241
+msgid "Exit"
+msgstr "Sortir"
 
 #: src/term/helpers/menu.questions.js:693
 #: src/term/helpers/menu.questions.js:697
@@ -167,7 +169,7 @@ msgstr ""
 
 #: src/term/helpers/menu.questions.js:164
 msgid "Lab"
-msgstr ""
+msgstr "Labo"
 
 #: src/term/menu.js:1530
 msgid "Loaded {count} custom themes."
@@ -195,7 +197,7 @@ msgstr ""
 
 #: src/term/menu.js:318
 msgid "Match"
-msgstr ""
+msgstr "Match"
 
 #: src/term/helpers/menu.questions.js:398
 msgid "Match ID"
@@ -235,7 +237,7 @@ msgstr "Mot de passe"
 
 #: src/term/helpers/menu.messages.js:14
 msgid "Password changed"
-msgstr ""
+msgstr "Le mot de passe est changé"
 
 #: src/term/helpers/menu.messages.js:23
 msgid "Password reset"
@@ -248,7 +250,7 @@ msgstr ""
 #: src/term/helpers/menu.questions.js:149
 #: src/term/menu.js:266
 msgid "Play"
-msgstr ""
+msgstr "Jouer"
 
 #: src/term/helpers/menu.questions.js:259
 msgid "Please enter a number > 0"
@@ -263,6 +265,10 @@ msgstr ""
 #: src/term/helpers/menu.questions.js:241
 msgid "Quit"
 msgstr ""
+
+#: src/term/helpers/menu.questions.js:543
+msgid "Re-enter password"
+msgstr "Retaper le mot de passe"
 
 #: src/term/helpers/menu.questions.js:706
 #: src/term/helpers/menu.questions.js:709
@@ -285,11 +291,11 @@ msgstr ""
 
 #: src/term/menu.js:562
 msgid "Robot"
-msgstr ""
+msgstr "Robot"
 
 #: src/term/helpers/menu.questions.js:764
 msgid "Robot Configuration"
-msgstr ""
+msgstr "Les paramètres de robot"
 
 #: src/term/helpers/menu.questions.js:735
 msgid "Robot Delay"
@@ -301,7 +307,7 @@ msgstr ""
 
 #: src/term/helpers/menu.messages.js:55
 msgid "Robot vs Robot"
-msgstr ""
+msgstr "Robot contre Robot"
 
 #: src/term/menu.js:529
 msgid "Robots"
@@ -327,7 +333,7 @@ msgstr ""
 #: src/term/helpers/menu.questions.js:159
 #: src/term/menu.js:469
 msgid "Settings"
-msgstr ""
+msgstr "Les paramètres"
 
 #: src/term/helpers/menu.questions.js:267
 msgid "Start Match"
@@ -339,11 +345,7 @@ msgstr ""
 
 #: src/term/helpers/menu.questions.js:364
 msgid "Start State"
-msgstr ""
-
-#: src/term/helpers/menu.questions.js:659
-msgid "Term Cursoring"
-msgstr ""
+msgstr "L'etat initial"
 
 #: src/term/helpers/menu.questions.js:473
 msgid "Test Credentials"

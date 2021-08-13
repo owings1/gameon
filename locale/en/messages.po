@@ -130,6 +130,12 @@ msgstr ""
 msgid "Enter reset key"
 msgstr ""
 
+#: src/term/helpers/menu.questions.js:170
+#: src/term/helpers/menu.questions.js:214
+#: src/term/helpers/menu.questions.js:241
+msgid "Exit"
+msgstr ""
+
 #: src/term/helpers/menu.questions.js:693
 #: src/term/helpers/menu.questions.js:697
 msgid "Fast Forced Moves"
@@ -261,6 +267,10 @@ msgstr ""
 #: src/term/helpers/menu.questions.js:214
 #: src/term/helpers/menu.questions.js:241
 msgid "Quit"
+msgstr ""
+
+#: src/term/helpers/menu.questions.js:543
+msgid "Re-enter password"
 msgstr ""
 
 #: src/term/helpers/menu.questions.js:706

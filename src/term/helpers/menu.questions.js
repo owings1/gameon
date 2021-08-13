@@ -167,7 +167,7 @@ class Questions {
             this.hr(),
             {
                 value  : 'quit',
-                name   : __('Quit'),
+                name   : __('Exit'),
                 select : 'q',
                 enter  : EnterChars.quit,
             },
@@ -211,7 +211,7 @@ class Questions {
             },
             {
                 value  : 'quit',
-                name   : __('Quit'),
+                name   : __('Exit'),
                 select : 'q',
             },
             this.br(),
@@ -238,7 +238,7 @@ class Questions {
                 },
                 {
                     value  : 'quit'
-                  , name   : __('Quit')
+                  , name   : __('Exit')
                   , select : 'q'
                 },
                 this.br(),
@@ -540,7 +540,7 @@ class Questions {
 
         return {
             name     : 'passwordConfirm',
-            message  : 'Confirm password',
+            message  : __('Re-enter password'),
             type     : 'password',
             validate : validate.passwordConfirm,
             mask     : '*',
