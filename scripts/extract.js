@@ -40,6 +40,7 @@ const opts = {
     //verbose: 3,
     //logging: {logLevel: 4, inspect: {depth: 4}},
     marker: ['__'],
+    replace: true,
     members: true,
     baseDir: BaseDir,
     sort: 'msgid',

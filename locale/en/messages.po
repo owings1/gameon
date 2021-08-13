@@ -117,10 +117,6 @@ msgstr ""
 msgid "Enable ANSI cursoring"
 msgstr ""
 
-#: src/term/helpers/menu.questions.js:663
-msgid "Enable terminal cursoring"
-msgstr ""
-
 #: src/term/helpers/menu.questions.js:462
 #: src/term/helpers/menu.questions.js:618
 msgid "Enter confirm key"
@@ -263,12 +259,6 @@ msgstr ""
 msgid "Please enter a number >= 0"
 msgstr ""
 
-#: src/term/helpers/menu.questions.js:170
-#: src/term/helpers/menu.questions.js:214
-#: src/term/helpers/menu.questions.js:241
-msgid "Quit"
-msgstr ""
-
 #: src/term/helpers/menu.questions.js:543
 msgid "Re-enter password"
 msgstr ""
@@ -348,10 +338,6 @@ msgstr ""
 
 #: src/term/helpers/menu.questions.js:364
 msgid "Start State"
-msgstr ""
-
-#: src/term/helpers/menu.questions.js:659
-msgid "Term Cursoring"
 msgstr ""
 
 #: src/term/helpers/menu.questions.js:473

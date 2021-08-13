@@ -260,12 +260,6 @@ msgstr ""
 msgid "Please enter a number >= 0"
 msgstr ""
 
-#: src/term/helpers/menu.questions.js:170
-#: src/term/helpers/menu.questions.js:214
-#: src/term/helpers/menu.questions.js:241
-msgid "Quit"
-msgstr ""
-
 #: src/term/helpers/menu.questions.js:543
 msgid "Re-enter password"
 msgstr "Retaper le mot de passe"
