@@ -17,7 +17,8 @@ The installer is unsigned, so you will have to grant a security exception.
 
 ### Install via npm
 
-forthcoming...
-
+```bash
+npm i -g --omit peer owings1/gameon
+```
 
 [mac-pkg]: https://gameon.s3-us-west-2.amazonaws.com/gameon.pkg
