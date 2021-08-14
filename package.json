@@ -6,10 +6,9 @@
   "scripts": {
     "postpack": "rm -f oclif.manifest.json",
     "lint": "eslint .",
-    "prepack": "oclif-dev manifest && oclif-dev readme",
+    "prepack": "oclif-dev manifest && oclif-dev readme && lingui compile",
     "test": "GAMEON_TEST=1 NODE_OPTIONS='--trace-warnings' nyc --reporter=text-summary mocha test/test.js && nyc report --reporter=lcov",
     "version": "oclif-dev readme && git add README.md",
-    "install": "node scripts/install.js",
     "mac": "oclif-dev pack:macos",
     "dist": "oclif-dev pack",
     "dist_and_publish": "oclif-dev pack && oclif-dev publish",
@@ -60,10 +59,13 @@
   },
   "files": [
     "/bin",
+    "/locale/*/messages.js",
     "/npm-shrinkwrap.json",
     "/oclif.manifest.json",
     "/src",
-    "/scripts"
+    "/NOTICE.nd",
+    "/LICENSE.txt",
+    "/README.md"
   ],
   "repository": "https://bitbucket.org/owings1/gameon.git",
   "bin": {
@@ -128,7 +130,7 @@
     }
   },
   "engines": {
-    "node": ">=8.0.0"
+    "node": ">=12.0.0"
   },
   "author": "Doug Owings <doug@dougowings.net>",
   "license": "MIT"
