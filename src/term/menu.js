@@ -185,7 +185,7 @@ class Menu extends EventEmitter {
     get output() {
         return this.screen.output
     }
-    
+
     set output(strm) {
         this.screen.output = strm
         this.inquirer.opt.output = strm
@@ -1658,8 +1658,8 @@ class Menu extends EventEmitter {
     }
 
     static robotMeta(name) {
-        const meta = {defaults, versions} = ConfidenceRobot.getClassMeta(name)
-        return meta
+        const {defaults, versions} = ConfidenceRobot.getClassMeta(name)
+        return {defaults, versions}
     }
 
     static robotDefaults(name) {

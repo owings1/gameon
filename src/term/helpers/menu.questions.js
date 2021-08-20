@@ -617,9 +617,9 @@ class Questions {
             type    : 'input',
             message : __('Enter confirm key'),
             prefix  : [
-                __('You must confirm your account.')
-              , __('Check your email for a confirmation key.')
-              , ''
+                __('You must confirm your account.'),
+                __('Check your email for a confirmation key.'),
+                '',
             ].join('\n'),
             cancel  : CancelChars.input,
         }
