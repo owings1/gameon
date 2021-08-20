@@ -27,12 +27,11 @@ const {
     objects : {lget, lset, update, isNonEmptyObject},
     types   : {castToArray, isFunction},
     arrays  : {append, sumArray},
+    Screen,
     strings : {stripAnsi},
 } = require('utils-h')
 const fse    = require('fs-extra')
 const globby = require('globby')
-
-const {Screen} = require('./helpers/screen.js')
 
 const fs   = require('fs')
 const os   = require('os')

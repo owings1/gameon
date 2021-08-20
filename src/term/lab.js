@@ -25,12 +25,11 @@
 const {
     colors  : {Chalk},
     objects : {isNullOrEmptyObject},
+    Screen,
     strings : {stripAnsi, ucfirst},
     types   : {castToArray},
 } = require('utils-h')
 const fse = require('fs-extra')
-
-const {Screen} = require('./helpers/screen.js')
 
 const fs    = require('fs')
 const path  = require('path')

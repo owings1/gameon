@@ -23,10 +23,9 @@
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 const {
+    Screen,
     types: {castToArray},
 } = require('utils-h')
-
-const {Screen} = require('./helpers/screen.js')
 
 const {EventEmitter} = require('events')
 

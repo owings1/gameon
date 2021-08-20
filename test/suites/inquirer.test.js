@@ -24,10 +24,9 @@
  */
 const {
     objects: {update},
+    Screen,
     strings: {stripAnsi},
 } = require('utils-h')
-
-const {Screen} = require('../../src/term/helpers/screen.js')
 
 const {
     expect,

@@ -25,10 +25,9 @@
 const {
     arrays  : {append, arraySum},
     objects : {valueHash},
+    Screen,
     types   : {castToArray},
 } = require('utils-h')
-
-const {Screen} = require('./helpers/screen.js')
 
 const Themes = require('./themes.js')
 const Questions    = require('./helpers/tables.questions.js')

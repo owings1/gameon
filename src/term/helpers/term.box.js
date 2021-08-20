@@ -22,9 +22,10 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-const {objects: {update}} = require('utils-h')
-
-const {Screen} = require('./screen.js')
+const {
+    objects: {update},
+    Screen,
+} = require('utils-h')
 
 const {EventEmitter} = require('events')
 

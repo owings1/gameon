@@ -51,14 +51,13 @@
  */
 const {
     objects : {update},
+    Screen,
     strings : {stripAnsi},
     types   : {castToArray},
 } = require('utils-h')
 const {defer, from} = require('rxjs')
 const Inquirer      = require('inquirer')
 const ScreenBase    = require('inquirer/lib/utils/screen-manager')
-
-const {Screen} = require('./helpers/screen.js')
 
 const {EventEmitter} = require('events')
 

@@ -23,11 +23,10 @@
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 const {
+    Screen,
     strings: {stripAnsi, ucfirst},
     types: {isWriteableStream},
 } = require('utils-h')
-
-const {Screen} = require('./helpers/screen.js')
 
 const {Board} = require('../lib/core.js')
 const Themes  = require('./themes.js')
