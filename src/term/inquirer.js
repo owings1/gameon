@@ -116,27 +116,27 @@ function createPromptModule(opt) {
 
     ensure(self, {
 
-        createPromptModule
-      , opt
+        createPromptModule,
+        opt,
 
-      , ScreenManager
-      , Separator
+        ScreenManager,
+        Separator,
 
-      , prompt  : self
-      , prompts : {}
+        prompt  : self,
+        prompts : {},
 
-      , ui : {...Inquirer.ui, Prompt}
+        ui : {...Inquirer.ui, Prompt},
 
-      , registerPrompt : (name, prompt) => {
+        registerPrompt : (name, prompt) => {
             self.prompts[name] = prompt
             return self
-        }
+        },
 
-      , restoreDefaultPrompts: () => {
+        restoreDefaultPrompts: () => {
             const boudrias = Inquirer.createPromptModule().prompts
             self.prompts = {...boudrias, ...Prompts}
             return self
-        }
+        },
     })
 
     return self.restoreDefaultPrompts()
@@ -220,7 +220,6 @@ class ScreenManager extends ScreenBase {
 
     constructor(rl, opts) {
         super(rl)
-        this.cur = new AnsiHelper(this.rl.output)
         this.opts = {
             indent       : 0,
             maxWidth     : Infinity,
@@ -237,9 +236,9 @@ class ScreenManager extends ScreenBase {
         //this.opts.defaultWidth = this.opts.defaultWidth || 0
 
         update(this, {
-            width     : 0
-          , height    : 0
-          , heightMax : 0
+            width     : 0,
+            height    : 0,
+            heightMax : 0,
         })
         this.isFirstRender = true
         this.isDone = false
@@ -264,8 +263,10 @@ class ScreenManager extends ScreenBase {
 
         this._lastRender = [body, foot, spinning]
 
-        const {opts, cur, rl} = this
+        const {opts, rl} = this
         const {emitter, screen, indent} = opts
+
+        screen.hideCursor()
 
         if (this.spinnerId && !spinning) {
             clearInterval(this.spinnerId)
@@ -331,15 +332,15 @@ class ScreenManager extends ScreenBase {
         const footLineCount = foot ? foot.split('\n').length : 0
         const footHeight = promptBreaks - rows + footLineCount
 
-        const clearWidth = this.opts.clearMaxWidth ? this.opts.maxWidth : thisWidth
+        const clearWidth = opts.clearMaxWidth ? opts.maxWidth : thisWidth
         // Write content lines.
-        cur.column(0)
+        screen.column(1)
         lines.forEach((line, i) => {
             if (i > 0) {
                 rl.output.write('\n')
             }
             if (indent) {
-                cur.right(indent)
+                screen.right(indent)
             }
             if (this.isFirstRender || i >= this.height) {
                 screen.erase(clearWidth)
@@ -349,20 +350,20 @@ class ScreenManager extends ScreenBase {
 
         // Re-adjust the cursor to the correct position.
         if (footHeight > 0) {
-            cur.up(footHeight)
+            screen.up(footHeight)
         }
 
         // Reset cursor at the beginning of the line.
-        cur.left(stringWidth(lastLine))
+        screen.left(stringWidth(lastLine))
 
         // Adjust cursor on the right.
         if (cols > 0) {
-            cur.right(cols)
+            screen.right(cols)
         }
 
         // Special case: adjust one over to the right.
         if (isEndOfLine && indent && !foot) {
-            cur.right(1)
+            screen.right(1)
         }
 
         rl.output.mute()
@@ -372,6 +373,8 @@ class ScreenManager extends ScreenBase {
         this.footHeight = footHeight
 
         this.isFirstRender = false
+
+        screen.showCursor()
 
         emitter.emit('afterRender')
 
@@ -383,7 +386,7 @@ class ScreenManager extends ScreenBase {
      */
     clean(footHeight) {
 
-        if (typeof footHeight == 'undefined') {
+        if (typeof footHeight === 'undefined') {
             footHeight = this.footHeight
         }
 
@@ -484,12 +487,6 @@ class Separator extends Inquirer.Separator {
     text(line) {
         this.line = line
         return this        
-    }
-}
-
-class AnsiHelper extends Screen {
-    column(x) {
-        return super.column(x + 1)
     }
 }
 

@@ -145,10 +145,10 @@ class CancelFeature {
         }
         // defaults
         opt.cancel = {
-            value    : null
-          , eventKey : '_cancelEvent'
-          , message  : '[cancel]'
-          , ...opt.cancel
+            value    : null,
+            eventKey : '_cancelEvent',
+            message  : '[cancel]',
+            ...opt.cancel,
         }
         // override validate method
         const validate = opt.validate
@@ -207,9 +207,9 @@ class ChoiceActionFeature {
                 action = {char: action}
             }
             action = {
-                name : '#action'
-              , all  : true
-              , ...action
+                name : '#action',
+                all  : true,
+                ...action,
             }
             action.char = castToArray(action.char)
             action.idx = {}
@@ -292,12 +292,12 @@ class ToggleFeature {
 }
 
 module.exports = {
-    theme   : ThemeFeature
-  , cancel  : CancelFeature
-  , clear   : ClearFeature
-  , select  : SelectFeature
-  , expand  : ExpandFeature
-  , restore : RestoreFeature
-  , toggle  : ToggleFeature
-  , action  : ChoiceActionFeature
+    theme   : ThemeFeature,
+    cancel  : CancelFeature,
+    clear   : ClearFeature,
+    select  : SelectFeature,
+    expand  : ExpandFeature,
+    restore : RestoreFeature,
+    toggle  : ToggleFeature,
+    action  : ChoiceActionFeature,
 }

@@ -364,13 +364,13 @@ class ListMethods {
             const number = index + 1
 
             return this._renderChoice(
-                choice
-              , isSelected
-              , isAvailable
-              , isSeparator
-              , isDisabled
-              , lineLength
-              , number
+                choice,
+                isSelected,
+                isAvailable,
+                isSeparator,
+                isDisabled,
+                lineLength,
+                number,
             )
         }).join('\n')
     }
