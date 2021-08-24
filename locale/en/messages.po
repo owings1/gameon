@@ -13,20 +13,21 @@ msgstr ""
 "Language-Team: \n"
 "Plural-Forms: \n"
 
-#: src/term/menu.js:931
+#: src/term/menu.js:930
 msgid "{winner} won the match {winning} to {losing}"
 msgstr ""
 
-#: src/term/menu.js:839
+#: src/term/menu.js:838
 msgid "Aborting waiting"
 msgstr ""
 
+#: src/term/helpers/menu.questions.js:118
 #: src/term/helpers/menu.questions.js:154
-#: src/term/menu.js:398
+#: src/term/menu.js:397
 msgid "Account"
 msgstr ""
 
-#: src/term/menu.js:695
+#: src/term/menu.js:694
 msgid "Account already confirmed"
 msgstr ""
 
@@ -46,7 +47,7 @@ msgstr ""
 msgid "ANSI Cursoring"
 msgstr ""
 
-#: src/term/menu.js:296
+#: src/term/menu.js:295
 msgid "Authentication failed. Go to Account to sign up or log in."
 msgstr ""
 
@@ -55,7 +56,7 @@ msgstr ""
 msgid "Back"
 msgstr ""
 
-#: src/term/menu.js:910
+#: src/term/menu.js:909
 msgid "Canceling match"
 msgstr ""
 
@@ -170,11 +171,11 @@ msgstr ""
 msgid "Lab"
 msgstr ""
 
-#: src/term/menu.js:1530
+#: src/term/menu.js:1529
 msgid "Loaded {count} custom themes."
 msgstr ""
 
-#: src/term/menu.js:532
+#: src/term/menu.js:531
 msgid "Loading robot defaults"
 msgstr ""
 
@@ -182,19 +183,20 @@ msgstr ""
 msgid "Locale"
 msgstr ""
 
-#: src/term/menu.js:763
+#: src/term/menu.js:762
 msgid "Login failed to {url}"
 msgstr ""
 
-#: src/term/menu.js:768
+#: src/term/menu.js:767
 msgid "Login success to {url}"
 msgstr ""
 
-#: src/term/menu.js:241
+#: src/term/helpers/menu.questions.js:98
+#: src/term/menu.js:240
 msgid "Main"
 msgstr ""
 
-#: src/term/menu.js:318
+#: src/term/menu.js:317
 msgid "Match"
 msgstr ""
 
@@ -207,7 +209,7 @@ msgstr ""
 msgid "Match Total"
 msgstr ""
 
-#: src/term/menu.js:1410
+#: src/term/menu.js:1409
 msgid "Migrating legacy robot config"
 msgstr ""
 
@@ -246,8 +248,9 @@ msgstr ""
 msgid "Passwords do not match"
 msgstr ""
 
+#: src/term/helpers/menu.questions.js:103
 #: src/term/helpers/menu.questions.js:149
-#: src/term/menu.js:266
+#: src/term/menu.js:265
 msgid "Play"
 msgstr ""
 
@@ -282,7 +285,7 @@ msgstr ""
 msgid "Reset key requested, check your email."
 msgstr ""
 
-#: src/term/menu.js:562
+#: src/term/menu.js:561
 msgid "Robot"
 msgstr ""
 
@@ -302,7 +305,8 @@ msgstr ""
 msgid "Robot vs Robot"
 msgstr ""
 
-#: src/term/menu.js:529
+#: src/term/helpers/menu.questions.js:130
+#: src/term/menu.js:528
 msgid "Robots"
 msgstr ""
 
@@ -318,13 +322,14 @@ msgstr ""
 msgid "Server URL"
 msgstr ""
 
-#: src/term/menu.js:1002
+#: src/term/menu.js:1001
 #. logger
 msgid "Setting initial state"
 msgstr ""
 
+#: src/term/helpers/menu.questions.js:123
 #: src/term/helpers/menu.questions.js:159
-#: src/term/menu.js:469
+#: src/term/menu.js:468
 msgid "Settings"
 msgstr ""
 
@@ -362,7 +367,7 @@ msgstr ""
 msgid "Username"
 msgstr ""
 
-#: src/term/menu.js:1007
+#: src/term/menu.js:1006
 #. log
 msgid "Using custom rolls file"
 msgstr ""
