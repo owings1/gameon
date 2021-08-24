@@ -424,7 +424,7 @@ class Menu extends EventEmitter {
                         this.alerts.error(err)
                         return true
                     }
-                } else {
+                } else if (choice !== 'testCredentials') {
 
                     const {answer, isCancel, isChange} = await ask()
 
