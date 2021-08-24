@@ -101,18 +101,20 @@ class UserCommand extends AppCommand {
         this.proc.exit(code)
     }
 
-    finally(...args) {
+    finally(e, ...args) {
         try {
+            this.menu.eraseScreen()
             if (this.menu.alerts.length) {
                 this.menu.consumeAlerts()
-            } else {
-                this.menu.eraseScreen()
+            }
+            if (e) {
+                throw e
             }
         } catch (err) {
             this.logger.error(err)
         }
         this._cleanup()
-        return super.finally(...args)
+        return super.finally(e, ...args)
     }
 
     _cleanup() {
