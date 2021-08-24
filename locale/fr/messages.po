@@ -75,7 +75,7 @@ msgstr "Choisissez un thème"
 
 #: src/term/helpers/menu.questions.js:656
 msgid "Choose your locale"
-msgstr ""
+msgstr "Choisissez votre région"
 
 #: src/term/helpers/menu.questions.js:483
 msgid "Clear Credentials"
