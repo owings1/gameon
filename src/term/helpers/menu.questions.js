@@ -91,16 +91,16 @@ class Questions {
     }
 
     menuq(name, extra) {
-        const {menu, settings, m} = this
+        const {menu, settings, m, __} = this
         switch (name) {
             case 'main':
                 return {
-                    message : name,
+                    message : __('Main'),
                     choices : this.mainChoices(extra),
                 }
             case 'play':
                 return {
-                    message : name,
+                    message : __('Play'),
                     choices : this.playChoices(extra),
                     default : () => settings.lastPlayChoice,
                 }
@@ -115,19 +115,19 @@ class Questions {
                 }
             case 'account':
                 return {
-                    message : name,
+                    message : __('Account'),
                     choices : this.accountChoices(extra),
                 }
             case 'settings':
                 return {
-                    message  : name,
+                    message : __('Settings'),
                     choices  : this.settingsChoices(extra),
                     default  : () => menu.lastMenuChoice,
                     action   : {char: 'tab', name: '#toggle', all: false},
                 }
             case 'robots':
                 return {
-                    message  : name,
+                    message : __('Robots'),
                     choices  : this.robotsChoices(extra),
                 }
             case 'robot':
