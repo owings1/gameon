@@ -568,8 +568,9 @@ class TermPlayer extends Base {
         if (!this.drawer) {
             return
         }
-        this.screen.moveTo(1, 1).eraseDisplayBelow()
+        this.screen.hideCursor().moveTo(1, 1).eraseDisplayBelow()
         this.output.write(this.drawer.getString())
+        this.screen.showCursor()
     }
 
     originPoint(origin, color) {
