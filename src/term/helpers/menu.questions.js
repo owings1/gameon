@@ -639,133 +639,142 @@ class Questions {
             },
         }
 
-        return this.formatChoices([
-            this.br(),
-            {
-                value  : 'done',
-                name   : __('Done'),
-                enter  : EnterChars.back,
-                select : 'd',
-            },
-            this.hr(),
-            {
-                value : 'locale',
-                name  : __('Locale'),
-                question : {
-                    name    : 'locale',
-                    message : __('Choose your locale'),
-                    type    : 'list',
-                    default : () => settings.locale,
-                    choices : () => [this.br()].concat(intl.locales),
-                    cancel  : CancelChars.list,
-                    prefix  : '',
+        return [
+            [
+
+                this.br(),
+                {
+                    value  : 'done',
+                    name   : __('Done'),
+                    enter  : EnterChars.back,
+                    select : 'd',
                 },
-            },
-            {
-                value : 'theme',
-                name  : __('Theme'),
-                question : {
-                    name : 'theme',
-                    message : __('Choose a theme'),
-                    type    : 'list',
-                    default : () => settings.theme,
-                    choices : () => [this.br()].concat(Themes.list()),
-                    cancel  : CancelChars.list,
-                    prefix  : '',
+            ],
+            [
+                this.hr(),
+                {
+                    value : 'locale',
+                    name  : __('Locale'),
+                    question : {
+                        name    : 'locale',
+                        message : __('Choose your locale'),
+                        type    : 'list',
+                        default : () => settings.locale,
+                        choices : () => [this.br()].concat(intl.locales),
+                        cancel  : CancelChars.list,
+                        prefix  : '',
+                    },
                 },
-            },
-            {
-                value  : 'isAnsi',
-                name   : __('ANSI Cursoring'),
-                action : ['#toggle'],
-                question : {
-                    name    : 'isAnsi',
-                    message : __('Enable ANSI cursoring'),
-                    type    : 'confirm',
-                    default : () => settings.isAnsi,
-                    cancel  : CancelChars.bool,
-                    toggle  : ToggleChars.bool,
+                {
+                    value : 'theme',
+                    name  : __('Theme'),
+                    question : {
+                        name : 'theme',
+                        message : __('Choose a theme'),
+                        type    : 'list',
+                        default : () => settings.theme,
+                        choices : () => [this.br()].concat(Themes.list()),
+                        cancel  : CancelChars.list,
+                        prefix  : '',
+                    },
                 },
-            },
-            this.hr(),
-            {
-                value  : 'fastForced',
-                name   : __('Fast Forced Moves'),
-                action : ['#toggle'],
-                question : {
-                    name    : 'fastForced',
-                    message : __('Fast Forced Moves'),
-                    type    : 'confirm',
-                    default : () => settings.fastForced,
-                    cancel  : CancelChars.bool,
-                    toggle  : ToggleChars.bool,
+                {
+                    value  : 'isAnsi',
+                    name   : __('Advanced ANSI'),
+                    action : ['#toggle'],
+                    question : {
+                        name    : 'isAnsi',
+                        message : __('Enable Advanced ANSI'),
+                        type    : 'confirm',
+                        default : () => settings.isAnsi,
+                        cancel  : CancelChars.bool,
+                        toggle  : ToggleChars.bool,
+                    },
                 },
-            },
-            {
-                value : 'recordDir',
-                name  : __('Record Dir'),
-                question : {
-                    name    : 'recordDir',
-                    message : __('Record Dir'),
-                    type    : 'input',
-                    default : () => homeTilde(settings.recordDir),
-                    filter  : value => !value ? null : path.resolve(tildeHome(value)),
-                    cancel  : CancelChars.input,
-                    clear   : 'ctrl-delete',
-                    restore : RestoreChars.input,
-                    expand  : ExpandChars.input,
+            ],
+            [
+                this.hr(),
+                {
+                    value  : 'fastForced',
+                    name   : __('Fast Forced Moves'),
+                    action : ['#toggle'],
+                    question : {
+                        name    : 'fastForced',
+                        message : __('Fast Forced Moves'),
+                        type    : 'confirm',
+                        default : () => settings.fastForced,
+                        cancel  : CancelChars.bool,
+                        toggle  : ToggleChars.bool,
+                    },
                 },
-            },
-            {
-                value  : 'isRecord',
-                name   : __('Record Matches'),
-                action : ['#toggle'],
-                question : {
-                    name    : 'isRecord',
-                    message : __('Record Matches'),
-                    type    : 'confirm',
-                    default : () => settings.isRecord,
-                    cancel  : CancelChars.bool,
-                    toggle  : ToggleChars.bool,
+                {
+                    value : 'recordDir',
+                    name  : __('Record Dir'),
+                    question : {
+                        name    : 'recordDir',
+                        message : __('Record Dir'),
+                        type    : 'input',
+                        default : () => homeTilde(settings.recordDir),
+                        filter  : value => !value ? null : path.resolve(tildeHome(value)),
+                        cancel  : CancelChars.input,
+                        clear   : 'ctrl-delete',
+                        restore : RestoreChars.input,
+                        expand  : ExpandChars.input,
+                    },
                 },
-            },
-            this.hr(),
-            {
-                value : 'delay',
-                name  : __('Robot Delay'),
-                question : {
-                    name     : 'delay',
-                    message  : __('Robot Delay (seconds)'),
-                    type     : 'input',
-                    default  : () => settings.delay,
-                    filter   : value => +value,
-                    validate : validate.delay,
-                    cancel   : CancelChars.input,
-                    restore  : RestoreChars.input,
-                    expand   : ExpandChars.input,
-                    writeInvalid : () => '',
+                {
+                    value  : 'isRecord',
+                    name   : __('Record Matches'),
+                    action : ['#toggle'],
+                    question : {
+                        name    : 'isRecord',
+                        message : __('Record Matches'),
+                        type    : 'confirm',
+                        default : () => settings.isRecord,
+                        cancel  : CancelChars.bool,
+                        toggle  : ToggleChars.bool,
+                    },
                 },
-            },
-            {
-                value  : 'isCustomRobot',
-                name   : __('Use Custom Robot'),
-                action : ['#toggle'],
-                question : {
-                    name    : 'isCustomRobot',
-                    message : __('Use Custom Robot'),
-                    type    : 'confirm',
-                    default : () => settings.isCustomRobot,
-                    cancel  : CancelChars.bool,
-                    toggle  : ToggleChars.bool,
-                }
-            },
-            {
-                value : 'robotConfigs',
-                name  : __('Robot Configuration'),
-                when  : settings.isCustomRobot,
-            },
-            this.br(),
-        ])
+            ],
+            [
+                this.hr(),
+                {
+                    value : 'delay',
+                    name  : __('Robot Delay'),
+                    question : {
+                        name     : 'delay',
+                        message  : __('Robot Delay (seconds)'),
+                        type     : 'input',
+                        default  : () => settings.delay,
+                        filter   : value => +value,
+                        validate : validate.delay,
+                        cancel   : CancelChars.input,
+                        restore  : RestoreChars.input,
+                        expand   : ExpandChars.input,
+                        writeInvalid : () => '',
+                    },
+                },
+                {
+                    value  : 'isCustomRobot',
+                    name   : __('Use Custom Robot'),
+                    action : ['#toggle'],
+                    question : {
+                        name    : 'isCustomRobot',
+                        message : __('Use Custom Robot'),
+                        type    : 'confirm',
+                        default : () => settings.isCustomRobot,
+                        cancel  : CancelChars.bool,
+                        toggle  : ToggleChars.bool,
+                    }
+                },
+                {
+                    value : 'robotConfigs',
+                    name  : __('Robot Configuration'),
+                    when  : settings.isCustomRobot,
+                },
+                this.br(),
+            ],
+        ].map(group => this.formatChoices(group)).flat()
     }
 
     robotsChoices() {
