@@ -19,15 +19,15 @@ jobs:
     - uses: actions/setup-node@v2
       with:
         node-version: 16.x
-    - name: npm install
+    - name: Install dependencies
       run: npm install
-    - name: compile messages
+    - name: Compile messages
       run: npm run compile
-    - name: build tarballs
+    - name: Build tarballs
       run: npm run dist
-    - name: build macos installer
+    - name: Build MacOS installer
       run: npm run dist:mac
-    - name: publish tarballs to s3
+    - name: Upload tarballs to S3
       run: npm run publish
-    - name: public macos installer to s3
+    - name: Upload MacOS installer to S3
       run: npm run publish:mac
