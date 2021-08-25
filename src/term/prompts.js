@@ -56,9 +56,6 @@ const Inquirer    = require('inquirer')
 const observe     = require('inquirer/lib/utils/events')
 const {takeUntil} = require('rxjs/operators')
 
-// For Rawlist patch
-const {map} = require('rxjs/operators')
-
 const {Chars}  = Constants
 const {ensure, extendClass} = Util
 
@@ -71,11 +68,11 @@ class InputPrompt extends Inquirer.prompt.prompts.input {
 
     static features() {
         return [
-            'theme'
-          , 'cancel'
-          , 'clear'
-          , 'restore'
-          , 'expand'
+            'theme',
+            'cancel',
+            'clear',
+            'restore',
+            'expand',
         ]
     }
 
@@ -91,7 +88,6 @@ class InputPrompt extends Inquirer.prompt.prompts.input {
         })
     }
 
-    //
     /**
      * @override for writeInvalid
      *
@@ -127,7 +123,7 @@ class InputPrompt extends Inquirer.prompt.prompts.input {
         if (this.isCancel) {
             message += chlk.message.help(this.opt.cancel.message)
         } else {
-            const isFinal = this.status == 'answered'
+            const isFinal = this.status === 'answered'
             let value = isFinal ? this.answer : this.rl.line
             if (transformer) {
                 value = transformer(value, this.answers, {isFinal})
@@ -162,9 +158,9 @@ class PasswordPrompt extends Inquirer.prompt.prompts.password {
 
     static features() {
         return [
-            'theme'
-          , 'cancel'
-          , 'restore'
+            'theme',
+            'cancel',
+            'restore',
         ]
     }
 
@@ -231,9 +227,9 @@ class ListPrompt extends Inquirer.prompt.prompts.list {
 
     static features() {
         return [
-            'theme'
-          , 'cancel'
-          , 'action'
+            'theme',
+            'cancel',
+            'action',
         ]
     }
 
@@ -245,9 +241,9 @@ class ListPrompt extends Inquirer.prompt.prompts.list {
         super(...args)
         this.initializer(...args)
         ensure(this.opt, {
-            numbers   : false
-          , pointer   : Chars.pointer
-          , firstHelp : '(Use arrow keys)'
+            numbers   : false,
+            pointer   : Chars.pointer,
+            firstHelp : '(Use arrow keys)',
         })
     }
 
@@ -288,10 +284,10 @@ class RawListPrompt extends Inquirer.prompt.prompts.rawlist {
 
     static features() {
         return [
-            'theme'
-          , 'cancel'
-          , 'select'
-          , 'action'
+            'theme',
+            'cancel',
+            'select',
+            'action',
         ]
     }
 
@@ -303,10 +299,10 @@ class RawListPrompt extends Inquirer.prompt.prompts.rawlist {
         super(...args)
         this.initializer(...args)
         ensure(this.opt, {
-            pointer       : Chars.pointer
-          , numbers       : true
-          , promptMessage : 'Answer'
-          , errorMessage  : 'Please enter a valid index'
+            pointer       : Chars.pointer,
+            numbers       : true,
+            promptMessage : 'Answer',
+            errorMessage  : 'Please enter a valid index',
         })
     }
 
@@ -365,9 +361,9 @@ class ConfirmPrompt extends Inquirer.prompt.prompts.confirm {
 
     static features() {
         return [
-            'theme'
-          , 'cancel'
-          , 'toggle'
+            'theme',
+            'cancel',
+            'toggle',
         ]
     }
 
@@ -376,8 +372,8 @@ class ConfirmPrompt extends Inquirer.prompt.prompts.confirm {
         this.currentValue = this.opt.filter()
         this.initializer(...args)
         ensure(this.opt, {
-            textTrue  : 'Yes'
-          , textFalse : 'No'
+            textTrue  : 'Yes',
+            textFalse : 'No',
         })
     }
 
@@ -476,11 +472,11 @@ class ConfirmPrompt extends Inquirer.prompt.prompts.confirm {
  */
 
 const Prompts = {
-    confirm  : ConfirmPrompt
-  , input    : InputPrompt
-  , list     : ListPrompt
-  , password : PasswordPrompt
-  , rawlist  : RawListPrompt
+    confirm  : ConfirmPrompt,
+    input    : InputPrompt,
+    list     : ListPrompt,
+    password : PasswordPrompt,
+    rawlist  : RawListPrompt,
 }
 
 Object.entries(Prompts).forEach(([name, TargetClass]) => {

@@ -6,4 +6,5 @@ node_modules
 /dist
 /local
 /.gitlab-ci.yml
+/.nyc_output
 /bitbucket-pipelines.yml

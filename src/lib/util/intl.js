@@ -24,7 +24,9 @@
  */
 const lingui  = require('@lingui/core')
 const plurals = require('make-plural/plurals')
-
+const {
+    objects: {valueHash},
+} = require('utils-h')
 const {
     DefaultLocale,
     LocaleNames,

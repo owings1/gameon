@@ -140,11 +140,11 @@ class Menu extends EventEmitter {
             menu   : new TermBox({
                 top         : 10,
                 hcenter     : true,
-                maxWidth    : 50,
-                minWidth    : 50,
+                maxWidth    : 60,
+                minWidth    : 60,
                 maxHeight   : 20,
                 pad         : 1,
-                screen        : this.screen,
+                screen      : this.screen,
                 isBorder    : true,
                 borderStyle : 'solid',
                 format : {
@@ -159,7 +159,7 @@ class Menu extends EventEmitter {
                 maxWidth    : 79,
                 minWidth    : 79,
                 maxHeight   : 5,
-                screen        : this.screen,
+                screen      : this.screen,
                 isBorder    : true,
                 borderStyle : 'solid',
                 pad         : 0,
@@ -171,7 +171,7 @@ class Menu extends EventEmitter {
             }),
             screen: new TermBox({
                 top         : 1,
-                screen        : this.screen,
+                screen      : this.screen,
                 isBorder    : true,
                 borderStyle : 'solid',
                 format : {
