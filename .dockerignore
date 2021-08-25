@@ -8,3 +8,10 @@ node_modules
 /.gitlab-ci.yml
 /.nyc_output
 /bitbucket-pipelines.yml
+/extras
+/.github
+/res
+/Dockerfile
+/scripts
+#/.dockerignore
+#/.gitignore

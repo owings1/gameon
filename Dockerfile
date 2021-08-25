@@ -12,10 +12,10 @@ RUN apk --no-cache add python3 build-base
 
 COPY package.json .
 COPY package-lock.json .
-COPY scripts scripts
+#COPY scripts scripts
 
-RUN npm install
-RUN npm run compile
+RUN npm install --omit dev
+#RUN npm run compile
 
 COPY --chown=node:node . .
 RUN rm -rf .git

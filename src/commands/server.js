@@ -25,12 +25,11 @@
 const {flags} = require('@oclif/command')
 const Base    = require('../lib/command').AppCommand
 
-const Server = require('../net/server')
-
 class ServerCommand extends Base {
 
     async init(...args) {
         await super.init(...args)
+        const Server = require('../net/server')
         this.server = this.server || new Server
         this._loadProcHandlers()
     }

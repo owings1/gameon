@@ -29,10 +29,9 @@
     "inquirer": "^8.1.2",
     "node-fetch": "^2.6.1",
     "on-finished": "^2.3.0",
-    "prom-client": "^13.1.0",
     "round-to": "^5.0.0",
     "rxjs": "^6.6.7",
-    "utils-h": "github:owings1/node-utils-h",
+    "utils-h": "https://github.com/owings1/node-utils-h.git",
     "uuid": "^8.3.2",
     "websocket": "^1.0.34"
   },
@@ -48,7 +47,7 @@
     "mocha": "^8.1.3",
     "ms": "^2.1.3",
     "nyc": "^15.1.0",
-    "po-extractor": "github:owings1/node-po-extractor",
+    "po-extractor": "https://github.com/owings1/node-po-extractor.git",
     "tmp": "^0.1.0"
   },
   "peerDependencies": {
@@ -57,7 +56,8 @@
     "cookie-parser": "^1.4.5",
     "ejs": "^3.1.5",
     "express": "^4.17.1",
-    "express-session": "^1.17.2"
+    "express-session": "^1.17.2",
+    "prom-client": "^13.1.0"
   },
   "files": [
     "/bin",
