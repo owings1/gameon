@@ -266,8 +266,6 @@ class ScreenManager extends ScreenBase {
         const {opts, rl} = this
         const {emitter, screen, indent} = opts
 
-        screen.hideCursor()
-
         if (this.spinnerId && !spinning) {
             clearInterval(this.spinnerId)
         }
@@ -373,8 +371,6 @@ class ScreenManager extends ScreenBase {
         this.footHeight = footHeight
 
         this.isFirstRender = false
-
-        screen.showCursor()
 
         emitter.emit('afterRender')
 

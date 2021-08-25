@@ -163,7 +163,7 @@ class TermBox {
         const borders = this.getBorders(width)
         const pads = this.getPadStrings(width)
 
-        screen.saveCursor().hideCursor()
+        screen.saveCursor()
 
         if (isBorder) {
             screen.moveTo(outerLeft, outerTop).write(borders.top)
@@ -193,7 +193,7 @@ class TermBox {
         if (isBorder) {
             screen.moveTo(outerLeft, outerTop + outerHeight).write(borders.foot)
         }
-        screen.showCursor().restoreCursor()
+        screen.restoreCursor()
     }
 
     getBorders(width) {
