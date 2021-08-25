@@ -13,22 +13,9 @@ test:
   before_script:
     - apk --no-cache add python3 build-base
   script:
-    - npm install #--unsafe-perm
+    - npm install
     - npm run compile
     - npm test
-
-test_dist:
-  stage: test
-  when: manual
-  tags:
-    - docker
-  before_script:
-    - apk add python3 build-base
-    - apk add git p7zip xz curl perl-utils
-  script:
-    - npm install --unsafe-perm
-    - npm run compile
-    - npm run-script dist
 
 #test_docker:
 #  stage: test
@@ -70,7 +57,7 @@ publish_s3:
   before_script:
     - docker build -t "$DIST_IMAGE" -f res/docker/dist.dockerfile .
   script:
-    - docker run --rm -e "AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID" -e "AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY" "$DIST_IMAGE" npm run-script dist_and_publish
+    - docker run --rm -e "AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID" -e "AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY" "$DIST_IMAGE" npm run publish
   after_script:
     - docker rmi "$DIST_IMAGE"
 

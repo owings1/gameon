@@ -1,5 +1,8 @@
 name: dist
 
+env:
+  FORCE_COLOR: "1"
+
 on:
   push:
     tags:
@@ -8,14 +11,23 @@ on:
 jobs:
   build:
     runs-on: macos-11
-    environment: dist
+    env:
+      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
     steps:
     - uses: actions/checkout@v2
     - uses: actions/setup-node@v2
       with:
         node-version: 16.x
-    - run: npm install
-    - run: npm run compile
-    - run: npm run dist
-    - run: npm run mac
-    - run: npm run publish
+    - name: npm install
+      run: npm install
+    - name: compile messages
+      run: npm run compile
+    - name: build tarballs
+      run: npm run dist
+    - name: build macos installer
+      run: npm run dist:mac
+    - name: publish tarballs to s3
+      run: npm run publish
+    - name: public macos installer to s3
+      run: npm run publish:mac

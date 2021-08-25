@@ -1,18 +1,19 @@
 {
   "name": "gameon",
-  "version": "1.2.3",
+  "version": "1.2.4",
   "description": "backgammon for terminal",
   "main": "index.js",
   "scripts": {
+    "clean": "rm -rf node_modules .nyc_output coverage tmp dist",
     "postpack": "rm -f oclif.manifest.json",
     "lint": "eslint .",
     "prepack": "oclif-dev manifest && oclif-dev readme && lingui compile",
     "test": "GAMEON_TEST=1 NODE_OPTIONS='--trace-warnings' nyc --reporter=text-summary mocha test/test.js && nyc report --reporter=lcov",
     "version": "oclif-dev readme && git add README.md",
-    "mac": "oclif-dev pack:macos",
     "dist": "oclif-dev pack",
-    "dist_and_publish": "oclif-dev pack && oclif-dev publish",
+    "dist:mac": "oclif-dev pack:macos",
     "publish": "oclif-dev publish",
+    "publish:mac": "oclif-dev publish:macos",
     "extract": "node scripts/extract.js",
     "compile": "lingui compile"
   },
@@ -29,9 +30,8 @@
     "globby": "^10.0.2",
     "inquirer": "^8.1.2",
     "node-fetch": "^2.6.1",
-    "on-finished": "^2.3.0",
     "round-to": "^5.0.0",
-    "rxjs": "^6.6.7",
+    "rxjs": "^7.2.0",
     "utils-h": "https://github.com/owings1/node-utils-h.git",
     "uuid": "^8.3.2",
     "websocket": "^1.0.34"
@@ -39,7 +39,7 @@
   "devDependencies": {
     "@babel/core": "^7.14.8",
     "@lingui/cli": "^3.10.2",
-    "@oclif/dev-cli": "^1.22.2",
+    "@oclif/dev-cli": "^1.26.0",
     "@oclif/test": "^1.2.7",
     "chai": "^4.2.0",
     "diff": "^5.0.0",
@@ -58,6 +58,7 @@
     "ejs": "^3.1.5",
     "express": "^4.17.1",
     "express-session": "^1.17.2",
+    "on-finished": "^2.3.0",
     "prom-client": "^13.1.0"
   },
   "files": [
@@ -66,7 +67,7 @@
     "/npm-shrinkwrap.json",
     "/oclif.manifest.json",
     "/src",
-    "/NOTICE.nd",
+    "/NOTICE.md",
     "/LICENSE.txt",
     "/README.md"
   ],

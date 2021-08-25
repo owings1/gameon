@@ -13,5 +13,5 @@ node_modules
 /res
 /Dockerfile
 /scripts
-#/.dockerignore
-#/.gitignore
+/.dockerignore
+/.gitignore
