@@ -1,6 +1,6 @@
 {
   "name": "gameon",
-  "version": "1.2.2",
+  "version": "1.2.3",
   "description": "backgammon for terminal",
   "main": "index.js",
   "scripts": {
@@ -12,6 +12,7 @@
     "mac": "oclif-dev pack:macos",
     "dist": "oclif-dev pack",
     "dist_and_publish": "oclif-dev pack && oclif-dev publish",
+    "publish": "oclif-dev publish",
     "extract": "node scripts/extract.js",
     "compile": "lingui compile"
   },
