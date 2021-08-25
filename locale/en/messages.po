@@ -43,7 +43,7 @@ msgstr "Account created"
 msgid "Advanced"
 msgstr "Advanced"
 
-#: src/term/helpers/menu.questions.js:679
+#: src/term/helpers/menu.questions.js:683
 msgid "Advanced ANSI"
 msgstr "Advanced ANSI"
 
@@ -68,11 +68,11 @@ msgstr "Change Password"
 msgid "Check your email for a confirmation key."
 msgstr "Check your email for a confirmation key."
 
-#: src/term/helpers/menu.questions.js:669
+#: src/term/helpers/menu.questions.js:673
 msgid "Choose a theme"
 msgstr "Choose a theme"
 
-#: src/term/helpers/menu.questions.js:656
+#: src/term/helpers/menu.questions.js:660
 msgid "Choose your locale"
 msgstr "Choose your locale"
 
@@ -99,22 +99,22 @@ msgid "Current password"
 msgstr "Current password"
 
 #: src/term/helpers/menu.questions.js:418
-#: src/term/helpers/menu.questions.js:646
-#: src/term/helpers/menu.questions.js:787
-#: src/term/helpers/menu.questions.js:867
+#: src/term/helpers/menu.questions.js:648
+#: src/term/helpers/menu.questions.js:796
+#: src/term/helpers/menu.questions.js:876
 msgid "Done"
 msgstr "Done"
 
-#: src/term/helpers/menu.questions.js:902
-#: src/term/helpers/menu.questions.js:906
+#: src/term/helpers/menu.questions.js:911
+#: src/term/helpers/menu.questions.js:915
 msgid "Double Weight"
 msgstr "Double Weight"
 
-#: src/term/helpers/menu.questions.js:813
+#: src/term/helpers/menu.questions.js:822
 msgid "double:"
 msgstr "double:"
 
-#: src/term/helpers/menu.questions.js:683
+#: src/term/helpers/menu.questions.js:687
 msgid "Enable Advanced ANSI"
 msgstr "Enable Advanced ANSI"
 
@@ -133,8 +133,8 @@ msgstr "Enter reset key"
 msgid "Exit"
 msgstr "Exit"
 
-#: src/term/helpers/menu.questions.js:693
-#: src/term/helpers/menu.questions.js:697
+#: src/term/helpers/menu.questions.js:699
+#: src/term/helpers/menu.questions.js:703
 msgid "Fast Forced Moves"
 msgstr "Fast Forced Moves"
 
@@ -179,7 +179,7 @@ msgstr "Loaded {count} custom themes."
 msgid "Loading robot defaults"
 msgstr "Loading robot defaults"
 
-#: src/term/helpers/menu.questions.js:653
+#: src/term/helpers/menu.questions.js:657
 msgid "Locale"
 msgstr "Locale"
 
@@ -213,12 +213,12 @@ msgstr "Match Total"
 msgid "Migrating legacy robot config"
 msgstr "Migrating legacy robot config"
 
-#: src/term/helpers/menu.questions.js:892
-#: src/term/helpers/menu.questions.js:896
+#: src/term/helpers/menu.questions.js:901
+#: src/term/helpers/menu.questions.js:905
 msgid "Move Weight"
 msgstr "Move Weight"
 
-#: src/term/helpers/menu.questions.js:811
+#: src/term/helpers/menu.questions.js:820
 msgid "move:"
 msgstr "move:"
 
@@ -266,18 +266,18 @@ msgstr "Please enter a number >= 0"
 msgid "Re-enter password"
 msgstr "Re-enter password"
 
-#: src/term/helpers/menu.questions.js:706
-#: src/term/helpers/menu.questions.js:709
+#: src/term/helpers/menu.questions.js:712
+#: src/term/helpers/menu.questions.js:715
 msgid "Record Dir"
 msgstr "Record Dir"
 
-#: src/term/helpers/menu.questions.js:721
-#: src/term/helpers/menu.questions.js:725
+#: src/term/helpers/menu.questions.js:727
+#: src/term/helpers/menu.questions.js:731
 msgid "Record Matches"
 msgstr "Record Matches"
 
-#: src/term/helpers/menu.questions.js:794
-#: src/term/helpers/menu.questions.js:874
+#: src/term/helpers/menu.questions.js:803
+#: src/term/helpers/menu.questions.js:883
 msgid "Reset defaults"
 msgstr "Reset defaults"
 
@@ -289,15 +289,15 @@ msgstr "Reset key requested, check your email."
 msgid "Robot"
 msgstr "Robot"
 
-#: src/term/helpers/menu.questions.js:764
+#: src/term/helpers/menu.questions.js:772
 msgid "Robot Configuration"
 msgstr "Robot Configuration"
 
-#: src/term/helpers/menu.questions.js:735
+#: src/term/helpers/menu.questions.js:743
 msgid "Robot Delay"
 msgstr "Robot Delay"
 
-#: src/term/helpers/menu.questions.js:738
+#: src/term/helpers/menu.questions.js:746
 msgid "Robot Delay (seconds)"
 msgstr "Robot Delay (seconds)"
 
@@ -353,12 +353,12 @@ msgstr "Test Credentials"
 msgid "Testing credentials"
 msgstr "Testing credentials"
 
-#: src/term/helpers/menu.questions.js:666
+#: src/term/helpers/menu.questions.js:670
 msgid "Theme"
 msgstr "Theme"
 
-#: src/term/helpers/menu.questions.js:751
-#: src/term/helpers/menu.questions.js:755
+#: src/term/helpers/menu.questions.js:759
+#: src/term/helpers/menu.questions.js:763
 msgid "Use Custom Robot"
 msgstr "Use Custom Robot"
 
@@ -372,8 +372,8 @@ msgstr "Username"
 msgid "Using custom rolls file"
 msgstr "Using custom rolls file"
 
-#: src/term/helpers/menu.questions.js:880
-#: src/term/helpers/menu.questions.js:884
+#: src/term/helpers/menu.questions.js:889
+#: src/term/helpers/menu.questions.js:893
 msgid "Version"
 msgstr "Version"
 
