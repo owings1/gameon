@@ -13,10 +13,6 @@ msgstr ""
 "Language-Team: \n"
 "Plural-Forms: \n"
 
-#: src/term/menu.js:930
-msgid "{winner} won the match {winning} to {losing}"
-msgstr "{winner} won the match {winning} to {losing}"
-
 #: src/term/menu.js:838
 msgid "Aborting waiting"
 msgstr "Aborting waiting"
@@ -36,6 +32,10 @@ msgstr "Account created"
 #: src/term/helpers/menu.questions.js:683
 msgid "Advanced ANSI"
 msgstr "Advanced ANSI"
+
+#: src/term/menu.js:930
+msgid "alerts.matchResult{winner,winningScore,losingScore}"
+msgstr "{winner} won the match {winningScore} to {losingScore}"
 
 #: src/term/menu.js:295
 msgid "Authentication failed. Go to Account to sign up or log in."
@@ -380,6 +380,10 @@ msgstr "Please enter a number > 0"
 msgid "Please enter a number >= 0"
 msgstr "Please enter a number >= 0"
 
+#: src/lib/constants.js:50
+msgid "R"
+msgstr "R"
+
 #: src/term/helpers/menu.questions.js:712
 #: src/term/helpers/menu.questions.js:715
 msgid "Record Dir"
@@ -389,6 +393,10 @@ msgstr "Record Dir"
 #: src/term/helpers/menu.questions.js:731
 msgid "Record Matches"
 msgstr "Record Matches"
+
+#: src/lib/constants.js:49
+msgid "Red"
+msgstr "Red"
 
 #: src/term/helpers/menu.questions.js:588
 msgid "Reset key requested, check your email."
@@ -412,6 +420,14 @@ msgstr "Using custom rolls file"
 #: src/term/helpers/menu.questions.js:893
 msgid "Version"
 msgstr "Version"
+
+#: src/lib/constants.js:51
+msgid "W"
+msgstr "W"
+
+#: src/lib/constants.js:48
+msgid "White"
+msgstr "White"
 
 #: src/term/helpers/menu.questions.js:620
 msgid "You must confirm your account."

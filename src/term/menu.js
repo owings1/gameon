@@ -922,12 +922,13 @@ class Menu extends EventEmitter {
                 const loser = match.getLoser()
                 const {scores} = match
                 const params = {
-                    winner,
-                    winning : scores[winner],
-                    losing  : scores[loser],
+                    // i18n-ignore
+                    winner: __(winner),
+                    winningScore : scores[winner],
+                    losingScore  : scores[loser],
                 }
                 this.alerts.info(
-                    __('{winner} won the match {winning} to {losing}', params)
+                    __('alerts.matchResult{winner,winningScore,losingScore}', params)
                 )
             })
 
