@@ -22,11 +22,15 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-const {arrays: {append}} = require('utils-h')
+const {
+    arrays: {append},
+    strings: {stringWidth},
+    types: {isFunction, isString},
+} = require('utils-h')
 const fse = require('fs-extra')
 
-const fs    = require('fs')
-const path  = require('path')
+const fs = require('fs')
+const path = {resolve} = require('path')
 
 const Dice    = require('../../lib/dice.js')
 const {Board} = require('../../lib/core.js')
@@ -41,7 +45,6 @@ const {
     padStart,
     sp,
     StringBuilder,
-    stringWidth,
     tildeHome,
 } = require('../../lib/util.js')
 const {
@@ -51,10 +54,10 @@ const {
 
 
 function getDiffChalk(a, b, chlk) {
-    if (a == b) {
+    if (a === b) {
         return sp
     }
-    const isLess = typeof a == 'string' ? a.localeCompare(b) < 0 : a < b
+    const isLess = isString(a) ? a.localeCompare(b) < 0 : a < b
     return isLess ? chlk.minus : chlk.plus
 }
 
@@ -139,9 +142,7 @@ class Questions {
     }
 
     mainChoices() {
-
         const {__} = this
-
         return this.formatChoices([
             this.br(),
             {
@@ -176,9 +177,7 @@ class Questions {
     }
 
     playChoices() {
-
         const {menu, __, m} = this
-
         return this.formatChoices([
             this.br(),
             {
@@ -247,7 +246,6 @@ class Questions {
     }
 
     matchInitialChoices(playChoice) {
-
         const {__} = this
         const mopts = this.settings.matchOpts
         const isJoin = playChoice === 'joinOnline'
@@ -256,10 +254,9 @@ class Questions {
                 if (Number.isInteger(value) && value > 0) {
                     return true
                 }
-                return __('Please enter a number > 0')
+                return __('alerts.enterNumberGreaterThanZero')
             }
         }
-
         return [
             this.br(),
             {
@@ -330,11 +327,8 @@ class Questions {
     }
 
     matchAdvanced(aopts) {
-
         aopts = aopts || {}
-
         const {__} = this
-
         const validate = {
             state: value => {
                 if (!value.length) {
@@ -357,7 +351,6 @@ class Questions {
                 return errMessage(() => Dice.validateRollsData(data))
             },
         }
-
         return [
             {
                 name     : 'startState',
@@ -381,21 +374,18 @@ class Questions {
     }
 
     matchId() {
-
         const {__} = this
-
         const validate = {
             matchId: value => {
-                if (!value || value.length == 8) {
+                if (!value || value.length === 8) {
                     return true
                 }
-                return __('Invalid match ID format')
+                return __('alerts.invalidMatchIdFormat')
             },
         }
-
         return {
             name     : 'matchId',
-            message  : __('Match ID'),
+            message  : __('menu.question.matchId'),
             type     : 'input',
             validate : validate.matchId,
             cancel   : CancelChars.input,
@@ -403,13 +393,10 @@ class Questions {
     }
 
     accountChoices() {
-
         const {creds, __} = this
-
         const {needsConfirm} = creds
         const isFilled = isCredentialsFilled(creds)
         const hasCred = Boolean(creds.username || creds.password)
-
         return [
             [
                 this.br(),
@@ -489,12 +476,9 @@ class Questions {
     }
 
     username() {
-
         const {creds, __} = this
-
         const checkMark = this.theme.prompt.check.pass(Chars.check)
         const checkSuffix = creds.isTested ? ' ' + checkMark : ''
-
         return {
             name    : 'username',
             message : __('menu.question.username'),
@@ -526,18 +510,15 @@ class Questions {
     }
 
     passwordConfirm(checkKey = 'password') {
-
         const {__} = this
-
         const validate = {
             passwordConfirm: (value, answers) => {
-                if (value == answers[checkKey]) {
+                if (value === answers[checkKey]) {
                     return true
                 }
-                return __('Passwords do not match')
+                return __('alerts.passwordsDoNotMatch')
             },
         }
-
         return {
             name     : 'passwordConfirm',
             message  : __('menu.question.confirmPassword'),
@@ -550,9 +531,7 @@ class Questions {
     }
 
     changePassword() {
-
         const {__} = this
-
         return [
             {
                 ...this.password(),
@@ -571,21 +550,18 @@ class Questions {
     }
 
     forgotPassword() {
-
         const {__} = this
-
         const when = {
             keyEntered: answers => {
                 return Boolean(!answers._cancelEvent && answers.resetKey)
             },
         }
-
         return [
             {
                 name    : 'resetKey',
                 type    : 'input',
                 message : __('menu.question.resetKey'),
-                prefix  : __('Reset key requested, check your email.') + '\n',
+                prefix  : __('alerts.resetKeyRequestedCheckEmail') + '\n',
                 cancel  : CancelChars.input,
             },
             {
@@ -609,16 +585,14 @@ class Questions {
     }
 
     confirmKey() {
-
         const {__} = this
-
         return {
             name    : 'key',
             type    : 'input',
             message : __('menu.question.confirmKey'),
             prefix  : [
-                __('You must confirm your account.'),
-                __('Check your email for a confirmation key.'),
+                __('alerts.mustConfirmYourAccount'),
+                __('alerts.checkEmailForConfirmKey'),
                 '',
             ].join('\n'),
             cancel  : CancelChars.input,
@@ -626,22 +600,18 @@ class Questions {
     }
 
     settingsChoices() {
-
         const {settings, __} = this
         const {intl} = this.menu
-
         const validate = {
             delay: value => {
                 if (!isNaN(value) && value >= 0) {
                     return true
                 }
-                return __('Please enter a number >= 0')
+                return __('alerts.enterNumberGreaterThanOrEqualToZero')
             },
         }
-
         return [
             [
-
                 this.br(),
                 {
                     value  : 'done',
@@ -680,11 +650,11 @@ class Questions {
                 },
                 {
                     value  : 'isAnsi',
-                    name   : __('Advanced ANSI'),
+                    name   : __('menu.choice.advancedAnsi'),
                     action : ['#toggle'],
                     question : {
                         name    : 'isAnsi',
-                        message : __('Enable Advanced ANSI'),
+                        message : __('menu.question.advancedAnsi'),
                         type    : 'confirm',
                         default : () => settings.isAnsi,
                         cancel  : CancelChars.bool,
@@ -709,13 +679,13 @@ class Questions {
                 },
                 {
                     value : 'recordDir',
-                    name  : __('Record Dir'),
+                    name  : __('menu.choice.recordDir'),
                     question : {
                         name    : 'recordDir',
-                        message : __('Record Dir'),
+                        message : __('menu.question.recordDir'),
                         type    : 'input',
                         default : () => homeTilde(settings.recordDir),
-                        filter  : value => !value ? null : path.resolve(tildeHome(value)),
+                        filter  : value => !value ? null : resolve(tildeHome(value)),
                         cancel  : CancelChars.input,
                         clear   : 'ctrl-delete',
                         restore : RestoreChars.input,
@@ -724,11 +694,11 @@ class Questions {
                 },
                 {
                     value  : 'isRecord',
-                    name   : __('Record Matches'),
+                    name   : __('menu.choice.recordMatches'),
                     action : ['#toggle'],
                     question : {
                         name    : 'isRecord',
-                        message : __('Record Matches'),
+                        message : __('menu.question.recordMatches'),
                         type    : 'confirm',
                         default : () => settings.isRecord,
                         cancel  : CancelChars.bool,
@@ -778,17 +748,13 @@ class Questions {
     }
 
     robotsChoices() {
-
         const {menu, settings, __} = this
         const chlk = this.theme.diff
-
         const config = (name, prop) => {
             const base = settings.robots[name] || menu.robotMinimalConfig(name)
             return base[prop]
         }
-
         const entries = Object.entries(menu.robotsDefaults())
-
         return this.formatChoices([
             this.br(),
             {
@@ -830,11 +796,9 @@ class Questions {
     }
 
     robotChoices(name) {
-
         const {__} = this
         const chlk = this.theme.diff
         const {defaults, versions} = this.menu.robotMeta(name)
-
         const validate = {
             weight: value => {
                 // TODO: make tranlatable
@@ -843,15 +807,12 @@ class Questions {
                 )
             },
         }
-
         const config = prop => {
             return this.settings.robots[name][prop]
         }
-
         const differ = prop => {
             return chalkDiff(config(prop), defaults[prop], chlk)
         }
-
         const common = {
             prop: name => ({
                 name,
@@ -868,7 +829,6 @@ class Questions {
                 writeInvalid : () => '',
             },
         }
-
         return this.formatChoices([
             this.br(),
             {
@@ -886,11 +846,11 @@ class Questions {
             this.hr(),
             {
                 value  : 'version',
-                name   : __('Version'),
+                name   : __('menu.choice.version'),
                 select : 'v',
                 question : {
                     ...common.prop('version'),
-                    message : __('Version'),
+                    message : __('menu.question.version'),
                     type    : 'list',
                     choices : () => Object.keys(versions),
                     cancel  : CancelChars.list,
@@ -898,21 +858,21 @@ class Questions {
             },
             {
                 value  : 'moveWeight',
-                name   : __('Move Weight'),
+                name   : __('menu.choice.moveWeight'),
                 select : 'm',
                 question : {
                     ...common.prop('moveWeight'),
-                    message  : __('Move Weight'),
+                    message  : __('menu.question.moveWeight'),
                     ...common.weight,
                 },
             },
             {
                 value  : 'doubleWeight',
-                name   : __('Double Weight'),
+                name   : __('menu.choice.doubleWeight'),
                 select : 'b',
                 question : {
                     ...common.prop('doubleWeight'),
-                    message  : __('Double Weight'),
+                    message  : __('menu.question.doubleWeight'),
                     ...common.weight,
                 },
             },
@@ -929,63 +889,46 @@ class Questions {
     }
 
     formatChoices(choices) {
-
         const {menu} = this
-
         choices = choices.filter(choice => {
             if (!('when' in choice)) {
                 return true
             }
-            if (typeof choice.when == 'function') {
+            if (isFunction(choice.when)) {
                 return choice.when()
             }
-            return !!choice.when
+            return Boolean(choice.when)
         })
-
-        const available = choices.filter(choice => choice.type != 'separator')
+        const available = choices.filter(choice => choice.type !== 'separator')
         const total = available.length
         const nameWidth = Math.max(
             ...available.map(choice => stringWidth(choice.name))
         )
-
         const menuBoxMaxWidth = menu.boxes.menu.params.maxWidth
-
         available.forEach((choice, i) => {
-
             const n = i + 1
-
             const numPad = total.toString().length - n.toString().length
-
             if ('name' in choice) {
                 choice._originalName = choice.name
             }
-
             if (!('short' in choice)) {
                 choice.short = choice.name
             }
-
             // TODO: Support display key without a question.
-
             const {question} = choice
-
             if (!question) {
                 return
             }
-
             if (!question.display && !question.default) {
                 return
             }
-
             // The thisMaxWidth is just to avoid extra spaces by padding.
             // It doesn't break lines or truncate.
 
             // subtract pointer, paren, 2 spaces, and number string.
             const thisMaxWidth = menuBoxMaxWidth - 4 - n.toString().length
-
             const display = question.display ? question.display() : question.default()
-
             const bareText = sp(choice.name, ':', display)
-
             if (stringWidth(bareText) >= thisMaxWidth) {
                 choice.name = bareText
             } else {

@@ -290,7 +290,7 @@ class Menu extends EventEmitter {
                     this.alerts.error(err)
                     if (err.isAuthError || err.isValidateError) {
                         this.alerts.warn(
-                            __('Authentication failed. Go to Account to sign up or log in.')
+                            __('alerts.authenticationFailedGoToAccountToLogin')
                         )
                     }
                 }
@@ -526,7 +526,7 @@ class Menu extends EventEmitter {
         return this.runMenu('robots', __('menu.title.robots'), async (choose, loop) => {
 
             if (!isNonEmptyObject(this.settings.robots)) {
-                this.alerts.info(__('Loading robot defaults'))
+                this.alerts.info(__('alerts.loadingRobotDefaults'))
                 this.settings.robots = this.robotsDefaults()
                 await this.saveSettings()
             }
@@ -661,7 +661,7 @@ class Menu extends EventEmitter {
             await this.api.confirmKey(credentials, answer)
         } catch (err) {
             if (err.isUserConfirmedError) {
-                this.alerts.warn(__('Account already confirmed'))
+                this.alerts.warn(__('alerts.accountAlreadyConfirmed'))
                 return
             }
             throw err
@@ -710,11 +710,11 @@ class Menu extends EventEmitter {
                 isSuccess = await this.promptConfirmAccount()            
             }
             if (!isSuccess) {
-                this.alerts.warn(__('Login failed to {url}', {url}))
+                this.alerts.warn(__('alerts.loginFailed{url}', {url}))
                 throw err
             }
         }
-        this.alerts.info(__('Login success to {url}', {url}))
+        this.alerts.info(__('alerts.loginSuccess{url}', {url}))
         credentials.needsConfirm = false
         credentials.isTested = true
         return true
@@ -778,7 +778,7 @@ class Menu extends EventEmitter {
                 Red   : isStart ? netPlayer  : termPlayer,
             }
             this.captureInterrupt = () => {
-                alerts.warn(__('Aborting waiting'))
+                alerts.warn(__('alerts.abortingWaiting'))
                 client.cancelWaiting(new WaitingAbortedError('Keyboard interrupt'))
                 return true
             }
@@ -838,7 +838,7 @@ class Menu extends EventEmitter {
             })
             const coord = this.newCoordinator()
             this.captureInterrupt = () => {
-                alerts.warn(__('Canceling match'))
+                alerts.warn(__('alerts.cancelingMatch'))
                 const err = new MatchCanceledError('Keyboard interrupt')
                 coord.cancelMatch(match, players, err)
                 return true
@@ -851,7 +851,9 @@ class Menu extends EventEmitter {
                 const loser = match.getLoser()
                 const {scores} = match
                 const params = {
-                    winner       : __(winner), // i18n-ignore-line
+                    // i18n-extract play.color.Red
+                    // i18n-extract play.color.White
+                    winner       : __(['play.color', winner].join('.')), // i18n-ignore-line
                     winningScore : scores[winner],
                     losingScore  : scores[loser],
                 }
@@ -919,11 +921,11 @@ class Menu extends EventEmitter {
         matchOpts = {...matchOpts}
         const {__} = this
         if (advancedOpts.startState) {
-            this.logger.info(__('Setting initial state'))
+            this.logger.info(__('alerts.settingInitialState'))
             matchOpts.startState = advancedOpts.startState
         }
         if (advancedOpts.rollsFile) {
-            this.logger.info(__('Using custom rolls file'))
+            this.logger.info(__('alerts.usingCustomRollsFile'))
             const file = advancedOpts.rollsFile
             const {rolls} = await fse.readJson(file)
             matchOpts.roller = Dice.createRoller(rolls)
@@ -1296,7 +1298,7 @@ class Menu extends EventEmitter {
         if (settings.isCustomRobot && !isNonEmptyObject(settings.robots)) {
             // Populate for legacy format.
             update(settings.robots,  Menu.robotsDefaults())
-            this.alerts.info(__('Migrating legacy robot config'))
+            this.alerts.info(__('alerts.migratingLegacyRobotConfig'))
             await this.saveSettings()
         }
         if (this.isThemesLoaded) {
@@ -1414,9 +1416,9 @@ class Menu extends EventEmitter {
             // TODO: __
             this.alerts.error(info.error, {...info, error: undefined})
         })
-        if (!isQuiet && loaded.length) {
+        if (true || !isQuiet && loaded.length) {
             const count = loaded.length
-            this.alerts.info(__('Loaded {count} custom themes.', {count}))
+            this.alerts.info(__('alerts.loadedCustomThemes{count}', {count}))
         }
         this.theme = Themes.getInstance(this.settings.theme)
         this.alerter.theme = this.theme

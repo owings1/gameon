@@ -24,7 +24,7 @@
  */
 const {
     Screen,
-    strings: {stripAnsi, ucfirst},
+    strings: {stringWidth, stripAnsi, ucfirst},
     types: {isWriteableStream},
 } = require('utils-h')
 
@@ -35,7 +35,6 @@ const {
     nchars,
     sp,
     StringBuilder,
-    stringWidth,
 } = require('../lib/util.js')
 const {
     BoardStrings,
@@ -79,7 +78,7 @@ class DrawHelper {
         this.logs  = logs || []
 
         this.theme    = Themes.getInstance(theme || DefaultThemeName)
-        this.screen     = screen || DefaultScreen
+        this.screen   = screen || DefaultScreen
         this.chars    = Chars.table
         this.reporter = new Reporter(this)
 
@@ -147,16 +146,16 @@ class DrawHelper {
         const b = new StringBuilder
 
         b.add(
-            Chars.br
+            Chars.br,
             // Top point numbers
-          , this.numbersRow(TopPoints)
+            this.numbersRow(TopPoints),
             // Top border
-          , this.borderRow(this.TopBorder)
+            this.borderRow(this.TopBorder),
         )
 
         // Top piece rows
-        for (var depth = 0; depth < 6; ++depth) {
-            var cubePart = depth - 3
+        for (let depth = 0; depth < 6; ++depth) {
+            const cubePart = depth - 3
             b.add(
                 this.pieceRow(depth, TopPoints, cubePart, this.opersp)
             )
@@ -164,20 +163,20 @@ class DrawHelper {
 
         b.add(
             // Top overflow row
-            this.overflowRow(TopPoints)
+            this.overflowRow(TopPoints),
             // Bar row
-          , this.barRow(this.persp, 0)
+            this.barRow(this.persp, 0),
             // Between bars blank row
-          , this.middleRow()
+            this.middleRow(),
             // Bar row
-          , this.barRow(this.opersp, 2)
+            this.barRow(this.opersp, 2),
             // Bottom overflow row
-          , this.overflowRow(BottomPoints)
+            this.overflowRow(BottomPoints),
         )
 
         // Bottom piece rows
-        for (var depth = 5; depth >= 0; --depth) {
-            var cubePart = 5 - depth
+        for (let depth = 5; depth >= 0; --depth) {
+            const cubePart = 5 - depth
             b.add(
                 this.pieceRow(depth, BottomPoints, cubePart, this.persp)
             )
@@ -185,9 +184,9 @@ class DrawHelper {
 
         b.add(
             // Bottom border
-            this.borderRow(this.BottomBorder)
+            this.borderRow(this.BottomBorder),
             // Bottom point numbers
-          , this.numbersRow(BottomPoints)
+            this.numbersRow(BottomPoints),
         )
 
         b.add(Chars.br)
@@ -200,10 +199,10 @@ class DrawHelper {
         const chlk = this.theme.board
 
         return new StringBuilder(
-            this.numbers(points)
-          , chlk.outside(nchars(this.AfterWidth, Chars.sp))
-          , this.sideLog(0)
-          , Chars.br
+            this.numbers(points),
+            chlk.outside(nchars(this.AfterWidth, Chars.sp)),
+            this.sideLog(0),
+            Chars.br,
         )
     }
 
@@ -212,10 +211,10 @@ class DrawHelper {
         const chlk = this.theme.board
 
         return new StringBuilder(
-            chlk.border(border)
-          , chlk.outside(nchars(this.AfterWidth, Chars.sp))
-          , this.sideLog(0)
-          , Chars.br
+            chlk.border(border),
+            chlk.outside(nchars(this.AfterWidth, Chars.sp)),
+            this.sideLog(0),
+            Chars.br,
         )
     }
 
@@ -234,21 +233,21 @@ class DrawHelper {
 
         points.forEach((point, i) => {
             const {color, count} = this.pointStats[point]
-            b.add(this.pieceStr(count > depth && color, i == 0 || i == 6))
-            if (i == 5) {
+            b.add(this.pieceStr(count > depth && color, i === 0 || i === 6))
+            if (i === 5) {
                 b.add(
-                    chlk.inside('  ')
-                  , chlk.border(chars.dblPipe)
+                    chlk.inside('  '),
+                    chlk.border(chars.dblPipe),
                 )
             }
         })
 
         b.add(
-            chlk.inside('  ')
-          , chlk.border(chars.pipe)
-          , afterStr
-          , this.sideLog(pad)
-          , Chars.br
+            chlk.inside('  '),
+            chlk.border(chars.pipe),
+            afterStr,
+            this.sideLog(pad),
+            Chars.br,
         )
 
         return b
@@ -265,20 +264,20 @@ class DrawHelper {
 
         points.forEach((point, i) => {
             const {count} = this.pointStats[point]
-            b.add(this.overflowStr(count, i == 0 || i == 6))
-            if (i == 5) {
+            b.add(this.overflowStr(count, i === 0 || i === 6))
+            if (i === 5) {
                 b.add(
-                    chlk.inside('  ')
-                  , chlk.border(chars.dblPipe)
+                    chlk.inside('  '),
+                    chlk.border(chars.dblPipe),
                 )
             }
         })
 
         b.add(
-            chlk.inside('  ')
-          , chlk.border(chars.pipe)
-          , this.sideLog(this.AfterWidth)
-          , Chars.br
+            chlk.inside('  '),
+            chlk.border(chars.pipe),
+            this.sideLog(this.AfterWidth),
+            Chars.br,
         )
 
         return b
@@ -292,10 +291,11 @@ class DrawHelper {
 
         b.add(this.barRowStr(color, count))
 
+        let cubeStr
         if (this.cubeValue && !this.cubeOwner) {
-            var cubeStr = this.cubePartStr(cubePart)
+            cubeStr = this.cubePartStr(cubePart)
         } else {
-            var cubeStr = Chars.empty
+            cubeStr = Chars.empty
         }
 
         b.add(cubeStr)
@@ -314,24 +314,25 @@ class DrawHelper {
 
         const {chars, PiecePad} = this
 
+        let cubeStr
         if (this.cubeValue && !this.cubeOwner) {
-            var cubeStr = this.cubePartStr(1)
+            cubeStr = this.cubePartStr(1)
         } else {
-            var cubeStr = Chars.empty
+            cubeStr = Chars.empty
         }
 
         const pad = this.AfterWidth - stringWidth(cubeStr.toString())
 
         return new StringBuilder(
-            chlk.border(chars.pipe)
-          , chlk.inside(nchars(6 * PiecePad + 1, Chars.sp))
-          , chlk.border(chars.dblPipe)
-          , chlk.inside(nchars(6 * PiecePad, Chars.sp))
-          , chlk.inside(Chars.sp)
-          , chlk.border(chars.pipe)
-          , cubeStr
-          , this.sideLog(pad)
-          , Chars.br
+            chlk.border(chars.pipe),
+            chlk.inside(nchars(6 * PiecePad + 1, Chars.sp)),
+            chlk.border(chars.dblPipe),
+            chlk.inside(nchars(6 * PiecePad, Chars.sp)),
+            chlk.inside(Chars.sp),
+            chlk.border(chars.pipe),
+            cubeStr,
+            this.sideLog(pad),
+            Chars.br,
         )
     }
 
@@ -340,26 +341,26 @@ class DrawHelper {
         const chlk = this.theme.board
         const n = this.logIndex--
 
-        var maxWidth = this.maxLogWidth
+        let maxWidth = this.maxLogWidth, message
         if (this.columns > 97) {
             pad += 1
             maxWidth -= 1
         }
         if (this.logs[n]) {
-            var message = this.logs[this.logs.length - n - 1]
+            message = this.logs[this.logs.length - n - 1]
             if (stringWidth(message) > this.maxLogWidth) {
                 message = chlk.log(
                     stripAnsi(message).substring(0, this.maxLogWidth)
                 )
             }
         } else {
-            var message = Chars.empty
+            message = Chars.empty
         }
 
         return new StringBuilder(
-            chlk.outside(nchars(pad, Chars.sp))
-          , message
-          , chlk.log(nchars(maxWidth - stringWidth(message), Chars.sp))
+            chlk.outside(nchars(pad, Chars.sp)),
+            message,
+            chlk.log(nchars(maxWidth - stringWidth(message), Chars.sp)),
         )
     }
 
@@ -372,14 +373,14 @@ class DrawHelper {
         b.add(chlk.pointLabel(Chars.sp))
 
         points.forEach((point, i) => {
-            var pad = this.PiecePad
-            if (i == 0 || i == 6) {
+            let pad = this.PiecePad
+            if (i === 0 || i === 6) {
                 pad -= 1
             }
             b.add(
                 chlk.pointLabel(point.toString().padStart(pad, Chars.sp))
             )
-            if (i == 5) {
+            if (i === 5) {
                 b.add(chlk.pointLabel(nchars(4, Chars.sp)))
             }
         })
@@ -398,26 +399,28 @@ class DrawHelper {
         const b = new StringBuilder
 
         b.add(
-            chlk.border(chars.pipe)
-          , chlk.inside(nchars(6 * this.PiecePad + 1, ' '))
+            chlk.border(chars.pipe),
+            chlk.inside(nchars(6 * this.PiecePad + 1, ' ')),
         )
 
         if (count) {
             b.add(
-                chlk.bar.piece[color.toLowerCase()](ColorAbbr[color])
-              , chlk.border(' ')//chlk.border(chars.pipe)//chlk.border.dim(chars.pipe)
-              , chlk.inside.dim(count)
+                // i18n-extract play.colorLetter.Red
+                // i18n-extract play.colorLetter.White
+                chlk.bar.piece[color.toLowerCase()](ColorAbbr[color]), // i18n-ignore-line
+                chlk.border(' '),
+                chlk.inside.dim(count),
             )
         } else {
             b.add(
-                chlk.border(chars.dblPipe)
-              , chlk.inside(' ')
+                chlk.border(chars.dblPipe),
+                chlk.inside(' '),
             )
         }
 
         b.add(
-            chlk.inside(nchars(6 * this.PiecePad, ' '))
-          , chlk.border(chars.pipe)
+            chlk.inside(nchars(6 * this.PiecePad, ' ')),
+            chlk.border(chars.pipe),
         )
 
         return b
@@ -431,8 +434,8 @@ class DrawHelper {
         const pad = this.PiecePad - isFirst - countStr.length
 
         return new StringBuilder(
-            chlk.inside(nchars(pad, Chars.sp))
-          , chlk.inside.dim(countStr)
+            chlk.inside(nchars(pad, Chars.sp)),
+            chlk.inside.dim(countStr),
         )
     }
 
@@ -446,7 +449,7 @@ class DrawHelper {
         b.add(chlk.inside(nchars(this.PiecePad - isFirst - 1, Chars.sp)))
 
         if (color) {
-            b.add(chlk.piece[color.toLowerCase()](ColorAbbr[color]))
+            b.add(chlk.piece[color.toLowerCase()](ColorAbbr[color])) // i18n-ignore-line
         } else {
             b.add(chlk.inside(Chars.sp))
         }
@@ -488,9 +491,9 @@ class DrawHelper {
 
         if (count) {
             b.add(
-                chlk.outside.piece[color.toLowerCase()](ColorAbbr[color])
-              , chlk.outside(Chars.sp)
-              , chlk.outside(count)
+                chlk.outside.piece[color.toLowerCase()](ColorAbbr[color]), // i18n-ignore-line
+                chlk.outside(Chars.sp),
+                chlk.outside(count),
             )
         }
 
@@ -502,10 +505,10 @@ class DrawHelper {
         const chlk = this.theme.board
 
         return new StringBuilder(
-            chlk.outside(Chars.sp)
-          , chlk.outside.pipCount.bold(count)
-          , chlk.outside(Chars.sp)
-          , chlk.outside.pipCount('PIP')
+            chlk.outside(Chars.sp),
+            chlk.outside.pipCount.bold(count),
+            chlk.outside(Chars.sp),
+            chlk.outside.pipCount('PIP'),
         )
     }
 
@@ -514,8 +517,8 @@ class DrawHelper {
         const chlk = this.theme.board
 
         return new StringBuilder(
-            chlk.outside(Chars.sp)
-          , chlk.outside(score + '/' + total + 'pts')
+            chlk.outside(Chars.sp),
+            chlk.outside(score + '/' + total + 'pts'),
         )
     }
 
@@ -543,9 +546,9 @@ class DrawHelper {
                 )
                 const valueStr = isCrawford ? 'CR' : cubeValue.toString()
                 b.add(
-                    ch(valueStr)
-                  , ch(nchars(2 - valueStr.length, Chars.sp))
-                  , ch(chars.pipe)
+                    ch(valueStr),
+                    ch(nchars(2 - valueStr.length, Chars.sp)),
+                    ch(chars.pipe),
                 )
                 break
             case 2:
@@ -568,33 +571,33 @@ class DrawHelper {
         const quadChars = nchars(quadWidth, chars.dash)
 
         this.TopBorder = new StringBuilder(
-            chars.top.left
-          , quadChars
-          , chars.top.mid
-          , chars.top.mid
-          , quadChars
-          , chars.top.right
+            chars.top.left,
+            quadChars,
+            chars.top.mid,
+            chars.top.mid,
+            quadChars,
+            chars.top.right,
         ).toString()
 
         this.BottomBorder = new StringBuilder(
-            chars.foot.left
-          , quadChars
-          , chars.bot.mid
-          , chars.bot.mid
-          , quadChars
-          , chars.foot.right
+            chars.foot.left,
+            quadChars,
+            chars.bot.mid,
+            chars.bot.mid,
+            quadChars,
+            chars.foot.right,
         ).toString()
 
         this.CubeTopBorder = new StringBuilder(
-            chars.top.left
-          , nchars(3, chars.dash)
-          , chars.top.right
+            chars.top.left,
+            nchars(3, chars.dash),
+            chars.top.right,
         ).toString()
 
         this.CubeBottomBorder = new StringBuilder(
-            chars.foot.left
-          , nchars(3, chars.dash)
-          , chars.foot.right
+            chars.foot.left,
+            nchars(3, chars.dash),
+            chars.foot.right,
         ).toString()
     }
 }
@@ -619,8 +622,8 @@ class Reporter {
         )
         if (num) {
             b.add(
-                chlk(Chars.sp)
-              , chlk(num)
+                chlk(Chars.sp),
+                chlk(num),
             )
         }
         return b
@@ -631,11 +634,11 @@ class Reporter {
         const {chlk} = this
 
         return new StringBuilder(
-            chlk.piece[color.toLowerCase()](color)
-          , chlk(' goes first with ')
-          , chlk.piece.white(dice[0])
-          , chlk(',')
-          , chlk.piece.red(dice[1])
+            chlk.piece[color.toLowerCase()](color), // i18n-ignore-line
+            chlk(' goes first with '),
+            chlk.piece.white(dice[0]),
+            chlk(','),
+            chlk.piece.red(dice[1]),
         )
     }
 
@@ -644,10 +647,10 @@ class Reporter {
         const {chlk} = this
 
         return new StringBuilder(
-            chlk.dim('---')
-          , chlk(Chars.sp)
-          , chlk.piece[color.toLowerCase()](color)
-          , chlk("'s turn")
+            chlk.dim('---'),
+            chlk(Chars.sp),
+            chlk.piece[color.toLowerCase()](color), // i18n-ignore-line
+            chlk("'s turn"),
         )
     }
 
@@ -656,11 +659,11 @@ class Reporter {
         const {chlk} = this
 
         return new StringBuilder(
-            chlk.piece[color.toLowerCase()](color)
-          , chlk(' rolls ')
-          , chlk.dice(dice[0])
-          , chlk(',')
-          , chlk.dice(dice[1])
+            chlk.piece[color.toLowerCase()](color), // i18n-ignore-line
+            chlk(' rolls '),
+            chlk.dice(dice[0]),
+            chlk(','),
+            chlk.dice(dice[1]),
         )
     }
 
@@ -669,9 +672,9 @@ class Reporter {
         const {chlk} = this
 
         return new StringBuilder(
-            chlk.piece[color.toLowerCase()](color)
-          , chlk(Chars.sp)
-          , chlk.notice('cannot move')
+            chlk.piece[color.toLowerCase()](color), // i18n-ignore-line
+            chlk(Chars.sp),
+            chlk.notice('cannot move'),
         )
     }
 
@@ -680,13 +683,13 @@ class Reporter {
         const {chlk} = this
 
         return new StringBuilder(
-            chlk.notice('Force move')
-          , chlk(' for ')
-          , chlk.piece[color.toLowerCase()](color)
-          , chlk(' with ')
-          , chlk.dice(dice[0])
-          , chlk(',')
-          , chlk.dice(dice[1])
+            chlk.notice('Force move'),
+            chlk(' for '),
+            chlk.piece[color.toLowerCase()](color), // i18n-ignore-line
+            chlk(' with '),
+            chlk.dice(dice[0]),
+            chlk(','),
+            chlk.dice(dice[1]),
         )
     }
 
@@ -707,11 +710,11 @@ class Reporter {
         const {persp} = this.inst
 
         return this._move(
-            color
-          , 'bar'
-          , OriginPoints[persp][dest]
-          , isHit
-          , isShort
+            color,
+            'bar',
+            OriginPoints[persp][dest],
+            isHit,
+            isShort,
         )
     }
 
@@ -720,11 +723,11 @@ class Reporter {
         const {persp} = this.inst
 
         return this._move(
-            color
-          , OriginPoints[persp][origin]
-          , OriginPoints[persp][dest]
-          , isHit
-          , isShort
+            color,
+            OriginPoints[persp][origin],
+            OriginPoints[persp][dest],
+            isHit,
+            isShort,
         )
     }
 
@@ -733,11 +736,11 @@ class Reporter {
         const {persp} = this.inst
 
         return this._move(
-            color
-          , OriginPoints[persp][origin]
-          , 'home'
-          , false
-          , isShort
+            color,
+            OriginPoints[persp][origin],
+            'home',
+            false,
+            isShort,
         )
     }
 
@@ -750,23 +753,23 @@ class Reporter {
 
         if (!isShort) {
             b.add(
-                chlk.piece[color.toLowerCase()](color)
-              , chlk(' moves ')
+                chlk.piece[color.toLowerCase()](color), // i18n-ignore-line
+                chlk(' moves '),
             )
         }
 
         b.add(
-            chlk(from)
-          , chlk(Chars.sp)
-          , chlk(Chars.arrow.right)
-          , chlk(Chars.sp)
-          , chlk(to)
+            chlk(from),
+            chlk(Chars.sp),
+            chlk(Chars.arrow.right),
+            chlk(Chars.sp),
+            chlk(to),
         )
 
         if (isHit) {
             b.add(
-                chlk(Chars.sp)
-              , chlk.notice('HIT')
+                chlk(Chars.sp),
+                chlk.notice('HIT'),
             )
         }
 
@@ -778,9 +781,9 @@ class Reporter {
         const {chlk} = this
 
         return new StringBuilder(
-            chlk.piece[color.toLowerCase()](color)
-          , chlk(Chars.sp)
-          , chlk('doubles')
+            chlk.piece[color.toLowerCase()](color), // i18n-ignore-line
+            chlk(Chars.sp),
+            chlk('doubles'),
         )
     }
 
@@ -789,9 +792,9 @@ class Reporter {
         const {chlk} = this
 
         return new StringBuilder(
-            chlk.piece[color.toLowerCase()](color)
-          , chlk(Chars.sp)
-          , chlk('declines the double')
+            chlk.piece[color.toLowerCase()](color), // i18n-ignore-line
+            chlk(Chars.sp),
+            chlk('declines the double'),
         )
     }
 
@@ -800,10 +803,10 @@ class Reporter {
         const {chlk} = this
 
         return new StringBuilder(
-            chlk.piece[cubeOwner.toLowerCase()](cubeOwner)
-          , chlk(' owns the cube at ')
-          , chlk(cubeValue)
-          , chlk(' points')
+            chlk.piece[cubeOwner.toLowerCase()](cubeOwner), // i18n-ignore-line
+            chlk(' owns the cube at '),
+            chlk(cubeValue),
+            chlk(' points'),
         )
     }
 
@@ -812,10 +815,10 @@ class Reporter {
         const {chlk} = this
 
         return new StringBuilder(
-            chlk.piece[winner.toLowerCase()](winner)
-          , chlk.gameStatus(' wins game for ')
-          , chlk.bold(finalValue)
-          , chlk.gameStatus(' points')
+            chlk.piece[winner.toLowerCase()](winner), // i18n-ignore-line
+            chlk.gameStatus(' wins game for '),
+            chlk.bold(finalValue),
+            chlk.gameStatus(' points'),
         )
     }
 
@@ -824,11 +827,11 @@ class Reporter {
         const {chlk} = this
 
         return new StringBuilder(
-            chlk.piece[winner.toLowerCase()](winner)
-          , chlk.gameStatus(' wins the match ')
-          , chlk.bold(winnerPoints)
-          , chlk(' to ')
-          , chlk.bold(loserPoints)
+            chlk.piece[winner.toLowerCase()](winner), // i18n-ignore-line
+            chlk.gameStatus(' wins the match '),
+            chlk.bold(winnerPoints),
+            chlk(' to '),
+            chlk.bold(loserPoints),
         )
     }
 

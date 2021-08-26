@@ -45,10 +45,6 @@ const IsTest = parseInt(process.env.GAMEON_TEST) > 0
  */
 const White = 'White'
 const Red   = 'Red'
-// i18n-extract White
-// i18n-extract Red
-// i18n-extract R
-// i18n-extract W
 
 const Colors = {White, Red}
 

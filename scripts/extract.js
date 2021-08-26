@@ -36,7 +36,7 @@ const poGlob = LocalesDir + '/*/messages.po'
 const srcGlobs = ['src/**/*.js']
 
 const opts = {
-    //dryRun: true,
+    dryRun: Boolean(process.env.DRY_RUN),
     verbose: 1,
     //logging: {logLevel: 4, inspect: {depth: 4}},
     marker: ['__'],
