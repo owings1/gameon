@@ -95,12 +95,12 @@ class Questions {
         switch (name) {
             case 'main':
                 return {
-                    message : __('Main'),
+                    message : __('menu.title.main'),
                     choices : this.mainChoices(extra),
                 }
             case 'play':
                 return {
-                    message : __('Play'),
+                    message : __('menu.title.play'),
                     choices : this.playChoices(extra),
                     default : () => settings.lastPlayChoice,
                 }
@@ -115,19 +115,19 @@ class Questions {
                 }
             case 'account':
                 return {
-                    message : __('Account'),
+                    message : __('menu.title.account'),
                     choices : this.accountChoices(extra),
                 }
             case 'settings':
                 return {
-                    message : __('Settings'),
+                    message : __('menu.title.settings'),
                     choices  : this.settingsChoices(extra),
                     default  : () => menu.lastMenuChoice,
                     action   : {char: 'tab', name: '#toggle', all: false},
                 }
             case 'robots':
                 return {
-                    message : __('Robots'),
+                    message : __('menu.title.robots'),
                     choices  : this.robotsChoices(extra),
                 }
             case 'robot':
@@ -146,28 +146,28 @@ class Questions {
             this.br(),
             {
                 value  : 'play',
-                name   : __('Play'),
+                name   : __('menu.choice.play'),
                 select : 'p',
             },
             {
                 value  : 'account',
-                name   : __('Account'),
+                name   : __('menu.choice.account'),
                 select : 'a',
             },
             {
                 value  : 'settings',
-                name   : __('Settings'),
+                name   : __('menu.choice.settings'),
                 select : 's',
             },
             {
                 value  : 'lab',
-                name   : __('Lab'),
+                name   : __('menu.choice.lab'),
                 select : 'l',
             },
             this.hr(),
             {
                 value  : 'quit',
-                name   : __('Exit'),
+                name   : __('menu.choice.exit'),
                 select : 'q',
                 enter  : EnterChars.quit,
             },
@@ -205,13 +205,13 @@ class Questions {
             this.hr(),
             {
                 value : 'back',
-                name  : __('Back'),
+                name  : __('menu.choice.back'),
                 when  : menu.bread.length > 1,
                 enter : EnterChars.back,
             },
             {
                 value  : 'quit',
-                name   : __('Exit'),
+                name   : __('menu.choice.exit'),
                 select : 'q',
             },
             this.br(),
@@ -226,19 +226,19 @@ class Questions {
                 // Only show advanced for local matches.
                 {
                     value : 'advanced',
-                    name  : __('Advanced'),
+                    name  : __('menu.choice.advancedOptions'),
                     when  : !isOnline,
                 },
                 this.hr().when(!isOnline),
                 {
                     value : 'back'
-                  , name  : __('Back')
+                  , name  : __('menu.choice.back')
                   , when  : menu.bread.length > 1
                   , enter : EnterChars.back
                 },
                 {
                     value  : 'quit'
-                  , name   : __('Exit')
+                  , name   : __('menu.choice.exit')
                   , select : 'q'
                 },
                 this.br(),
@@ -264,7 +264,7 @@ class Questions {
             this.br(),
             {
                 value    : 'start',
-                name     : __('Start Match'),
+                name     : __('menu.choice.startMatch'),
                 select   : 's',
                 question : isJoin ? this.matchId() : null,
             },
@@ -415,7 +415,7 @@ class Questions {
                 this.br(),
                 {
                     value : 'done',
-                    name  : __('Done'),
+                    name  : __('menu.choice.done'),
                     enter : EnterChars.back,
                 },
             ],
@@ -423,10 +423,10 @@ class Questions {
                 this.hr(),
                 {
                     value : 'serverUrl',
-                    name  : __('Server'),
+                    name  : __('menu.choice.serverUrl'),
                     question : {
                         name    : 'serverUrl',
-                        message : __('Server URL'),
+                        message : __('menu.question.serverUrl'),
                         type    : 'input',
                         default : () => creds.serverUrl,
                         cancel  : CancelChars.input,
@@ -436,12 +436,12 @@ class Questions {
                 },
                 {
                     value    : 'username',
-                    name     : __('Username'),
+                    name     : __('menu.choice.username'),
                     question : this.username(),
                 },
                 {
                     value    : 'password',
-                    name     : __('Password'),
+                    name     : __('menu.choice.password'),
                     question : this.password(),
                 },
                 this.hr(),
@@ -449,38 +449,38 @@ class Questions {
             [
                 {
                     value : 'createAccount',
-                    name  : __('Create Account'),
+                    name  : __('menu.choice.createAccount'),
                     when  : !isFilled,
                 },
                 {
                     value : 'forgotPassword',
-                    name  : __('Forgot Password'),
+                    name  : __('menu.choice.forgotPassword'),
                     when  : !isFilled,
                 },
                 {
                     value : 'confirmAccount',
-                    name  : __('Enter confirm key'),
+                    name  : __('menu.choice.confirmAccount'),
                     when  : isFilled && needsConfirm,
                 },
                 {
                     value : 'newConfirmKey',
-                    name  : __('Get new confirm key'),
+                    name  : __('menu.choice.newConfirmKey'),
                     when  : isFilled && needsConfirm,
                 },
                 this.hr().when(isFilled && needsConfirm),
                 {
                     value : 'testCredentials',
-                    name  : __('Test Credentials'),
+                    name  : __('menu.choice.testCredentials'),
                     when  : isFilled && !needsConfirm,
                 },
                 {
                     value : 'changePassword',
-                    name  : __('Change Password'),
+                    name  : __('menu.choice.changePassword'),
                     when  : isFilled && !needsConfirm,
                 },
                 {
                     value : 'clearCredentials',
-                    name  : __('Clear Credentials'),
+                    name  : __('menu.choice.clearCredentials'),
                     when  : hasCred,
                 },
                 this.br(),
@@ -497,7 +497,7 @@ class Questions {
 
         return {
             name    : 'username',
-            message : __('Username'),
+            message : __('menu.question.username'),
             type    : 'input',
             default : () => creds.username,
             display : () => creds.username + checkSuffix,
@@ -514,7 +514,7 @@ class Questions {
 
         return {
             name    : 'password',
-            message : __('Password'),
+            message : __('menu.question.password'),
             type    : 'password',
             default : () => creds.password,
             display : () => creds.password ? '******' : '',
@@ -540,7 +540,7 @@ class Questions {
 
         return {
             name     : 'passwordConfirm',
-            message  : __('Re-enter password'),
+            message  : __('menu.question.confirmPassword'),
             type     : 'password',
             validate : validate.passwordConfirm,
             mask     : '*',
@@ -557,13 +557,13 @@ class Questions {
             {
                 ...this.password(),
                 name    : 'oldPassword',
-                message : __('Current password'),
+                message : __('menu.question.currentPassword'),
                 default : '',
             },
             {
                 ...this.password(),
                 name    : 'newPassword',
-                message : __('New password'),
+                message : __('menu.question.newPassword'),
                 default : '',
             },
             this.passwordConfirm('newPassword'),
@@ -584,13 +584,13 @@ class Questions {
             {
                 name    : 'resetKey',
                 type    : 'input',
-                message : __('Enter reset key'),
+                message : __('menu.question.resetKey'),
                 prefix  : __('Reset key requested, check your email.') + '\n',
                 cancel  : CancelChars.input,
             },
             {
                 ...this.password(),
-                message : __('New password'),
+                message : __('menu.question.newPassword'),
                 when    : when.keyEntered,
             },
             {
@@ -615,7 +615,7 @@ class Questions {
         return {
             name    : 'key',
             type    : 'input',
-            message : __('Enter confirm key'),
+            message : __('menu.question.confirmKey'),
             prefix  : [
                 __('You must confirm your account.'),
                 __('Check your email for a confirmation key.'),
@@ -645,7 +645,7 @@ class Questions {
                 this.br(),
                 {
                     value  : 'done',
-                    name   : __('Done'),
+                    name   : __('menu.choice.done'),
                     enter  : EnterChars.back,
                     select : 'd',
                 },
@@ -654,10 +654,10 @@ class Questions {
                 this.hr(),
                 {
                     value : 'locale',
-                    name  : __('Locale'),
+                    name  : __('menu.choice.locale'),
                     question : {
                         name    : 'locale',
-                        message : __('Choose your locale'),
+                        message : __('menu.question.locale'),
                         type    : 'list',
                         default : () => settings.locale,
                         choices : () => [this.br()].concat(intl.locales),
@@ -667,10 +667,10 @@ class Questions {
                 },
                 {
                     value : 'theme',
-                    name  : __('Theme'),
+                    name  : __('menu.choice.theme'),
                     question : {
                         name : 'theme',
-                        message : __('Choose a theme'),
+                        message : __('menu.question.theme'),
                         type    : 'list',
                         default : () => settings.theme,
                         choices : () => [this.br()].concat(Themes.list()),
@@ -696,11 +696,11 @@ class Questions {
                 this.hr(),
                 {
                     value  : 'fastForced',
-                    name   : __('Fast Forced Moves'),
+                    name   : __('menu.choice.fastForcedMoves'),
                     action : ['#toggle'],
                     question : {
                         name    : 'fastForced',
-                        message : __('Fast Forced Moves'),
+                        message : __('menu.question.fastForcedMoves'),
                         type    : 'confirm',
                         default : () => settings.fastForced,
                         cancel  : CancelChars.bool,
@@ -793,7 +793,7 @@ class Questions {
             this.br(),
             {
                 value  : 'done',
-                name   : __('Done'),
+                name   : __('menu.choice.done'),
                 enter  : EnterChars.back,
                 select : 'd',
             },
@@ -873,7 +873,7 @@ class Questions {
             this.br(),
             {
                 value  : 'done',
-                name   : __('Done'),
+                name   : __('menu.choice.done'),
                 enter  : EnterChars.back,
                 select : 'd',
             },

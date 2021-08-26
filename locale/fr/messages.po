@@ -21,12 +21,6 @@ msgstr "{winner} a gagné le match {winning} à {losing}"
 msgid "Aborting waiting"
 msgstr "Arrêté d'attendre"
 
-#: src/term/helpers/menu.questions.js:118
-#: src/term/helpers/menu.questions.js:154
-#: src/term/menu.js:397
-msgid "Account"
-msgstr "Compte"
-
 #: src/term/menu.js:694
 msgid "Account already confirmed"
 msgstr "Le compte est déjà confirmé"
@@ -39,10 +33,6 @@ msgstr "Le compte est confirmé"
 msgid "Account created"
 msgstr "Le compte est creé"
 
-#: src/term/helpers/menu.questions.js:229
-msgid "Advanced"
-msgstr "Options avancées"
-
 #: src/term/helpers/menu.questions.js:683
 msgid "Advanced ANSI"
 msgstr "ANSI avancé"
@@ -52,59 +42,23 @@ msgstr "ANSI avancé"
 msgid "Authentication failed. Go to Account to sign up or log in."
 msgstr "Authentification échouée. Allez dans 'Compte' pour vous connecter."
 
-#: src/term/helpers/menu.questions.js:208
-#: src/term/helpers/menu.questions.js:235
-msgid "Back"
-msgstr "Retourner"
-
 #: src/term/menu.js:909
 msgid "Canceling match"
 msgstr "Annuler le match"
 
-#: src/term/helpers/menu.questions.js:478
-msgid "Change Password"
-msgstr "Changer le mot de passe"
-
 #: src/term/helpers/menu.questions.js:621
 msgid "Check your email for a confirmation key."
 msgstr "Vérifiez votre e-mail pour une clé de confirmation."
-
-#: src/term/helpers/menu.questions.js:673
-msgid "Choose a theme"
-msgstr "Choisissez un thème"
-
-#: src/term/helpers/menu.questions.js:660
-msgid "Choose your locale"
-msgstr "Choisissez votre région"
-
-#: src/term/helpers/menu.questions.js:483
-msgid "Clear Credentials"
-msgstr "Effacez les identifiants"
 
 #: src/term/helpers/menu.questions.js:303
 #: src/term/helpers/menu.questions.js:308
 msgid "Crawford Rule"
 msgstr "Règle Crawford"
 
-#: src/term/helpers/menu.questions.js:452
-msgid "Create Account"
-msgstr "Creer un compte"
-
 #: src/term/helpers/menu.questions.js:290
 #: src/term/helpers/menu.questions.js:294
 msgid "Cube Enabled"
 msgstr "Cube Activé"
-
-#: src/term/helpers/menu.questions.js:560
-msgid "Current password"
-msgstr "Mot de passe actuel"
-
-#: src/term/helpers/menu.questions.js:418
-#: src/term/helpers/menu.questions.js:648
-#: src/term/helpers/menu.questions.js:796
-#: src/term/helpers/menu.questions.js:876
-msgid "Done"
-msgstr "Retourner"
 
 #: src/term/helpers/menu.questions.js:911
 #: src/term/helpers/menu.questions.js:915
@@ -118,34 +72,6 @@ msgstr "doublé:"
 #: src/term/helpers/menu.questions.js:687
 msgid "Enable Advanced ANSI"
 msgstr "Activer ANSI avancé"
-
-#: src/term/helpers/menu.questions.js:462
-#: src/term/helpers/menu.questions.js:618
-msgid "Enter confirm key"
-msgstr "Entrez la clé de confirmation"
-
-#: src/term/helpers/menu.questions.js:587
-msgid "Enter reset key"
-msgstr "Entrez la clé de réinitialisation"
-
-#: src/term/helpers/menu.questions.js:170
-#: src/term/helpers/menu.questions.js:214
-#: src/term/helpers/menu.questions.js:241
-msgid "Exit"
-msgstr "Sortir"
-
-#: src/term/helpers/menu.questions.js:699
-#: src/term/helpers/menu.questions.js:703
-msgid "Fast Forced Moves"
-msgstr "Mouvements Forcés Rapides"
-
-#: src/term/helpers/menu.questions.js:457
-msgid "Forgot Password"
-msgstr "Mot de passe oublié"
-
-#: src/term/helpers/menu.questions.js:467
-msgid "Get new confirm key"
-msgstr "Obtenez une nouvelle clé de confirmation"
 
 #: src/term/helpers/menu.messages.js:49
 msgid "Human vs Human"
@@ -168,10 +94,6 @@ msgstr "Règle Jacoby"
 msgid "Join Online Match"
 msgstr "Rejoindre un match en ligne"
 
-#: src/term/helpers/menu.questions.js:164
-msgid "Lab"
-msgstr "Labo"
-
 #: src/term/menu.js:1529
 msgid "Loaded {count} custom themes."
 msgstr "{count} thèmes personnalisés chargés."
@@ -179,10 +101,6 @@ msgstr "{count} thèmes personnalisés chargés."
 #: src/term/menu.js:531
 msgid "Loading robot defaults"
 msgstr "Chargement des valeurs par défaut du robot"
-
-#: src/term/helpers/menu.questions.js:657
-msgid "Locale"
-msgstr "Région"
 
 #: src/term/menu.js:762
 msgid "Login failed to {url}"
@@ -192,15 +110,6 @@ msgstr "Échec de la connexion à {url}"
 msgid "Login success to {url}"
 msgstr "Connexion réussie à {url}"
 
-#: src/term/helpers/menu.questions.js:98
-#: src/term/menu.js:240
-msgid "Main"
-msgstr "Principal"
-
-#: src/term/menu.js:317
-msgid "Match"
-msgstr "Match"
-
 #: src/term/helpers/menu.questions.js:398
 msgid "Match ID"
 msgstr "ID du match"
@@ -209,6 +118,178 @@ msgstr "ID du match"
 #: src/term/helpers/menu.questions.js:278
 msgid "Match Total"
 msgstr "Total du match"
+
+#: src/term/helpers/menu.questions.js:154
+msgid "menu.choice.account"
+msgstr "Compte"
+
+#: src/term/helpers/menu.questions.js:229
+msgid "menu.choice.advancedOptions"
+msgstr "Options avancées"
+
+#: src/term/helpers/menu.questions.js:208
+#: src/term/helpers/menu.questions.js:235
+msgid "menu.choice.back"
+msgstr "Retourner"
+
+#: src/term/helpers/menu.questions.js:478
+msgid "menu.choice.changePassword"
+msgstr "Changement de mot de passe"
+
+#: src/term/helpers/menu.questions.js:483
+msgid "menu.choice.clearCredentials"
+msgstr "Effacez les Identifiants"
+
+#: src/term/helpers/menu.questions.js:462
+msgid "menu.choice.confirmAccount"
+msgstr "Confirmation de Compte"
+
+#: src/term/helpers/menu.questions.js:452
+msgid "menu.choice.createAccount"
+msgstr "Creer un compte"
+
+#: src/term/helpers/menu.questions.js:418
+#: src/term/helpers/menu.questions.js:648
+#: src/term/helpers/menu.questions.js:796
+#: src/term/helpers/menu.questions.js:876
+msgid "menu.choice.done"
+msgstr "Retourner"
+
+#: src/term/helpers/menu.questions.js:170
+#: src/term/helpers/menu.questions.js:214
+#: src/term/helpers/menu.questions.js:241
+msgid "menu.choice.exit"
+msgstr "Sortir"
+
+#: src/term/helpers/menu.questions.js:699
+msgid "menu.choice.fastForcedMoves"
+msgstr "Mouvements Forcés Rapides"
+
+#: src/term/helpers/menu.questions.js:457
+msgid "menu.choice.forgotPassword"
+msgstr "Mot de passe oublié"
+
+#: src/term/helpers/menu.questions.js:164
+msgid "menu.choice.lab"
+msgstr "Labo"
+
+#: src/term/helpers/menu.questions.js:657
+msgid "menu.choice.locale"
+msgstr "Région"
+
+#: src/term/helpers/menu.questions.js:467
+msgid "menu.choice.newConfirmKey"
+msgstr "Obtenez une nouvelle clé de confirmation"
+
+#: src/term/helpers/menu.questions.js:444
+msgid "menu.choice.password"
+msgstr "Mot de passe"
+
+#: src/term/helpers/menu.questions.js:149
+msgid "menu.choice.play"
+msgstr "Jouer"
+
+#: src/term/helpers/menu.questions.js:426
+msgid "menu.choice.serverUrl"
+msgstr "Serveur"
+
+#: src/term/helpers/menu.questions.js:159
+msgid "menu.choice.settings"
+msgstr "Paramètres"
+
+#: src/term/helpers/menu.questions.js:267
+msgid "menu.choice.startMatch"
+msgstr "Commencer le match"
+
+#: src/term/helpers/menu.questions.js:473
+msgid "menu.choice.testCredentials"
+msgstr "Tester les identifiants"
+
+#: src/term/helpers/menu.questions.js:670
+msgid "menu.choice.theme"
+msgstr "Thème"
+
+#: src/term/helpers/menu.questions.js:439
+msgid "menu.choice.username"
+msgstr "Nom d'utilisateur"
+
+#: src/term/helpers/menu.questions.js:618
+msgid "menu.question.confirmKey"
+msgstr "Entrez la clé de confirmation"
+
+#: src/term/helpers/menu.questions.js:543
+msgid "menu.question.confirmPassword"
+msgstr "Retaper le mot de passe"
+
+#: src/term/helpers/menu.questions.js:560
+msgid "menu.question.currentPassword"
+msgstr "Mot de passe actuel"
+
+#: src/term/helpers/menu.questions.js:703
+msgid "menu.question.fastForcedMoves"
+msgstr "Mouvements Forcés Rapides"
+
+#: src/term/helpers/menu.questions.js:660
+msgid "menu.question.locale"
+msgstr "Choisissez votre région"
+
+#: src/term/helpers/menu.questions.js:566
+#: src/term/helpers/menu.questions.js:593
+msgid "menu.question.newPassword"
+msgstr "Nouveau mot de passe"
+
+#: src/term/helpers/menu.questions.js:517
+msgid "menu.question.password"
+msgstr "Mot de passe"
+
+#: src/term/helpers/menu.questions.js:587
+msgid "menu.question.resetKey"
+msgstr "Entrez la clé de réinitialisation"
+
+#: src/term/helpers/menu.questions.js:429
+msgid "menu.question.serverUrl"
+msgstr "URL du serveur"
+
+#: src/term/helpers/menu.questions.js:673
+msgid "menu.question.theme"
+msgstr "Choisissez un thème"
+
+#: src/term/helpers/menu.questions.js:500
+msgid "menu.question.username"
+msgstr "Nom d'utilisateur"
+
+#: src/term/helpers/menu.questions.js:118
+#: src/term/menu.js:397
+msgid "menu.title.account"
+msgstr "Compte"
+
+#: src/term/helpers/menu.questions.js:98
+#: src/term/menu.js:240
+msgid "menu.title.main"
+msgstr "Principal"
+
+#: src/term/menu.js:317
+msgid "menu.title.match"
+msgstr "Match"
+
+#: src/term/helpers/menu.questions.js:103
+#: src/term/menu.js:265
+msgid "menu.title.play"
+msgstr "Jouer"
+
+#: src/term/menu.js:561
+msgid "menu.title.robot"
+msgstr "Robot"
+
+#: src/term/helpers/menu.questions.js:130
+#: src/term/menu.js:528
+msgid "menu.title.robots"
+msgstr "Robots"
+
+#: src/term/helpers/menu.questions.js:123
+#: src/term/menu.js:468
+msgid "menu.title.settings"
+msgstr "Paramètres"
 
 #: src/term/menu.js:1409
 msgid "Migrating legacy robot config"
@@ -227,16 +308,6 @@ msgstr "mouvement:"
 msgid "New confirmation key requested. Check your email."
 msgstr "Une nouvelle clé de confirmation est demandée. Vérifiez votre e-mail."
 
-#: src/term/helpers/menu.questions.js:566
-#: src/term/helpers/menu.questions.js:593
-msgid "New password"
-msgstr "Nouveau mot de passe"
-
-#: src/term/helpers/menu.questions.js:444
-#: src/term/helpers/menu.questions.js:517
-msgid "Password"
-msgstr "Mot de passe"
-
 #: src/term/helpers/menu.messages.js:14
 msgid "Password changed"
 msgstr "Le mot de passe est changé"
@@ -249,12 +320,6 @@ msgstr "Le mot de passe est réinitialisé"
 msgid "Passwords do not match"
 msgstr "Le mot de passe ne correspond pas"
 
-#: src/term/helpers/menu.questions.js:103
-#: src/term/helpers/menu.questions.js:149
-#: src/term/menu.js:265
-msgid "Play"
-msgstr "Jouer"
-
 #: src/term/helpers/menu.questions.js:259
 msgid "Please enter a number > 0"
 msgstr "S'il vous plaît entrer un numéro > 0"
@@ -262,10 +327,6 @@ msgstr "S'il vous plaît entrer un numéro > 0"
 #: src/term/helpers/menu.questions.js:638
 msgid "Please enter a number >= 0"
 msgstr "S'il vous plaît entrer un numéro >= 0"
-
-#: src/term/helpers/menu.questions.js:543
-msgid "Re-enter password"
-msgstr "Retaper le mot de passe"
 
 #: src/term/helpers/menu.questions.js:712
 #: src/term/helpers/menu.questions.js:715
@@ -286,10 +347,6 @@ msgstr "Réinitialiser"
 msgid "Reset key requested, check your email."
 msgstr "Une clé de réinitialisation est demandée. Vérifiez votre e-mail."
 
-#: src/term/menu.js:561
-msgid "Robot"
-msgstr "Robot"
-
 #: src/term/helpers/menu.questions.js:772
 msgid "Robot Configuration"
 msgstr "Paramètres de robot"
@@ -306,37 +363,14 @@ msgstr "Retard du Robot (secondes)"
 msgid "Robot vs Robot"
 msgstr "Robot vs Robot"
 
-#: src/term/helpers/menu.questions.js:130
-#: src/term/menu.js:528
-msgid "Robots"
-msgstr "Robots"
-
 #: src/term/helpers/menu.questions.js:372
 msgid "Rolls File"
 msgstr "Fichier des Lancers"
-
-#: src/term/helpers/menu.questions.js:426
-msgid "Server"
-msgstr "Serveur"
-
-#: src/term/helpers/menu.questions.js:429
-msgid "Server URL"
-msgstr "URL du serveur"
 
 #: src/term/menu.js:1001
 #. logger
 msgid "Setting initial state"
 msgstr "Chargement de l'état initial"
-
-#: src/term/helpers/menu.questions.js:123
-#: src/term/helpers/menu.questions.js:159
-#: src/term/menu.js:468
-msgid "Settings"
-msgstr "Paramètres"
-
-#: src/term/helpers/menu.questions.js:267
-msgid "Start Match"
-msgstr "Commencer le match"
 
 #: src/term/helpers/menu.messages.js:43
 msgid "Start Online Match"
@@ -346,29 +380,16 @@ msgstr "Créer un match en ligne"
 msgid "Start State"
 msgstr "L'etat initial"
 
-#: src/term/helpers/menu.questions.js:473
-msgid "Test Credentials"
-msgstr "Tester les identifiants"
-
 #: src/term/helpers/menu.messages.js:29
 msgid "Testing credentials"
 msgstr "Vérification des identifiants"
-
-#: src/term/helpers/menu.questions.js:670
-msgid "Theme"
-msgstr "Thème"
 
 #: src/term/helpers/menu.questions.js:759
 #: src/term/helpers/menu.questions.js:763
 msgid "Use Custom Robot"
 msgstr "Robot personnalisé"
 
-#: src/term/helpers/menu.questions.js:439
-#: src/term/helpers/menu.questions.js:500
-msgid "Username"
-msgstr "Nom d'utilisateur"
-
-#: src/term/menu.js:1006
+#: src/term/menu.js:1005
 #. log
 msgid "Using custom rolls file"
 msgstr "Utilisation d'un fichier des lancers personnalisé"

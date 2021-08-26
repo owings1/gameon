@@ -237,7 +237,7 @@ class Menu extends EventEmitter {
             lab      : 'runLab',
         }
 
-        return this.runMenu('main', this.__('Main'), async (choose, loop) => {
+        return this.runMenu('main', this.__('menu.title.main'), async (choose, loop) => {
 
             await loop(async () => {
 
@@ -262,7 +262,7 @@ class Menu extends EventEmitter {
 
         const {__} = this
 
-        return this.runMenu('play', __('Play'), async (choose, loop) => {
+        return this.runMenu('play', __('menu.title.play'), async (choose, loop) => {
 
             let isContinue = true
 
@@ -314,7 +314,7 @@ class Menu extends EventEmitter {
             playRobots  : 'playRobots',
         }
 
-        return this.runMenu('match', this.__('Match'), async (choose, loop) => {
+        return this.runMenu('match', this.__('menu.title.match'), async (choose, loop) => {
 
             const isJoin = playChoice === 'joinOnline'
             const isAdvanced = ['playHumans', 'playRobot', 'playRobots'].includes(playChoice)
@@ -394,17 +394,17 @@ class Menu extends EventEmitter {
             newConfirmKey  : 'promptNewConfirmKey',
         }
 
-        return this.runMenu('account', this.__('Account'), async (choose, loop) => {
+        return this.runMenu('account', this.__('menu.title.account'), async (choose, loop) => {
 
             await loop(async () => {
 
                 const {choice, ask} = await choose()
 
-                if (choice == 'done') {
+                if (choice === 'done') {
                     return
                 }
 
-                if (choice == 'clearCredentials') {
+                if (choice === 'clearCredentials') {
                     this.clearCredentials()
                     await this.saveCredentials()
                     return true
@@ -465,7 +465,7 @@ class Menu extends EventEmitter {
 
         const {__} = this
 
-        return this.runMenu('settings', __('Settings'), async (choose, loop) => {            
+        return this.runMenu('settings', __('menu.title.settings'), async (choose, loop) => {            
 
             await loop(async () => {
 
@@ -525,7 +525,7 @@ class Menu extends EventEmitter {
 
         const {__} = this
 
-        return this.runMenu('robots', __('Robots'), async (choose, loop) => {
+        return this.runMenu('robots', __('menu.title.robots'), async (choose, loop) => {
 
             if (!isNonEmptyObject(this.settings.robots)) {
                 this.alerts.info(__('Loading robot defaults'))
@@ -537,11 +537,11 @@ class Menu extends EventEmitter {
 
                 const {choice} = await choose()
 
-                if (choice == 'done') {
+                if (choice === 'done') {
                     return
                 }
 
-                if (choice == 'reset') {
+                if (choice === 'reset') {
                     this.settings.robots = this.robotsDefaults()
                     await this.saveSettings()
                     return true
@@ -558,7 +558,7 @@ class Menu extends EventEmitter {
 
     robotMenu(name) {
 
-        return this.runMenu('robot', this.__('Robot'), async (choose, loop) => {
+        return this.runMenu('robot', this.__('menu.title.robot'), async (choose, loop) => {
 
             const {settings} = this
 
@@ -998,11 +998,10 @@ class Menu extends EventEmitter {
         matchOpts = {...matchOpts}
         const {__} = this
         if (advancedOpts.startState) {
-            this.logger.info(__('Setting initial state')) // logger
+            this.logger.info(__('Setting initial state'))
             matchOpts.startState = advancedOpts.startState
         }
         if (advancedOpts.rollsFile) {
-            // log
             this.logger.info(__('Using custom rolls file'))
             const file = advancedOpts.rollsFile
             const {rolls} = await fse.readJson(file)
@@ -1230,6 +1229,7 @@ class Menu extends EventEmitter {
         box.drawBorder()
     }
 
+    // TODO: remove title, since it is translated
     async menuChoice(title, question, opts) {
 
         const box = this.boxes.menu
@@ -1245,7 +1245,7 @@ class Menu extends EventEmitter {
         const promise = this.questionAnswer(question, opts)
 
         // Ensure that prompt.menu event is emitted after first render
-        const onRender = () => this.emit('prompt.menu', {title, question, opts})
+        const onRender = () => this.emit('prompt.menu', {/*title,*/ question, opts})
 
         box.status.once('render', onRender)
         let res
