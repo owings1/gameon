@@ -222,88 +222,74 @@ class Menu extends EventEmitter {
         }
     }
 
+    get creds() {
+        return this.credentials
+    }
+
     get __() {
         return this.intl.__
     }
 
     mainMenu() {
-
         const methods = {
             play     : 'playMenu',
             account  : 'accountMenu',
             settings : 'settingsMenu',
             lab      : 'runLab',
         }
-
-        return this.runMenu('main', this.__('menu.title.main'), async (choose, loop) => {
-
+        /* i18n-extract menu.title.main */
+        return this.runMenu('main', async (choose, loop) => {
             await loop(async () => {
-
                 const {choice} = await choose()
-
                 if (choice === 'quit') {
                     return
                 }
-
                 const isContinue = await this[methods[choice]]()
                 if (choice === 'lab') {
                     await this.eraseScreen()
                 }
                 return isContinue
             })
-
             return true
         })
     }
 
     playMenu() {
-
-        const {__} = this
-
-        return this.runMenu('play', __('menu.title.play'), async (choose, loop) => {
-
+        const {alerts, settings, __} = this
+        /* i18n-extract menu.title.play */
+        return this.runMenu('play', async (choose, loop) => {
             let isContinue = true
-
             await loop(async () => {
-
                 isContinue = true
-
                 const {choice, ask} = await choose()
-
                 if (choice === 'back') {
                     return
                 }
-
                 if (choice === 'quit') {
                     isContinue = false
                     return
                 }
-
-                if (this.settings.lastPlayChoice !== choice) {
-                    this.settings.lastPlayChoice = choice
+                if (settings.lastPlayChoice !== choice) {
+                    settings.lastPlayChoice = choice
                     await this.saveSettings()
                 }
-
                 try {
                     isContinue = await this.matchMenu(choice)
                 } catch (err) {
-                    this.alerts.error(err)
+                    alerts.error(err)
                     if (err.isAuthError || err.isValidateError) {
-                        this.alerts.warn(
+                        alerts.warn(
                             __('alerts.authenticationFailedGoToAccountToLogin')
                         )
                     }
                 }
-
                 return isContinue
             })
-
             return isContinue
         })
     }
 
     matchMenu(playChoice) {
-
         const methods = {
             startOnline : 'startOnlineMatch',
             joinOnline  : 'joinOnlineMatch',
@@ -311,42 +297,33 @@ class Menu extends EventEmitter {
             playRobot   : 'playRobot',
             playRobots  : 'playRobots',
         }
-
-        return this.runMenu('match', this.__('menu.title.match'), async (choose, loop) => {
-
-            const isJoin = playChoice === 'joinOnline'
-            const isAdvanced = ['playHumans', 'playRobot', 'playRobots'].includes(playChoice)
-            const method = methods[playChoice]
-
+        const isJoin = playChoice === 'joinOnline'
+        const isAdvanced = ['playHumans', 'playRobot', 'playRobots'].includes(playChoice)
+        const method = methods[playChoice]
+        const {settings} = this
+        /* i18n-extract menu.title.match */
+        return this.runMenu('match', async (choose, loop) => {
             let isContinue = true
             let advancedOpts = {}
-
             await loop(async () => {
-
                 isContinue = true
-
                 const {choice, toggle, ask} = await choose(playChoice)
-
                 if (choice === 'back') {
                     return
                 }
-
                 if (choice === 'quit') {
                     isContinue = false
                     return
                 }
-
                 if (toggle) {
-                    this.settings.matchOpts[choice] = !this.settings.matchOpts[choice]
+                    settings.matchOpts[choice] = !settings.matchOpts[choice]
                     await this.saveSettings()
                     return true
                 }
-
                 if (choice === 'advanced') {
                     advancedOpts = await this.promptMatchAdvancedOpts(advancedOpts)
                     return true
                 }
-
                 if (choice === 'start') {
                     const args = []
                     if (isJoin) {
@@ -356,7 +333,7 @@ class Menu extends EventEmitter {
                         }
                         args.push(join.answer)
                     } else {
-                        let {matchOpts} = this.settings
+                        let {matchOpts} = settings
                         if (isAdvanced) {
                             matchOpts = await this.getMatchOpts(matchOpts, advancedOpts)
                         }
@@ -365,25 +342,19 @@ class Menu extends EventEmitter {
                     await this[method](...args)
                     return !isJoin
                 }
-
                 const {answer, isCancel, isChange} = await ask()
-
                 if (isCancel || !isChange) {
                     return true
                 }
-
-                this.settings.matchOpts[choice] = answer
+                settings.matchOpts[choice] = answer
                 await this.saveSettings()
-
                 return true
             })
-
             return isContinue
         })
     }
 
     accountMenu() {
-
         const methods = {
             changePassword : 'promptChangePassword',
             confirmAccount : 'promptConfirmAccount',
@@ -391,119 +362,93 @@ class Menu extends EventEmitter {
             forgotPassword : 'promptForgotPassword',
             newConfirmKey  : 'promptNewConfirmKey',
         }
-
-        return this.runMenu('account', this.__('menu.title.account'), async (choose, loop) => {
-
+        const {alerts, creds} = this
+        /* i18n-extract menu.title.account */
+        return this.runMenu('account', async (choose, loop) => {
             await loop(async () => {
-
                 const {choice, ask} = await choose()
-
                 if (choice === 'done') {
                     return
                 }
-
                 if (choice === 'clearCredentials') {
                     this.clearCredentials()
                     await this.saveCredentials()
                     return true
                 }
-
-                const {credentials} = this
-
                 const method = methods[choice]
                 if (method) {
                     try {
                         if (await this[method].call(this)) {
-                            this.alerts.info(this.m.login(choice))
+                            alerts.info(this.m.login(choice))
                         } else {
                             return true
                         }
                     } catch (err) {
-                        this.alerts.error(err)
+                        alerts.error(err)
                         return true
                     }
                 } else if (choice !== 'testCredentials') {
-
                     const {answer, isCancel, isChange} = await ask()
-
                     if (isCancel || !isChange) {
                         return true
                     }
-
-                    credentials.isTested = false
+                    creds.isTested = false
                     if (choice === 'password') {
-                        credentials[choice] = this.encryptPassword(answer)
+                        creds[choice] = this.encryptPassword(answer)
                     } else {
-                        credentials[choice] = answer
+                        creds[choice] = answer
                     }
                 }
-
                 try {
-
-                    if (!isCredentialsFilled(credentials, true)) {
+                    if (!isCredentialsFilled(creds, true)) {
                         return true
                     }
-
                     await this.doLogin()
-
                 } catch (err) {
-                    this.alerts.error(err)
+                    alerts.error(err)
                 } finally {
                     await this.saveCredentials()
                 }
-
                 return true
             })
-
             return true
         })
     }
 
     settingsMenu() {
-
-        const {__} = this
-
-        return this.runMenu('settings', __('menu.title.settings'), async (choose, loop) => {            
-
+        const {settings} = this
+        /* i18n-extract menu.title.settings */
+        return this.runMenu('settings', async (choose, loop) => {
             await loop(async () => {
-
                 const {choice, toggle, ask} = await choose()
-
                 if (choice === 'done') {
                     return
                 }
-
                 if (toggle) {
-                    this.settings[choice] = !this.settings[choice]
+                    settings[choice] = !settings[choice]
                     await this.saveSettings()
-                    if (choice === 'isAnsi' && this.settings[choice]) {
+                    if (choice === 'isAnsi' && settings[choice]) {
                         // We have to repeat the logic below since we continue.
                         this.eraseScreen()
                     }
                     return true
                 }
-
                 if (choice === 'robotConfigs') {
                     await this.robotsMenu()
                     return true
                 }
-
                 const {answer, isCancel, isChange} = await ask()
-
                 if (isCancel || !isChange) {
                     return true
                 }
-
-                this.settings[choice] = answer
+                settings[choice] = answer
                 await this.saveSettings()
-
                 if (choice === 'isCustomRobot') {
                     // We changed to custom robot, go directly to robots menu.
                     // This excludes toggle above.
                     await this.robotsMenu()
                     return true
                 }
-
                 if (choice === 'locale') {
                     // Set the new locale.
                     this.intl.locale = answer
@@ -511,92 +456,70 @@ class Menu extends EventEmitter {
                     // Erase the screen because the background may change.
                     this.eraseScreen()
                 }
-
                 return true
             })
-
             return true
         })
     }
 
     robotsMenu() {
-
-        const {__} = this
-
-        return this.runMenu('robots', __('menu.title.robots'), async (choose, loop) => {
-
+        const {alerts, settings, __} = this
+        /* i18n-extract menu.title.robots */
+        return this.runMenu('robots', async (choose, loop) => {
             if (!isNonEmptyObject(this.settings.robots)) {
-                this.alerts.info(__('alerts.loadingRobotDefaults'))
-                this.settings.robots = this.robotsDefaults()
+                alerts.info(__('alerts.loadingRobotDefaults'))
+                settings.robots = this.robotsDefaults()
                 await this.saveSettings()
             }
-
             await loop(async () => {
-
                 const {choice} = await choose()
-
                 if (choice === 'done') {
                     return
                 }
-
                 if (choice === 'reset') {
-                    this.settings.robots = this.robotsDefaults()
+                    settings.robots = this.robotsDefaults()
                     await this.saveSettings()
                     return true
                 }
-
                 await this.robotMenu(choice)
-
                 return true
             })
-
             return true
         })
     }
 
     robotMenu(name) {
-
-        return this.runMenu('robot', this.__('menu.title.robot'), async (choose, loop) => {
-
+        /* i18n-extract menu.title.robot */
+        return this.runMenu('robot', async (choose, loop) => {
             const {settings} = this
-
             if (!isNonEmptyObject(settings.robots[name])) {
                 settings.robots[name] = this.robotMinimalConfig(name)
             }
-
             await loop(async () => {
-
                 const {choice, ask} = await choose(name)
-
                 if (choice === 'done') {
                     return
                 }
-
                 if (choice === 'reset') {
                     settings.robots[name] = this.robotDefaults(name)
                     await this.saveSettings()
                     return
                 }
-
                 const {answer, isCancel, isChange} = await ask()
-
                 if (isCancel || !isChange) {
                     return
                 }
-
                 settings.robots[name][choice] = answer
                 await this.saveSettings()
-
                 // Always break.
             })
-
             return true
         })
     }
 
     async promptCreateAccount() {
         await this.ensureCredentialsLoaded()
-        const {credentials} = this
+        const {creds} = this
         const answers = await this.prompt(this.q.createAccount())
         if (answers._cancelEvent) {
             return false
@@ -604,12 +527,12 @@ class Menu extends EventEmitter {
         try {
             this.screen.hideCursor()
             const {passwordEncrypted} = await this.api.signup(
-                credentials.serverUrl,
+                creds.serverUrl,
                 answers.username,
                 answers.password,
             )
-            credentials.username = answers.username
-            credentials.password = this.encryptPassword(passwordEncrypted)
+            creds.username = answers.username
+            creds.password = this.encryptPassword(passwordEncrypted)
         } finally {
             this.screen.showCursor()
         }
@@ -618,35 +541,35 @@ class Menu extends EventEmitter {
 
     async promptForgotPassword() {
         await this.ensureCredentialsLoaded()
-        const {credentials} = this
+        const {creds} = this
         const {answer, isCancel} = await this.questionAnswer(this.q.username())
         if (isCancel) {
             return false
         }
-        await this.api.forgotPassword(credentials.serverUrl, answer)
-        credentials.username = answer
+        await this.api.forgotPassword(creds.serverUrl, answer)
+        creds.username = answer
         const answers = await this.prompt(this.q.forgotPassword(), null, {
             cancelOnInterrupt: true,
         })
         if (answers._cancelEvent || !answers.resetKey) {
             return false
         }
-        const {passwordEncrypted} = await this.api.resetPassword(credentials, answers)
-        credentials.password = this.encryptPassword(passwordEncrypted)
+        const {passwordEncrypted} = await this.api.resetPassword(creds, answers)
+        creds.password = this.encryptPassword(passwordEncrypted)
         return true
     }
 
     async promptChangePassword() {
         await this.ensureCredentialsLoaded()
-        const {credentials} = this
+        const {creds} = this
         const answers = await this.prompt(this.q.changePassword(), null, {
             cancelOnInterrupt: true,
         })
         if (answers._cancelEvent) {
             return false
         }
-        const {passwordEncrypted} = await this.api.changePassword(credentials, answers)
-        credentials.password = this.encryptPassword(passwordEncrypted)
+        const {passwordEncrypted} = await this.api.changePassword(creds, answers)
+        creds.password = this.encryptPassword(passwordEncrypted)
         return true
     }
 
@@ -656,9 +579,9 @@ class Menu extends EventEmitter {
         if (isCancel || !answer.length) {
             return false
         }
-        const {credentials, __} = this
+        const {creds, __} = this
         try {
-            await this.api.confirmKey(credentials, answer)
+            await this.api.confirmKey(creds, answer)
         } catch (err) {
             if (err.isUserConfirmedError) {
                 this.alerts.warn(__('alerts.accountAlreadyConfirmed'))
@@ -666,21 +589,21 @@ class Menu extends EventEmitter {
             }
             throw err
         }
-        credentials.needsConfirm = false
+        creds.needsConfirm = false
         return true
     }
 
     async promptNewConfirmKey() {
         await this.ensureCredentialsLoaded()
-        const {credentials} = this
-        if (!credentials.username) {
+        const {creds} = this
+        if (!creds.username) {
             const {answer, isCancel} = await this.questionAnswer(this.q.username())
             if (isCancel || !answer.length) {
                 return false
             }
-            credentials.username = answer
+            creds.username = answer
         }
-        await this.api.requestConfirmKey(credentials)
+        await this.api.requestConfirmKey(creds)
         return true
     }
 
@@ -696,27 +619,27 @@ class Menu extends EventEmitter {
 
     async doLogin() {
         await this.ensureCredentialsLoaded()
-        const {credentials, __} = this
-        const url = credentials.serverUrl
-        credentials.isTested = false
+        const {alerts, creds, __} = this
+        const url = creds.serverUrl
+        creds.isTested = false
         try {
-            const password = this.decryptPassword(credentials.password)
-            const {passwordEncrypted} = await this.api.authenticate({...credentials, password})
-            credentials.password = this.encryptPassword(passwordEncrypted)
+            const password = this.decryptPassword(creds.password)
+            const {passwordEncrypted} = await this.api.authenticate({...creds, password})
+            creds.password = this.encryptPassword(passwordEncrypted)
         } catch (err) {
             let isSuccess = false
             if (err.isUserNotConfirmedError) {
-                credentials.needsConfirm = true
+                creds.needsConfirm = true
                 isSuccess = await this.promptConfirmAccount()            
             }
             if (!isSuccess) {
-                this.alerts.warn(__('alerts.loginFailed{url}', {url}))
+                alerts.warn(__('alerts.loginFailed{url}', {url}))
                 throw err
             }
         }
-        this.alerts.info(__('alerts.loginSuccess{url}', {url}))
-        credentials.needsConfirm = false
-        credentials.isTested = true
+        alerts.info(__('alerts.loginSuccess{url}', {url}))
+        creds.needsConfirm = false
+        creds.isTested = true
         return true
     }
 
@@ -919,13 +842,13 @@ class Menu extends EventEmitter {
 
     async getMatchOpts(matchOpts, advancedOpts = {}) {
         matchOpts = {...matchOpts}
-        const {__} = this
+        const {logger, __} = this
         if (advancedOpts.startState) {
-            this.logger.info(__('alerts.settingInitialState'))
+            logger.info(__('alerts.settingInitialState'))
             matchOpts.startState = advancedOpts.startState
         }
         if (advancedOpts.rollsFile) {
-            this.logger.info(__('alerts.usingCustomRollsFile'))
+            logger.info(__('alerts.usingCustomRollsFile'))
             const file = advancedOpts.rollsFile
             const {rolls} = await fse.readJson(file)
             matchOpts.roller = Dice.createRoller(rolls)
@@ -961,8 +884,8 @@ class Menu extends EventEmitter {
             this.client.close()
             this.client.removeAllListeners()
         }
-        const client = this.client = new Client(merge(this.credentials, {
-            password: this.decryptPassword(this.credentials.password)
+        const client = this.client = new Client(merge(this.creds, {
+            password: this.decryptPassword(this.creds.password)
         }))
         client.logLevel = this.logLevel
         client.logger.opts.oneout = true
@@ -992,8 +915,9 @@ class Menu extends EventEmitter {
             if (opts.cancelOnInterrupt) {
                 this.captureInterrupt = () => {
                     try {
-                        if (this.prompter && this.prompter.ui) {
-                            this.prompter.ui.close()
+                        const {prompter: {ui} = {}} = this
+                        if (ui) {
+                            ui.close()
                             resolve(InterruptCancelAnswers)
                             return true
                         }
@@ -1052,21 +976,22 @@ class Menu extends EventEmitter {
             if (!isFunction(ui.onResize)) {
                 return
             }
+            const box = this.boxes.menu
             const opts = this.getPromptOpts()
             this.writeMenuBackground()
             this.renderAlerts(this.currentAlerts)
             // We don't know exactly where the cursor will end up after boxes
             // resize so we have to render the current prompt only.
-            this.screen.moveTo(1, this.boxes.menu.params.top)
+            this.screen.moveTo(1, box.params.top)
             ui.onResize(opts, true)
         }, ResizeTimoutMs)
     }
 
-    async runMenu(name, title, run) {
+    async runMenu(name, run) {
         const box = this.boxes.menu
         this.lastMenuChoice = null
         this.lastToggleChoice = null
-        this.bread.push(title)
+        this.bread.push(name)
         try {
             this.ensureClearScreen()
             await this.ensureLoaded(true)
@@ -1197,12 +1122,13 @@ class Menu extends EventEmitter {
     }
 
     getMenuPrefix() {
-        const {bread} = this
+        const {bread, __} = this
         const {pointer} = Chars
         if (bread.length < 2) {
             return ''
         }
         return bread.slice(0, bread.length - 1)
+            .map(name => __(`menu.title.${name}`)) // i18n-ignore-line
             .join(` ${pointer} `) + ` ${pointer}`
     }
 
@@ -1337,18 +1263,18 @@ class Menu extends EventEmitter {
     }
 
     async loadCredentials() {
-        const credentialsFile = this.getCredentialsFile()
-        if (!credentialsFile) {
+        const file = this.getCredentialsFile()
+        if (!file) {
             return
         }
-        if (!fs.existsSync(credentialsFile)) {
+        if (!fs.existsSync(file)) {
             await this.saveCredentials()
         }
-        const credentials = await fse.readJson(credentialsFile)
-        if (ObsoleteServerUrls.indexOf(credentials.serverUrl) > -1) {
-            credentials.serverUrl = Menu.getDefaultServerUrl()
+        const creds = await fse.readJson(file)
+        if (ObsoleteServerUrls.includes(creds.serverUrl)) {
+            creds.serverUrl = Menu.getDefaultServerUrl()
         }
-        update(this.credentials, defaults(Menu.credentialDefaults(), credentials))
+        update(this.creds, defaults(Menu.credentialDefaults(), creds))
         this.isCredentialsLoaded = true
     }
 
@@ -1360,15 +1286,15 @@ class Menu extends EventEmitter {
     }
 
     async saveCredentials() {
-        const credentialsFile = this.getCredentialsFile()
-        if (credentialsFile)  {
-            await fse.ensureDir(path.dirname(credentialsFile))
-            await fse.writeJson(credentialsFile, this.credentials, {spaces: 2})
+        const file = this.getCredentialsFile()
+        if (file)  {
+            await fse.ensureDir(path.dirname(file))
+            await fse.writeJson(file, this.creds, {spaces: 2})
         }
     }
 
     clearCredentials() {
-        update(this.credentials, {
+        update(this.creds, {
             username     : '',
             password     : '',
             needsConfirm : false,
@@ -1377,13 +1303,13 @@ class Menu extends EventEmitter {
     }
 
     async loadLabConfig() {
-        const configFile = this.getLabConfigFile()
-        if (!configFile) {
+        const file = this.getLabConfigFile()
+        if (!file) {
             return
         }
-        if (fs.existsSync(configFile)) {
+        if (fs.existsSync(file)) {
             try {
-                return await fse.readJson(configFile)
+                return await fse.readJson(file)
             } catch (err) {
                 this.logger.debug(err)
                 this.logger.error('Failed to load saved lab state:', err.message)
@@ -1392,8 +1318,8 @@ class Menu extends EventEmitter {
     }
 
     async saveLabConfig(helper) {
-        const configFile = this.getLabConfigFile()
-        if (!configFile) {
+        const file = this.getLabConfigFile()
+        if (!file) {
             return
         }
         const data = {
@@ -1401,8 +1327,8 @@ class Menu extends EventEmitter {
             persp     : helper.persp,
             rollsFile : helper.opts.rollsFile,
         }
-        await fse.ensureDir(path.dirname(configFile))
-        await fse.writeJson(configFile, data, {spaces: 2})
+        await fse.ensureDir(path.dirname(file))
+        await fse.writeJson(file, data, {spaces: 2})
     }
 
     async loadCustomThemes(isQuiet) {
@@ -1416,7 +1342,7 @@ class Menu extends EventEmitter {
             // TODO: __
             this.alerts.error(info.error, {...info, error: undefined})
         })
-        if (true || !isQuiet && loaded.length) {
+        if (!isQuiet && loaded.length) {
             const count = loaded.length
             this.alerts.info(__('alerts.loadedCustomThemes{count}', {count}))
         }

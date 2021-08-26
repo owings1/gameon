@@ -13,11 +13,11 @@ msgstr ""
 "Language-Team: \n"
 "Plural-Forms: \n"
 
-#: src/term/menu.js:781
+#: src/term/menu.js:704
 msgid "alerts.abortingWaiting"
 msgstr "Arrêter d'attendre"
 
-#: src/term/menu.js:664
+#: src/term/menu.js:587
 msgid "alerts.accountAlreadyConfirmed"
 msgstr "Le compte est déjà confirmé"
 
@@ -30,11 +30,11 @@ msgid "alerts.accountCreated"
 msgstr "Le compte est creé"
 
 # L'authentification a échoué. ...
-#: src/term/menu.js:293
+#: src/term/menu.js:282
 msgid "alerts.authenticationFailedGoToAccountToLogin"
 msgstr "Authentification échouée. Allez dans 'Compte' pour vous connecter."
 
-#: src/term/menu.js:841
+#: src/term/menu.js:764
 msgid "alerts.cancelingMatch"
 msgstr "Annuler le match"
 
@@ -54,27 +54,27 @@ msgstr "S'il vous plaît entrer un numéro > 0"
 msgid "alerts.invalidMatchIdFormat"
 msgstr "Format invalide pour match ID"
 
-#: src/term/menu.js:1421
+#: src/term/menu.js:1347
 msgid "alerts.loadedCustomThemes{count}"
 msgstr "{count, plural, one {# thème} other {# thèmes}} personnalisés chargés"
 
-#: src/term/menu.js:529
+#: src/term/menu.js:470
 msgid "alerts.loadingRobotDefaults"
 msgstr "Chargement des valeurs par défaut du robot"
 
-#: src/term/menu.js:713
+#: src/term/menu.js:636
 msgid "alerts.loginFailed{url}"
 msgstr "Échec de la connexion à {url}"
 
-#: src/term/menu.js:717
+#: src/term/menu.js:640
 msgid "alerts.loginSuccess{url}"
 msgstr "Connexion réussie à {url}"
 
-#: src/term/menu.js:861
+#: src/term/menu.js:784
 msgid "alerts.matchResult{winner,winningScore,losingScore}"
 msgstr "{winner} a gagné le match {winningScore} à {losingScore}"
 
-#: src/term/menu.js:1301
+#: src/term/menu.js:1227
 msgid "alerts.migratingLegacyRobotConfig"
 msgstr "Migration des configurations de robot héritées"
 
@@ -102,11 +102,11 @@ msgstr "Le mot de passe ne correspond pas"
 msgid "alerts.resetKeyRequestedCheckEmail"
 msgstr "Une clé de réinitialisation est demandée. Vérifiez votre e-mail."
 
-#: src/term/menu.js:924
+#: src/term/menu.js:847
 msgid "alerts.settingInitialState"
 msgstr "Chargement de l'état initial"
 
-#: src/term/menu.js:928
+#: src/term/menu.js:851
 msgid "alerts.usingCustomRollsFile"
 msgstr "Utilisation d'un fichier des lancers personnalisé"
 
@@ -395,43 +395,43 @@ msgid "menu.table.move"
 msgstr "mouvement"
 
 #: src/term/helpers/menu.questions.js:121
-#: src/term/menu.js:395
+#: src/term/menu.js:366
 msgid "menu.title.account"
 msgstr "Compte"
 
 #: src/term/helpers/menu.questions.js:101
-#: src/term/menu.js:238
+#: src/term/menu.js:240
 msgid "menu.title.main"
 msgstr "Principal"
 
-#: src/term/menu.js:315
+#: src/term/menu.js:304
 msgid "menu.title.match"
 msgstr "Match"
 
 #: src/term/helpers/menu.questions.js:106
-#: src/term/menu.js:263
+#: src/term/menu.js:259
 msgid "menu.title.play"
 msgstr "Jouer"
 
-#: src/term/menu.js:559
+#: src/term/menu.js:492
 msgid "menu.title.robot"
 msgstr "Robot"
 
 #: src/term/helpers/menu.questions.js:133
-#: src/term/menu.js:526
+#: src/term/menu.js:467
 msgid "menu.title.robots"
 msgstr "Robots"
 
 #: src/term/helpers/menu.questions.js:126
-#: src/term/menu.js:466
+#: src/term/menu.js:420
 msgid "menu.title.settings"
 msgstr "Paramètres"
 
-#: src/term/menu.js:854
+#: src/term/menu.js:777
 msgid "play.color.Red"
 msgstr "Rouge"
 
-#: src/term/menu.js:855
+#: src/term/menu.js:778
 msgid "play.color.White"
 msgstr "Blanc"
 

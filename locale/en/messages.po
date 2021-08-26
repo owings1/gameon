@@ -13,11 +13,11 @@ msgstr ""
 "Language-Team: \n"
 "Plural-Forms: \n"
 
-#: src/term/menu.js:781
+#: src/term/menu.js:704
 msgid "alerts.abortingWaiting"
 msgstr "Aborting waiting"
 
-#: src/term/menu.js:664
+#: src/term/menu.js:587
 msgid "alerts.accountAlreadyConfirmed"
 msgstr "Account already confirmed"
 
@@ -29,11 +29,11 @@ msgstr "Account confirmed"
 msgid "alerts.accountCreated"
 msgstr "Account created"
 
-#: src/term/menu.js:293
+#: src/term/menu.js:282
 msgid "alerts.authenticationFailedGoToAccountToLogin"
 msgstr "Authentication failed. Go to Account to log in."
 
-#: src/term/menu.js:841
+#: src/term/menu.js:764
 msgid "alerts.cancelingMatch"
 msgstr "Canceling match"
 
@@ -53,27 +53,27 @@ msgstr "Please enter a number > 0"
 msgid "alerts.invalidMatchIdFormat"
 msgstr "Invalid match ID format"
 
-#: src/term/menu.js:1421
+#: src/term/menu.js:1347
 msgid "alerts.loadedCustomThemes{count}"
 msgstr "Loaded {count} custom {count, plural, one {theme} other {themes}}"
 
-#: src/term/menu.js:529
+#: src/term/menu.js:470
 msgid "alerts.loadingRobotDefaults"
 msgstr "Loading robot defaults"
 
-#: src/term/menu.js:713
+#: src/term/menu.js:636
 msgid "alerts.loginFailed{url}"
 msgstr "Login failed to {url}"
 
-#: src/term/menu.js:717
+#: src/term/menu.js:640
 msgid "alerts.loginSuccess{url}"
 msgstr "Login success to {url}"
 
-#: src/term/menu.js:861
+#: src/term/menu.js:784
 msgid "alerts.matchResult{winner,winningScore,losingScore}"
 msgstr "{winner} won the match {winningScore} to {losingScore}"
 
-#: src/term/menu.js:1301
+#: src/term/menu.js:1227
 msgid "alerts.migratingLegacyRobotConfig"
 msgstr "Migrating legacy robot config"
 
@@ -101,11 +101,11 @@ msgstr "Passwords do not match"
 msgid "alerts.resetKeyRequestedCheckEmail"
 msgstr "Reset key requested, check your email."
 
-#: src/term/menu.js:924
+#: src/term/menu.js:847
 msgid "alerts.settingInitialState"
 msgstr "Setting initial state"
 
-#: src/term/menu.js:928
+#: src/term/menu.js:851
 msgid "alerts.usingCustomRollsFile"
 msgstr "Using custom rolls file"
 
@@ -394,43 +394,43 @@ msgid "menu.table.move"
 msgstr "move"
 
 #: src/term/helpers/menu.questions.js:121
-#: src/term/menu.js:395
+#: src/term/menu.js:366
 msgid "menu.title.account"
 msgstr "Account"
 
 #: src/term/helpers/menu.questions.js:101
-#: src/term/menu.js:238
+#: src/term/menu.js:240
 msgid "menu.title.main"
 msgstr "Main"
 
-#: src/term/menu.js:315
+#: src/term/menu.js:304
 msgid "menu.title.match"
 msgstr "Match"
 
 #: src/term/helpers/menu.questions.js:106
-#: src/term/menu.js:263
+#: src/term/menu.js:259
 msgid "menu.title.play"
 msgstr "Play"
 
-#: src/term/menu.js:559
+#: src/term/menu.js:492
 msgid "menu.title.robot"
 msgstr "Robot"
 
 #: src/term/helpers/menu.questions.js:133
-#: src/term/menu.js:526
+#: src/term/menu.js:467
 msgid "menu.title.robots"
 msgstr "Robots"
 
 #: src/term/helpers/menu.questions.js:126
-#: src/term/menu.js:466
+#: src/term/menu.js:420
 msgid "menu.title.settings"
 msgstr "Settings"
 
-#: src/term/menu.js:854
+#: src/term/menu.js:777
 msgid "play.color.Red"
 msgstr "Red"
 
-#: src/term/menu.js:855
+#: src/term/menu.js:778
 msgid "play.color.White"
 msgstr "White"
 
