@@ -36,20 +36,20 @@ const ClientListeners = {
             this.opponent.emit('matchCanceled', err)
         }
         this.emit('matchCanceled', err)
-    }
+    },
 
-  , matchCreated: function(id, match) {
+    matchCreated: function(id, match) {
         // Set this earlier than the base player. In the case that matchCanceled
         // is emitted before matchStart, the base player will be able to call
         // match.cancel().
         this.logger.debug('client.event.matchCreated')
         this.thisMatch = match
-    }
+    },
 
-  , matchResponse: function(req, res) {
+    matchResponse: function(req, res) {
         this.logger.debug('client.event.matchResponse')
         this.emit('matchResponse', req, res)
-    }
+    },
 }
 
 const Listeners = {
@@ -58,53 +58,53 @@ const Listeners = {
         this.holds.push(
             this.gameStart(game, match, players)
         )
-    }
+    },
 
-  , turnEnd: function(turn, game, match) {
+    turnEnd: function(turn, game, match) {
         if (!turn.isDoubleDeclined && turn.color == this.opponent.color) {
             const moves = turn.moves.map(move => move.coords)
             this.holds.push(this.client.matchRequest('playRoll', {moves}))
         }
         game.checkFinished()
-    }
+    },
 
-  , turnStart: function(turn, game, match) {
+    turnStart: function(turn, game, match) {
         this.holds.push(this.client.matchRequest('nextTurn'))
-    }
+    },
 
-  , afterOption: function(turn, game, match) {
+    afterOption: function(turn, game, match) {
         if (turn.color != this.color && !turn.isDoubleOffered) {
             this.holds.push(this.client.matchRequest('turnOption'))
         }
-    }
+    },
 
-  , doubleOffered: function(turn, game, match) {
+    doubleOffered: function(turn, game, match) {
         if (turn.color == this.opponent.color) {
             this.holds.push(
                 this.client.matchRequest('turnOption', {isDouble: true})
             )
         }
-    }
+    },
 
-  , doubleAccepted: function(turn, game, match) {
+    doubleAccepted: function(turn, game, match) {
         if (turn.color == this.color) {
             this.holds.push(
                 this.client.matchRequest('doubleResponse', {isAccept: true})
             )
         }
-    }
+    },
 
-  , doubleDeclined: function(turn, game, match) {
+    doubleDeclined: function(turn, game, match) {
         if (turn.color == this.color) {
             this.holds.push(
                 this.client.matchRequest('doubleResponse', {isAccept: false})
             )
         }
-    }
+    },
 
-  , matchCanceled: function(err) {
+    matchCanceled: function(err) {
         this.client.cancelWaiting(err)
-    }
+    },
 }
 
 class NetPlayer extends Base {

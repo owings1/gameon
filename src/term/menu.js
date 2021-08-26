@@ -39,6 +39,7 @@ const path = require('path')
 const {EventEmitter} = require('events')
 
 const Dice   = require('../lib/dice.js')
+const Intl   = require('../lib/util/intl.js')
 const Client = require('../net/client.js')
 const Themes = require('./themes.js')
 const Alerts = require('./helpers/alerts.js')
@@ -64,7 +65,6 @@ const {
     encrypt2,
     forceLineReturn,
     getOrCall,
-    Intl,
     isCredentialsFilled,
     nchars,
     ntimes,

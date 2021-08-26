@@ -24,9 +24,9 @@
  */
 const {EventEmitter} = require('events')
 
-const {Opponent} = require('./constants')
-const {NotImplementedError} = require('./errors')
-const {createLogger, uuid} = require('./util')
+const {Opponent} = require('./constants.js')
+const {NotImplementedError} = require('./errors.js')
+const {createLogger, uuid} = require('./util.js')
 
 const Listeners = {
 
@@ -34,15 +34,15 @@ const Listeners = {
         this.logger.debug('event.matchStart')
         this.thisMatch = match
         this.opponent = players[Opponent[this.color]]
-    }
+    },
 
-  , gameStart: function(game, match, players) {
+    gameStart: function(game, match, players) {
         this.logger.debug('event.gameStart')
         this.thisGame = game
         this.opponent = players[Opponent[this.color]]
-    }
+    },
 
-  , matchCanceled: function(err) {
+    matchCanceled: function(err) {
         this.logger.debug('event.matchCanceled')
         // NB: If matchCanceled is emitted before matchStart, then this will not help.
         if (this.thisMatch) {
@@ -51,16 +51,16 @@ const Listeners = {
             this.thisMatch = null
             this.thisGame = null
         }
-    }
+    },
 
-  , matchEnd: function(err) {
+    matchEnd: function(err) {
         this.logger.debug('event.matchEnd')
         if (this.thisMatch) {
             this.opponent = null
             this.thisMatch = null
             this.thisGame = null
         }
-    }
+    },
 }
 
 class Player extends EventEmitter {

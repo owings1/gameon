@@ -24,17 +24,18 @@
  */
 const {
     Screen,
-    types: {castToArray},
+    types: {castToArray, isFunction},
 } = require('utils-h')
 
 const {EventEmitter} = require('events')
 
-const Base    = require('../lib/player.js')
-const {Board} = require('../lib/core.js')
+const Base = require('../lib/player.js')
+const Intl = require('../lib/util/intl.js')
 const Themes  = require('./themes.js')
+const {Board} = require('../lib/core.js')
 const {inquirer} = require('./inquirer.js')
-const {RobotDelegator} = require('../robot/player.js')
 const {DrawHelper} = require('./draw.js')
+const {RobotDelegator} = require('../robot/player.js')
 const {
     Colors,
     DefaultAnsiEnabled,
@@ -83,8 +84,8 @@ const Listeners = {
                 if (!this.isWaitingPrompt) {
                     return
                 }
-                const isMyDouble = req.action == 'turnOption' &&
-                                   req.color == this.color &&
+                const isMyDouble = req.action === 'turnOption' &&
+                                   req.color === this.color &&
                                    req.isDouble
                 if (!isMyDouble) {
                     this.cancelPrompt(new WaitingFinishedError)
@@ -102,7 +103,7 @@ const Listeners = {
 
         this.report('gameStart', match ? match.games.length : null)
 
-        if (!this.isDualTerm || this.color == Colors.White) {
+        if (!this.isDualTerm || this.color === Colors.White) {
             this.output.write(nchars(21, '\n'))
         }
     },
@@ -114,7 +115,7 @@ const Listeners = {
 
     afterRoll: function(turn) {
         this.report('playerRoll', turn.color, turn.diceSorted)
-        if (turn.color != this.color) {
+        if (turn.color !== this.color) {
             // Drawing for this player happens in playRoll
             if (!this.isDualTerm) {
                 this.drawBoard()
@@ -127,13 +128,13 @@ const Listeners = {
 
     turnStart: function(turn) {
         this.report('turnStart', turn.color)
-        if (!this.isDualTerm || turn.color == this.color) {
+        if (!this.isDualTerm || turn.color === this.color) {
             this.drawBoard()
         }
     },
 
     beforeOption: function(turn) {
-        if (this.opponent.isNet && turn.color != this.color) {
+        if (this.opponent.isNet && turn.color !== this.color) {
             this.promptWaitingForOpponent('Waiting for opponent option')
         }
     },
@@ -143,7 +144,7 @@ const Listeners = {
             this.report('cantMove', turn.color)
         }
         if (turn.isRolled) {
-            if (turn.color != this.color) {
+            if (turn.color !== this.color) {
                 // Drawing for this color happens in playRoll
                 if (turn.isForceMove) {
                     this.report('forceMove', turn.color, turn.diceSorted)
@@ -158,7 +159,7 @@ const Listeners = {
         if (!this.isDualTerm || turn.color != this.color) {
             this.drawBoard()
         }
-        if (this.opponent.isNet && turn.color == this.color) {
+        if (this.opponent.isNet && turn.color === this.color) {
             this.promptWaitingForOpponent('Waiting for opponent to respond')
         }
     },
@@ -175,7 +176,7 @@ const Listeners = {
         const winner = game.getWinner()
         this.report('hr')
         this.report('gameEnd', winner, game.finalValue)
-        if (!this.isDualTerm || winner == this.color) {
+        if (!this.isDualTerm || winner === this.color) {
             this.screen.clear()
         }
     },
@@ -187,7 +188,7 @@ const Listeners = {
         this.report('hr')
         this.report('matchEnd', winner, scores[winner], scores[loser])
         this.report('hr')
-        if (!this.isDualTerm || winner == this.color) {
+        if (!this.isDualTerm || winner === this.color) {
             this.drawBoard()
         }
     },
@@ -197,7 +198,7 @@ const Listeners = {
     },
 
     resize: function() {
-        if (!this.isDualTerm || this.color == Colors.White) {
+        if (!this.isDualTerm || this.color === Colors.White) {
             this.handleResize()
         }
     },
@@ -212,6 +213,7 @@ class TermPlayer extends Base {
             fastForced : false,
             theme      : DefaultThemeName,
             screen     : DefaultScreen,
+            intl       : Intl.getDefaultInstance(),
             // for suggesting
             isCustomRobot : false,
             robots        : null,
@@ -243,6 +245,18 @@ class TermPlayer extends Base {
         Object.entries(Listeners).forEach(([event, listener]) => {
             this.on(event, listener)
         })
+    }
+
+    get intl() {
+        return this.opts.intl
+    }
+
+    set intl(intl) {
+        this.opts.intl = intl
+    }
+
+    get __() {
+        return this.intl.__
     }
 
     get output() {
@@ -302,12 +316,12 @@ class TermPlayer extends Base {
             let prefix = null
             if (!this.isRobot) {
                 prefix = sp(
-                    this.ccolor(this.color)
-                  , 'rolled'
-                  , turn.diceSorted.join()
-                  , 'with'
-                  , turn.remainingFaces.join()
-                  , 'remaining'
+                    this.ccolor(this.color),
+                    'rolled',
+                    turn.diceSorted.join(),
+                    'with',
+                    turn.remainingFaces.join(),
+                    'remaining',
                 ) + '\n'
             }
 
@@ -324,14 +338,14 @@ class TermPlayer extends Base {
                 continue
             }
 
-            let faces = moves.filter(move => move.origin == origin).map(move => move.face)
+            let faces = moves.filter(move => move.origin === origin).map(move => move.face)
             let face = await this.promptFace(turn, faces)
 
             let move = turn.move(origin, face)
 
             this.report('move', move)
 
-            if (turn.getNextAvailableMoves().length == 0) {
+            if (turn.getNextAvailableMoves().length === 0) {
 
                 if (!this.isRobot) {
                     this.drawBoard()
@@ -360,25 +374,25 @@ class TermPlayer extends Base {
         const choices = ['r', 'd', 'q']
         const message = sp(this.cchalk(turn.color, turn.color + "'s"), 'turn to (r)oll or (d)ouble')
         const question = {
-            name     : 'action'
-          , type     : 'input'
-          , message
-          , default  : 'r'
-          , validate : this.choicesValidator(choices, true)
+            name     : 'action',
+            type     : 'input',
+            message,
+            default  : 'r',
+            validate : this.choicesValidator(choices, true),
         }
         while (true) {
             var {action} = await this.prompt(question)
-            if (action.toLowerCase() == 'q') {
+            if (action.toLowerCase() === 'q') {
                 await this.checkQuit()
                 continue
             }
-            if (action[0] == '_') {
+            if (action[0] === '_') {
                 await this.doHiddenAction(action, turn)
                 continue
             }
             break
         }
-        return action.toLowerCase() == 'd'
+        return action.toLowerCase() === 'd'
     }
 
     async promptDecideDouble() {
@@ -388,32 +402,32 @@ class TermPlayer extends Base {
         const prefix = sp(this.ccolor(this.opponent.color), 'wants to double to', this.thisGame.cubeValue * 2, 'points') + '\n'
         const message = sp('Does', this.ccolor(this.color), 'accept the double?', chlk.dim('(y/n)'))
         const answers = await this.prompt({
-            name     : 'accept'
-          , type     : 'input'
-          , message
-          , prefix
-          , validate : this.choicesValidator(choices)
+            name     : 'accept',
+            type     : 'input',
+            message,
+            prefix,
+            validate : this.choicesValidator(choices),
         })
-        return answers.accept.toLowerCase() == 'y'
+        return answers.accept.toLowerCase() === 'y'
     }
 
     async promptOrigin(turn, origins, canUndo, prefix) {
         const question = this.getOriginQuestion(origins, canUndo, prefix)
         while (true) {
             var {origin} = await this.prompt(question)
-            if (origin == 'q') {
+            if (origin === 'q') {
                 await this.checkQuit()
                 continue
             }
-            if (origin[0] == '_') {
+            if (origin[0] === '_') {
                 await this.doHiddenAction(origin, turn)
                 continue
             }
             break
         }
-        if (origin == 'u') {
+        if (origin === 'u') {
             return 'undo'
-        } else if (origin == 'b') {
+        } else if (origin === 'b') {
             return -1
         }
         return this.pointOrigin(+origin)
@@ -439,17 +453,17 @@ class TermPlayer extends Base {
     async promptFinish() {
         const choices = ['f', 'u']
         const answers = await this.prompt({
-            name     : 'finish'
-          , type     : 'input'
-          , message  : '(f)inish or (u)ndo'
-          , default  : 'f'
-          , validate : this.choicesValidator(choices)
+            name     : 'finish',
+            type     : 'input',
+            message  : '(f)inish or (u)ndo',
+            default  : 'f',
+            validate : this.choicesValidator(choices),
         })
-        return answers.finish.toLowerCase() == 'f'
+        return answers.finish.toLowerCase() === 'f'
     }
 
     async makeForcedMoves(turn) {
-        for (var moves = turn.getNextAvailableMoves(); moves.length; moves = turn.getNextAvailableMoves()) {
+        for (let moves = turn.getNextAvailableMoves(); moves.length; moves = turn.getNextAvailableMoves()) {
             turn.move(moves[0])
         }
     }
@@ -472,8 +486,8 @@ class TermPlayer extends Base {
 
             case '_':
                 let info = {
-                    state28     : turn.board.state28()
-                  , stateString : turn.board.stateString()
+                    state28     : turn.board.state28(),
+                    stateString : turn.board.stateString(),
                 }
                 Object.entries(info).forEach(([key, value]) => {
                     this.output.write(`${key}: ${value}\n`)
@@ -536,7 +550,7 @@ class TermPlayer extends Base {
         const choices = points.map(p => p.toString())
 
         let message = 'Origin '
-        if (points[0] == -1) {
+        if (points[0] === -1) {
             message += ' [(b)ar]'
             choices[0] = 'b'
         } else {
@@ -557,7 +571,7 @@ class TermPlayer extends Base {
             validate : this.choicesValidator(choices, true),
         }
 
-        if (points.length == 1) {
+        if (points.length === 1) {
             question.default = choices[0]
         }
 
@@ -591,10 +605,11 @@ class TermPlayer extends Base {
                 return
             }
 
+            const {logger} = this
             // We need to call cleanup at the right time, and can't use promise.finally.
 
             const cleanup = () => {
-                this.logger.debug('prompter.cleanup')
+                logger.debug('prompter.cleanup')
                 this.promptReject = null
                 this.prompter = null
             }
@@ -604,26 +619,26 @@ class TermPlayer extends Base {
                 ...opts,
             }
 
-            this.logger.debug('prompter.create')
+            logger.debug('prompter.create')
 
             this.prompter = this.inquirer.prompt(questions, answers, opts)
 
             this.promptReject = err => {
-                this.logger.debug('promptReject')
+                logger.debug('promptReject')
                 if (this.prompter) {
                     try {
                         this.prompter.ui.rl.output.write('\n')
                     } catch (e) {
-                        this.logger.debug('Failed to write an extra line', e)
+                        logger.debug('Failed to write an extra line', e)
                     }
                     try {
-                        this.logger.debug('promptReject.ui.close')
+                        logger.debug('promptReject.ui.close')
                         this.prompter.ui.close()
                     } catch (e) {
-                        this.logger.error('Failed to close UI', e)
+                        logger.error('Failed to close UI', e)
                     }
                 } else {
-                    this.logger.debug('No prompter to close')
+                    logger.debug('No prompter to close')
                 }
                 // Cleanup before reject.
                 cleanup()
@@ -631,12 +646,12 @@ class TermPlayer extends Base {
             }
 
             this.prompter.then(answers => {
-                this.logger.debug('prompter.then')
+                logger.debug('prompter.then')
                 // Cleanup before resolve
                 cleanup()
                 resolve(answers)
             }).catch(err => {
-                this.logger.debug('prompter.catch')
+                logger.debug('prompter.catch')
                 this.promptReject(err)
             })
         })
@@ -691,7 +706,7 @@ class TermPlayer extends Base {
             return
         }
         const {ui} = prompter
-        if (typeof ui.onResize != 'function') {
+        if (!isFunction(ui.onResize)) {
             return
         }
         this.drawBoard()
@@ -712,7 +727,7 @@ class TermPlayer extends Base {
 
     choicesValidator(choices, allowHidden) {
         return value => {
-            if (allowHidden && value[0] == '_') {
+            if (allowHidden && value[0] === '_') {
                 return true
             }
             if (choices.indexOf(value.toLowerCase()) > -1) {
