@@ -23,12 +23,12 @@
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 const {
+    arrays  : {append, sumArray},
     merging : {merge},
     objects : {lget, lset, update, isNonEmptyObject},
+    strings : {stringWidth, stripAnsi},
     types   : {castToArray, isFunction},
-    arrays  : {append, sumArray},
     Screen,
-    strings : {stripAnsi},
 } = require('utils-h')
 const fse    = require('fs-extra')
 const globby = require('globby')
@@ -64,7 +64,6 @@ const {
     encrypt2,
     forceLineReturn,
     getOrCall,
-    loggerPrefixNamed,
     Intl,
     isCredentialsFilled,
     nchars,
@@ -72,7 +71,6 @@ const {
     padEnd,
     rejectDuplicatePrompter,
     StringBuilder,
-    stringWidth,
 } = require('../lib/util')
 const {
     Colors: {Red, White},
@@ -243,12 +241,12 @@ class Menu extends EventEmitter {
 
                 const {choice} = await choose()
 
-                if (choice == 'quit') {
+                if (choice === 'quit') {
                     return
                 }
 
                 const isContinue = await this[methods[choice]]()
-                if (choice == 'lab') {
+                if (choice === 'lab') {
                     await this.eraseScreen()
                 }
                 return isContinue
@@ -479,7 +477,7 @@ class Menu extends EventEmitter {
                     this.settings[choice] = !this.settings[choice]
                     await this.saveSettings()
                     if (choice === 'isAnsi' && this.settings[choice]) {
-                        // we have to repeat the logic below since we continue.
+                        // We have to repeat the logic below since we continue.
                         this.eraseScreen()
                     }
                     return true
@@ -570,11 +568,11 @@ class Menu extends EventEmitter {
 
                 const {choice, ask} = await choose(name)
 
-                if (choice == 'done') {
+                if (choice === 'done') {
                     return
                 }
 
-                if (choice == 'reset') {
+                if (choice === 'reset') {
                     settings.robots[name] = this.robotDefaults(name)
                     await this.saveSettings()
                     return
@@ -589,7 +587,7 @@ class Menu extends EventEmitter {
                 settings.robots[name][choice] = answer
                 await this.saveSettings()
 
-                // always break
+                // Always break.
             })
 
             return true
@@ -597,17 +595,12 @@ class Menu extends EventEmitter {
     }
 
     async promptCreateAccount() {
-
         await this.ensureCredentialsLoaded()
-
         const {credentials} = this
-
         const answers = await this.prompt(this.q.createAccount())
-
         if (answers._cancelEvent) {
             return false
         }
-
         try {
             this.screen.hideCursor()
             const {passwordEncrypted} = await this.api.signup(
@@ -620,72 +613,49 @@ class Menu extends EventEmitter {
         } finally {
             this.screen.showCursor()
         }
-
         return true
     }
 
     async promptForgotPassword() {
-
         await this.ensureCredentialsLoaded()
-
         const {credentials} = this
-
         const {answer, isCancel} = await this.questionAnswer(this.q.username())
-
         if (isCancel) {
             return false
         }
-
         await this.api.forgotPassword(credentials.serverUrl, answer)
-
         credentials.username = answer
-
         const answers = await this.prompt(this.q.forgotPassword(), null, {
-            cancelOnInterrupt: true
+            cancelOnInterrupt: true,
         })
-
         if (answers._cancelEvent || !answers.resetKey) {
             return false
         }
-
         const {passwordEncrypted} = await this.api.resetPassword(credentials, answers)
-
         credentials.password = this.encryptPassword(passwordEncrypted)
-
         return true
     }
 
     async promptChangePassword() {
-
         await this.ensureCredentialsLoaded()
-
         const {credentials} = this
-
         const answers = await this.prompt(this.q.changePassword(), null, {
-            cancelOnInterrupt: true
+            cancelOnInterrupt: true,
         })
-
         if (answers._cancelEvent) {
             return false
         }
-
         const {passwordEncrypted} = await this.api.changePassword(credentials, answers)
-
         credentials.password = this.encryptPassword(passwordEncrypted)
-
         return true
     }
 
     async promptConfirmAccount() {
-
         await this.ensureCredentialsLoaded()
-
         const {answer, isCancel} = await this.questionAnswer(this.q.confirmKey())
-
         if (isCancel || !answer.length) {
             return false
         }
-
         const {credentials, __} = this
         try {
             await this.api.confirmKey(credentials, answer)
@@ -696,35 +666,27 @@ class Menu extends EventEmitter {
             }
             throw err
         }
-        
         credentials.needsConfirm = false
-
         return true
     }
 
     async promptNewConfirmKey() {
-
         await this.ensureCredentialsLoaded()
-
         const {credentials} = this
-
         if (!credentials.username) {
-
             const {answer, isCancel} = await this.questionAnswer(this.q.username())
             if (isCancel || !answer.length) {
                 return false
             }
             credentials.username = answer
         }
-
         await this.api.requestConfirmKey(credentials)
-
         return true
     }
 
     async promptMatchAdvancedOpts(defaults) {
         const answers = await this.prompt(this.q.matchAdvanced(defaults), null, {
-            cancelOnInterrupt: true
+            cancelOnInterrupt: true,
         })
         if (answers._cancelEvent) {
             return {...defaults}
@@ -733,42 +695,28 @@ class Menu extends EventEmitter {
     }
 
     async doLogin() {
-
         await this.ensureCredentialsLoaded()
-
         const {credentials, __} = this
         const url = credentials.serverUrl
-
         credentials.isTested = false
-
         try {
-
             const password = this.decryptPassword(credentials.password)
             const {passwordEncrypted} = await this.api.authenticate({...credentials, password})
             credentials.password = this.encryptPassword(passwordEncrypted)
-
         } catch (err) {
-
             let isSuccess = false
-
             if (err.isUserNotConfirmedError) {
-
                 credentials.needsConfirm = true
-
                 isSuccess = await this.promptConfirmAccount()            
             }
-
             if (!isSuccess) {
                 this.alerts.warn(__('Login failed to {url}', {url}))
                 throw err
             }
         }
-
         this.alerts.info(__('Login success to {url}', {url}))
-
         credentials.needsConfirm = false
         credentials.isTested = true
-
         return true
     }
 
@@ -814,14 +762,10 @@ class Menu extends EventEmitter {
     }
 
     async _runOnlineMatch(matchOpts, isStart, matchId) {
-
         await this.ensureLoaded()
-
-        const {__} = this
+        const {__, alerts} = this
         const client = this.newClient()
-
         try {
-
             const termPlayer = new TermPlayer(isStart ? White : Red, {
                 screen: this.screen,
                 ...this.settings,
@@ -833,45 +777,39 @@ class Menu extends EventEmitter {
                 White : isStart ? termPlayer : netPlayer,
                 Red   : isStart ? netPlayer  : termPlayer,
             }
-
             this.captureInterrupt = () => {
-                this.alerts.warn(__('Aborting waiting'))
+                alerts.warn(__('Aborting waiting'))
                 client.cancelWaiting(new WaitingAbortedError('Keyboard interrupt'))
                 return true
             }
-
             this.eraseScreen()
-
             this.emit('beforeClientConnect', client)
             await client.connect()
-
-            const promise = isStart ? client.createMatch(matchOpts) : client.joinMatch(matchId)
+            const promise = isStart
+                ? client.createMatch(matchOpts)
+                : client.joinMatch(matchId)
             this.emit('clientWaitStart', client)
-
             let match
             try {
                 match = await promise
             } catch (err) {
                 // A WaitingAbortedError is typically user-initiated.
                 if (err.isWaitingAbortedError) {
-                    this.alerts.warn(err)
+                    alerts.warn(err)
                     return
                 }
                 // A MatchCanceledError can happen when the server shuts down.
                 if (err.isMatchCanceledError) {
-                    this.alerts.error(err)
+                    alerts.error(err)
                     return
                 }
                 throw err
             }
-
             this.captureInterrupt = null
-            
             await this.runMatch(match, players)
-
         } catch (err) {
             if (err.isWaitingAbortedError) {
-                this.alerts.warn(err)
+                alerts.warn(err)
                 return
             }
             throw err
@@ -887,13 +825,9 @@ class Menu extends EventEmitter {
     }
 
     async runMatch(match, players) {
-
-        const {__} = this
-
+        const {alerts, __} = this
         try {
-
             this.players = players
-
             Object.entries(players).forEach(([color, player]) => {
                 player.logLevel = this.logLevel
                 update(player.logger, {
@@ -902,55 +836,41 @@ class Menu extends EventEmitter {
                 })
                 player.logger.opts.oneout = true
             })
-
-            const coordinator = this.newCoordinator()
-
+            const coord = this.newCoordinator()
             this.captureInterrupt = () => {
-                this.alerts.warn(__('Canceling match'))
+                alerts.warn(__('Canceling match'))
                 const err = new MatchCanceledError('Keyboard interrupt')
-                coordinator.cancelMatch(match, players, err)
+                coord.cancelMatch(match, players, err)
                 return true
             }
-
-            this.emit('beforeMatchStart', match, players, coordinator)
-
+            this.emit('beforeMatchStart', match, players, coord)
             this.eraseScreen()
             this.consumeAlerts()
-
             players.White.on('matchEnd', match => {
                 const winner = match.getWinner()
                 const loser = match.getLoser()
                 const {scores} = match
                 const params = {
-                    // i18n-ignore
-                    winner: __(winner),
+                    winner       : __(winner), // i18n-ignore-line
                     winningScore : scores[winner],
                     losingScore  : scores[loser],
                 }
-                this.alerts.info(
+                alerts.info(
                     __('alerts.matchResult{winner,winningScore,losingScore}', params)
                 )
             })
-
-            await coordinator.runMatch(match, players)
-
+            await coord.runMatch(match, players)
         } catch (err) {
-
             if (err.isMatchCanceledError) {
-                this.alerts.error(err)
+                alerts.error(err)
                 return
             }
-
             throw err
-
         } finally {
-
             destroyAll(players)
-
             this.captureInterrupt = null
             this.coordinator = null
             this.players = null
-            
             this.clearScreen()
         }
     }
@@ -986,7 +906,7 @@ class Menu extends EventEmitter {
         if (cmds && cmds.length) {
             cmds = castToArray(cmds)
             for (let i = 0; i < cmds.length; ++i) {
-                await helper.runCommand(cmds[i], i == 0)
+                await helper.runCommand(cmds[i], i === 0)
             }
         } else {
             await helper.interactive()
@@ -1024,14 +944,13 @@ class Menu extends EventEmitter {
     }
 
     newCoordinator() {
-        const coord = new Coordinator(this.settings)
+        const coord = this.coordinator = new Coordinator(this.settings)
         coord.logLevel = this.logLevel
         coord.logger.opts.oneout = true
         update(coord.logger, {
-            name: [this.logger.name, coord.name].join('.'),
-            stdout: this.output,
+            name   : [this.logger.name, coord.name].join('.'),
+            stdout : this.output,
         })
-        this.coordinator = coord
         return coord
     }
 
@@ -1040,34 +959,34 @@ class Menu extends EventEmitter {
             this.client.close()
             this.client.removeAllListeners()
         }
-        const client = new Client(update({...this.credentials}, {
+        const client = this.client = new Client(merge(this.credentials, {
             password: this.decryptPassword(this.credentials.password)
         }))
         client.logLevel = this.logLevel
         client.logger.opts.oneout = true
         update(client.logger, {
-            name: [this.logger.name, client.name].join('.'),
-            stdout: this.output,
+            name   : [this.logger.name, client.name].join('.'),
+            stdout : this.output,
         })
-        this.client = client
         return client
     }
 
     prompt(questions, answers, opts) {
-
         return new Promise((resolve, reject) => {
-
             if (rejectDuplicatePrompter(this.prompter, reject)) {
                 return
             }
+            opts = this.getPromptOpts(opts)
+            const box = this.boxes.menu
+            // Ensure that prompt event is emitted after first render.
+            const onRender = () => this.emit('prompt', {questions, answers, opts})
+            box.status.once('render', onRender)
             const cleanup = () => {
                 this.captureInterrupt = null
                 this.prompter = null
                 // Clean the listener in case it was not called.
                 box.status.removeListener('render', onRender)
             }
-
-            opts = this.getPromptOpts(opts)
             if (opts.cancelOnInterrupt) {
                 this.captureInterrupt = () => {
                     try {
@@ -1081,16 +1000,8 @@ class Menu extends EventEmitter {
                     }
                 }
             }
-
-            const prompter = this.inquirer.prompt(questions, answers, opts)
-            this.prompter = prompter
-
-            // Ensure that prompt event is emitted after first render.
-            const onRender = () => this.emit('prompt', {prompter, questions, answers, opts})
-            const box = this.boxes.menu
-            box.status.once('render', onRender)
-
-            prompter.then(answers => {
+            this.prompter = this.inquirer.prompt(questions, answers, opts)
+            this.prompter.then(answers => {
                 cleanup()
                 resolve(answers)
             }).catch(err => {
@@ -1161,7 +1072,7 @@ class Menu extends EventEmitter {
             this.ensureMenuBackground()
             this.screen.moveTo(1, box.params.top)
             return await run(
-                (...hints) => this.menuChoice(title, this.q.menuq(name, ...hints)),
+                (...hints) => this.menuChoice(this.q.menuq(name, ...hints)),
                 async loop => {
                     let ret
                     while (true) {
@@ -1192,18 +1103,14 @@ class Menu extends EventEmitter {
     }
 
     renderAlerts(alerts) {
-
         this.eraseAlerts()
-
         if (!alerts || !alerts.length) {
             return
         }
-
         const box = this.boxes.alerts
         const {format} = box.opts
         const {maxWidth, minWidth, left, top} = box.params
         const indent = left - 1
-
         const errors = []
         const levelsLines = alerts.map(alert => {
             append(errors, alert.errors)
@@ -1212,12 +1119,10 @@ class Menu extends EventEmitter {
                 [alert.level, padEnd(line, minWidth, format.pad(' '))]
             )
         }).flat()
-
         // Debug errors if ansi not enabled.
         if (this.logLevel > 3 && !this.settings.isAnsi) {
             errors.forEach(error => this.logger.error(error))
         }
-
         this.screen.saveCursor()
         levelsLines.forEach(([logLevel, line], i) => {
             this.screen.moveTo(left, top + i)
@@ -1226,15 +1131,11 @@ class Menu extends EventEmitter {
             box.status.emit('line', param)
         })
         this.screen.restoreCursor()
-
         box.drawBorder()
     }
 
-    // TODO: remove title, since it is translated
-    async menuChoice(title, question, opts) {
-
+    async menuChoice(question, opts) {
         const box = this.boxes.menu
-
         question = {
             name     : 'choice',
             type     : 'rawlist',
@@ -1242,12 +1143,9 @@ class Menu extends EventEmitter {
             prefix   : this.getMenuPrefix(),
             ...question,
         }
-
         const promise = this.questionAnswer(question, opts)
-
-        // Ensure that prompt.menu event is emitted after first render
-        const onRender = () => this.emit('prompt.menu', {/*title,*/ question, opts})
-
+        // Ensure that prompt.menu event is emitted after first render.
+        const onRender = () => this.emit('prompt.menu', {question, opts})
         box.status.once('render', onRender)
         let res
         try {
@@ -1256,7 +1154,6 @@ class Menu extends EventEmitter {
             // Clean the listener in case it was not called.
             box.status.removeListener('render', onRender)
         }
-
         const {answer, isCancel, toggle, ...result} = res
         const choice = answer
         question = (question.choices.find(c => c.value === choice) || {}).question
@@ -1269,26 +1166,20 @@ class Menu extends EventEmitter {
     }
 
     async questionAnswer(question, opts) {
-
+        const box = this.boxes.menu
         opts = {
-            cancelOnInterrupt: Boolean(question.cancel && !question.noInterrupt)
-          , ...opts
+            cancelOnInterrupt: Boolean(question.cancel && !question.noInterrupt),
+            ...opts,
         }
-
         const {name} = question
         const oldValue = getOrCall(question.default)
-
         let answers = {}
         if (question.answer != null) {
             lset(answers, name, question.answer)
         }
-
         const promise = this.prompt(question, answers, opts)
-
-        // Ensure that prompt.question event is emitted after first render
-        const box = this.boxes.menu
+        // Ensure that prompt.question event is emitted after first render.
         const onRender = () => this.emit('prompt.question', {name, question, opts})
-
         box.status.once('render', onRender)
         try {
             answers = await promise
@@ -1296,22 +1187,21 @@ class Menu extends EventEmitter {
             // Clean the listener in case it was not called.
             box.status.removeListener('render', onRender)
         }
-
         const answer = lget(answers, name)
-        const isCancel = !!answers._cancelEvent
-        const isChange = !isCancel && answer != oldValue
+        const isCancel = Boolean(answers._cancelEvent)
+        const isChange = isCancel === false && answer !== oldValue
         const toggle = answers['#toggle']
-
         return {answers, answer, isCancel, oldValue, isChange, toggle}
     }
 
     getMenuPrefix() {
-        if (this.bread.length < 2) {
+        const {bread} = this
+        const {pointer} = Chars
+        if (bread.length < 2) {
             return ''
         }
-        return this.bread
-            .slice(0, this.bread.length - 1)
-            .join(` ${Chars.pointer} `) + ` ${Chars.pointer}`
+        return bread.slice(0, bread.length - 1)
+            .join(` ${pointer} `) + ` ${pointer}`
     }
 
     handleInterrupt() {
@@ -1348,11 +1238,10 @@ class Menu extends EventEmitter {
     }
 
     writeMenuBackground() {
+        const box = this.boxes.screen
         const {screen} = this
         const {width, height} = screen
-        const chlk = this.theme.menu
-        const line = chlk.screen(screen.str.erase(width))
-        const box = this.boxes.screen
+        const line = this.theme.menu.screen(screen.str.erase(width))
         this.resetBoxes()
         screen.saveCursor()
             .writeRows(1, 1, height, line)
@@ -1405,7 +1294,7 @@ class Menu extends EventEmitter {
             intl.locale = settings.locale
         }
         if (settings.isCustomRobot && !isNonEmptyObject(settings.robots)) {
-            // populate for legacy format
+            // Populate for legacy format.
             update(settings.robots,  Menu.robotsDefaults())
             this.alerts.info(__('Migrating legacy robot config'))
             await this.saveSettings()
@@ -1434,12 +1323,12 @@ class Menu extends EventEmitter {
             const settings = defaults(Menu.settingsDefaults(), this.settings)
             await fse.writeJson(settingsFile, settings, {spaces: 2})
         }
-        // Load current theme
+        // Load current theme.
         if (this.settings.theme !== this.theme.name) {
             this.theme = Themes.getInstance(this.settings.theme)
             this.alerter.theme = this.theme
         }
-        // Set ansi enabled
+        // Set ansi enabled.
         if (this.screen.isAnsi !== this.settings.isAnsi) {
             this.screen.isAnsi = this.settings.isAnsi
         }
