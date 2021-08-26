@@ -19,7 +19,7 @@ msgstr "{winner} a gagné le match {winning} à {losing}"
 
 #: src/term/menu.js:838
 msgid "Aborting waiting"
-msgstr "Arrêté d'attendre"
+msgstr "Arrêter d'attendre"
 
 #: src/term/menu.js:694
 msgid "Account already confirmed"
@@ -50,49 +50,18 @@ msgstr "Annuler le match"
 msgid "Check your email for a confirmation key."
 msgstr "Vérifiez votre e-mail pour une clé de confirmation."
 
-#: src/term/helpers/menu.questions.js:303
-#: src/term/helpers/menu.questions.js:308
-msgid "Crawford Rule"
-msgstr "Règle Crawford"
-
-#: src/term/helpers/menu.questions.js:290
-#: src/term/helpers/menu.questions.js:294
-msgid "Cube Enabled"
-msgstr "Cube Activé"
-
 #: src/term/helpers/menu.questions.js:911
 #: src/term/helpers/menu.questions.js:915
 msgid "Double Weight"
 msgstr "Poids de doublé"
 
-#: src/term/helpers/menu.questions.js:822
-msgid "double:"
-msgstr "doublé:"
-
 #: src/term/helpers/menu.questions.js:687
 msgid "Enable Advanced ANSI"
 msgstr "Activer ANSI avancé"
 
-#: src/term/helpers/menu.messages.js:49
-msgid "Human vs Human"
-msgstr "Humain vs Humain"
-
-#: src/term/helpers/menu.messages.js:52
-msgid "Human vs Robot"
-msgstr "Humain vs Robot"
-
 #: src/term/helpers/menu.questions.js:392
 msgid "Invalid match ID format"
 msgstr "Format invalide pour match ID"
-
-#: src/term/helpers/menu.questions.js:317
-#: src/term/helpers/menu.questions.js:321
-msgid "Jacoby Rule"
-msgstr "Règle Jacoby"
-
-#: src/term/helpers/menu.messages.js:46
-msgid "Join Online Match"
-msgstr "Rejoindre un match en ligne"
 
 #: src/term/menu.js:1529
 msgid "Loaded {count} custom themes."
@@ -113,11 +82,6 @@ msgstr "Connexion réussie à {url}"
 #: src/term/helpers/menu.questions.js:398
 msgid "Match ID"
 msgstr "ID du match"
-
-#: src/term/helpers/menu.questions.js:274
-#: src/term/helpers/menu.questions.js:278
-msgid "Match Total"
-msgstr "Total du match"
 
 #: src/term/helpers/menu.questions.js:154
 msgid "menu.choice.account"
@@ -144,9 +108,21 @@ msgstr "Effacez les Identifiants"
 msgid "menu.choice.confirmAccount"
 msgstr "Confirmation de Compte"
 
+#: src/term/helpers/menu.questions.js:303
+msgid "menu.choice.crawfordRule"
+msgstr "Règle Crawford"
+
 #: src/term/helpers/menu.questions.js:452
 msgid "menu.choice.createAccount"
 msgstr "Creer un compte"
+
+#: src/term/helpers/menu.questions.js:290
+msgid "menu.choice.cubeEnabled"
+msgstr "Cube Activé"
+
+#: src/term/helpers/menu.questions.js:759
+msgid "menu.choice.customRobot"
+msgstr "Robot Personnalisé"
 
 #: src/term/helpers/menu.questions.js:418
 #: src/term/helpers/menu.questions.js:648
@@ -169,6 +145,22 @@ msgstr "Mouvements Forcés Rapides"
 msgid "menu.choice.forgotPassword"
 msgstr "Mot de passe oublié"
 
+#: src/term/helpers/menu.messages.js:49
+msgid "menu.choice.humanVsHuman"
+msgstr "Humain vs Humain"
+
+#: src/term/helpers/menu.messages.js:52
+msgid "menu.choice.humanVsRobot"
+msgstr "Humain vs Robot"
+
+#: src/term/helpers/menu.questions.js:317
+msgid "menu.choice.jacobyRule"
+msgstr "Règle Jacoby"
+
+#: src/term/helpers/menu.messages.js:46
+msgid "menu.choice.joinOnlineMatch"
+msgstr "Rejoindre un match en ligne"
+
 #: src/term/helpers/menu.questions.js:164
 msgid "menu.choice.lab"
 msgstr "Labo"
@@ -176,6 +168,10 @@ msgstr "Labo"
 #: src/term/helpers/menu.questions.js:657
 msgid "menu.choice.locale"
 msgstr "Région"
+
+#: src/term/helpers/menu.questions.js:274
+msgid "menu.choice.matchTotal"
+msgstr "Total du Match"
 
 #: src/term/helpers/menu.questions.js:467
 msgid "menu.choice.newConfirmKey"
@@ -189,6 +185,23 @@ msgstr "Mot de passe"
 msgid "menu.choice.play"
 msgstr "Jouer"
 
+#: src/term/helpers/menu.questions.js:803
+#: src/term/helpers/menu.questions.js:883
+msgid "menu.choice.resetDefaults"
+msgstr "Réinitialiser"
+
+#: src/term/helpers/menu.questions.js:743
+msgid "menu.choice.robotDelay"
+msgstr "Retard du Robot"
+
+#: src/term/helpers/menu.questions.js:772
+msgid "menu.choice.robotSettings"
+msgstr "Paramètres de Robot"
+
+#: src/term/helpers/menu.messages.js:55
+msgid "menu.choice.robotVsRobot"
+msgstr "Robot vs Robot"
+
 #: src/term/helpers/menu.questions.js:426
 msgid "menu.choice.serverUrl"
 msgstr "Serveur"
@@ -200,6 +213,10 @@ msgstr "Paramètres"
 #: src/term/helpers/menu.questions.js:267
 msgid "menu.choice.startMatch"
 msgstr "Commencer le match"
+
+#: src/term/helpers/menu.messages.js:43
+msgid "menu.choice.startOnlineMatch"
+msgstr "Créer Match en ligne"
 
 #: src/term/helpers/menu.questions.js:473
 msgid "menu.choice.testCredentials"
@@ -221,17 +238,41 @@ msgstr "Entrez la clé de confirmation"
 msgid "menu.question.confirmPassword"
 msgstr "Retaper le mot de passe"
 
+#: src/term/helpers/menu.questions.js:308
+msgid "menu.question.crawfordRule"
+msgstr "Règle Crawford"
+
+#: src/term/helpers/menu.questions.js:294
+msgid "menu.question.cubeEnabled"
+msgstr "Cube activé"
+
 #: src/term/helpers/menu.questions.js:560
 msgid "menu.question.currentPassword"
 msgstr "Mot de passe actuel"
+
+#: src/term/helpers/menu.questions.js:763
+msgid "menu.question.customRobot"
+msgstr "Robot personnalisé"
 
 #: src/term/helpers/menu.questions.js:703
 msgid "menu.question.fastForcedMoves"
 msgstr "Mouvements Forcés Rapides"
 
+#: src/term/helpers/menu.questions.js:364
+msgid "menu.question.initialState"
+msgstr "L'etat initial"
+
+#: src/term/helpers/menu.questions.js:321
+msgid "menu.question.jacobyRule"
+msgstr "Règle Jacoby"
+
 #: src/term/helpers/menu.questions.js:660
 msgid "menu.question.locale"
 msgstr "Choisissez votre région"
+
+#: src/term/helpers/menu.questions.js:278
+msgid "menu.question.matchTotal"
+msgstr "Total du match"
 
 #: src/term/helpers/menu.questions.js:566
 #: src/term/helpers/menu.questions.js:593
@@ -246,6 +287,14 @@ msgstr "Mot de passe"
 msgid "menu.question.resetKey"
 msgstr "Entrez la clé de réinitialisation"
 
+#: src/term/helpers/menu.questions.js:746
+msgid "menu.question.robotDelaySeconds"
+msgstr "Retard du Robot (secondes)"
+
+#: src/term/helpers/menu.questions.js:372
+msgid "menu.question.rollsFile"
+msgstr "Fichier des lancers"
+
 #: src/term/helpers/menu.questions.js:429
 msgid "menu.question.serverUrl"
 msgstr "URL du serveur"
@@ -257,6 +306,14 @@ msgstr "Choisissez un thème"
 #: src/term/helpers/menu.questions.js:500
 msgid "menu.question.username"
 msgstr "Nom d'utilisateur"
+
+#: src/term/helpers/menu.questions.js:822
+msgid "menu.table.double"
+msgstr "doublé"
+
+#: src/term/helpers/menu.questions.js:820
+msgid "menu.table.move"
+msgstr "mouvement"
 
 #: src/term/helpers/menu.questions.js:118
 #: src/term/menu.js:397
@@ -300,10 +357,6 @@ msgstr "Migration des configurations de robot héritées"
 msgid "Move Weight"
 msgstr "Poids de mouvement"
 
-#: src/term/helpers/menu.questions.js:820
-msgid "move:"
-msgstr "mouvement:"
-
 #: src/term/helpers/menu.messages.js:26
 msgid "New confirmation key requested. Check your email."
 msgstr "Une nouvelle clé de confirmation est demandée. Vérifiez votre e-mail."
@@ -338,56 +391,18 @@ msgstr "Répertoire d'Enregistrement"
 msgid "Record Matches"
 msgstr "Enregistrer les Matches"
 
-#: src/term/helpers/menu.questions.js:803
-#: src/term/helpers/menu.questions.js:883
-msgid "Reset defaults"
-msgstr "Réinitialiser"
-
 #: src/term/helpers/menu.questions.js:588
 msgid "Reset key requested, check your email."
 msgstr "Une clé de réinitialisation est demandée. Vérifiez votre e-mail."
-
-#: src/term/helpers/menu.questions.js:772
-msgid "Robot Configuration"
-msgstr "Paramètres de robot"
-
-#: src/term/helpers/menu.questions.js:743
-msgid "Robot Delay"
-msgstr "Retard du Robot"
-
-#: src/term/helpers/menu.questions.js:746
-msgid "Robot Delay (seconds)"
-msgstr "Retard du Robot (secondes)"
-
-#: src/term/helpers/menu.messages.js:55
-msgid "Robot vs Robot"
-msgstr "Robot vs Robot"
-
-#: src/term/helpers/menu.questions.js:372
-msgid "Rolls File"
-msgstr "Fichier des Lancers"
 
 #: src/term/menu.js:1001
 #. logger
 msgid "Setting initial state"
 msgstr "Chargement de l'état initial"
 
-#: src/term/helpers/menu.messages.js:43
-msgid "Start Online Match"
-msgstr "Créer un match en ligne"
-
-#: src/term/helpers/menu.questions.js:364
-msgid "Start State"
-msgstr "L'etat initial"
-
 #: src/term/helpers/menu.messages.js:29
 msgid "Testing credentials"
 msgstr "Vérification des identifiants"
-
-#: src/term/helpers/menu.questions.js:759
-#: src/term/helpers/menu.questions.js:763
-msgid "Use Custom Robot"
-msgstr "Robot personnalisé"
 
 #: src/term/menu.js:1005
 #. log

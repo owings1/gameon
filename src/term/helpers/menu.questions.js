@@ -231,15 +231,15 @@ class Questions {
                 },
                 this.hr().when(!isOnline),
                 {
-                    value : 'back'
-                  , name  : __('menu.choice.back')
-                  , when  : menu.bread.length > 1
-                  , enter : EnterChars.back
+                    value : 'back',
+                    name  : __('menu.choice.back'),
+                    when  : menu.bread.length > 1,
+                    enter : EnterChars.back,
                 },
                 {
-                    value  : 'quit'
-                  , name   : __('menu.choice.exit')
-                  , select : 'q'
+                    value  : 'quit',
+                    name   : __('menu.choice.exit'),
+                    select : 'q',
                 },
                 this.br(),
             ])
@@ -271,11 +271,11 @@ class Questions {
             this.hr(),
             {
                 value : 'total',
-                name  : __('Match Total'),
+                name  : __('menu.choice.matchTotal'),
                 select  : 't',
                 question : {
                     name     : 'total',
-                    message  : __('Match Total'),
+                    message  : __('menu.question.matchTotal'),
                     type     : 'input',
                     default  : () => mopts.total,
                     validate : validate.total,
@@ -287,11 +287,11 @@ class Questions {
             },
             {
                 value  : 'cubeEnabled',
-                name   : __('Cube Enabled'),
+                name   : __('menu.choice.cubeEnabled'),
                 action : ['#toggle'],
                 question : {
                     name    : 'cubeEnabled',
-                    message : __('Cube Enabled'),
+                    message : __('menu.question.cubeEnabled'),
                     type    : 'confirm',
                     default : () => mopts.cubeEnabled,
                     cancel  : CancelChars.bool,
@@ -300,12 +300,12 @@ class Questions {
             },
             {
                 value  : 'isCrawford',
-                name   : __('Crawford Rule'),
+                name   : __('menu.choice.crawfordRule'),
                 when   : () => mopts.cubeEnabled,
                 action : ['#toggle'],
                 question : {
                     name    : 'isCrawford',
-                    message : __('Crawford Rule'),
+                    message : __('menu.question.crawfordRule'),
                     type    : 'confirm',
                     default : () => mopts.isCrawford,
                     cancel  : CancelChars.bool,
@@ -314,11 +314,11 @@ class Questions {
             },
             {
                 value  : 'isJacoby',
-                name   : __('Jacoby Rule'),
+                name   : __('menu.choice.jacobyRule'),
                 action : ['#toggle'],
                 question : {
                     name    : 'isJacoby',
-                    message : __('Jacoby Rule'),
+                    message : __('menu.question.jacobyRule'),
                     type    : 'confirm',
                     default : () => mopts.isJacoby,
                     cancel  : CancelChars.bool,
@@ -361,7 +361,7 @@ class Questions {
         return [
             {
                 name     : 'startState',
-                message  : __('Start State'),
+                message  : __('menu.question.initialState'),
                 type     : 'input',
                 default  : () => aopts.startState,
                 validate : validate.state,
@@ -369,7 +369,7 @@ class Questions {
             },
             {
                 name     : 'rollsFile',
-                message  : __('Rolls File'),
+                message  : __('menu.question.rollsFile'),
                 type     : 'input',
                 default  : () => homeTilde(aopts.rollsFile),
                 filter   : value => tildeHome(value),
@@ -740,10 +740,10 @@ class Questions {
                 this.hr(),
                 {
                     value : 'delay',
-                    name  : __('Robot Delay'),
+                    name  : __('menu.choice.robotDelay'),
                     question : {
                         name     : 'delay',
-                        message  : __('Robot Delay (seconds)'),
+                        message  : __('menu.question.robotDelaySeconds'),
                         type     : 'input',
                         default  : () => settings.delay,
                         filter   : value => +value,
@@ -756,11 +756,11 @@ class Questions {
                 },
                 {
                     value  : 'isCustomRobot',
-                    name   : __('Use Custom Robot'),
+                    name   : __('menu.choice.customRobot'),
                     action : ['#toggle'],
                     question : {
                         name    : 'isCustomRobot',
-                        message : __('Use Custom Robot'),
+                        message : __('menu.question.customRobot'),
                         type    : 'confirm',
                         default : () => settings.isCustomRobot,
                         cancel  : CancelChars.bool,
@@ -769,7 +769,7 @@ class Questions {
                 },
                 {
                     value : 'robotConfigs',
-                    name  : __('Robot Configuration'),
+                    name  : __('menu.choice.robotSettings'),
                     when  : settings.isCustomRobot,
                 },
                 this.br(),
@@ -800,7 +800,7 @@ class Questions {
             this.hr(),
             {
                 value  : 'reset',
-                name   : __('Reset defaults'),
+                name   : __('menu.choice.resetDefaults'),
                 select : 'r',
             },
             this.hr(),
@@ -817,9 +817,9 @@ class Questions {
                         }
                         return [
                             differ('version') + ',',
-                            __('move:'),
+                            __('menu.table.move') + ':',
                             padEnd(differ('moveWeight'), 4, ' ') + ',',
-                            __('double:'),
+                            __('menu.table.double') + ':',
                             differ('doubleWeight'),
                         ].join(' ')
                     },
@@ -880,7 +880,7 @@ class Questions {
             this.hr(),
             {
                 value  : 'reset',
-                name   : __('Reset defaults'),
+                name   : __('menu.choice.resetDefaults'),
                 select : 'r',
             },
             this.hr(),

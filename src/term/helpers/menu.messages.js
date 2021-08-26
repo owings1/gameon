@@ -40,19 +40,19 @@ class Messages {
         switch (choice) {
 
             case 'startOnline':
-                return __('Start Online Match')
+                return __('menu.choice.startOnlineMatch')
 
             case 'joinOnline':
-                return __('Join Online Match')
+                return __('menu.choice.joinOnlineMatch')
 
             case 'playHumans':
-                return __('Human vs Human')
+                return __('menu.choice.humanVsHuman')
 
             case 'playRobot':
-                return __('Human vs Robot')
+                return __('menu.choice.humanVsRobot')
 
             case 'playRobots':
-                return __('Robot vs Robot')
+                return __('menu.choice.robotVsRobot')
 
             default:
                 return choice

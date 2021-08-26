@@ -37,7 +37,7 @@ const srcGlobs = ['src/**/*.js']
 
 const opts = {
     //dryRun: true,
-    //verbose: 3,
+    verbose: 1,
     //logging: {logLevel: 4, inspect: {depth: 4}},
     marker: ['__'],
     replace: true,
