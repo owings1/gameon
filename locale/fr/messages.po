@@ -34,6 +34,10 @@ msgstr "Le compte est creé"
 msgid "alerts.authenticationFailedGoToAccountToLogin"
 msgstr "Authentification échouée. Allez dans 'Compte' pour vous connecter."
 
+#: src/term/lab.js:292
+msgid "alerts.badInput"
+msgstr ""
+
 #: src/term/menu.js:764
 msgid "alerts.cancelingMatch"
 msgstr "Annuler le match"
@@ -50,9 +54,22 @@ msgstr "S'il vous plaît entrer un numéro >= 0"
 msgid "alerts.enterNumberGreaterThanZero"
 msgstr "S'il vous plaît entrer un numéro > 0"
 
+#: src/term/lab.js:282
+msgid "alerts.generatingState"
+msgstr ""
+
+#: src/term/lab.js:256
+msgid "alerts.invalidCommand{input}"
+msgstr ""
+
 #: src/term/helpers/menu.questions.js:383
 msgid "alerts.invalidMatchIdFormat"
 msgstr "Format invalide pour match ID"
+
+#: src/term/lab.js:835
+#: src/term/lab.js:852
+msgid "alerts.invalidPoint"
+msgstr ""
 
 #: src/term/menu.js:1347
 msgid "alerts.loadedCustomThemes{count}"
@@ -86,6 +103,38 @@ msgstr "Vous devez confirmer votre compte."
 msgid "alerts.newConfirmKeyRequestedCheckEmail"
 msgstr "Une nouvelle clé de confirmation est demandée. Vérifiez votre e-mail."
 
+#: src/term/lab.js:296
+msgid "alerts.noChange"
+msgstr ""
+
+#: src/term/lab.js:333
+msgid "alerts.noMovesForColorWithRoll{color,roll}"
+msgstr "Aucun mouvement pour {color} avec {roll}"
+
+#: src/term/lab.js:823
+msgid "alerts.noPieceOnBar"
+msgstr "Aucun pièce sur la barre"
+
+#: src/term/lab.js:829
+msgid "alerts.noPieceOnHome"
+msgstr ""
+
+#: src/term/lab.js:840
+msgid "alerts.noPieceOnPoint{point}"
+msgstr ""
+
+#: src/term/lab.js:949
+msgid "alerts.noRecordDirSet"
+msgstr ""
+
+#: src/term/lab.js:954
+msgid "alerts.noResultToSave"
+msgstr ""
+
+#: src/term/lab.js:308
+msgid "alerts.nothingToUndo"
+msgstr ""
+
 #: src/term/helpers/menu.messages.js:11
 msgid "alerts.passwordChanged"
 msgstr "Le mot de passe est changé"
@@ -98,17 +147,130 @@ msgstr "Le mot de passe est réinitialisé"
 msgid "alerts.passwordsDoNotMatch"
 msgstr "Le mot de passe ne correspond pas"
 
+#: src/term/lab.js:873
+msgid "alerts.pointOccupiedByColor{point,color}"
+msgstr ""
+
 #: src/term/helpers/menu.questions.js:564
 msgid "alerts.resetKeyRequestedCheckEmail"
 msgstr "Une clé de réinitialisation est demandée. Vérifiez votre e-mail."
+
+#: src/term/lab.js:636
+msgid "alerts.runningCountMatchesColorGoesFirst{count,color}"
+msgstr ""
+
+#: src/term/lab.js:960
+msgid "alerts.savingTo{path}"
+msgstr ""
 
 #: src/term/menu.js:847
 msgid "alerts.settingInitialState"
 msgstr "Chargement de l'état initial"
 
+#: src/term/lab.js:619
 #: src/term/menu.js:851
 msgid "alerts.usingCustomRollsFile"
 msgstr "Utilisation d'un fichier des lancers personnalisé"
+
+#: src/term/lab.js:251
+msgid "alerts.usingTreeStyleTrees{treeStyle}"
+msgstr ""
+
+#: src/term/lab.js:248
+msgid "core.treeStyle.breadth"
+msgstr ""
+
+#: src/term/lab.js:249
+msgid "core.treeStyle.depth"
+msgstr ""
+
+#: src/term/lab.js:656
+msgid "lab.attr.diff"
+msgstr ""
+
+#: src/term/lab.js:655
+msgid "lab.attr.scores"
+msgstr ""
+
+#: src/term/lab.js:1057
+msgid "lab.commandHelp.boardInfo"
+msgstr ""
+
+#: src/term/lab.js:1068
+msgid "lab.commandHelp.commandHelp"
+msgstr ""
+
+#: src/term/lab.js:1061
+msgid "lab.commandHelp.flipPerspective"
+msgstr ""
+
+#: src/term/lab.js:1062
+msgid "lab.commandHelp.invertBoard"
+msgstr ""
+
+#: src/term/lab.js:1063
+msgid "lab.commandHelp.placePiece"
+msgstr ""
+
+#: src/term/lab.js:1064
+msgid "lab.commandHelp.rollout"
+msgstr ""
+
+#: src/term/lab.js:1058
+msgid "lab.commandHelp.setBoardState"
+msgstr ""
+
+#: src/term/lab.js:1059
+msgid "lab.commandHelp.showMovesForDice"
+msgstr ""
+
+#: src/term/lab.js:1060
+msgid "lab.commandHelp.showRobotInfoForDice"
+msgstr ""
+
+#: src/term/lab.js:1067
+msgid "lab.commandHelp.toggleTreeMode"
+msgstr ""
+
+#: src/term/lab.js:1065
+msgid "lab.commandHelp.undoMove"
+msgstr ""
+
+#: src/term/lab.js:1066
+msgid "lab.commandHelp.writeLastResults"
+msgstr ""
+
+#: src/term/lab.js:160
+msgid "lab.question.command"
+msgstr ""
+
+#: src/term/lab.js:322
+msgid "lab.question.dice"
+msgstr "Dés"
+
+#: src/term/lab.js:267
+msgid "lab.question.stateString"
+msgstr ""
+
+#: src/term/lab.js:1071
+msgid "lab.title.commands"
+msgstr ""
+
+#: src/term/lab.js:361
+msgid "lab.title.moveSeries"
+msgstr ""
+
+#: src/term/lab.js:471
+msgid "lab.title.rank"
+msgstr "Rang"
+
+#: src/term/lab.js:470
+msgid "lab.title.score"
+msgstr "Score"
+
+#: src/term/lab.js:472
+msgid "lab.title.state"
+msgstr "État"
 
 #: src/term/helpers/menu.questions.js:155
 msgid "menu.choice.account"
@@ -226,7 +388,7 @@ msgstr "Jouer"
 
 #: src/term/helpers/menu.questions.js:682
 msgid "menu.choice.recordDir"
-msgstr "Répertoire d'Enregistrement"
+msgstr "Dossier d'Enregistrement"
 
 #: src/term/helpers/menu.questions.js:697
 msgid "menu.choice.recordMatches"
@@ -352,7 +514,7 @@ msgstr "Mot de passe"
 
 #: src/term/helpers/menu.questions.js:685
 msgid "menu.question.recordDir"
-msgstr "Répertoire d'enregistrement"
+msgstr "Dossier d'enregistrement"
 
 #: src/term/helpers/menu.questions.js:701
 msgid "menu.question.recordMatches"
@@ -367,6 +529,7 @@ msgid "menu.question.robotDelaySeconds"
 msgstr "Retard du Robot (secondes)"
 
 #: src/term/helpers/menu.questions.js:365
+#: src/term/lab.js:605
 msgid "menu.question.rollsFile"
 msgstr "Fichier des lancers"
 
@@ -427,6 +590,18 @@ msgstr "Robots"
 msgid "menu.title.settings"
 msgstr "Paramètres"
 
+#: src/term/lab.js:685
+#: src/term/lab.js:704
+#: src/term/lab.js:735
+msgid "play.board.bar"
+msgstr "barre"
+
+#: src/term/lab.js:694
+#: src/term/lab.js:707
+#: src/term/lab.js:742
+msgid "play.board.home"
+msgstr "début"
+
 #: src/term/menu.js:777
 msgid "play.color.Red"
 msgstr "Rouge"
@@ -435,10 +610,30 @@ msgstr "Rouge"
 msgid "play.color.White"
 msgstr "Blanc"
 
-#: src/term/draw.js:408
+#: src/term/draw.js:407
 msgid "play.colorLetter.Red"
 msgstr "R"
 
-#: src/term/draw.js:409
+#: src/term/draw.js:408
 msgid "play.colorLetter.White"
 msgstr "B"
+
+#: src/term/lab.js:221
+msgid "play.log.invertBoard"
+msgstr ""
+
+#: src/term/lab.js:714
+msgid "play.log.place{color,origin,dest}"
+msgstr ""
+
+#: src/term/lab.js:212
+msgid "play.log.setPerspective{color}"
+msgstr ""
+
+#: src/term/lab.js:302
+msgid "play.log.setState"
+msgstr ""
+
+#: src/term/lab.js:313
+msgid "play.log.undo"
+msgstr ""

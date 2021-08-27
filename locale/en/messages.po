@@ -33,6 +33,10 @@ msgstr "Account created"
 msgid "alerts.authenticationFailedGoToAccountToLogin"
 msgstr "Authentication failed. Go to Account to log in."
 
+#: src/term/lab.js:292
+msgid "alerts.badInput"
+msgstr "Bad input"
+
 #: src/term/menu.js:764
 msgid "alerts.cancelingMatch"
 msgstr "Canceling match"
@@ -49,9 +53,22 @@ msgstr "Please enter a number >= 0"
 msgid "alerts.enterNumberGreaterThanZero"
 msgstr "Please enter a number > 0"
 
+#: src/term/lab.js:282
+msgid "alerts.generatingState"
+msgstr "Generating state"
+
+#: src/term/lab.js:256
+msgid "alerts.invalidCommand{input}"
+msgstr "Invalid command: '{input}'"
+
 #: src/term/helpers/menu.questions.js:383
 msgid "alerts.invalidMatchIdFormat"
 msgstr "Invalid match ID format"
+
+#: src/term/lab.js:835
+#: src/term/lab.js:852
+msgid "alerts.invalidPoint"
+msgstr "Invalid point"
 
 #: src/term/menu.js:1347
 msgid "alerts.loadedCustomThemes{count}"
@@ -85,6 +102,38 @@ msgstr "You must confirm your account."
 msgid "alerts.newConfirmKeyRequestedCheckEmail"
 msgstr "New confirmation key requested. Check your email."
 
+#: src/term/lab.js:296
+msgid "alerts.noChange"
+msgstr "No change"
+
+#: src/term/lab.js:333
+msgid "alerts.noMovesForColorWithRoll{color,roll}"
+msgstr "No moves for {color} with {roll}"
+
+#: src/term/lab.js:823
+msgid "alerts.noPieceOnBar"
+msgstr "No piece on bar"
+
+#: src/term/lab.js:829
+msgid "alerts.noPieceOnHome"
+msgstr "No piece on home"
+
+#: src/term/lab.js:840
+msgid "alerts.noPieceOnPoint{point}"
+msgstr "No piece on point {point}"
+
+#: src/term/lab.js:949
+msgid "alerts.noRecordDirSet"
+msgstr "No record dir set"
+
+#: src/term/lab.js:954
+msgid "alerts.noResultToSave"
+msgstr "No result to save"
+
+#: src/term/lab.js:308
+msgid "alerts.nothingToUndo"
+msgstr "Nothing to undo"
+
 #: src/term/helpers/menu.messages.js:11
 msgid "alerts.passwordChanged"
 msgstr "Password changed"
@@ -97,17 +146,130 @@ msgstr "Password reset"
 msgid "alerts.passwordsDoNotMatch"
 msgstr "Passwords do not match"
 
+#: src/term/lab.js:873
+msgid "alerts.pointOccupiedByColor{point,color}"
+msgstr "{point} occupied by {color}"
+
 #: src/term/helpers/menu.questions.js:564
 msgid "alerts.resetKeyRequestedCheckEmail"
 msgstr "Reset key requested, check your email."
+
+#: src/term/lab.js:636
+msgid "alerts.runningCountMatchesColorGoesFirst{count,color}"
+msgstr "Running {count, plural, one {# match} other {# matches}}, {color} goes first"
+
+#: src/term/lab.js:960
+msgid "alerts.savingTo{path}"
+msgstr "Saving to {path}"
 
 #: src/term/menu.js:847
 msgid "alerts.settingInitialState"
 msgstr "Setting initial state"
 
+#: src/term/lab.js:619
 #: src/term/menu.js:851
 msgid "alerts.usingCustomRollsFile"
 msgstr "Using custom rolls file"
+
+#: src/term/lab.js:251
+msgid "alerts.usingTreeStyleTrees{treeStyle}"
+msgstr "Using {treeStyle} trees"
+
+#: src/term/lab.js:248
+msgid "core.treeStyle.breadth"
+msgstr "breadth"
+
+#: src/term/lab.js:249
+msgid "core.treeStyle.depth"
+msgstr "depth"
+
+#: src/term/lab.js:656
+msgid "lab.attr.diff"
+msgstr "diff"
+
+#: src/term/lab.js:655
+msgid "lab.attr.scores"
+msgstr "scores"
+
+#: src/term/lab.js:1057
+msgid "lab.commandHelp.boardInfo"
+msgstr "board info"
+
+#: src/term/lab.js:1068
+msgid "lab.commandHelp.commandHelp"
+msgstr "command help"
+
+#: src/term/lab.js:1061
+msgid "lab.commandHelp.flipPerspective"
+msgstr "flip perspective"
+
+#: src/term/lab.js:1062
+msgid "lab.commandHelp.invertBoard"
+msgstr "flip (invert) board"
+
+#: src/term/lab.js:1063
+msgid "lab.commandHelp.placePiece"
+msgstr "place piece"
+
+#: src/term/lab.js:1064
+msgid "lab.commandHelp.rollout"
+msgstr "rollout"
+
+#: src/term/lab.js:1058
+msgid "lab.commandHelp.setBoardState"
+msgstr "set state of board"
+
+#: src/term/lab.js:1059
+msgid "lab.commandHelp.showMovesForDice"
+msgstr "show moves for dice"
+
+#: src/term/lab.js:1060
+msgid "lab.commandHelp.showRobotInfoForDice"
+msgstr "show robot info for dice"
+
+#: src/term/lab.js:1067
+msgid "lab.commandHelp.toggleTreeMode"
+msgstr "toggle tree mode"
+
+#: src/term/lab.js:1065
+msgid "lab.commandHelp.undoMove"
+msgstr "undo move"
+
+#: src/term/lab.js:1066
+msgid "lab.commandHelp.writeLastResults"
+msgstr "write last results"
+
+#: src/term/lab.js:160
+msgid "lab.question.command"
+msgstr "Command"
+
+#: src/term/lab.js:322
+msgid "lab.question.dice"
+msgstr "Dice"
+
+#: src/term/lab.js:267
+msgid "lab.question.stateString"
+msgstr "State string"
+
+#: src/term/lab.js:1071
+msgid "lab.title.commands"
+msgstr "Commands"
+
+#: src/term/lab.js:361
+msgid "lab.title.moveSeries"
+msgstr "Move Series"
+
+#: src/term/lab.js:471
+msgid "lab.title.rank"
+msgstr "Rank"
+
+#: src/term/lab.js:470
+msgid "lab.title.score"
+msgstr "Score"
+
+#: src/term/lab.js:472
+msgid "lab.title.state"
+msgstr "State"
 
 #: src/term/helpers/menu.questions.js:155
 msgid "menu.choice.account"
@@ -366,6 +528,7 @@ msgid "menu.question.robotDelaySeconds"
 msgstr "Robot Delay (seconds)"
 
 #: src/term/helpers/menu.questions.js:365
+#: src/term/lab.js:605
 msgid "menu.question.rollsFile"
 msgstr "Rolls file"
 
@@ -426,6 +589,18 @@ msgstr "Robots"
 msgid "menu.title.settings"
 msgstr "Settings"
 
+#: src/term/lab.js:685
+#: src/term/lab.js:704
+#: src/term/lab.js:735
+msgid "play.board.bar"
+msgstr "bar"
+
+#: src/term/lab.js:694
+#: src/term/lab.js:707
+#: src/term/lab.js:742
+msgid "play.board.home"
+msgstr "home"
+
 #: src/term/menu.js:777
 msgid "play.color.Red"
 msgstr "Red"
@@ -434,10 +609,30 @@ msgstr "Red"
 msgid "play.color.White"
 msgstr "White"
 
-#: src/term/draw.js:408
+#: src/term/draw.js:407
 msgid "play.colorLetter.Red"
 msgstr "R"
 
-#: src/term/draw.js:409
+#: src/term/draw.js:408
 msgid "play.colorLetter.White"
 msgstr "W"
+
+#: src/term/lab.js:221
+msgid "play.log.invertBoard"
+msgstr "Invert board"
+
+#: src/term/lab.js:714
+msgid "play.log.place{color,origin,dest}"
+msgstr "Place {color} {origin} : {dest}"
+
+#: src/term/lab.js:212
+msgid "play.log.setPerspective{color}"
+msgstr "Perspective {color}"
+
+#: src/term/lab.js:302
+msgid "play.log.setState"
+msgstr "Set state"
+
+#: src/term/lab.js:313
+msgid "play.log.undo"
+msgstr "Undo"
