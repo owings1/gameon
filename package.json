@@ -12,6 +12,7 @@
     "version": "oclif-dev readme && git add README.md",
     "dist": "oclif-dev pack",
     "dist:mac": "oclif-dev pack:macos",
+    "dist:clean": "rm -rf tmp dist",
     "publish": "oclif-dev publish",
     "publish:mac": "oclif-dev publish:macos",
     "extract": "node scripts/extract.js",

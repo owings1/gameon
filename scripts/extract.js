@@ -22,6 +22,7 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
+const {objects: {valueHash}} = require('utils-h')
 const {Extractor, Merger} = require('po-extractor')
 const fse = require('fs-extra')
 
@@ -35,6 +36,11 @@ const Diffs   = require('../test/util/diffs.js')
 const poGlob = LocalesDir + '/*/messages.po'
 const srcGlobs = ['src/**/*.js']
 
+const IgnoreKeys = valueHash([
+    '*',
+    'play.color.*',
+    'play.colorLetter.*',
+], null)
 const opts = {
     dryRun: Boolean(process.env.DRY_RUN),
     verbose: 1,
@@ -47,7 +53,12 @@ const opts = {
     references: {
         perLine: 1,
     },
-    filter: key => key !== '*',
+    filter: key => {
+        if (IgnoreKeys[key]) {
+            return false
+        }
+        return true
+    },
 }
 
 function main () {

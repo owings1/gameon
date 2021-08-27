@@ -22,7 +22,6 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-const Test = require('../util')
 const {
     expect,
     getError,
@@ -32,25 +31,22 @@ const {
     NullOutput,
     tmpDir,
     States,
-} = Test
+} = require('../util.js')
 
 const {colors: {Chalk}} = require('utils-h')
 const fs    = require('fs')
 const fse   = require('fs-extra')
-const path  = require('path')
-
-const {resolve} = path
+const path = {resolve} = require('path')
 
 describe('Lab', () => {
 
-    const Constants = requireSrc('lib/constants')
-    const Core      = requireSrc('lib/core')
-    const Lab       = requireSrc('term/lab')
-    const Menu      = requireSrc('term/menu')
-
-    const {Red, White} = Constants
-
-    const {Board} = Core
+    const Lab  = requireSrc('term/lab.js')
+    const Menu = requireSrc('term/menu.js')
+    const {Board} = requireSrc('lib/core.js')
+    const {
+        BoardStrings,
+        Colors: {Red, White},
+    } = requireSrc('lib/constants.js')
 
     beforeEach(function () {
         this.chalk = new Chalk({level: 2})
@@ -495,8 +491,8 @@ describe('Lab', () => {
 
         it('should return intial for Initial', function () {
             const res = this.lab.getBuiltInStateString('Initial')
-            expect(!!res).to.equal(true)
-            expect(res).to.equal(Constants.BoardStrings.Initial)
+            expect(Boolean(res)).to.equal(true)
+            expect(res).to.equal(BoardStrings.Initial)
         })
     })
 
