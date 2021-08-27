@@ -39,7 +39,6 @@ const path = require('path')
 const {EventEmitter} = require('events')
 
 const Dice   = require('../lib/dice.js')
-const Intl   = require('../lib/util/intl.js')
 const Client = require('../net/client.js')
 const Themes = require('./themes.js')
 const Alerts = require('./helpers/alerts.js')
@@ -49,6 +48,7 @@ const TermBox    = require('./helpers/term.box.js')
 const NetPlayer  = require('../net/player.js')
 const {inquirer} = require('./inquirer.js')
 const LabHelper  = require('./lab.js')
+const IntlHelper = require('../lib/util/intl.js')
 const TermPlayer = require('./player.js')
 const Coordinator    = require('../lib/coordinator.js')
 const {Board, Match} = require('../lib/core.js')
@@ -110,7 +110,7 @@ class Menu extends EventEmitter {
             settings    : {value: Menu.settingsDefaults()},
             credentials : {value: Menu.credentialDefaults()},
         })
-        this.intl = Intl.getDefaultInstance()
+        this.intl = IntlHelper.newInstance()
 
         this.chash = CHash
         this.bread = []

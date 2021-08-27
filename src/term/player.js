@@ -30,10 +30,10 @@ const {
 const {EventEmitter} = require('events')
 
 const Base = require('../lib/player.js')
-const Intl = require('../lib/util/intl.js')
 const Themes  = require('./themes.js')
 const {Board} = require('../lib/core.js')
 const {inquirer} = require('./inquirer.js')
+const IntlHelper = require('../lib/util/intl.js')
 const {DrawHelper} = require('./draw.js')
 const {RobotDelegator} = require('../robot/player.js')
 const {
@@ -213,7 +213,7 @@ class TermPlayer extends Base {
             fastForced : false,
             theme      : DefaultThemeName,
             screen     : DefaultScreen,
-            intl       : Intl.getDefaultInstance(),
+            intl       : IntlHelper.getGlobalInstance(),
             // for suggesting
             isCustomRobot : false,
             robots        : null,

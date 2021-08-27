@@ -35,11 +35,11 @@ const fs    = require('fs')
 const path  = require('path')
 
 const Dice    = require('../lib/dice.js')
-const Intl    = require('../lib/util/intl.js')
 const {Table} = require('./tables.js')
 const Themes  = require('./themes.js')
-const Coordinator = require('../lib/coordinator.js')
 const {inquirer}  = require('./inquirer.js')
+const IntlHelper  = require('../lib/util/intl.js')
+const Coordinator = require('../lib/coordinator.js')
 const {DrawHelper} = require('./draw.js')
 const StringBuilder = require('../lib/util/string-builder.js')
 const {RobotDelegator} = require('../robot/player.js')
@@ -91,7 +91,7 @@ class LabHelper {
             isCustomRobot : false,
             robots        : {},
             output        : process.stdout,
-            intl          : Intl.getDefaultInstance(),
+            intl          : IntlHelper.getGlobalInstance(),
         }
     }
 

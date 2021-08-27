@@ -32,6 +32,7 @@ const {
 const Themes = require('./themes.js')
 const Questions    = require('./helpers/tables.questions.js')
 const {inquirer}   = require('./inquirer.js')
+const IntlHelper = require('../lib/util/intl.js')
 const {
     Chars,
     DefaultAnsiEnabled,
@@ -60,6 +61,7 @@ class TableHelper {
             indent : 0,
             screen : DefaultScreen,
             theme  : DefaultThemeName,
+            intl   : IntlHelper.getGlobalInstance(),
         }
     }
 
@@ -69,6 +71,18 @@ class TableHelper {
         this.logger = createLogger(this, {oneout: true, stdout: this.screen.output})
         this.theme = Themes.getInstance(this.opts.theme)
         this.inquirer = inquirer.createPromptModule()
+    }
+
+    get intl() {
+        return this.opts.intl
+    }
+
+    set intl(intl) {
+        this.opts.intl = intl
+    }
+
+    get __() {
+        return this.intl.__
     }
 
     async interactive(table) {

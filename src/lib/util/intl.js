@@ -25,8 +25,11 @@
 const lingui  = require('@lingui/core')
 const plurals = require('make-plural/plurals')
 const {
-    objects: {valueHash},
+    objects: {revalue, update, valueHash},
 } = require('utils-h')
+
+const path = require('path')
+
 const {
     DefaultLocale,
     LocaleNames,
@@ -34,99 +37,145 @@ const {
 } = require('../constants.js')
 const {ArgumentError} = require('../errors.js')
 
-const path = require('path')
+const Locales = Object.freeze(LocaleNames.slice())
+const LocalesHash = valueHash(Locales, null)
+const Messages = Object.create(null)
 
-const Cache = {messages: {}}
-const LocalesHash = Object.fromEntries(LocaleNames.map(name => [name, true]))
-
-function getMessages (locale) {
-    if (!Cache.messages[locale]) {
-        if (!LocalesHash[locale]) {
-            throw new ArgumentError(`Unknown locale: '${locale}'`)
-        }
-        const file = path.resolve(LocalesDir, locale, 'messages.js')
-        Cache.messages[locale] = require(file).messages
+function checkLocale(locale) {
+    if (!LocalesHash[locale]) {
+        throw new ArgumentError(`Unknown locale: '${locale}'`)
     }
-    return Cache.messages[locale]
 }
 
-class Intl {
-
-    static getDefaultInstance() {
-        return Intl.intl
+function getMessages(locale) {
+    if (!Messages[locale]) {
+        checkLocale(locale)
+        const file = path.resolve(LocalesDir, locale, 'messages.js')
+        Messages[locale] = require(file).messages
     }
+    return Messages[locale]
+}
 
-    constructor(i18n) {
-        this._i18n = i18n
-        this.__ = this.__.bind(this)
-        this._loaded = {}
-        this.load(DefaultLocale)
-    }
+// Allow setting default locale through explicit method.
+let GlobalLocale = DefaultLocale
+// Lazy load.
+let GlobalInstance = null
 
-    get locale() {
-        return this.i18n.locale
-    }
+const SyCtor = Symbol('ctor')
+const SyImpl = Symbol('impl')
+const SyLoad = Symbol('load')
+const SyLock = Symbol('lock')
 
-    set locale(locale) {
-        this.load(locale).i18n.activate(locale)
-    }
+const StaticProps = {
+    locales: {
+        enumerable : true,
+        writable   : false,
+        value: Locales,
+    },
+}
 
-    load(locale) {
-        if (!this._loaded[locale]) {
-            const messages = getMessages(locale)
-            this.i18n.loadLocaleData(locale, {plurals: plurals[locale]})
-            this.i18n.load(locale, messages)
-            this._loaded[locale] = true
+class IntlHelper {
+
+    static getGlobalInstance() {
+        if (GlobalInstance === null) {
+            GlobalInstance = IntlHelper.newInstance(GlobalLocale)
+            Object.defineProperty(GlobalInstance, SyLock, {
+                value      : true,
+                enumerable : false,
+                writable   : false,
+            })
         }
-        return this
+        return GlobalInstance
     }
 
-    __(...args) {
-        return this.i18n._(...args)
+    static setGlobalLocale(locale) {
+        checkLocale(locale)
+        GlobalLocale = locale
+        if (GlobalInstance) {
+            GlobalInstance.locale = GlobalLocale
+        }
+        return IntlHelper
+    }
+
+    static newInstance(locale = GlobalLocale) {
+        return new IntlHelper(SyCtor, locale)
+    }
+
+    constructor(checkSym, locale = null) {
+        if (checkSym !== SyCtor) {
+            throw new TypeError(`${this.constructor.name} is not a constructor`)
+        }
+        if (locale !== null) {
+            checkLocale(locale)
+        }
+        const priv = Object.fromEntries([
+            [SyImpl, lingui.setupI18n({missing: (lang, id) => id})],
+            [SyLoad, Object.create(null)],
+        ])
+        Object.defineProperties(this, {
+            ...revalue(priv, value => ({
+                enumerable : false,
+                writable   : false,
+                value,
+            })),
+            ...revalue(proto, func => ({
+                enumerable : true,
+                writable   : false,
+                value: func.bind(this),
+            })),
+            locale: {
+                enumerable: true,
+                get: () => this[SyImpl].locale,
+                set: activate.bind(this),
+            },
+        })
+        if (locale !== null) {
+            this.locale = locale
+        }
     }
 
     get locales() {
-        return LocaleNames
-    }
-
-    get i18n() {
-        return this._i18n
-    }
-
-    /**
-     * Alias for locale
-     */
-    get lang() {
-        return this.locale
-    }
-
-    /**
-     * Alias for locale
-     */
-    set lang(lang) {
-        this.locale = lang
-    }
-
-    /**
-     * Alias for locales
-     */
-    get langs() {
-        return this.locales
+        return IntlHelper.locales
     }
 }
 
-// Default instance.
-Object.defineProperty(Intl, 'intl', {
-    value: new Intl(lingui.i18n),
-})
+Object.defineProperties(IntlHelper, StaticProps)
 
-// Convenience alias to default instance method.
-Object.defineProperty(Intl, '__', {
-    get: () => Intl.intl.__,
-})
+/**
+ * Faux prototype methods, bound in constructor
+ */
+const proto = {
+    __: function translate(...args) {
+        return this[SyImpl]._(...args)
+    },
+    nf: function formatNumber(num, opts = {}) {
+        return new Intl.NumberFormat(this.locale, opts).format(num)
+    },
+}
 
-//Intl.i18n.on('missing', (...args) => {
-  //  console.log('missing', args)
-//})
+/**
+ * @private
+ */
+function activate(locale) {
+    if (this[SyLock] && locale !== GlobalLocale) {
+        throw new ArgumentError(`Cannot change locale for this instance.`)
+    }
+    load.call(this, locale)
+    this[SyImpl].activate(locale)
+}
 
-module.exports = Intl
+/**
+ * @private
+ */
+function load(locale) {
+    const loaded = this[SyLoad]
+    if (!loaded[locale]) {
+        checkLocale(locale)
+        const impl = this[SyImpl]
+        impl.loadLocaleData(locale, {plurals: plurals[locale]})
+        impl.load(locale, getMessages(locale))
+        loaded[locale] = true
+    }
+}
+
+module.exports = IntlHelper

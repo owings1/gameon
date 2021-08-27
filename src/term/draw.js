@@ -28,9 +28,9 @@ const {
     types: {isWriteableStream},
 } = require('utils-h')
 
-const Intl = require('../lib/util/intl.js')
 const {Board} = require('../lib/core.js')
 const Themes  = require('./themes.js')
+const IntlHelper = require('../lib/util/intl.js')
 const StringBuilder = require('../lib/util/string-builder.js')
 const {ArgumentError} = require('../lib/errors.js')
 const {
@@ -72,7 +72,7 @@ class DrawHelper {
         this.logs  = logs || []
         this.theme  = Themes.getSemiSafe(theme)
         this.screen = screen || DefaultScreen
-        this.intl = intl || Intl.getDefaultInstance()
+        this.intl = intl || IntlHelper.getGlobalInstance()
 
         this.chars    = Chars.table
         this.reporter = new Reporter(this)
