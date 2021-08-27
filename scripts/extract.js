@@ -47,6 +47,7 @@ const opts = {
     references: {
         perLine: 1,
     },
+    filter: key => key !== '*',
 }
 
 function main () {

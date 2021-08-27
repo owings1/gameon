@@ -28,13 +28,14 @@ const {
     types: {isWriteableStream},
 } = require('utils-h')
 
+const Intl = require('../lib/util/intl.js')
 const {Board} = require('../lib/core.js')
 const Themes  = require('./themes.js')
-const {ArgumentError} = require('../lib/errors')
+const StringBuilder = require('../lib/util/string-builder.js')
+const {ArgumentError} = require('../lib/errors.js')
 const {
     nchars,
     sp,
-    StringBuilder,
 } = require('../lib/util.js')
 const {
     BoardStrings,
@@ -45,7 +46,6 @@ const {
     Colors,
     Colors: {Red, White},
     DefaultAnsiEnabled,
-    DefaultThemeName,
     Direction,
     Opponent,
     OriginPoints,
@@ -57,28 +57,23 @@ const DefaultScreen = new Screen({isAnsi: DefaultAnsiEnabled})
 
 class DrawHelper {
 
-    static forBoard(board, persp, logs, theme, screen) {
-        return new DrawHelper(board, null, null, persp, logs, theme, screen)
-    }
-
-    static forGame(game, match, persp, logs, theme, screen) {
-        return new DrawHelper(game.board, game, match, persp, logs, theme, screen)
-    }
-
     static forTermPlayer(player) {
-        return new DrawHelper(null, null, null, player.persp, player.logs, player.theme, player.screen)
+        const {persp, logs, theme, screen, intl} = player
+        return new DrawHelper({persp, logs, theme, screen, intl})
     }
 
-    constructor(board, game, match, persp, logs, theme, screen) {
+    constructor(params) {
+        const {board, game, match, persp, logs, theme, screen, intl} = params
 
-        this.board = board
         this.game  = game
+        this.board = board || (game && game.board) || null
         this.match = match
         this.persp = persp || White
         this.logs  = logs || []
+        this.theme  = Themes.getSemiSafe(theme)
+        this.screen = screen || DefaultScreen
+        this.intl = intl || Intl.getDefaultInstance()
 
-        this.theme    = Themes.getInstance(theme || DefaultThemeName)
-        this.screen   = screen || DefaultScreen
         this.chars    = Chars.table
         this.reporter = new Reporter(this)
 
@@ -87,6 +82,10 @@ class DrawHelper {
         this.PiecePad = 4
 
         this.buildBorders()
+    }
+
+    get __() {
+        return this.intl.__
     }
 
     reload() {

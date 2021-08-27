@@ -74,7 +74,7 @@ describe('Draw', () => {
 
         beforeEach(() => {
             game = new Game
-            draw = DrawHelper.forGame(game)
+            draw = new DrawHelper({game})
         })
 
         it('should not barf for initial board', () => {
@@ -131,7 +131,7 @@ describe('Reporter', () => {
         it('should include \'bar\' if origin is -1', () => {
             const board = Board.fromStateString(States.WhiteCornerCase24)
             const move = board.buildMove(White, -1, 4)
-            const draw = DrawHelper.forBoard(board)
+            const draw = new DrawHelper({board})
             const {reporter} = draw
             const result = reporter.move(move).toString()
             expect(result).to.contain('bar')
@@ -140,7 +140,7 @@ describe('Reporter', () => {
         it('should include \'home\' for red if origin is 0 and face is 2', () => {
             const board = Board.fromStateString(States.EitherOneMoveWin)
             const move = board.buildMove(Red, 0, 2)
-            const draw = DrawHelper.forBoard(board)
+            const draw = new DrawHelper({board})
             const {reporter} = draw
             const result = reporter.move(move).toString()
             expect(result).to.contain('home')
@@ -149,7 +149,7 @@ describe('Reporter', () => {
         it('should include HIT for hit move', () => {
             const board = Board.fromStateString(States.EitherHitWith11)
             const move = board.buildMove(White, 22, 1)
-            const draw = DrawHelper.forBoard(board)
+            const draw = new DrawHelper({board})
             const {reporter} = draw
             const result = reporter.move(move).toString()
             expect(result).to.contain('HIT')

@@ -22,48 +22,37 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-const Constants = require('../lib/constants')
-const Errors    = require('../lib/errors')
-const Util      = require('../lib/util')
-
-const StyleHelper = require('./helpers/styles')
-
 const fse    = require('fs-extra')
 const globby = require('globby')
 const path   = require('path')
 
-const ThemeConfig = require('./res/themes.config')
-
-const {DefaultThemeName} = Constants
-
+const StyleHelper = require('./helpers/styles.js')
+const DependencyHelper = require('../lib/util/dependency-helper.js')
+const {DefaultThemeName} = require('../lib/constants.js')
+const {filenameWithoutExtension} = require('../lib/util.js')
 const {
-    DependencyHelper
-} = Util
-
-const {
-    MaxDepthExceededError
-  , StyleError
-  , ThemeExistsError
-  , ThemeConfigError
-  , ThemeNotFoundError
-} = Errors
-
-const {
-    Aliases
-  , Categories
-  , CategoriesMap
-  , DefaultStyles
-  , Keys
-  , KeysMap
-} = ThemeConfig
+    MaxDepthExceededError,
+    StyleError,
+    ThemeExistsError,
+    ThemeConfigError,
+    ThemeNotFoundError,
+} = require('../lib/errors.js')
+const ThemeConfig = {
+    Aliases,
+    Categories,
+    CategoriesMap,
+    DefaultStyles,
+    Keys,
+    KeysMap,
+} = require('./res/themes.config.js')
 
 const MaxExtendsDepth = 10
 
 const Store = {
-    All       : {...ThemeConfig.BuiltIn}
-  , BuiltIn   : {...ThemeConfig.BuiltIn}
-  , Custom    : {}
-  , Instances : {}
+    All       : {...ThemeConfig.BuiltIn},
+    BuiltIn   : {...ThemeConfig.BuiltIn},
+    Custom    : {},
+    Instances : {},
 }
 
 class ThemeHelper {
@@ -187,10 +176,10 @@ class ThemeHelper {
         const loaded = []
         const errors = []
 
-        for (var file of files) {
-            var name = Util.filenameWithoutExtension(file)
+        for (const file of files) {
+            const name = filenameWithoutExtension(file)
             try {
-                var config = await fse.readJson(file)
+                const config = await fse.readJson(file)
                 configs[name] = config
                 helper.add(name, config.extends)
             } catch (error) {
@@ -198,18 +187,19 @@ class ThemeHelper {
             }
         }
 
+        let order
         try {
-            var order = helper.resolve()
+            order = helper.resolve()
         } catch (error) {
             if (!error.isDependencyError) {
                 throw error
             }
             errors.push({error})
             // load what we can
-            var order = helper.order
+            order = helper.order
         }
 
-        for (var name of order) {
+        for (const name of order) {
             try {
                 this.update(name, configs[name])
                 loaded.push(name)
@@ -236,7 +226,7 @@ function getStyleSection(key) {
 }
 
 function keyIsBackground(key) {
-    return getStyleType(key) == 'background'
+    return getStyleType(key) === 'background'
 }
 
 function extendStyles(styles, parents, depth = 0) {
@@ -330,7 +320,7 @@ class ThemeBuilder {
         theme.get = key => chalks[key]
         Categories.forEach(category => {
             const parts = category.split('.')
-            var current = theme
+            let current = theme
             parts.forEach((part, i) => {
                 const keyPath = parts.slice(0, i + 1).join('.')
                 if (!current[part]) {
