@@ -24,28 +24,31 @@
  */
 const {flags} = require('@oclif/command')
 const Base    = require('../lib/command').UserCommand
+const {objects: {update}} = require('utils-h')
 
 class LabCommand extends Base {
 
     async init(...args) {
         await super.init(...args)
         const cmdsStr = this.argv.join(' ')
-        this.cmds = cmdsStr.split(':').map(it => it.trim()).filter(it => it.length)
+        this.cmds = cmdsStr.split(':').map(it => it.trim()).filter(Boolean)
     }
 
     async run() {
+        this.eraseScreenOnExit = !Boolean(this.cmds.length)
         await this.menu.runLab(this.cmds)
     }
 }
 
-LabCommand.strict = false
-LabCommand.description = `Run lab experiments`
-
-LabCommand.args = [
-    {
-        name: 'commands...'
-      , description: 'commands, separate multiple with :'
-    }
-]
+update(LabCommand, {
+    description: `Run lab experiments`,
+    strict: false,
+    args: [
+        {
+            name: 'commands...',
+            description: 'commands, separate multiple with :',
+        }
+    ]
+})
 
 module.exports = LabCommand

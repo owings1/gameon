@@ -47,6 +47,7 @@ class UserCommand extends AppCommand {
         await super.init(...args)
         await this._loadConfigs()
         this._loadProcHandlers()
+        this.eraseScreenOnExit = true
     }
 
     async _loadConfigs() {
@@ -103,7 +104,9 @@ class UserCommand extends AppCommand {
 
     finally(e, ...args) {
         try {
-            this.menu.eraseScreen()
+            if (this.eraseScreenOnExit) {
+                this.menu.eraseScreen()
+            }
             if (this.menu.alerts.length) {
                 this.menu.consumeAlerts()
             }

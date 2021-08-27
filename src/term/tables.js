@@ -25,13 +25,16 @@
 const {
     arrays  : {append, arraySum},
     objects : {valueHash},
+    strings : {stringWidth},
+    types   : {castToArray, isNumber, isObject, isRegex, isString},
     Screen,
-    types   : {castToArray},
 } = require('utils-h')
 
 const Themes = require('./themes.js')
-const Questions    = require('./helpers/tables.questions.js')
-const {inquirer}   = require('./inquirer.js')
+// TODO: refactor to class and translate messages
+const Questions  = require('./helpers/tables.questions.js')
+
+const {inquirer} = require('./inquirer.js')
 const IntlHelper = require('../lib/util/intl.js')
 const {
     Chars,
@@ -44,7 +47,6 @@ const {
     mapValues,
     nchars,
     pad,
-    stringWidth,
 } = require('../lib/util.js')
 const {
     DuplicateColumnError,
@@ -85,6 +87,7 @@ class TableHelper {
         return this.intl.__
     }
 
+    // TODO: refactor Questions to class andtranslate messages
     async interactive(table) {
 
         if (!table.isBuilt) {
@@ -106,7 +109,7 @@ class TableHelper {
             switch (input) {
 
                 case 'filterRegex':
-                    var {regex} = await this.prompt(Questions.filterRegex)
+                    const {regex} = await this.prompt(Questions.filterRegex)
                     if (!regex.length) {
                         break
                     }
@@ -115,7 +118,7 @@ class TableHelper {
                     break
 
                 case 'filterFixed':
-                    var {fixed} = await this.prompt(Questions.filterFixed)
+                    const {fixed} = await this.prompt(Questions.filterFixed)
                     if (!fixed.length) {
                         break
                     }
@@ -128,12 +131,12 @@ class TableHelper {
                         this.logger.warn('No sortable columns')
                         break
                     }
-                    var {column, dir} = await this.prompt(Questions.sort(table))
+                    const {column, dir} = await this.prompt(Questions.sort(table))
                     table.opts.sortBy = [column.name, dir].join(table.opts.dirSeparator)
                     break
 
                 case 'maxRows':
-                    var {maxRows} = await this.prompt(Questions.maxRows(table))
+                    const {maxRows} = await this.prompt(Questions.maxRows(table))
                     if (!maxRows.length) {
                         break
                     }
@@ -141,7 +144,7 @@ class TableHelper {
                     break
 
                 case 'columns':
-                    var {columns} = await this.prompt(Questions.columns(table))
+                    const {columns} = await this.prompt(Questions.columns(table))
                     table.opts.columns = columns
                     break
 
@@ -374,7 +377,7 @@ class Table {
 
     makeSortBys() {
         let sortByOpts = []
-        if (typeof this.opts.sortBy == 'string') {
+        if (isString(this.opts.sortBy)) {
             sortByOpts = this.opts.sortBy.split(this.opts.arrSeparator)
         } else if (Array.isArray(this.opts.sortBy)) {
             sortByOpts = this.opts.sortBy.slice(0)
@@ -382,9 +385,9 @@ class Table {
         const sortBys = []
         sortByOpts.forEach(opt => {
             let [name, dir] = opt.split(this.opts.dirSeparator)
-            let column = this.columns.find(it => it.name == name && it.sortable)
+            let column = this.columns.find(it => it.name === name && it.sortable)
             if (!column) {
-                column = this.columns.find(it => it.name.trim() == name.trim() && it.sortable)
+                column = this.columns.find(it => it.name.trim() === name.trim() && it.sortable)
             }
             if (!column) {
                 throw new InvalidColumnError('Invalid sort column: ' + name)
@@ -392,7 +395,7 @@ class Table {
             if (!dir) {
                 dir = column.defaultDir
             }
-            const mult = dir == 'desc' ? -1 : 1
+            const mult = dir === 'desc' ? -1 : 1
             sortBys.push({column, mult})
         })
         return sortBys
@@ -430,16 +433,11 @@ class Table {
     }
 
     makeFilterRegexes() {
+        const {opts} = this
         const filterRegexes = []
-        if (this.opts.filterRegex) {
-            let regexOpts = []
-            if (Array.isArray(this.opts.filterRegex)) {
-                regexOpts = this.opts.filterRegex.slice(0)
-            } else {
-                regexOpts = [this.opts.filterRegex]
-            }
-            regexOpts.forEach(value => {
-                if (typeof value == 'string') {
+        if (opts.filterRegex) {
+            castToArray(opts.filterRegex).forEach(value => {
+                if (isString(value)) {
                     if (value[0] == '/') {
                         var [str, flags] = value.substring(1).split('/')
                         if (!flags.length) {
@@ -455,20 +453,14 @@ class Table {
                         throw new InvalidRegexError(err.message, err)
                     }
                 }
-                if (!(value instanceof RegExp)) {
+                if (!isRegex(value)) {
                     throw new InvalidRegexError('Filter regex must be a RegExp or valid regex string')
                 }
                 filterRegexes.push(value)
             })
         }
-        if (this.opts.filterFixed) {
-            let fixedOpts = []
-            if (Array.isArray(this.opts.filterFixed)) {
-                fixedOpts = this.opts.filterFixed.slice(0)
-            } else {
-                fixedOpts = [this.opts.filterFixed]
-            }
-            fixedOpts.forEach(value => {
+        if (opts.filterFixed) {
+            castToArray(opts.filterFixed).forEach(value => {
                 filterRegexes.push(new RegExp(value.toString(), 'i'))
             })
         }
@@ -479,7 +471,7 @@ class Table {
         if (this.opts.columns == null) {
             return this.columns
         }
-        const nameMap = valueHash(this.columns.map(it => it.name))
+        const nameMap = valueHash(this.columns.map(it => it.name), null)
         const showNames = []
         let columnOpts = []
         if (Array.isArray(this.opts.columns)) {
@@ -673,11 +665,11 @@ class Table {
     }
 
     static makeColumn(col) {
-        let column = {}
-        if (typeof(col) == 'object') {
+        let column
+        if (isObject(col)) {
             column = {...col}
-        } else if (typeof(col) == 'string') {
-            column.name = col
+        } else if (isString(col)) {
+            column = {name: col}
         } else {
             throw new InvalidColumnError('Column def must be object or string')
         }
@@ -705,7 +697,7 @@ class Table {
                 return value.toString()
             }
         }
-        if (column.title == null || column.title == false) {
+        if (column.title == null || column.title === false) {
             column.title = ''
         }
         if (!column.sorter) {
@@ -719,8 +711,11 @@ class Table {
                 if (bval == null) {
                     return 1
                 }
-                const isNumber = column.type == 'number' || (column.type == 'auto' && typeof aval == 'number')
-                if (isNumber) {
+                const isNum = (
+                    column.type === 'number' ||
+                    (column.type === 'auto' && isNumber(aval))
+                )
+                if (isNum) {
                     return aval - bval
                 }
                 return aval.toString().localeCompare(bval.toString())

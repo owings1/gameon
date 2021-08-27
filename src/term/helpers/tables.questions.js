@@ -26,97 +26,98 @@ const {objects: {valueHash}} = require('utils-h')
 
 const {errMessage} = require('../../lib/util.js')
 
+// TODO: refactor to class and translate messages
 module.exports = {
     interactive: {
-        name     : 'input'
-      , type     : 'expand'
-      , message  : 'Option'
-      , pageSize : 8
-      , choices  : [
+        name     : 'input',
+        type     : 'expand',
+        message  : 'Option',
+        pageSize : 8,
+        choices  : [
             {
-                key   : 'f'
-              , name  : 'Filter string'
-              , value : 'filterFixed'
-            }
-          , {
-                key   : 'x'
-              , name  : 'Filter regex'
-              , value : 'filterRegex'
-            }
-          , {
-                key   : 's'
-              , name  : 'Sort'
-              , value : 'sort'
-            }
-          , {
-                key   : 'c'
-              , name  : 'Columns'
-              , value : 'columns'
-            }
-          , {
-                key   : 'n'
-              , name  : 'Max rows'
-              , value : 'maxRows'
-            }
-          , {
-                key   : 'r'
-              , name  : 'Restore table'
-              , value : 'restore'
-            }
-          , {
-                key   : 'q'
-              , name  : 'Quit'
-              , value : 'quit'
-            }
-        ]
-    }
-  , filterFixed: {
-        name     : 'fixed'
-      , type     : 'input'
-      , message  : 'String'
-    }
-  , filterRegex: {
-        name     : 'regex'
-      , type     : 'input'
-      , message  : 'Regex'
-      , validate : value => !value.length || errMessage(() => new RegExp(value))
-    }
-  , sort : ({columns}) => [
+                key   : 'f',
+                name  : 'Filter string',
+                value : 'filterFixed',
+            },
+            {
+                key   : 'x',
+                name  : 'Filter regex',
+                value : 'filterRegex',
+            },
+            {
+                key   : 's',
+                name  : 'Sort',
+                value : 'sort',
+            },
+            {
+                key   : 'c',
+                name  : 'Columns',
+                value : 'columns',
+            },
+            {
+                key   : 'n',
+                name  : 'Max rows',
+                value : 'maxRows',
+            },
+            {
+                key   : 'r',
+                name  : 'Restore table',
+                value : 'restore',
+            },
+            {
+                key   : 'q',
+                name  : 'Quit',
+                value : 'quit',
+            },
+        ],
+    },
+    filterFixed: {
+        name     : 'fixed',
+        type     : 'input',
+        message  : 'String',
+    },
+    filterRegex: {
+        name     : 'regex',
+        type     : 'input',
+        message  : 'Regex',
+        validate : value => !value.length || errMessage(() => new RegExp(value)),
+    },
+    sort : ({columns}) => [
         {
-            name    : 'column'
-          , message : 'Column'
-          , type    : 'list'
-          , when    : columns.find(it => it.sortable)
-          , choices : columns.filter(it => it.sortable).map(it => {
+            name    : 'column',
+            message : 'Column',
+            type    : 'list',
+            when    : columns.find(it => it.sortable),
+            choices : columns.filter(it => it.sortable).map(it => {
                 return {name: it.name, value: it}
-            })
-        }
-      , {
-            name    : 'dir'
-          , message : 'Direction'
-          , type    : 'list'
-          , default : answers => answers.column.defaultDir
-          , choices : ['asc', 'desc']
-        }
-    ]
-  , maxRows : ({opts}) => [
+            }),
+        },
         {
-            name     : 'maxRows'
-          , type     : 'input'
-          , message  : 'Number of rows'
-          , default  : opts.maxRows
-          , validate : value => !value.length || !isNaN(+value) || 'Invalid number'
-        }
-    ]
-  , columns : ({columns, showColumns}) => {
+            name    : 'dir',
+            message : 'Direction',
+            type    : 'list',
+            default : answers => answers.column.defaultDir,
+            choices : ['asc', 'desc'],
+        },
+    ],
+    maxRows : ({opts}) => [
+        {
+            name     : 'maxRows',
+            type     : 'input',
+            message  : 'Number of rows',
+            default  : opts.maxRows,
+            validate : value => !value.length || !isNaN(+value) || 'Invalid number',
+        },
+    ],
+    columns : ({columns, showColumns}) => {
         const showMap = valueHash(showColumns.map(it => it.name))
         return {
-              name    : 'columns'
-            , type    : 'checkbox'
-            , message : 'Columns'
-            , choices : columns.map(({name}) => {
+              name    : 'columns',
+              type    : 'checkbox',
+              message : 'Columns',
+              choices : columns.map(({name}) => {
                   return {name, checked: showMap[name]}
-              })
+              }),
         }
-    }
+    },
 }

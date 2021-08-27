@@ -25,9 +25,9 @@
 const {
     colors  : {Chalk},
     objects : {isNullOrEmptyObject},
-    Screen,
-    strings : {cat, stripAnsi, ucfirst},
+    strings : {cat, stringWidth, stripAnsi, ucfirst},
     types   : {castToArray},
+    Screen,
 } = require('utils-h')
 const fse = require('fs-extra')
 
