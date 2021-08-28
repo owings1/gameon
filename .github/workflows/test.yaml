@@ -26,5 +26,7 @@ jobs:
         cache: 'npm'
     - name: npm ci
       run: npm ci
+    - name: npm run compile
+      run: npm run compile
     - name: npm test
       run: npm test
