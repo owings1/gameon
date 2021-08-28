@@ -24,15 +24,15 @@
  */
 const {
     colors  : {Chalk},
-    objects : {isNullOrEmptyObject},
+    objects : {isNullOrEmptyObject, revalue, update},
     strings : {cat, stringWidth, stripAnsi, ucfirst},
     types   : {castToArray},
     Screen,
 } = require('utils-h')
 const fse = require('fs-extra')
 
-const fs    = require('fs')
-const path  = require('path')
+const fs   = require('fs')
+const path = require('path')
 
 const Dice    = require('../lib/dice.js')
 const {Table} = require('./tables.js')
@@ -52,7 +52,6 @@ const {
     ColorNorm,
     Colors,
     DefaultAnsiEnabled,
-    DefaultThemeName,
     Opponent,
     OriginPoints,
     PointOrigins,
@@ -68,6 +67,7 @@ const {
     nchars,
     padEnd,
     sp,
+    spaces,
     tildeHome,
 } = require('../lib/util.js')
 
@@ -85,7 +85,7 @@ class LabHelper {
             breadthTrees  : false,
             recordDir     : null,
             persp         : White,
-            theme         : DefaultThemeName,
+            theme         : null,
             screen        : DefaultScreen,
             rollsFile     : null,
             isCustomRobot : false,
@@ -109,7 +109,7 @@ class LabHelper {
 
         this.inquirer = inquirer.createPromptModule()
         this.logger = createLogger(this, {oneout: true, stdout: this.output})
-        this.theme = Themes.getInstance(this.opts.theme)
+        this.theme = Themes.getSemiSafe(this.opts.theme)
         this.drawer = new DrawHelper({
             board  : this.board,
             persp  : this.persp,
@@ -210,7 +210,7 @@ class LabHelper {
             case 'f':
                 this.persp = Opponent[this.persp]
                 this.logs.push(__('play.log.setPerspective{color}', {
-                    color: this.ccolor(this.persp, __(`play.color.${this.persp}`)),
+                    color: this.ccolor(this.persp)
                 }))
                 this.drawer.persp = this.persp
                 await this.draw(true)
@@ -244,12 +244,10 @@ class LabHelper {
 
             case 'x':
                 this.opts.breadthTrees = !this.opts.breadthTrees
-                const treeStyle = this.opts.breadthTrees
-                    ? __('core.treeStyle.breadth')
-                    : __('core.treeStyle.depth')
-                this.println(
-                    __('alerts.usingTreeStyleTrees{treeStyle}', {treeStyle})
-                )
+                const msg = this.opts.breadthTrees
+                    ? __('alerts.usingBreadthTrees')
+                    : __('alerts.usingDepthTrees')
+                this.println(msg)
                 break
 
             default:
@@ -289,7 +287,7 @@ class LabHelper {
         try {
             newState = Board.fromStateString(newState).state28()
         } catch (err) {
-            logger.error(__('alerts.badInput'), err.message)
+            logger.error(__('alerts.invalidInput'), err.message)
             return
         }
         if (newState === board.state28()) {
@@ -330,10 +328,13 @@ class LabHelper {
         const dice = parseInput(value)
         const turn = new Turn(board, this.persp, this.opts).setRoll(dice)
         if (turn.isCantMove) {
-            this.println(__('alerts.noMovesForColorWithRoll{color,roll}', {
-                color : __(`play.color.${this.persp}`),
+            const params = {
                 roll  : dice.join(','),
-            }))
+                color : __(`play.color.${this.persp}`),
+            }
+            this.println(
+                __('alerts.noMovesForColorWithRoll{color,roll}', params)
+            )
             return
         }
         if (isRobot) {
@@ -377,7 +378,8 @@ class LabHelper {
         const robot = this.newRobot(turn.color)
         robot.isStoreLastResult = true
         const robotMeta = robot.meta()
-        const delegateWidth = Math.max(...robot.delegates.map(it => it.robot.name.length))
+        const names = robot.delegates.map(it => it.robot.name)
+        const delegateWidth = Math.max(...names.map(stringWidth))
         let result, explain
         try {
             await robot.getMoves(turn)
@@ -405,32 +407,45 @@ class LabHelper {
     }
 
     showRobotTurnRankList(rankList, delegateWidth) {
-        const {theme, __} = this
-        const {nf} = this.intl
+        const {theme, intl, __} = this
+        const nf = update(intl.nfmt().format, {
+            pct   : intl.nfmt({style: 'percent'}).format,
+            fixed : intl.nfmtFixed(4).format,
+        })
         const chlk = theme.table
         const indent = 2
+        const maxTables = 20
         const b = new StringBuilder
-        let count = 0
-        let hasDotDotDotted = false
+        let tableCount = 0, hasEllipsed = false
         const log = (...args) => {
-            b.sp(...args)
-            b.add('\n')
-            if (count < 21) {
-                let str = ''.padEnd(indent, ' ')
-                this.output.write(str)
-                this.println(...args)
+            b.sp(...args).add('\n')
+            if (tableCount <= maxTables) {
+                this.println(spaces(indent - 1), ...args)
+                return
             }
-            if (count === 21 && !hasDotDotDotted) {
-                hasDotDotDotted = true
-                this.println()
-                this.output.write('    ')
-                this.println('' + rankList.length - 20, ' more ...')
-                this.println()
+            if (hasEllipsed) {
+                return
             }
+            const extra = rankList.length - maxTables
+            const params = {count: extra, numStr: nf(extra)}
+            /*_
+             * Example: "{numStr} more ..." might yield "25 more ..."
+             * Here {numStr} is formatted, so {count} is included in case
+             * it is needed for plural rules.
+             */
+            const msg = __('alerts.numMoreEllipsis{numStr,count}', params)
+            this.println()
+            this.println(spaces(indent + 1), msg)
+            this.println()
+            hasEllipsed = true
         }
-        const moveDesc = move => this.moveParts(move).map(
-            it => chlk.row.reset(chlk.row(it))
-        ).join(chlk.row.dim(Chars.arrow.right))
+        const moveDesc = move => {
+            const parts = this.moveParts(move).map(
+                it => chlk.row.reset(chlk.row(it))
+            )
+            return parts.join(chlk.row.dim(Chars.arrow.right))
+        }
+        const dataFilter = it => it.myScore + it.weighted !== 0
         const columns = [
             {
                 name  : 'name',
@@ -438,91 +453,102 @@ class LabHelper {
             },
             {
                 name   : 'weighted',
+                title  : __('lab.column.weighted'),
                 align  : 'right',
-                format : value => chlk.row.cyan(value.toFixed(4)),
+                format : value => chlk.row.cyan(nf.fixed(value)),
             },
             {
                 name   : 'myScore',
+                title  : __('lab.column.myScore'),
                 align  : 'right',
-                format : value => chlk.row.yellow(value.toFixed(4)),
+                format : value => chlk.row.yellow(nf.fixed(value)),
             },
             {
                 name   : 'myRank',
+                title  : __('lab.column.myRank'),
                 align  : 'right',
-                format : value => chlk.row.yellow(value),
+                format : value => chlk.row.yellow(nf(value)),
             },
         ]
-        let lastScore
+        /*_
+         * A symbol, such as '#', indicating that a number follows. A space
+         * or other characters can be added if needed, e.g. '# ', or 'Nº'.
+         * This is used in combination with lab.word.ofTotal to produce a
+         * string such as '#4 of 12'. If this does not translate, use a
+         * single space, i.e. ' '.
+         */
+        let numSign = __('lab.symbol.numberSignPrefix')
+        if (numSign === ' ') {
+            numSign = ''
+        }
+        /*_
+         * A word that goes between a number and the total, indicating its
+         * order in a list, e.g. 'of', as in "4 of 12". This is used in
+         * combination with lab.symbol.numberSignPrefix to render a string
+         * such as '#4 of 12'.
+         */
+        const ofWord = __('lab.word.ofTotal')
+        const footLabels = {
+            rank : __('lab.title.rank'),
+            score: __('lab.title.score'),
+            state: __('lab.title.state'),
+        }
+        const footLabelWidth = Math.max(
+            ...Object.values(footLabels).map(stringWidth)
+        )
+        const footLabelStrings = revalue(footLabels, value =>
+            // TODO: pad for width not length
+            value.padEnd(footLabelWidth, ' ')
+        )
+        let lastScore = 0
         const tables = rankList.map((info, i) => {
+            const decrease = lastScore > 0
+                ? (lastScore - info.finalScore) / lastScore
+                : 0
             const title = cat(
-                chlk.row.dim('#'),
-                chlk.row.green((i + 1).toString()),
-                chlk.row.dim(' of ' + rankList.length.toString()),
+                cat(
+                    chlk.row.dim(numSign),
+                    chlk.row.green(nf(i + 1)),
+                    chlk.row.dim(` ${ofWord} ${nf(rankList.length)}`),
+                ),
                 chlk.row('  '),
-                chlk.row.dim('['),
-                info.moves.map(moveDesc).join(chlk.row.dim(', ')),
-                chlk.row.dim(']'),
-            )
-            const footTitles = {
-                score: __('lab.title.score'),
-                rank : __('lab.title.rank'),
-                state: __('lab.title.state'),
-            }
-            const footTitleWidth = Math.max(...Object.values(footTitles).map(stringWidth))
-            Object.keys(footTitles).forEach(key => {
-                footTitles[key] = footTitles[key].padEnd(footTitleWidth, ' ') + ' : '
-            })
-            const bscore = new StringBuilder(
-                chlk.foot(footTitles.score),
-                chlk.foot.cyan.bold(info.finalScore.toFixed(4)),
-            )
-            if (lastScore > 0) {
-                const decrease = (lastScore - info.finalScore) / lastScore
-                if (decrease >= 0.01) {
-                    bscore.add(
-                        chlk.foot(' '),
-                        chlk.foot.red.bold(
-                            Chars.arrow.down + nf(decrease, {style: 'percent'})
-                        ),
-                    )
-                }
-            }
-            const footerLines = [
                 cat(
-                    chlk.foot(footTitles.rank),
-                    chlk.title(info.rank.toString()),
+                    chlk.row.dim('['),
+                    info.moves.map(moveDesc).join(chlk.row.dim(', ')),
+                    chlk.row.dim(']'),
                 ),
-                bscore.toString(),
-                cat(
-                    chlk.foot(footTitles.state),
-                    chlk.foot.dim(info.endState),
-                ),
-            ]
-            const data = info.delegates.filter(it => it.myScore + it.weighted !== 0)
-            const opts = {
-                title,
-                theme,
-                footerLines,
-                oddEven: false,
+            )
+            const footValues = {
+                rank : chlk.title(nf(info.rank)),
+                score: chlk.foot.cyan.bold(nf.fixed(info.finalScore)),
+                state: chlk.foot.dim(info.endState),
             }
+            if (decrease >= 0.01) {
+                footValues.score += chlk.foot.red.bold(
+                    cat(' ', Chars.arrow.down, nf.pct(decrease))
+                )
+            }
+            const footerLines = Object.keys(footLabels).map(key =>
+                [footLabelStrings[key], footValues[key]].join(' : ')
+            )
+            const data = info.delegates.filter(dataFilter)
+            const opts = {title, theme, footerLines, oddEven: false}
             const table = new Table(columns, data, opts).build()
             table.rank = info.rank
             lastScore = info.finalScore
             return table
         })
-        const maxTableWidth = Math.max(...tables.map(table => table.outerWidth))
+        const maxTableWidth = Math.max(...tables.map(it => it.outerWidth))
         const hr = theme.hr(nchars(maxTableWidth, Chars.table.dash))
         let lastRank
         tables.forEach(table => {
-            count += 1
+            tableCount += 1
             if (lastRank !== table.rank) {
-                log('')
+                log()
                 log(hr)
-                log('')
+                log()
             }
-            table.lines.forEach(line => {
-                log(line)
-            })
+            table.lines.forEach(line => log(line))
             lastRank = table.rank
         })
         log()
@@ -530,7 +556,7 @@ class LabHelper {
     }
 
     showRobotTurnDelegates(delegateList) {
-        const {theme} = this
+        const {theme, __} = this
         const chlk = theme.table
         const indent = 2
         const b = new StringBuilder
@@ -546,35 +572,40 @@ class LabHelper {
                 move => padEnd(moveDesc(move), 5, chlk.row(' '))
             ).join(chlk.row.dim(',') + chlk.row(' ')) + chlk.row.dim(']')
         }
+        const dataFilter = it => it.rankings[0] && it.rankings[0].myRank != null
         const columns = [
             {
                 name   : 'myRank',
+                title  : __('lab.column.myRank'),
                 align  : 'right',
             },
             {
                 name   : 'rank',
+                title  : __('lab.column.rank'),
                 align  : 'right',
                 key    : 'actualRank',
             },
             {
                 name   : 'diff',
+                title  : __('lab.column.diff'),
                 align  : 'right',
                 get    : info => this.getRankDiff(info),
                 format : value => this.formatRankDiff(value),
             },
             {
                 name   : 'myScore',
+                title  : __('lab.column.myScore'),
                 align  : 'right',
+                // TODO: format number
                 format : value => value.toFixed(4),
             },
             {
                 name   : 'moves',
+                title  : __('lab.column.moves'),
                 format : movesFormat,
             },
         ]
-        const tables = delegateList.filter(it =>
-            it.rankings[0] && it.rankings[0].myRank != null
-        ).map(({name, rankings}) =>
+        const tables = delegateList.filter(dataFilter).map(({name, rankings}) =>
             new Table(columns, rankings, {name, theme, title: name}).build()
         )
         const maxTableWidth = Math.max(...tables.map(table => table.outerWidth))
@@ -629,7 +660,9 @@ class LabHelper {
                 color: __(`play.color.${this.persp}`),
                 count: numMatches,
             }
-            logger.info(__('alerts.runningCountMatchesColorGoesFirst{count,color}', params))
+            logger.info(
+                __('alerts.runningCountMatchesColorGoesFirst{count,color}', params)
+            )
             for (let i = 0; i < numMatches; ++i) {
                 const match = new Match(1, matchOpts)
                 await coordinator.runMatch(match, players)
@@ -694,7 +727,7 @@ class LabHelper {
             piece = board.popOrigin(fromOrigin)
             params.origin = String(fromPoint)
         }
-        params.color = this.ccolor(piece.color, __(`play.color.${piece.color}`))
+        params.color = this.ccolor(piece.color)
         if (answers.dest === 'b') {
             board.pushBar(piece.color, piece)
             params.dest = __('play.board.bar')
@@ -760,13 +793,21 @@ class LabHelper {
 
         return [
             {
-                message  : 'From, point, (b)ar, or (h)ome',
+                /*_
+                 * Input of 'b' or 'h' selects bar or home. In English, this
+                 * can be indicated with: 'From, point, (b)ar, or (h)ome'.
+                 */
+                message  : __('lab.question.fromPointOrBarOrHome'),
                 name     : 'from',
                 type     : 'input',
                 validate : value => this.validatePlaceFrom(value),
             },
             {
-                message : 'Color, (w)hite or (r)ed',
+                /*_
+                 * Input of 'w' or 'r' selects white or red. In English, this
+                 * can be indicated with: 'Color, (w)hite or (r)ed'.
+                 */
+                message : __('lab.question.color'),
                 name    : 'color',
                 type    : 'input',
                 default : () => ColorAbbr[this.persp].toLowerCase(),
@@ -783,11 +824,18 @@ class LabHelper {
                     if (value.toLowerCase() === 'q') {
                         return true
                     }
-                    return !!ColorNorm[value.toUpperCase()] || 'Invalid color'
+                    return (
+                        Boolean(ColorNorm[value.toUpperCase()]) ||
+                        __('alerts.invalidColor')
+                    )
                 },
             },
             {
-                message  : 'To, point, (b)ar, or (h)ome',
+                /*_
+                 * Input of 'b' or 'h' selects bar or home. In English, this
+                 * can be indicated with: 'To, point, (b)ar, or (h)ome'.
+                 */
+                message  : __('lab.question.toPointOrBarOrHome'),
                 name     : 'dest',
                 type     : 'input',
                 when     : answers => {
@@ -859,14 +907,11 @@ class LabHelper {
                 color = analyzer.originOccupier(fromOrigin)
             }
         }
-        return (
-            !occupier ||
-            occupier === color ||
-            __('alerts.pointOccupiedByColor{point,color}', {
-                color: __(`play.color.${occupier}`),
-                point,
-            })
-        )
+        if (!occupier || occupier === color) {
+            return true
+        }
+        const params = {point, color: __(`play.color.${occupier}`)}
+        return __('alerts.pointOccupiedByColor{point,color}', params)
     }
 
     validateStateString(value) {
@@ -884,7 +929,7 @@ class LabHelper {
         try {
             Board.fromStateString(value).analyzer.validateLegalBoard()
         } catch (err) {
-            return [err.name, ':', err.message].join(' ')
+            return [err.name, err.message].join(' : ')
         }
         return true
     }
@@ -908,10 +953,10 @@ class LabHelper {
 
     ccolor(color, str = null) {
         if (str === null) {
-            str = color
+            str = this.__(`play.color.${color}`)
         }
         const chlk = this.theme.board
-        return chlk.piece[color.toLowerCase()](color)
+        return chlk.piece[color.toLowerCase()](str)
     }
 
     draw(isPrint) {
@@ -991,6 +1036,7 @@ class LabHelper {
 
     // abstracted for coverage only
     chalkDiff(diff) {
+        // TODO: number format
         let diffStr
         if (diff > 0) {
             diffStr = chalk.green('+' + diff.toString())
@@ -1012,6 +1058,7 @@ class LabHelper {
         if (value == null) {
             return ''
         }
+        // TODO: number format
         const chlk = this.theme.table
         let str = value.toString()
         if (value == 0) {

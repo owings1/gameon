@@ -26,12 +26,11 @@ const {objects: {valueHash}} = require('utils-h')
 const {Extractor, Merger} = require('po-extractor')
 const fse = require('fs-extra')
 
-const fs     = require('fs')
-const path   = require('path')
-const {resolve} = path
+const fs = require('fs')
+const path = {resolve} = require('path')
 
+const Diffs = require('../test/util/diffs.js')
 const {BaseDir, LocalesDir} = require('../src/lib/constants.js')
-const Diffs   = require('../test/util/diffs.js')
 
 const poGlob = LocalesDir + '/*/messages.po'
 const srcGlobs = ['src/**/*.js']
@@ -42,7 +41,7 @@ const IgnoreKeys = valueHash([
     'play.colorLetter.*',
 ], null)
 const opts = {
-    dryRun: Boolean(process.env.DRY_RUN),
+    dryRun: false,
     verbose: 1,
     //logging: {logLevel: 4, inspect: {depth: 4}},
     marker: ['__'],

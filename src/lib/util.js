@@ -594,18 +594,18 @@ class Util {
      */
     static makeErrorObject(err, depth = 1) {
         const obj = {
-            isError : true
-          , error   : err.message || err.name
-          , name    : err.name || err.constructor.name
+            isError : true,
+            error   : err.message || err.name,
+            name    : err.name || err.constructor.name,
         }
-        for (let prop in err) {
+        for (const prop in err) {
             if (!err.hasOwnProperty(prop)) {
                 continue
             }
             if (obj[prop] != null) {
                 continue
             }
-            let value = err[prop]
+            const value = err[prop]
             if (value instanceof Error) {
                 if (depth < 2) {
                     obj[prop] = Util.makeErrorObject(value, depth + 1)
@@ -925,6 +925,10 @@ class Util {
      */
     static sp(...args) {
         return args.join(' ')
+    }
+
+    static spaces(n) {
+        return Util.nchars(n, ' ')
     }
 
     /**
