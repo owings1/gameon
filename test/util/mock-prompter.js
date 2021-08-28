@@ -25,7 +25,7 @@
 const {
     objects : {valueHash},
     types   : {castToArray},
-} = require('utils-h')
+} = require('@quale/core')
 
 function MockPrompter(responses, isSkipAssertAsked, isSkipAssertAnswered, isSkipAssertValid) {
 

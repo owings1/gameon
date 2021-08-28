@@ -26,7 +26,7 @@ const {
     arrays: {append},
     strings: {stringWidth},
     types: {isFunction, isString},
-} = require('utils-h')
+} = require('@quale/core')
 const fse = require('fs-extra')
 
 const fs = require('fs')

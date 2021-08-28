@@ -25,7 +25,7 @@
 const {
     Screen,
     types: {castToArray, isFunction},
-} = require('utils-h')
+} = require('@quale/core')
 
 const {EventEmitter} = require('events')
 

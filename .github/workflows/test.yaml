@@ -9,23 +9,22 @@ env:
   FORCE_COLOR: "1"
 
 jobs:
-  test2:
-
+  test:
     runs-on: ubuntu-latest
-
+    env:
+      NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
     strategy:
       matrix:
-        node-version: [16.x]
-        #node-version: [12.x, 14.x, 16.x]
+        node-version: [12.x, 14.x, 16.x]
         # See supported Node.js release schedule at https://nodejs.org/en/about/releases/
-
     steps:
     - uses: actions/checkout@v2
     - name: Use Node.js ${{ matrix.node-version }}
       uses: actions/setup-node@v2
       with:
         node-version: ${{ matrix.node-version }}
-    - run: npm ci
-    - run: npm run compile
-    - run: npm run build --if-present
-    - run: npm test
+        cache: 'npm'
+    - name: npm ci
+      run: npm ci
+    - name: npm test
+      run: npm test

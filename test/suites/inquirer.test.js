@@ -26,7 +26,7 @@ const {
     objects: {update},
     Screen,
     strings: {stripAnsi},
-} = require('utils-h')
+} = require('@quale/core')
 
 const {
     expect,

@@ -24,7 +24,7 @@
  */
 const {flags} = require('@oclif/command')
 const Base    = require('../lib/command').UserCommand
-const {objects: {update}} = require('utils-h')
+const {objects: {update}} = require('@quale/core')
 
 class LabCommand extends Base {
 

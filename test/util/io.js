@@ -22,7 +22,7 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-const {strings: {stripAnsi}} = require('utils-h')
+const {strings: {stripAnsi}} = require('@quale/core')
 const stream = require('stream')
 const {EventEmitter} = require('events')
 

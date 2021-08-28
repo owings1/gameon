@@ -25,7 +25,7 @@
 const {
     objects: {update},
     types  : {castToArray},
-} = require('utils-h')
+} = require('@quale/core')
 const bodyParser = require('body-parser')
 const express    = require('express')
 const onFinished = require('on-finished')

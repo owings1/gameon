@@ -24,11 +24,13 @@
  */
 const {
     Logger,
-    merging : {mergePlain},
+    merging : {merge},
+} = require('@quale/term')
+const {
     objects : {lget, lset, update, valueHash},
     strings : {breakLines, stringWidth},
     types   : {isString, isObject, castToArray},
-} = require('utils-h')
+} = require('@quale/core')
 const cliWidth = require('cli-width')
 const emailval = require('email-validator')
 const roundTo  = require('round-to')
@@ -178,7 +180,7 @@ class Util {
             optset.push(lopts)
         }
         optset.push(LoggerTypes[type])
-        return new Logger(mergePlain(...optset, opts))
+        return new Logger(merge(...optset, opts))
     }
 
     /**

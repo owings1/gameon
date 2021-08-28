@@ -57,11 +57,12 @@
  */
 const {
     arrays  : {append},
-    colors  : {Chalk},
     objects : {lget, lset},
     strings : {lcfirst, ucfirst},
     types   : {castToArray},
-} = require('utils-h')
+} = require('@quale/core')
+const {colors: {Chalk}} = require('@quale/term')
+
 const ms = require('ms')
 const Base        = require('mocha/lib/reporters/base')
 const Runner      = require('mocha/lib/runner')

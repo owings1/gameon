@@ -146,7 +146,7 @@ const path = require('path')
 const {
     arrays : {append},
     types  : {castToArray},
-} = require('utils-h')
+} = require('@quale/core')
 
 const {InvalidDirError} = require('./errors')
 

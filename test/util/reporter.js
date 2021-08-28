@@ -22,7 +22,7 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-const {arrays: {append}} = require('utils-h')
+const {arrays: {append}} = require('@quale/core')
 
 const Base = require('./reporter-base.js').DefaultReporter
 const {pad, nchars, stringWidth} = require('../../src/lib/util.js')

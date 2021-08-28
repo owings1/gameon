@@ -25,7 +25,7 @@
 const {
     arrays: {append},
     objects: {update},
-} = require('utils-h')
+} = require('@quale/core')
 const fse = require('fs-extra')
 
 const fs  = require('fs')

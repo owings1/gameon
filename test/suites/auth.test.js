@@ -25,7 +25,7 @@
 const {
     objects: {update},
     strings: {ucfirst},
-} = require('utils-h')
+} = require('@quale/core')
 const AWS = require('aws-sdk')
 const fse = require('fs-extra')
 

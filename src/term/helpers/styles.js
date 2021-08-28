@@ -22,10 +22,8 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-const {
-    colors  : {Chalk},
-    strings : {ucfirst},
-} = require('utils-h')
+const {strings: {ucfirst}} = require('@quale/core')
+const {colors: {Chalk}} = require('@quale/term')
 
 const {StyleError} = require('../../lib/errors.js')
 const chalk = new Chalk()

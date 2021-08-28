@@ -25,7 +25,7 @@
 const {
     arrays : {arraySum},
     types  : {castToArray},
-} = require('utils-h')
+} = require('@quale/core')
 
 const Analyzer = require('./analyzer.js')
 const Dice     = require('./dice.js')

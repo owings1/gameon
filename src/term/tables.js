@@ -28,7 +28,7 @@ const {
     strings : {stringWidth},
     types   : {castToArray, isNumber, isObject, isRegex, isString},
     Screen,
-} = require('utils-h')
+} = require('@quale/core')
 
 const Themes = require('./themes.js')
 // TODO: refactor to class and translate messages

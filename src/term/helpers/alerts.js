@@ -22,7 +22,7 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-const {objects: {update}} = require('utils-h')
+const {objects: {update}} = require('@quale/core')
 const Themes = require('../themes.js')
 const {ProgrammerError} = require('../../lib/errors.js')
 

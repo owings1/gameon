@@ -24,12 +24,13 @@
  */
 const {
     arrays  : {append, sumArray},
-    merging : {merge},
     objects : {lget, lset, update, isNonEmptyObject},
     strings : {stringWidth, stripAnsi},
     types   : {castToArray, isFunction},
     Screen,
-} = require('utils-h')
+} = require('@quale/core')
+const {merging : {merge}} = require('@quale/term')
+
 const fse    = require('fs-extra')
 const globby = require('globby')
 

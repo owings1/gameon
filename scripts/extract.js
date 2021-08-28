@@ -22,8 +22,8 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-const {objects: {valueHash}} = require('utils-h')
-const {Extractor, Merger} = require('po-extractor')
+const {objects: {valueHash}} = require('@quale/core')
+const {Extractor, Merger} = require('@quale/dev-i18n')
 const fse = require('fs-extra')
 
 const fs = require('fs')

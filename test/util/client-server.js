@@ -26,7 +26,7 @@ const {
     arrays : {append},
     objects: {update},
     strings: {ucfirst},
-} = require('utils-h')
+} = require('@quale/core')
 
 const {nmap} = require('../../src/lib/util.js')
 

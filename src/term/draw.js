@@ -26,7 +26,7 @@ const {
     Screen,
     strings: {stringWidth, stripAnsi, ucfirst},
     types: {isWriteableStream},
-} = require('utils-h')
+} = require('@quale/core')
 
 const {Board} = require('../lib/core.js')
 const Themes  = require('./themes.js')

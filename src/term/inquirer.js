@@ -54,7 +54,7 @@ const {
     Screen,
     strings : {stripAnsi},
     types   : {castToArray},
-} = require('utils-h')
+} = require('@quale/core')
 const {defer, from} = require('rxjs')
 const Inquirer      = require('inquirer')
 const ScreenBase    = require('inquirer/lib/utils/screen-manager')

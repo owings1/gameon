@@ -25,7 +25,7 @@
 const {flags} = require('@oclif/command')
 const Base    = require('../../lib/command.js').AppCommand
 
-const {types: {castToArray}} = require('utils-h')
+const {types: {castToArray}} = require('@quale/core')
 const {errMessage} = require('../../lib/util.js')
 
 const Auth     = require('../../net/auth.js')

@@ -54,14 +54,11 @@
  * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-const {
-    arrays: {append},
-    colors: {Chalk},
-} = require('utils-h')
+const {arrays: {append}} = require('@quale/core')
+const {colors: {Chalk}} = require('@quale/term')
+
 const diff = require('diff')
-
 const chalk = new Chalk()
-
 const noBlanks = line => typeof line != 'undefined' && line !== null
 
 class Diffs {

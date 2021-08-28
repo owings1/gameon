@@ -27,7 +27,7 @@ const {
     objects: {valueHash},
     strings: {ucfirst},
     types  : {castToArray},
-} = require('utils-h')
+} = require('@quale/core')
 const globby = require('globby')
 
 const path   = require('path')

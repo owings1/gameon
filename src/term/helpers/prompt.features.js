@@ -53,7 +53,7 @@ const {
     objects : {lset, valueHash},
     strings : {stripAnsi},
     types   : {castToArray},
-} = require('utils-h')
+} = require('@quale/core')
 
 const Themes = require('../themes.js')
 const {DuplicateKeyError} = require('../../lib/errors.js')

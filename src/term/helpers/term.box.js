@@ -25,7 +25,7 @@
 const {
     objects: {update},
     Screen,
-} = require('utils-h')
+} = require('@quale/core')
 
 const {EventEmitter} = require('events')
 

@@ -33,7 +33,7 @@ const {
     States,
 } = require('../util.js')
 
-const {colors: {Chalk}} = require('utils-h')
+const {colors: {Chalk}} = require('@quale/term')
 const fs    = require('fs')
 const fse   = require('fs-extra')
 const path = {resolve} = require('path')

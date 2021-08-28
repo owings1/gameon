@@ -26,7 +26,7 @@ const lingui  = require('@lingui/core')
 const plurals = require('make-plural/plurals')
 const {
     objects: {revalue, update, valueHash},
-} = require('utils-h')
+} = require('@quale/core')
 
 const path = require('path')
 

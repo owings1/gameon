@@ -23,12 +23,13 @@
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 const {
-    colors  : {Chalk},
     objects : {isNullOrEmptyObject, revalue, update},
     strings : {cat, stringWidth, stripAnsi, ucfirst},
     types   : {castToArray},
     Screen,
-} = require('utils-h')
+} = require('@quale/core')
+const {colors: {Chalk}} = require('@quale/term')
+
 const fse = require('fs-extra')
 
 const fs   = require('fs')

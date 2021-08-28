@@ -29,7 +29,7 @@ const {
     arrays: {append},
     strings: {endsWith, stripAnsi},
     objects: {update},
-} = require('utils-h')
+} = require('@quale/core')
 
 
 const {Board} = require('../src/lib/core')
