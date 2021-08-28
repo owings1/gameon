@@ -561,7 +561,7 @@ describe('Lab', () => {
 
         it('should not prompt but catch err for bad param', async function () {                
             await this.lab.setStateCommand('asdf')
-            expect(this.output.raw.toLowerCase()).to.contain('bad input')
+            expect(this.output.raw.toLowerCase()).to.contain('invalid input')
         })
     })
 

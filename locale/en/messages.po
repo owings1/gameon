@@ -33,10 +33,6 @@ msgstr "Account created"
 msgid "alerts.authenticationFailedGoToAccountToLogin"
 msgstr "Authentication failed. Go to Account to log in."
 
-#: src/term/lab.js:292
-msgid "alerts.badInput"
-msgstr "Bad input"
-
 #: src/term/menu.js:764
 msgid "alerts.cancelingMatch"
 msgstr "Canceling match"
@@ -53,20 +49,28 @@ msgstr "Please enter a number >= 0"
 msgid "alerts.enterNumberGreaterThanZero"
 msgstr "Please enter a number > 0"
 
-#: src/term/lab.js:282
+#: src/term/lab.js:280
 msgid "alerts.generatingState"
 msgstr "Generating state"
 
-#: src/term/lab.js:256
+#: src/term/lab.js:829
+msgid "alerts.invalidColor"
+msgstr "Invalid color"
+
+#: src/term/lab.js:254
 msgid "alerts.invalidCommand{input}"
 msgstr "Invalid command: '{input}'"
+
+#: src/term/lab.js:290
+msgid "alerts.invalidInput"
+msgstr "Invalid input"
 
 #: src/term/helpers/menu.questions.js:383
 msgid "alerts.invalidMatchIdFormat"
 msgstr "Invalid match ID format"
 
-#: src/term/lab.js:835
-#: src/term/lab.js:852
+#: src/term/lab.js:875
+#: src/term/lab.js:892
 msgid "alerts.invalidPoint"
 msgstr "Invalid point"
 
@@ -102,37 +106,44 @@ msgstr "You must confirm your account."
 msgid "alerts.newConfirmKeyRequestedCheckEmail"
 msgstr "New confirmation key requested. Check your email."
 
-#: src/term/lab.js:296
+#: src/term/lab.js:294
 msgid "alerts.noChange"
 msgstr "No change"
 
-#: src/term/lab.js:333
+#: src/term/lab.js:336
 msgid "alerts.noMovesForColorWithRoll{color,roll}"
 msgstr "No moves for {color} with {roll}"
 
-#: src/term/lab.js:823
+#: src/term/lab.js:863
 msgid "alerts.noPieceOnBar"
 msgstr "No piece on bar"
 
-#: src/term/lab.js:829
+#: src/term/lab.js:869
 msgid "alerts.noPieceOnHome"
 msgstr "No piece on home"
 
-#: src/term/lab.js:840
+#: src/term/lab.js:880
 msgid "alerts.noPieceOnPoint{point}"
 msgstr "No piece on point {point}"
 
-#: src/term/lab.js:949
+#: src/term/lab.js:986
 msgid "alerts.noRecordDirSet"
 msgstr "No record dir set"
 
-#: src/term/lab.js:954
+#: src/term/lab.js:991
 msgid "alerts.noResultToSave"
 msgstr "No result to save"
 
-#: src/term/lab.js:308
+#: src/term/lab.js:306
 msgid "alerts.nothingToUndo"
 msgstr "Nothing to undo"
+
+#: src/term/lab.js:436
+#. Example: "{numStr} more ..." might yield "25 more ..."
+#. Here {numStr} is formatted, so {count} is included in case
+#. it is needed for plural rules.
+msgid "alerts.numMoreEllipsis{numStr,count}"
+msgstr "{numStr} more ..."
 
 #: src/term/helpers/menu.messages.js:11
 msgid "alerts.passwordChanged"
@@ -146,7 +157,7 @@ msgstr "Password reset"
 msgid "alerts.passwordsDoNotMatch"
 msgstr "Passwords do not match"
 
-#: src/term/lab.js:873
+#: src/term/lab.js:914
 msgid "alerts.pointOccupiedByColor{point,color}"
 msgstr "{point} occupied by {color}"
 
@@ -154,11 +165,11 @@ msgstr "{point} occupied by {color}"
 msgid "alerts.resetKeyRequestedCheckEmail"
 msgstr "Reset key requested, check your email."
 
-#: src/term/lab.js:636
+#: src/term/lab.js:664
 msgid "alerts.runningCountMatchesColorGoesFirst{count,color}"
 msgstr "Running {count, plural, one {# match} other {# matches}}, {color} goes first"
 
-#: src/term/lab.js:960
+#: src/term/lab.js:997
 msgid "alerts.savingTo{path}"
 msgstr "Saving to {path}"
 
@@ -166,110 +177,167 @@ msgstr "Saving to {path}"
 msgid "alerts.settingInitialState"
 msgstr "Setting initial state"
 
-#: src/term/lab.js:619
+#: src/term/lab.js:248
+msgid "alerts.usingBreadthTrees"
+msgstr "Using breadth trees"
+
+#: src/term/lab.js:646
 #: src/term/menu.js:851
 msgid "alerts.usingCustomRollsFile"
 msgstr "Using custom rolls file"
 
-#: src/term/lab.js:251
-msgid "alerts.usingTreeStyleTrees{treeStyle}"
-msgstr "Using {treeStyle} trees"
-
-#: src/term/lab.js:248
-msgid "core.treeStyle.breadth"
-msgstr "breadth"
-
 #: src/term/lab.js:249
-msgid "core.treeStyle.depth"
-msgstr "depth"
+msgid "alerts.usingDepthTrees"
+msgstr "Using depth trees"
 
-#: src/term/lab.js:656
+#: src/term/lab.js:685
 msgid "lab.attr.diff"
 msgstr "diff"
 
-#: src/term/lab.js:655
+#: src/term/lab.js:684
 msgid "lab.attr.scores"
 msgstr "scores"
 
-#: src/term/lab.js:1057
+#: src/term/lab.js:590
+msgid "lab.column.diff"
+msgstr "diff"
+
+#: src/term/lab.js:604
+msgid "lab.column.moves"
+msgstr "moves"
+
+#: src/term/lab.js:468
+#: src/term/lab.js:579
+msgid "lab.column.myRank"
+msgstr "myRank"
+
+#: src/term/lab.js:462
+#: src/term/lab.js:597
+msgid "lab.column.myScore"
+msgstr "myScore"
+
+#: src/term/lab.js:584
+msgid "lab.column.rank"
+msgstr "rank"
+
+#: src/term/lab.js:456
+msgid "lab.column.weighted"
+msgstr "weighted"
+
+#: src/term/lab.js:1096
 msgid "lab.commandHelp.boardInfo"
 msgstr "board info"
 
-#: src/term/lab.js:1068
+#: src/term/lab.js:1107
 msgid "lab.commandHelp.commandHelp"
 msgstr "command help"
 
-#: src/term/lab.js:1061
+#: src/term/lab.js:1100
 msgid "lab.commandHelp.flipPerspective"
 msgstr "flip perspective"
 
-#: src/term/lab.js:1062
+#: src/term/lab.js:1101
 msgid "lab.commandHelp.invertBoard"
 msgstr "flip (invert) board"
 
-#: src/term/lab.js:1063
+#: src/term/lab.js:1102
 msgid "lab.commandHelp.placePiece"
 msgstr "place piece"
 
-#: src/term/lab.js:1064
+#: src/term/lab.js:1103
 msgid "lab.commandHelp.rollout"
 msgstr "rollout"
 
-#: src/term/lab.js:1058
+#: src/term/lab.js:1097
 msgid "lab.commandHelp.setBoardState"
 msgstr "set state of board"
 
-#: src/term/lab.js:1059
+#: src/term/lab.js:1098
 msgid "lab.commandHelp.showMovesForDice"
 msgstr "show moves for dice"
 
-#: src/term/lab.js:1060
+#: src/term/lab.js:1099
 msgid "lab.commandHelp.showRobotInfoForDice"
 msgstr "show robot info for dice"
 
-#: src/term/lab.js:1067
+#: src/term/lab.js:1106
 msgid "lab.commandHelp.toggleTreeMode"
 msgstr "toggle tree mode"
 
-#: src/term/lab.js:1065
+#: src/term/lab.js:1104
 msgid "lab.commandHelp.undoMove"
 msgstr "undo move"
 
-#: src/term/lab.js:1066
+#: src/term/lab.js:1105
 msgid "lab.commandHelp.writeLastResults"
 msgstr "write last results"
+
+#: src/term/lab.js:810
+#. Input of 'w' or 'r' selects white or red. In English, this
+#. can be indicated with: 'Color, (w)hite or (r)ed'.
+msgid "lab.question.color"
+msgstr "Color, (w)hite or (r)ed"
 
 #: src/term/lab.js:160
 msgid "lab.question.command"
 msgstr "Command"
 
-#: src/term/lab.js:322
+#: src/term/lab.js:320
 msgid "lab.question.dice"
 msgstr "Dice"
 
-#: src/term/lab.js:267
+#: src/term/lab.js:800
+#. Input of 'b' or 'h' selects bar or home. In English, this
+#. can be indicated with: 'From, point, (b)ar, or (h)ome'.
+msgid "lab.question.fromPointOrBarOrHome"
+msgstr "From point, (b)ar or (h)ome"
+
+#: src/term/lab.js:265
 msgid "lab.question.stateString"
 msgstr "State string"
 
-#: src/term/lab.js:1071
+#: src/term/lab.js:838
+#. Input of 'b' or 'h' selects bar or home. In English, this
+#. can be indicated with: 'To, point, (b)ar, or (h)ome'.
+msgid "lab.question.toPointOrBarOrHome"
+msgstr "To, point, (b)ar, or (h)ome"
+
+#: src/term/lab.js:480
+#. A symbol, such as '#', indicating that a number follows. A space
+#. or other characters can be added if needed, e.g. '# ', or 'Nº'.
+#. This is used in combination with lab.word.ofTotal to produce a
+#. string such as '#4 of 12'. If this does not translate, use a
+#. single space, i.e. ' '.
+msgid "lab.symbol.numberSignPrefix"
+msgstr "#"
+
+#: src/term/lab.js:1110
 msgid "lab.title.commands"
 msgstr "Commands"
 
-#: src/term/lab.js:361
+#: src/term/lab.js:362
 msgid "lab.title.moveSeries"
 msgstr "Move Series"
 
-#: src/term/lab.js:471
+#: src/term/lab.js:492
 msgid "lab.title.rank"
 msgstr "Rank"
 
-#: src/term/lab.js:470
+#: src/term/lab.js:493
 msgid "lab.title.score"
 msgstr "Score"
 
-#: src/term/lab.js:472
+#: src/term/lab.js:494
 msgid "lab.title.state"
 msgstr "State"
+
+#: src/term/lab.js:490
+#. A word that goes between a number and the total, indicating its
+#. order in a list, e.g. 'of', as in "4 of 12". This is used in
+#. combination with lab.symbol.numberSignPrefix to render a string
+#. such as '#4 of 12'.
+msgid "lab.word.ofTotal"
+msgstr "of"
 
 #: src/term/helpers/menu.questions.js:155
 msgid "menu.choice.account"
@@ -528,7 +596,7 @@ msgid "menu.question.robotDelaySeconds"
 msgstr "Robot Delay (seconds)"
 
 #: src/term/helpers/menu.questions.js:365
-#: src/term/lab.js:605
+#: src/term/lab.js:632
 msgid "menu.question.rollsFile"
 msgstr "Rolls file"
 
@@ -589,15 +657,15 @@ msgstr "Robots"
 msgid "menu.title.settings"
 msgstr "Settings"
 
-#: src/term/lab.js:685
-#: src/term/lab.js:704
-#: src/term/lab.js:735
+#: src/term/lab.js:714
+#: src/term/lab.js:733
+#: src/term/lab.js:764
 msgid "play.board.bar"
 msgstr "bar"
 
-#: src/term/lab.js:694
-#: src/term/lab.js:707
-#: src/term/lab.js:742
+#: src/term/lab.js:723
+#: src/term/lab.js:736
+#: src/term/lab.js:771
 msgid "play.board.home"
 msgstr "home"
 
@@ -621,7 +689,7 @@ msgstr "W"
 msgid "play.log.invertBoard"
 msgstr "Invert board"
 
-#: src/term/lab.js:714
+#: src/term/lab.js:743
 msgid "play.log.place{color,origin,dest}"
 msgstr "Place {color} {origin} : {dest}"
 
@@ -629,10 +697,10 @@ msgstr "Place {color} {origin} : {dest}"
 msgid "play.log.setPerspective{color}"
 msgstr "Perspective {color}"
 
-#: src/term/lab.js:302
+#: src/term/lab.js:300
 msgid "play.log.setState"
 msgstr "Set state"
 
-#: src/term/lab.js:313
+#: src/term/lab.js:311
 msgid "play.log.undo"
 msgstr "Undo"
