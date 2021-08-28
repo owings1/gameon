@@ -113,14 +113,9 @@ class IntlHelper {
             [SyLoad, Object.create(null)],
         ])
         Object.defineProperties(this, {
-            ...revalue(priv, value => ({
-                enumerable : false,
-                writable   : false,
-                value,
-            })),
+            ...revalue(priv, value => ({value})),
             ...revalue(proto, func => ({
                 enumerable : true,
-                writable   : false,
                 value: func.bind(this),
             })),
             locale: {
@@ -148,8 +143,22 @@ const proto = {
     __: function translate(...args) {
         return this[SyImpl]._(...args)
     },
+    nfmt: function numberFormatter(opts = {}) {
+        return new Intl.NumberFormat(this.locale, opts)
+    },
+    nfmtFixed: function numberFormatterFixed(digits, opts = {}) {
+        opts = {
+            maximumFractionDigits: digits,
+            minimumFractionDigits: digits,
+            ...opts,
+        }
+        return this.nfmt(opts)
+    },
     nf: function formatNumber(num, opts = {}) {
-        return new Intl.NumberFormat(this.locale, opts).format(num)
+        return this.nfmt(opts).format(num)
+    },
+    nfFixed: function formatNumberFixed(num, digits, opts = {}) {
+        return this.nfmtFixed(digits, opts).format(num)
     },
 }
 
