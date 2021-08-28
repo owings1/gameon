@@ -171,12 +171,12 @@ class Util {
         if (isString(inst)) {
             name = inst
         } else if (isobj) {
-            name = lget(inst, 'name') ?? lget(inst, 'constructor.name') ?? name
+            name = lget(inst, 'name') || lget(inst, 'constructor.name') || name
         }
         optset.push({name})
         if (isobj) {
             const lopts = lget(inst, 'opts.logging', {})
-            type = type ?? lopts.type
+            type = type || lopts.type
             optset.push(lopts)
         }
         optset.push(LoggerTypes[type])

@@ -1479,7 +1479,7 @@ class Board {
      * @return {self}
      */
     pushBar(color, piece) {
-        piece = piece ?? new Piece(color)
+        piece = piece || new Piece(color)
         this.bars[color].push(piece)
         this.markChange()
         return this
@@ -1501,7 +1501,7 @@ class Board {
      * @return {self}
      */
     pushHome(color, piece) {
-        piece = piece ?? new Piece(color)
+        piece = piece || new Piece(color)
         this.homes[color].push(piece)
         this.markChange()
         return this
