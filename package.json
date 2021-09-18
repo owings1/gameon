@@ -1,6 +1,6 @@
 {
   "name": "gameon",
-  "version": "1.2.5",
+  "version": "1.2.6",
   "description": "backgammon for terminal",
   "main": "index.js",
   "scripts": {
