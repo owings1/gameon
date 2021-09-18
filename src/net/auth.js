@@ -24,7 +24,7 @@
  */
 const {objects: {update}} = require('@quale/core')
 
-const Email = require('./email')
+const Email = require('./email.js')
 
 const {
     DefaultAuthHash,
@@ -38,7 +38,7 @@ const {
     EncryptedFlagPrefix,
     InvalidUsernameChars,
     IsTest,
-} = require('../lib/constants')
+} = require('../lib/constants.js')
 
 const {
     AuthError,
@@ -52,7 +52,7 @@ const {
     UserNotConfirmedError,
     UserNotFoundError,
     ValidateError,
-} = require('../lib/errors')
+} = require('../lib/errors.js')
 
 const {
     createLogger,
@@ -64,12 +64,12 @@ const {
     securityCheck,
     tstamp,
     uuid,
-} = require('../lib/util')
+} = require('../lib/util.js')
 
 const ImplClasses = {
-    get anonymous() { return require('./auth/anonymous') },
-    get directory() { return require('./auth/directory') },
-    get s3()        { return require('./auth/s3') },
+    get anonymous() { return require('./auth/anonymous.js') },
+    get directory() { return require('./auth/directory.js') },
+    get s3()        { return require('./auth/s3.js') },
 }
 
 const ErrorMessages = {
@@ -228,8 +228,8 @@ class Auth {
         this.logger.info('Authenticate', {username})
 
         return update(user, {
-            passwordEncrypted : this.encryptPassword(password)
-          , token             : this.getToken(username, password)
+            passwordEncrypted : this.encryptPassword(password),
+            token             : this.getToken(username, password),
         })
     }
 
@@ -258,16 +258,16 @@ class Auth {
 
         const timestamp = tstamp()
         const user = {
-            username
-          , password          : this.hashPassword(password)
-          , confirmed         : !!confirmed
-          , confirmKey        : null
-          , confirmKeyCreated : null
-          , resetKey          : null
-          , resetKeyCreated   : null
-          , locked            : false
-          , created           : timestamp
-          , updated           : timestamp
+            username,
+            password          : this.hashPassword(password),
+            confirmed         : !!confirmed,
+            confirmKey        : null,
+            confirmKeyCreated : null,
+            resetKey          : null,
+            resetKeyCreated   : null,
+            locked            : false,
+            created           : timestamp,
+            updated           : timestamp,
         }
 
         await this.wrapInternalError(() => this.impl.createUser(username, user))
@@ -275,8 +275,8 @@ class Auth {
         this.logger.info('CreateUser', {username})
 
         return update(user, {
-            passwordEncrypted : this.encryptPassword(password)
-          , token             : this.getToken(username, password)
+            passwordEncrypted : this.encryptPassword(password),
+            token             : this.getToken(username, password),
         })
     }
 
@@ -319,7 +319,9 @@ class Auth {
      *
      * @async
      *
-     * @throws {AuthError}     * @throws {InternalError}     *
+     * @throws {AuthError}
+     * @throws {InternalError}
+     *
      * @return array[string]
      */
     async listAllUsers() {
@@ -331,10 +333,12 @@ class Auth {
      *
      * @async
      *
-     * @param {string} The username
+     * @throws {AuthError}
+     * @throws {InternalError}
+     * @throws {ValidateError}
      *
-     * @throws {AuthError}     * @throws {InternalError}     * @throws {ValidateError}     *
-     * @return undefined
+     * @param {string} The username
+     * @return {undefined}
      */
     async deleteUser(username) {
         if (!(await this.userExists(username))) {
@@ -350,9 +354,11 @@ class Auth {
      *
      * @async
      *
-     * @param {string} The username
+     * @throws {AuthError}
+     * @throws {InternalError}
+     * @throws {ValidateError}
      *
-     * @throws {AuthError}     * @throws {InternalError}     * @throws {ValidateError}     *
+     * @param {string} The username
      * @return {object} The user data
      */
     async sendConfirmEmail(username) {
@@ -367,32 +373,32 @@ class Auth {
         const confirmKey = this.generateConfirmKey()
 
         await this._updateUser(username, update(user, {
-            confirmed         : false
-          , confirmKey        : this.hashPassword(confirmKey)
-          , confirmKeyCreated : timestamp
-          , updated           : timestamp
+            confirmed         : false,
+            confirmKey        : this.hashPassword(confirmKey),
+            confirmKeyCreated : timestamp,
+            updated           : timestamp,
         }))
 
         await this.email.send({
             Destination: {
-                ToAddresses: [username]
-            }
-          , Message : {
+                ToAddresses: [username],
+            },
+            Message : {
                 Subject : {
-                    Charset: 'UTF-8'
-                  , Data: 'Confirm your gameon account'
-                }
-              , Body : {
+                    Charset: 'UTF-8',
+                    Data: 'Confirm your gameon account',
+                },
+                Body : {
                     Text: {
-                        Charset: 'UTF-8'
-                      , Data: `Key: ${confirmKey}`
-                    }
-                  , Html: {
-                        Charset: 'UTF-8'
-                      , Data: `Key: ${confirmKey}`
-                    }
-                }
-            }
+                        Charset: 'UTF-8',
+                        Data: `Key: ${confirmKey}`,
+                    },
+                    Html: {
+                        Charset: 'UTF-8',
+                        Data: `Key: ${confirmKey}`,
+                    },
+                },
+            },
         })
 
         this.logger.info('SendConfirmEmail', {username})
@@ -405,9 +411,11 @@ class Auth {
      *
      * @async
      *
-     * @param {string} The username
+     * @throws {AuthError}
+     * @throws {InternalError}
+     * @throws {ValidateError}
      *
-     * @throws {AuthError}     * @throws {InternalError}     * @throws {ValidateError}     *
+     * @param {string} The username
      * @return {object} The user data
      */
     async sendResetEmail(username) {
@@ -422,31 +430,31 @@ class Auth {
         const resetKey = this.generateConfirmKey()
 
         await this._updateUser(username, update(user, {
-            resetKey        : this.hashPassword(resetKey)
-          , resetKeyCreated : timestamp
-          , updated         : timestamp
+            resetKey        : this.hashPassword(resetKey),
+            resetKeyCreated : timestamp,
+            updated         : timestamp,
         }))
 
         await this.email.send({
             Destination: {
-                ToAddresses: [username]
-            }
-          , Message : {
+                ToAddresses: [username],
+            },
+            Message : {
                 Subject : {
-                    Charset: 'UTF-8'
-                  , Data: 'reset your gameon password'
-                }
-              , Body : {
+                    Charset: 'UTF-8',
+                    Data: 'reset your gameon password',
+                },
+                Body : {
                     Text: {
-                        Charset: 'UTF-8'
-                      , Data: 'Key: ' + resetKey
-                    }
-                  , Html: {
-                        Charset: 'UTF-8'
-                      , Data: 'Key: ' + resetKey
-                    }
-                }
-            }
+                        Charset: 'UTF-8',
+                        Data: 'Key: ' + resetKey,
+                    },
+                    Html: {
+                        Charset: 'UTF-8',
+                        Data: 'Key: ' + resetKey,
+                    },
+                },
+            },
         })
 
         this.logger.info('SendResetEmail', {username})
@@ -459,10 +467,12 @@ class Auth {
      *
      * @async
      *
+     * @throws {AuthError}
+     * @throws {InternalError}
+     * @throws {ValidateError}
+     *
      * @param {string} The username
      * @param {string} The confirm key
-     *
-     * @throws {AuthError}     * @throws {InternalError}     * @throws {ValidateError}     *
      * @return {object} The user data
      */
     async confirmUser(username, confirmKey) {
@@ -482,10 +492,10 @@ class Auth {
         this.assertNotLocked(user)
 
         await this._updateUser(username, update(user, {
-            confirmed         : true
-          , confirmKey        : null
-          , confirmKeyCreated : null
-          , updated           : timestamp
+            confirmed         : true,
+            confirmKey        : null,
+            confirmKeyCreated : null,
+            updated           : timestamp,
         }))
 
         this.logger.info('ConfirmUser', {username})
@@ -498,11 +508,13 @@ class Auth {
      *
      * @async
      *
+     * @throws {AuthError}
+     * @throws {InternalError}
+     * @throws {ValidateError}
+     *
      * @param {string} The username
      * @param {string} The new password
      * @param {string} The reset key
-     *
-     * @throws {AuthError}     * @throws {InternalError}     * @throws {ValidateError}     *
      * @return {object} The user data
      */
     async resetPassword(username, password, resetKey) {
@@ -523,17 +535,17 @@ class Auth {
         this.validatePassword(password)
         
         await this._updateUser(username, update(user, {
-            password        : this.hashPassword(password)
-          , resetKey        : null
-          , resetKeyCreated : null
-          , updated         : timestamp
+            password        : this.hashPassword(password),
+            resetKey        : null,
+            resetKeyCreated : null,
+            updated         : timestamp,
         }))
 
         this.logger.info('ResetPassword', {username})
 
         return update(user, {
-            passwordEncrypted : this.encryptPassword(password)
-          , token             : this.getToken(username, password)
+            passwordEncrypted : this.encryptPassword(password),
+            token             : this.getToken(username, password),
         })
     }
 
@@ -542,11 +554,13 @@ class Auth {
      *
      * @async
      *
+     * @throws {AuthError}
+     * @throws {InternalError}
+     * @throws {ValidateError}
+     *
      * @param {string} The username
      * @param {string} The old password
      * @param {string} The new password
-     *
-     * @throws {AuthError}     * @throws {InternalError}     * @throws {ValidateError}     *
      * @return {object} The user data
      */
     async changePassword(username, oldPassword, newPassword) {
@@ -562,15 +576,15 @@ class Auth {
         this.validatePassword(newPassword)
 
         await this._updateUser(username, update(user, {
-            password : this.hashPassword(newPassword)
-          , updated  : tstamp()
+            password : this.hashPassword(newPassword),
+            updated  : tstamp(),
         }))
 
         this.logger.info('ChangePassword', {username})
 
         return update(user, {
-            passwordEncrypted : this.encryptPassword(newPassword)
-          , token             : this.getToken(username, newPassword)
+            passwordEncrypted : this.encryptPassword(newPassword),
+            token             : this.getToken(username, newPassword),
         })
         return user
     }
@@ -580,9 +594,11 @@ class Auth {
      *
      * @async
      *
-     * @param {string} The username
+     * @throws {AuthError}
+     * @throws {InternalError}
+     * @throws {ValidateError}
      *
-     * @throws {AuthError}     * @throws {InternalError}     * @throws {ValidateError}     *
+     * @param {string} The username
      * @return {object} The user data
      */
     async lockUser(username) {
@@ -591,8 +607,8 @@ class Auth {
         username = user.username
 
         await this._updateUser(username, update(user, {
-            locked  : true
-          , updated : tstamp()
+            locked  : true,
+            updated : tstamp(),
         }))
 
         this.logger.info('LockUser', {username})
@@ -606,6 +622,7 @@ class Auth {
      * @async
      *
      * @param {string} The username
+     * @return {object} The user data
      */
     async unlockUser(username) {
 
@@ -613,8 +630,8 @@ class Auth {
         username = user.username
 
         await this._updateUser(username, update(user, {
-            locked  : false
-          , updated : tstamp()
+            locked  : false,
+            updated : tstamp(),
         }))
 
         this.logger.info('UnlockUser', {username})
@@ -625,10 +642,9 @@ class Auth {
     // Validation
 
     /**
+     * @throws {RequestError.ValidateError}
+     *
      * @param {string} The username to test
-     *
-     * @throws RequestError.ValidateError
-     *
      * @return {string} The username lowercased
      */
     validateUsername(str) {
@@ -647,10 +663,9 @@ class Auth {
     }
 
     /**
+     * @throws {RequestError.ValidateError}
+     *
      * @param {string} The password to test
-     *
-     * @throws RequestError.ValidateError
-     *
      * @return {string} The input string
      */
     validatePassword(str) {
@@ -674,11 +689,10 @@ class Auth {
     /**
      * Assert the user is confirmed.
      *
+     * @throws {AuthError.UserNotConfirmedError}
+     *
      * @param {object} The user data
-     *
-     * @throws AuthError.UserNotConfirmedError
-     *
-     * @return self
+     * @return {self}
      */
     assertConfirmed(user) {
         if (!user.confirmed) {
@@ -690,11 +704,10 @@ class Auth {
     /**
      * Assert the user is not confirmed.
      *
+     * @throws {AuthError.UserConfirmedError}
+     *
      * @param {object} The user data
-     *
-     * @throws AuthError.UserConfirmedError
-     *
-     * @return self
+     * @return {self}
      */
     assertNotConfirmed(user) {
         if (user.confirmed) {
@@ -706,11 +719,10 @@ class Auth {
     /**
      * Assert the user is not locked.
      *
+     * @throws {AuthError.UserLockedError}
+     *
      * @param {object} The user data
-     *
-     * @throws AuthError.UserLockedError
-     *
-     * @return self
+     * @return {self}
      */
     assertNotLocked(user) {
         if (user.locked) {
@@ -725,7 +737,6 @@ class Auth {
      * Hash a password.
      *
      * @param {string} The password to hash
-     *
      * @return {string} The hased password
      */
     hashPassword(password) {
@@ -737,7 +748,6 @@ class Auth {
      *
      * @param {string} The plain text input
      * @param {string} The stored hashed string
-     *
      * @return {boolean} Whether they match
      */
     checkHashed(input, stored) {
@@ -748,7 +758,6 @@ class Auth {
 
     /**
      * @param {string} The password string to test
-     *
      * @return {boolean} Whether it is an encrypted password string
      */
     isEncryptedPassword(password) {
@@ -758,9 +767,9 @@ class Auth {
     /**
      * Encrypt a password.
      *
-     * @param {string} The password to encrypt
+     * @throws {ArgumentError}
      *
-     * @throws {ArgumentError}     *
+     * @param {string} The password to encrypt
      * @return {string} The encrypted password
      */
     encryptPassword(password) {
@@ -770,9 +779,9 @@ class Auth {
     /**
      * Decrypt an encrypted password string.
      *
-     * @param {string} The encrypted string
+     * @throws {ArgumentError}
      *
-     * @throws {ArgumentError}     *
+     * @param {string} The encrypted string
      * @return {string} The decrypted password
      */
     decryptPassword(passwordEncrypted) {
@@ -782,10 +791,10 @@ class Auth {
     /**
      * Get an encrypted token string for credentials.
      *
+     * @throws {ArgumentError}
+     *
      * @param {string} The username
      * @param {string} The password
-     *
-     * @throws {ArgumentError}     *
      * @return {string} The encrypted token string
      */
     getToken(username, password) {
@@ -795,9 +804,9 @@ class Auth {
     /**
      * Parse an encrypted token string into credentials.
      *
-     * @param {string} Then encrypted token string
+     * @throws {ArgumentError}
      *
-     * @throws {ArgumentError}     *
+     * @param {string} The encrypted token string
      * @return {object} The credentials
      */
     parseToken(token) {
@@ -819,11 +828,13 @@ class Auth {
      *
      * @async
      *
+     * @throws {AuthError}
+     * @throws {InternalError}
+     * @throws {ValidateError}
+     *
      * @param {string} The username
      * @param {object} The user data
-     *
-     * @throws {AuthError}     * @throws {InternalError}     * @throws {ValidateError}     *
-     * @return undefined
+     * @return {undefined}
      */
     _updateUser(username, user) {
         username = this.validateUsername(username)
@@ -836,9 +847,10 @@ class Auth {
      *
      * @async
      *
-     * @param function The callback to execute
+     * @throws {AuthError}
+     * @throws {InternalError}
      *
-     * @throws {AuthError}     * @throws {InternalError}     *
+     * @param function The callback to execute
      * @return The return value of the callback
      */
     async wrapInternalError(cb) {
@@ -856,7 +868,8 @@ class Auth {
     /**
      * Ensure the defaults are not used in production environments.
      *
-     * @throws {SecurityError}     *
+     * @throws {SecurityError}
+     *
      * @param {object} (optional) The environment variables
      * @return {boolean} Whether all values are custom
      */
@@ -867,7 +880,7 @@ class Auth {
                 name    : 'AUTH_SALT',
                 value   : this.opts.salt,
                 default : DefaultAuthSalt,
-            }
+            },
         ]
 
         const {error, warning} = securityCheck(checks, env)
