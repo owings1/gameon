@@ -36,6 +36,7 @@ class SmtpEmail {
             port     : env.SMTP_PORT,
             user     : env.SMTP_USERNAME,
             password : env.SMTP_PASSWORD,
+            helo     : env.SMTP_HELO,
             starttls : induceBool(env.SMTP_STARTTLS),
             tlsKeyFile  : env.SMTP_TLSKEY_FILE,
             tlsCertFile : env.SMTP_TLSCERT_FILE,
@@ -51,6 +52,7 @@ class SmtpEmail {
             port     : opts.port,
             user     : opts.user,
             password : opts.password,
+            domain   : opts.helo,
             logger   : this.logger,
             timeout  : opts.connectTimeout,
         }
