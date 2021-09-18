@@ -44,22 +44,22 @@ test:
 ##    - npm install --unsafe-perm
 ##    - npm run-script dist_and_publish
 
-publish_s3:
-  stage: publish
-  when: manual
-  only:
-    - tags
-    - /^v[0-9]+[0-9.]+$/
-  tags:
-    - shell
-  variables:
-    DIST_IMAGE: "${CI_REGISTRY_IMAGE}/dist:${CI_JOB_ID}"
-  before_script:
-    - docker build -t "$DIST_IMAGE" -f res/docker/dist.dockerfile .
-  script:
-    - docker run --rm -e "AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID" -e "AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY" "$DIST_IMAGE" npm run publish
-  after_script:
-    - docker rmi "$DIST_IMAGE"
+#publish_s3:
+#  stage: publish
+#  when: manual
+#  only:
+#    - tags
+#    - /^v[0-9]+[0-9.]+$/
+#  tags:
+#    - shell
+#  variables:
+#    DIST_IMAGE: "${CI_REGISTRY_IMAGE}/dist:${CI_JOB_ID}"
+#  before_script:
+#    - docker build -t "$DIST_IMAGE" -f res/docker/dist.dockerfile .
+#  script:
+#    - docker run --rm -e "AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID" -e "AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY" "$DIST_IMAGE" npm run publish
+#  after_script:
+#    - docker rmi "$DIST_IMAGE"
 
 #publish_docker:
 #  stage: publish
