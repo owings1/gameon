@@ -30,7 +30,7 @@ const {
 
 const {InternalError} = require('../lib/errors.js')
 
-const {createLogger, defaults} = require('../lib/util.js')
+const {createLogger, defaults, induceBool} = require('../lib/util.js')
 
 const ImplClasses = {
     get mock() { return require('./email/mock.js') },
@@ -45,7 +45,7 @@ class Email {
             fromName       : env.EMAIL_FROM_NAME    || DefaultEmailFromName,
             fromAddress    : env.EMAIL_FROM_ADDRESS || DefaultEmailFromAddress,
             connectTimeout : +env.EMAIL_CONNECTTIMEOUT || 60 * 1000,
-            logAllMessages : !!env.EMAIL_LOGALLMESSAGES,
+            logAllMessages : induceBool(env.EMAIL_LOGALLMESSAGES),
         }
     }
 
