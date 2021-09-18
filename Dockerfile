@@ -1,8 +1,8 @@
 FROM node:alpine
 
-WORKDIR /usr/local/share/gameon
-ENV CLICMD /usr/local/share/gameon/bin/run
-RUN chown node:node /usr/local/share/gameon
+WORKDIR /app
+ENV CLICMD /app/bin/run
+RUN chown node:node /app
 RUN cd /usr/local/bin && ln -s $CLICMD gameon
 
 EXPOSE 8080
@@ -14,7 +14,7 @@ COPY package.json .
 COPY package-lock.json .
 #COPY scripts scripts
 
-RUN npm install --omit dev
+RUN --mount=type=secret,id=npmrc,dst=/app/.npmrc npm install --omit dev
 #RUN npm run compile
 
 COPY --chown=node:node . .
