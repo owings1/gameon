@@ -34,7 +34,8 @@ const {createLogger, defaults} = require('../lib/util.js')
 
 const ImplClasses = {
     get mock() { return require('./email/mock.js') },
-    get ses()  { return require('./email/ses.js') },
+    get ses()  { return require('./email/ses.js')  },
+    get smtp() { return require('./email/smtp.js') },
 }
 
 class Email {

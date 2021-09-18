@@ -10,8 +10,8 @@ test:
   stage: test
   tags:
     - docker
-  before_script:
-    - apk --no-cache add python3 build-base
+  #before_script:
+  #  - apk --no-cache add python3 build-base
   script:
     - npm install
     - npm run compile
