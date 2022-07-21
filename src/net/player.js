@@ -23,6 +23,7 @@
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 const Base      = require('../lib/player')
+const Client    = require('./client.js')
 const Constants = require('../lib/constants')
 
 const {White, Red} = Constants
@@ -108,7 +109,9 @@ const Listeners = {
 }
 
 class NetPlayer extends Base {
-    
+    /**
+     * @param {Client} client
+     */
     constructor(client, ...args) {
 
         super(...args)

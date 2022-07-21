@@ -24,32 +24,25 @@
  */
 const {
     Screen,
-    strings: {stringWidth, stripAnsi, ucfirst},
-    types: {isWriteableStream},
+    strings: {stringWidth, stripAnsi},
 } = require('@quale/core')
 
-const {Board} = require('../lib/core.js')
+const {Board, Game, Match} = require('../lib/core.js')
+const {Move} = require('../lib/moves.js')
+const Player = require('../lib/player.js')
 const Themes  = require('./themes.js')
 const IntlHelper = require('../lib/util/intl.js')
 const StringBuilder = require('../lib/util/string-builder.js')
-const {ArgumentError} = require('../lib/errors.js')
+const {nchars} = require('../lib/util.js')
 const {
-    nchars,
-    sp,
-} = require('../lib/util.js')
-const {
-    BoardStrings,
     BottomPoints,
     Chars,
     ColorAbbr,
-    ColorNorm,
     Colors,
     Colors: {Red, White},
     DefaultAnsiEnabled,
-    Direction,
     Opponent,
     OriginPoints,
-    PointOrigins,
     TopPoints,
 } = require('../lib/constants.js')
 
@@ -57,11 +50,26 @@ const DefaultScreen = new Screen({isAnsi: DefaultAnsiEnabled})
 
 class DrawHelper {
 
+    /**
+     * @param {Player}
+     * @return {DrawHelper}
+     */
     static forTermPlayer(player) {
         const {persp, logs, theme, screen, intl} = player
         return new DrawHelper({persp, logs, theme, screen, intl})
     }
 
+    /**
+     * @param {object} params
+     * @param {Game} params.game
+     * @param {Board} params.board
+     * @param {Match} params.match
+     * @param {String} params.persp
+     * @param {Array} params.logs
+     * @param {*} params.theme
+     * @param {Screen} params.screen
+     * @param {IntlHelper} params.intl
+     */
     constructor(params) {
         const {board, game, match, persp, logs, theme, screen, intl} = params
 
@@ -84,10 +92,14 @@ class DrawHelper {
         this.buildBorders()
     }
 
+    /** @type {Function} */
     get __() {
         return this.intl.__
     }
 
+    /**
+     * @return {void}
+     */
     reload() {
 
         const {analyzer} = this.board
@@ -134,16 +146,19 @@ class DrawHelper {
         this.logIndex = 20
     }
 
+    /**
+     * @return {String[]}
+     */
     getLines() {
         return this.getString().split('\n')
     }
 
+    /**
+     * @return {String}
+     */
     getString() {
-
         this.reload()
-
         const b = new StringBuilder
-
         b.add(
             Chars.br,
             // Top point numbers
@@ -151,7 +166,6 @@ class DrawHelper {
             // Top border
             this.borderRow(this.TopBorder),
         )
-
         // Top piece rows
         for (let depth = 0; depth < 6; ++depth) {
             const cubePart = depth - 3
@@ -159,7 +173,6 @@ class DrawHelper {
                 this.pieceRow(depth, TopPoints, cubePart, this.opersp)
             )
         }
-
         b.add(
             // Top overflow row
             this.overflowRow(TopPoints),
@@ -172,7 +185,6 @@ class DrawHelper {
             // Bottom overflow row
             this.overflowRow(BottomPoints),
         )
-
         // Bottom piece rows
         for (let depth = 5; depth >= 0; --depth) {
             const cubePart = 5 - depth
@@ -180,23 +192,22 @@ class DrawHelper {
                 this.pieceRow(depth, BottomPoints, cubePart, this.persp)
             )
         }
-
         b.add(
             // Bottom border
             this.borderRow(this.BottomBorder),
             // Bottom point numbers
             this.numbersRow(BottomPoints),
         )
-
         b.add(Chars.br)
-
         return b.toString()
     }
 
+    /**
+     * @param {Number[]} points
+     * @return {StringBuilder}
+     */
     numbersRow(points) {
-
         const chlk = this.theme.board
-
         return new StringBuilder(
             this.numbers(points),
             chlk.outside(nchars(this.AfterWidth, Chars.sp)),
@@ -205,10 +216,12 @@ class DrawHelper {
         )
     }
 
+    /**
+     * @param {String} border
+     * @return {StringBuilder}
+     */
     borderRow(border) {
-
         const chlk = this.theme.board
-
         return new StringBuilder(
             chlk.border(border),
             chlk.outside(nchars(this.AfterWidth, Chars.sp)),
@@ -217,19 +230,20 @@ class DrawHelper {
         )
     }
 
+    /**
+     * @param {Number} depth
+     * @param {Number[]} points
+     * @param {Number} cubePart
+     * @param {String} owner
+     * @return {StringBuilder}
+     */
     pieceRow(depth, points, cubePart, owner) {
-
         const chlk = this.theme.board
-
         const {chars} = this
-
         const afterStr = this.afterPieceRowString(depth, cubePart, owner).toString()
         const pad = this.AfterWidth - stringWidth(afterStr)
-
         const b = new StringBuilder
-
         b.add(chlk.border(chars.pipe))
-
         points.forEach((point, i) => {
             const {color, count} = this.pointStats[point]
             b.add(this.pieceStr(count > depth && color, i === 0 || i === 6))
@@ -240,7 +254,6 @@ class DrawHelper {
                 )
             }
         })
-
         b.add(
             chlk.inside('  '),
             chlk.border(chars.pipe),
@@ -248,19 +261,18 @@ class DrawHelper {
             this.sideLog(pad),
             Chars.br,
         )
-
         return b
     }
 
+    /**
+     * @param {Number[]} points
+     * @return {StringBuilder}
+     */
     overflowRow(points) {
-
         const chlk = this.theme.board
-
         const b = new StringBuilder
         const {chars} = this
-
         b.add(chlk.border(chars.pipe))
-
         points.forEach((point, i) => {
             const {count} = this.pointStats[point]
             b.add(this.overflowStr(count, i === 0 || i === 6))
@@ -271,57 +283,50 @@ class DrawHelper {
                 )
             }
         })
-
         b.add(
             chlk.inside('  '),
             chlk.border(chars.pipe),
             this.sideLog(this.AfterWidth),
             Chars.br,
         )
-
         return b
     }
 
+    /**
+     * @param {String} color
+     * @param {Number} cubePart
+     * @return {StringBuilder}
+     */
     barRow(color, cubePart) {
-
         const b = new StringBuilder
-
         const count = this.barCounts[color]
-
         b.add(this.barRowStr(color, count))
-
         let cubeStr
         if (this.cubeValue && !this.cubeOwner) {
             cubeStr = this.cubePartStr(cubePart)
         } else {
             cubeStr = Chars.empty
         }
-
         b.add(cubeStr)
-
         const pad = this.AfterWidth - stringWidth(cubeStr.toString())
-
         b.add(this.sideLog(pad))
         b.add(Chars.br)
-
         return b
     }
 
+    /**
+     * @return {StringBuilder}
+     */
     middleRow() {
-
         const chlk = this.theme.board
-
         const {chars, PiecePad} = this
-
         let cubeStr
         if (this.cubeValue && !this.cubeOwner) {
             cubeStr = this.cubePartStr(1)
         } else {
             cubeStr = Chars.empty
         }
-
         const pad = this.AfterWidth - stringWidth(cubeStr.toString())
-
         return new StringBuilder(
             chlk.border(chars.pipe),
             chlk.inside(nchars(6 * PiecePad + 1, Chars.sp)),
@@ -335,11 +340,13 @@ class DrawHelper {
         )
     }
 
+    /**
+     * @param {Number} pad
+     * @return {StringBuilder}
+     */
     sideLog(pad) {
-
         const chlk = this.theme.board
         const n = this.logIndex--
-
         let maxWidth = this.maxLogWidth, message
         if (this.columns > 97) {
             pad += 1
@@ -355,7 +362,6 @@ class DrawHelper {
         } else {
             message = Chars.empty
         }
-
         return new StringBuilder(
             chlk.outside(nchars(pad, Chars.sp)),
             message,
@@ -363,14 +369,14 @@ class DrawHelper {
         )
     }
 
+    /**
+     * @param {Number[]} points
+     * @return {StringBuilder}
+     */
     numbers(points) {
-
         const chlk = this.theme.board
-
         const b = new StringBuilder
-
         b.add(chlk.pointLabel(Chars.sp))
-
         points.forEach((point, i) => {
             let pad = this.PiecePad
             if (i === 0 || i === 6) {
@@ -383,25 +389,23 @@ class DrawHelper {
                 b.add(chlk.pointLabel(nchars(4, Chars.sp)))
             }
         })
-
         b.add(chlk.pointLabel(nchars(3, Chars.sp)))
-
         return b
     }
 
+    /**
+     * @param {String} color
+     * @param {Number} count
+     * @return {StringBuilder}
+     */
     barRowStr(color, count) {
-
         const chlk = this.theme.board
-
         const {chars} = this
-
         const b = new StringBuilder
-
         b.add(
             chlk.border(chars.pipe),
             chlk.inside(nchars(6 * this.PiecePad + 1, ' ')),
         )
-
         if (count) {
             b.add(
                 // i18n-extract play.colorLetter.Red
@@ -416,48 +420,54 @@ class DrawHelper {
                 chlk.inside(' '),
             )
         }
-
         b.add(
             chlk.inside(nchars(6 * this.PiecePad, ' ')),
             chlk.border(chars.pipe),
         )
-
         return b
     }
 
+    /**
+     * @param {Number} count
+     * @param {Boolean} isFirst
+     * @return {StringBuilder}
+     */
     overflowStr(count, isFirst = false) {
-
         const chlk = this.theme.board
-
         const countStr = count > 6 ? '' + count : Chars.empty
         const pad = this.PiecePad - isFirst - countStr.length
-
         return new StringBuilder(
             chlk.inside(nchars(pad, Chars.sp)),
             chlk.inside.dim(countStr),
         )
     }
 
-    // the string for the piece color, if any
+    /**
+     * The string for the piece color, if any.
+     * 
+     * @param {String} color
+     * @param {Boolean} isFirst
+     * @return {StringBuilder}
+     */
     pieceStr(color, isFirst = false) {
-
         const chlk = this.theme.board
-
         const b = new StringBuilder
-
         b.add(chlk.inside(nchars(this.PiecePad - isFirst - 1, Chars.sp)))
-
         if (color) {
             b.add(chlk.piece[color.toLowerCase()](ColorAbbr[color])) // i18n-ignore-line
         } else {
             b.add(chlk.inside(Chars.sp))
         }
-
         return b
     }
 
+    /**
+     * @param {Number} depth
+     * @param {Number} cubePart
+     * @param {String} owner
+     * @return {StringBuilder|String}
+     */
     afterPieceRowString(depth, cubePart, owner) {
-
         switch (depth) {
             case 0:
                 // Home
@@ -480,14 +490,15 @@ class DrawHelper {
         }
     }
 
+    /**
+     * @param {String} color
+     * @param {Number} count
+     * @return {StringBuilder}
+     */
     homeCountStr(color, count) {
-
         const chlk = this.theme.board
-
         const b = new StringBuilder
-
         b.add(chlk.outside(Chars.dblSp))
-
         if (count) {
             b.add(
                 chlk.outside.piece[color.toLowerCase()](ColorAbbr[color]), // i18n-ignore-line
@@ -495,14 +506,15 @@ class DrawHelper {
                 chlk.outside(count),
             )
         }
-
         return b
     }
 
+    /**
+     * @param {Number} count
+     * @return {StringBuilder}
+     */
     pipCountStr(count) {
-
         const chlk = this.theme.board
-
         return new StringBuilder(
             chlk.outside(Chars.sp),
             chlk.outside.pipCount.bold(count),
@@ -511,30 +523,31 @@ class DrawHelper {
         )
     }
 
+    /**
+     * @param {Number} score
+     * @param {Number} total
+     * @return {StringBuilder}
+     */
     matchScoreStr(score, total) {
-
         const chlk = this.theme.board
-
         return new StringBuilder(
             chlk.outside(Chars.sp),
             chlk.outside(score + '/' + total + 'pts'),
         )
     }
 
+    /**
+     * @param {Number} cubePart
+     * @return {StringBuilder|String}
+     */
     cubePartStr(cubePart) {
-
         const chlk = this.theme.board
-
         const {chars, cubeValue, isCrawford, cubeEnabled} = this
-
         if (!cubeEnabled) {
             return chlk.outside(nchars(6, Chars.sp))
         }
-
         const b = new StringBuilder
-
         const ch = isCrawford ? chlk.cube.inactive : chlk.cube.active
-
         switch (cubePart) {
             case 0:
                 b.add(ch(this.CubeTopBorder))
@@ -554,21 +567,26 @@ class DrawHelper {
                 b.add(ch(this.CubeBottomBorder))
                 break
         }
-
         return chlk.outside(Chars.sp) + b.toString()
     }
 
+    /**
+     * @param {String} method
+     * @param {*} args...
+     * @return {void}
+     */
     report(method, ...args) {
         const res = this.reporter[method](...args)
         this.logs.push(res.toString())
     }
 
+    /**
+     * @return {void}
+     */
     buildBorders() {
-
         const {chars} = this
         const quadWidth = Math.floor(this.BoardWidth / 2 - 1)
         const quadChars = nchars(quadWidth, chars.dash)
-
         this.TopBorder = new StringBuilder(
             chars.top.left,
             quadChars,
@@ -577,7 +595,6 @@ class DrawHelper {
             quadChars,
             chars.top.right,
         ).toString()
-
         this.BottomBorder = new StringBuilder(
             chars.foot.left,
             quadChars,
@@ -586,13 +603,11 @@ class DrawHelper {
             quadChars,
             chars.foot.right,
         ).toString()
-
         this.CubeTopBorder = new StringBuilder(
             chars.top.left,
             nchars(3, chars.dash),
             chars.top.right,
         ).toString()
-
         this.CubeBottomBorder = new StringBuilder(
             chars.foot.left,
             nchars(3, chars.dash),
@@ -603,18 +618,24 @@ class DrawHelper {
 
 class Reporter {
 
+    /**
+     * @param {DrawHelper} inst
+     */
     constructor(inst) {
         this.inst = inst
     }
 
+    /** @type {Function} */
     get chlk() {
         return this.inst.theme.board.log
     }
 
+    /**
+     * @param {Number} num
+     * @return {StringBuilder}
+     */
     gameStart(num) {
-
         const {chlk} = this
-
         const b = new StringBuilder
         b.add(
             chlk.gameStatus('Starting game')
@@ -628,10 +649,13 @@ class Reporter {
         return b
     }
 
+    /**
+     * @param {String} color
+     * @param {Array} dice
+     * @return {StringBuilder}
+     */
     firstRollWinner(color, dice) {
-
         const {chlk} = this
-
         return new StringBuilder(
             chlk.piece[color.toLowerCase()](color), // i18n-ignore-line
             chlk(' goes first with '),
@@ -641,10 +665,12 @@ class Reporter {
         )
     }
 
+    /**
+     * @param {String} color
+     * @return {StringBuilder}
+     */
     turnStart(color) {
-
         const {chlk} = this
-
         return new StringBuilder(
             chlk.dim('---'),
             chlk(Chars.sp),
@@ -653,10 +679,13 @@ class Reporter {
         )
     }
 
+    /**
+     * @param {String} color
+     * @param {Array} dice
+     * @return {StringBuilder}
+     */
     playerRoll(color, dice) {
-
         const {chlk} = this
-
         return new StringBuilder(
             chlk.piece[color.toLowerCase()](color), // i18n-ignore-line
             chlk(' rolls '),
@@ -666,10 +695,12 @@ class Reporter {
         )
     }
 
+    /**
+     * @param {String} color
+     * @return {StringBuilder}
+     */
     cantMove(color) {
-
         const {chlk} = this
-
         return new StringBuilder(
             chlk.piece[color.toLowerCase()](color), // i18n-ignore-line
             chlk(Chars.sp),
@@ -677,10 +708,13 @@ class Reporter {
         )
     }
 
+    /**
+     * @param {String} color
+     * @param {Array} dice
+     * @return {StringBuilder}
+     */
     forceMove(color, dice) {
-
         const {chlk} = this
-
         return new StringBuilder(
             chlk.notice('Force move'),
             chlk(' for '),
@@ -692,6 +726,11 @@ class Reporter {
         )
     }
 
+    /**
+     * @param {Move} move
+     * @param {Boolean} isShort
+     * @return {StringBuilder}
+     */
     move(move, isShort) {
         if (move.isRegular) {
             return this.regularMove(move, isShort)
@@ -704,10 +743,13 @@ class Reporter {
         }
     }
 
+    /**
+     * @param {Move} move
+     * @param {Boolean} isShort
+     * @return {StringBuilder}
+     */
     comeInMove({color, dest, isHit}, isShort) {
-
         const {persp} = this.inst
-
         return this._move(
             color,
             'bar',
@@ -717,10 +759,13 @@ class Reporter {
         )
     }
 
+    /**
+     * @param {Move} move
+     * @param {Boolean} isShort
+     * @return {StringBuilder}
+     */
     regularMove({color, origin, dest, isHit}, isShort) {
-
         const {persp} = this.inst
-
         return this._move(
             color,
             OriginPoints[persp][origin],
@@ -730,10 +775,13 @@ class Reporter {
         )
     }
 
+    /**
+     * @param {Move} move
+     * @param {Boolean} isShort
+     * @return {StringBuilder}
+     */
     bearoffMove({color, origin}, isShort) {
-
         const {persp} = this.inst
-
         return this._move(
             color,
             OriginPoints[persp][origin],
@@ -743,20 +791,23 @@ class Reporter {
         )
     }
 
+    /**
+     * @param {String} color
+     * @param {String|Number} from
+     * @param {String|Number} to
+     * @param {Boolean} isHit
+     * @param {Boolean} isShort
+     * @return {StringBuilder}
+     */
     _move(color, from, to, isHit, isShort) {
-
         const {chlk} = this
-
-        const {persp} = this.inst
         const b = new StringBuilder
-
         if (!isShort) {
             b.add(
                 chlk.piece[color.toLowerCase()](color), // i18n-ignore-line
                 chlk(' moves '),
             )
         }
-
         b.add(
             chlk(from),
             chlk(Chars.sp),
@@ -764,21 +815,21 @@ class Reporter {
             chlk(Chars.sp),
             chlk(to),
         )
-
         if (isHit) {
             b.add(
                 chlk(Chars.sp),
                 chlk.notice('HIT'),
             )
         }
-
         return b
     }
 
+    /**
+     * @param {String} color
+     * @return {StringBuilder}
+     */
     doubleOffered(color) {
-
         const {chlk} = this
-
         return new StringBuilder(
             chlk.piece[color.toLowerCase()](color), // i18n-ignore-line
             chlk(Chars.sp),
@@ -786,10 +837,12 @@ class Reporter {
         )
     }
 
+    /**
+     * @param {String} color
+     * @return {StringBuilder}
+     */
     doubleDeclined(color) {
-
         const {chlk} = this
-
         return new StringBuilder(
             chlk.piece[color.toLowerCase()](color), // i18n-ignore-line
             chlk(Chars.sp),
@@ -797,10 +850,13 @@ class Reporter {
         )
     }
 
+    /**
+     * @param {String} cubeOwner
+     * @param {Number} cubeValue
+     * @return {StringBuilder}
+     */
     gameDoubled(cubeOwner, cubeValue) {
-
         const {chlk} = this
-
         return new StringBuilder(
             chlk.piece[cubeOwner.toLowerCase()](cubeOwner), // i18n-ignore-line
             chlk(' owns the cube at '),
@@ -809,10 +865,13 @@ class Reporter {
         )
     }
 
+    /**
+     * @param {String} winner
+     * @param {Number} finalValue
+     * @return {StringBuilder}
+     */
     gameEnd(winner, finalValue) {
-
         const {chlk} = this
-
         return new StringBuilder(
             chlk.piece[winner.toLowerCase()](winner), // i18n-ignore-line
             chlk.gameStatus(' wins game for '),
@@ -821,10 +880,14 @@ class Reporter {
         )
     }
 
+    /**
+     * @param {String} winner
+     * @param {Number} winnerPoints
+     * @param {Number} loserPoints
+     * @return {StringBuilder}
+     */
     matchEnd(winner, winnerPoints, loserPoints) {
-
         const {chlk} = this
-
         return new StringBuilder(
             chlk.piece[winner.toLowerCase()](winner), // i18n-ignore-line
             chlk.gameStatus(' wins the match '),
@@ -834,6 +897,9 @@ class Reporter {
         )
     }
 
+    /**
+     * @return {String}
+     */
     hr() {
         return this.chlk.dim('-----------')
     }

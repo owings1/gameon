@@ -42,11 +42,9 @@ const {
 const {
     ClientError,
     ConnectionClosedError,
-    ConnectionFailedError,
     MatchCanceledError,
     ParallelRequestError,
     UnexpectedResponseError,
-    UnhandledMessageError,
 } = require('../lib/errors')
 
 /**
@@ -72,9 +70,9 @@ class Client extends EventEmitter {
     /**
      * @constructor
      *
-     * @param {object} (optional) The credentials {serverUrl, username, password}
+     * @param {object} credentials The credentials {serverUrl, username, password}
      */
-    constructor(credentials) {
+    constructor(credentials = undefined) {
 
         super()
 
@@ -102,11 +100,8 @@ class Client extends EventEmitter {
     /**
      * Connect to the socket server.
      *
-     * @async
-     *
      * @throws {ClientError}
-     *
-     * @return {undefined}
+     * @return {Promise}
      */
     connect() {
 
@@ -234,7 +229,7 @@ class Client extends EventEmitter {
      * @async
      *
      * @throws {ClientError}
-     * @throws {GameError.MatchCanceledError}
+     * @throws {MatchCanceledError}
      *
      * @emits matchCreated
      * @emits opponentJoined
@@ -276,7 +271,7 @@ class Client extends EventEmitter {
      *
      * @emits matchJoined
      *
-     * @param {integer} The match ID
+     * @param {integer} id The match ID
      * @return {Match}
      */
     async joinMatch(id) {
@@ -305,14 +300,14 @@ class Client extends EventEmitter {
      * @async
      *
      * @throws {ClientError}     
-     * @throws {GameError.MatchCanceledError}
-     * @throws {MenuError.WaitingAbortedError}
+     * @throws {MatchCanceledError}
+     * @throws {WaitingAbortedError}
      *
      * @emits matchRequest
      * @emits matchResponse
      *
-     * @param {string} The play action
-     * @param {object} (optional) Additional request data
+     * @param {string} action The play action
+     * @param {object} params Additional request data
      * @return {object} The response
      */
     async matchRequest(action, params) {
@@ -325,8 +320,8 @@ class Client extends EventEmitter {
 
     /**
      *
-     * @param {Error}
-     * @return {boolean} Whether a reject handler was called.
+     * @param {Error} err
+     * @return {Boolean} Whether a reject handler was called.
      */
     cancelWaiting(err) {
         if (this.messageReject) {
@@ -342,8 +337,8 @@ class Client extends EventEmitter {
      * Emit matchCanceled if there is an active match, and clear the current
      * match properties.
      *
-     * @param {Error} The error to pass to the matchCanceled event
-     * @return {boolean} Whether there was an active match AND a listener attached
+     * @param {Error} err The error to pass to the matchCanceled event
+     * @return {Boolean} Whether there was an active match AND a listener attached
      */
     cancelMatch(err) {
         if (!this.match) {
@@ -364,7 +359,7 @@ class Client extends EventEmitter {
     /**
      * Clear the current match properties.
      *
-     * @return {self}
+     * @return {Client} self
      */
     clearCurrentMatch() {
         return update(this, {
@@ -375,19 +370,19 @@ class Client extends EventEmitter {
     }
 
     /**
-     * @param {object|string}
+     * @param {object|string} params
      * @return {object}
      */
     matchParams(params) {
-        if (typeof params == 'string') {
+        if (typeof params === 'string') {
             params = {action: params}
         }
         return {id: this.matchId, color: this.color, ...params}
     }
 
     /**
-     * @param {string|null} The server URL
-     * @return {self}
+     * @param {string|null} serverUrl The server URL
+     * @return {Client} self
      */
     setServerUrl(serverUrl) {
         this.serverSocketUrl = httpToWs(serverUrl)
@@ -396,31 +391,22 @@ class Client extends EventEmitter {
     }
 
     /**
-     * `isConnected` (boolean)
+     * @type {Boolean}
      */
     get isConnected() {
         return Boolean(this.conn && this.conn.connected)
     }
 
     /**
-     * `logLevel` (integer)
+     * @type {Number}
      */
     get logLevel() {
         return this.logger.logLevel
     }
 
-    /**
-     * `logLevel` (integer)
-     */
     set logLevel(n) {
         this.logger.logLevel = n
     }
-
-    /**
-     * ┏━━━━━━━━━━━━━━━━━┓
-     * ┃ Private Methods ┃
-     * ┗━━━━━━━━━━━━━━━━━┛
-     */
 
     /**
      * Send a message, then wait for a response, optionally of a specific action.
@@ -433,8 +419,8 @@ class Client extends EventEmitter {
      * @throws {GameError.MatchCanceledError}
      * @throws {MenuError.WaitingAbortedError}
      *
-     * @param {object} The request data.
-     * @param {string} (optional) The expected action of the response.
+     * @param {object} req The request data.
+     * @param {string} action The expected action of the response.
      * @return {object|Error|null}
      */
     _sendAndWaitForResponse(req, action = null) {
@@ -470,14 +456,14 @@ class Client extends EventEmitter {
      * @emits `matchCanceled`
      * @emits `responseError`
      *
-     * @throws {ClientError.ConnectionClosedError}
-     * @throws {ClientError.ParallelRequestError}
-     * @throws {ClientError.UnexpectedResponseError}
+     * @throws {ConnectionClosedError}
+     * @throws {ParallelRequestError}
+     * @throws {UnexpectedResponseError}
      * @throws {ClientError}
-     * @throws {GameError.MatchCanceledError}
-     * @throws {MenuError.WaitingAbortedError}
+     * @throws {MatchCanceledError}
+     * @throws {WaitingAbortedError}
      *
-     * @param {string} (optional) The expected action of the response
+     * @param {string} action The expected action of the response
      * @return {object|Error|null}
      */
     async _waitForResponse(action = null) {
@@ -593,7 +579,7 @@ class Client extends EventEmitter {
      * @emits unhandledMessage
      * @emits error
      *
-     * @param {object}
+     * @param {object} data
      */
     _handleMessage(data) {
 
@@ -639,7 +625,7 @@ class Client extends EventEmitter {
     }
 
     /**
-     * @param {object}
+     * @param {object} req
      * @return {self}
      */
     _sendMessage(req) {
@@ -651,7 +637,6 @@ class Client extends EventEmitter {
 
     /**
      * @async
-     *
      * @throws {ClientError}
      *
      * @return {object}

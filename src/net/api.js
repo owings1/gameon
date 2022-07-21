@@ -45,10 +45,19 @@ const Messages = {
 
 class Api {
 
-    static defaults(env) {
+    /**
+     * Class default options.
+     * 
+     * @return {object}
+     */
+    static defaults() {
         return {}
     }
 
+    /**
+     * @param {Auth} auth
+     * @param {object} opts
+     */
     constructor(auth, opts) {
 
         this.opts = Util.defaults(Api.defaults(process.env), opts)

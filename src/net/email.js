@@ -40,6 +40,10 @@ const ImplClasses = {
 
 class Email {
 
+    /**
+     * @param {object} env
+     * @return {object}
+     */
     static defaults(env) {
         return {
             fromName       : env.EMAIL_FROM_NAME    || DefaultEmailFromName,
@@ -49,6 +53,11 @@ class Email {
         }
     }
 
+    /**
+     * @param {object} opts
+     * @param {object} env
+     * @return {Email}
+     */
     static create(opts, env) {
         env = env || process.env
         const type = (opts && opts.emailType) || env.EMAIL_TYPE || DefaultEmailType
@@ -58,15 +67,23 @@ class Email {
         return email
     }
 
+    /**
+     * @param {Email} impl
+     * @param {object} opts
+     */
     constructor(impl, opts) {
         this.impl = impl
         this.opts = defaults(Email.defaults(process.env), opts)
         this.logger = createLogger(this, {type: 'server', inspect: {depth: 4}})
     }
 
-    // standard is SES sendEmail structure
-    // see https://docs.aws.amazon.com/AWSJavaScriptSDK/latest/AWS/SES.html#sendEmail-property
+    /**
+     * @async
+     * @param {object} params
+     */
     async send(params) {
+        // standard is SES sendEmail structure
+        // see https://docs.aws.amazon.com/AWSJavaScriptSDK/latest/AWS/SES.html#sendEmail-property
         const source = this.opts.fromName + ' <' + this.opts.fromAddress + '>'
         params = {...params, ...{Source: source}}
         try {
@@ -80,6 +97,7 @@ class Email {
         }
     }
 
+    /** @type {Number} */
     get logLevel() {
         return this.logger.logLevel
     }

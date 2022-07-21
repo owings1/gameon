@@ -31,7 +31,6 @@ const {
     DefaultAuthSalt,
     DefaultAuthSaltHash,
     DefaultAuthType,
-    DefaultEmailImpl,
     DefaultPasswordHelp,
     DefaultPasswordMin,
     DefaultPasswordRegex,
@@ -41,10 +40,8 @@ const {
 } = require('../lib/constants.js')
 
 const {
-    AuthError,
     BadCredentialsError,
     InternalError,
-    NotImplementedError,
     SecurityError,
     UserConfirmedError,
     UserExistsError,
@@ -100,7 +97,7 @@ class Auth {
     /**
      * Get the default options.
      *
-     * @param {object} (optional) The environment variables
+     * @param {object} env The environment variables
      * @return {object} The default options
      */
     static defaults(env) {
@@ -128,9 +125,9 @@ class Auth {
      *
      * @throws {TypeError}
      *
-     * @param {object} (optional) The combined auth and impl options, with a key
+     * @param {object} opts The combined auth and impl options, with a key
      *       `authType` specifying the implmentation (directory, s3, anonymous)
-     * @param {object} (optional) The environment variables
+     * @param {object} env The environment variables
      * @return {Auth} The auth instance
      */
     static create(opts, env) {
@@ -146,32 +143,23 @@ class Auth {
      *
      * @throws {Error}
      *
-     * @param {AuthImpl} The implementation instance
-     * @param {object} (optional) The options
+     * @param {AuthImpl} impl The implementation instance
+     * @param {object} opts The options
      */
     constructor(impl, opts) {
-
         this.impl = impl
-
         this.opts = defaults(Auth.defaults(process.env), opts)
-
         this.logger = createLogger(this, {type: 'server'})
-
         // TODO: should this be passed in constructor?
         this.email = Email.create({
             ...opts,
             ...this.opts,
             connectTimeout: this.opts.emailTimeout,
         })
-
         this._checkSecurity(process.env)
-
         this.saltHash = hash(this.opts.saltHash, this.opts.salt, 'base64')
-
         this.saltMd5 = hash('md5', this.opts.salt, 'hex')
-
         this.passwordRegex = new RegExp(this.opts.passwordRegex)
-
         // Fail fast.
         hash(this.opts.hash)
     }
@@ -187,8 +175,8 @@ class Auth {
      * @throws {InternalError}
      * @throws {ValidateError}
      *
-     * @param {string} The username
-     * @param {string} The password
+     * @param {String} username The username
+     * @param {String} password The password
      * @return {object} The user data with `passwordEncrypted` and `token` keys
      */
     async authenticate(username, password) {
@@ -242,9 +230,9 @@ class Auth {
      * @throws {InternalError}
      * @throws {ValidateError}
      *
-     * @param {string} The new username
-     * @param {string} The password
-     * @param {boolean} (optional) Whether to create the user as already confirmed
+     * @param {String} username The new username
+     * @param {String} password The password
+     * @param {Boolean} confirmed Whether to create the user as already confirmed
      * @return {object} The user data with `passwordEncrypted` and `token` keys
      */
     async createUser(username, password, confirmed = false) {
@@ -289,7 +277,7 @@ class Auth {
      * @throws {InternalError}
      * @throws {ValidateError}
      *
-     * @param {string} The username
+     * @param {String} username The username
      * @return {object} The user data
      */
     async readUser(username) {
@@ -306,8 +294,8 @@ class Auth {
      * @throws {InternalError}
      * @throws {ValidateError}
      *
-     * @param {string} The username
-     * @return {boolean} Whether the user exists
+     * @param {String} username The username
+     * @return {Boolean} Whether the user exists
      */
     async userExists(username) {
         username = this.validateUsername(username)
@@ -337,8 +325,8 @@ class Auth {
      * @throws {InternalError}
      * @throws {ValidateError}
      *
-     * @param {string} The username
-     * @return {undefined}
+     * @param {String} username The username
+     * @return {void}
      */
     async deleteUser(username) {
         if (!(await this.userExists(username))) {
@@ -358,7 +346,7 @@ class Auth {
      * @throws {InternalError}
      * @throws {ValidateError}
      *
-     * @param {string} The username
+     * @param {String} username The username
      * @return {object} The user data
      */
     async sendConfirmEmail(username) {
@@ -415,7 +403,7 @@ class Auth {
      * @throws {InternalError}
      * @throws {ValidateError}
      *
-     * @param {string} The username
+     * @param {String} username The username
      * @return {object} The user data
      */
     async sendResetEmail(username) {
@@ -471,8 +459,8 @@ class Auth {
      * @throws {InternalError}
      * @throws {ValidateError}
      *
-     * @param {string} The username
-     * @param {string} The confirm key
+     * @param {String} username The username
+     * @param {String} confirmKey The confirm key
      * @return {object} The user data
      */
     async confirmUser(username, confirmKey) {
@@ -512,9 +500,9 @@ class Auth {
      * @throws {InternalError}
      * @throws {ValidateError}
      *
-     * @param {string} The username
-     * @param {string} The new password
-     * @param {string} The reset key
+     * @param {String} username The username
+     * @param {String} passowrd The new password
+     * @param {String} resetKey The reset key
      * @return {object} The user data
      */
     async resetPassword(username, password, resetKey) {
@@ -558,9 +546,9 @@ class Auth {
      * @throws {InternalError}
      * @throws {ValidateError}
      *
-     * @param {string} The username
-     * @param {string} The old password
-     * @param {string} The new password
+     * @param {String} username The username
+     * @param {String} oldPassword The old password
+     * @param {String} newPassword The new password
      * @return {object} The user data
      */
     async changePassword(username, oldPassword, newPassword) {
@@ -598,7 +586,7 @@ class Auth {
      * @throws {InternalError}
      * @throws {ValidateError}
      *
-     * @param {string} The username
+     * @param {String} username The username
      * @return {object} The user data
      */
     async lockUser(username) {
@@ -621,7 +609,7 @@ class Auth {
      *
      * @async
      *
-     * @param {string} The username
+     * @param {String} username The username
      * @return {object} The user data
      */
     async unlockUser(username) {
@@ -644,8 +632,8 @@ class Auth {
     /**
      * @throws {RequestError.ValidateError}
      *
-     * @param {string} The username to test
-     * @return {string} The username lowercased
+     * @param {String} str The username to test
+     * @return {String} The username lowercased
      */
     validateUsername(str) {
         const Msg = ValidateMessages
@@ -665,8 +653,8 @@ class Auth {
     /**
      * @throws {RequestError.ValidateError}
      *
-     * @param {string} The password to test
-     * @return {string} The input string
+     * @param {String} str The password to test
+     * @return {String} The input string
      */
     validatePassword(str) {
         const {opts} = this
@@ -691,7 +679,7 @@ class Auth {
      *
      * @throws {AuthError.UserNotConfirmedError}
      *
-     * @param {object} The user data
+     * @param {object} user The user data
      * @return {self}
      */
     assertConfirmed(user) {
@@ -706,7 +694,7 @@ class Auth {
      *
      * @throws {AuthError.UserConfirmedError}
      *
-     * @param {object} The user data
+     * @param {object} user The user data
      * @return {self}
      */
     assertNotConfirmed(user) {
@@ -721,7 +709,7 @@ class Auth {
      *
      * @throws {AuthError.UserLockedError}
      *
-     * @param {object} The user data
+     * @param {object} user The user data
      * @return {self}
      */
     assertNotLocked(user) {
@@ -736,8 +724,8 @@ class Auth {
     /**
      * Hash a password.
      *
-     * @param {string} The password to hash
-     * @return {string} The hased password
+     * @param {String} password The password to hash
+     * @return {String} The hased password
      */
     hashPassword(password) {
         return hash(this.opts.hash, password + this.opts.salt, 'base64')
@@ -746,9 +734,9 @@ class Auth {
     /**
      * Compare a plain input to a stored hash.
      *
-     * @param {string} The plain text input
-     * @param {string} The stored hashed string
-     * @return {boolean} Whether they match
+     * @param {String} input The plain text input
+     * @param {String} stored The stored hashed string
+     * @return {Boolean} Whether they match
      */
     checkHashed(input, stored) {
         return Boolean(
@@ -757,8 +745,8 @@ class Auth {
     }
 
     /**
-     * @param {string} The password string to test
-     * @return {boolean} Whether it is an encrypted password string
+     * @param {String} password The password string to test
+     * @return {Boolean} Whether it is an encrypted password string
      */
     isEncryptedPassword(password) {
         return password && password.indexOf(EncryptedFlagPrefix) == 0
@@ -769,8 +757,8 @@ class Auth {
      *
      * @throws {ArgumentError}
      *
-     * @param {string} The password to encrypt
-     * @return {string} The encrypted password
+     * @param {String} password The password to encrypt
+     * @return {String} The encrypted password
      */
     encryptPassword(password) {
         return EncryptedFlagPrefix + encrypt2(password, this.saltMd5)
@@ -781,8 +769,8 @@ class Auth {
      *
      * @throws {ArgumentError}
      *
-     * @param {string} The encrypted string
-     * @return {string} The decrypted password
+     * @param {String} passwordEncrypted The encrypted string
+     * @return {String} The decrypted password
      */
     decryptPassword(passwordEncrypted) {
         return decrypt2(passwordEncrypted.substring(EncryptedFlagPrefix.length), this.saltMd5)
@@ -793,9 +781,9 @@ class Auth {
      *
      * @throws {ArgumentError}
      *
-     * @param {string} The username
-     * @param {string} The password
-     * @return {string} The encrypted token string
+     * @param {String} username The username
+     * @param {String} password The password
+     * @return {String} The encrypted token string
      */
     getToken(username, password) {
         return this.encryptPassword([username, password].join('\t'))
@@ -806,7 +794,7 @@ class Auth {
      *
      * @throws {ArgumentError}
      *
-     * @param {string} The encrypted token string
+     * @param {String} token The encrypted token string
      * @return {object} The credentials
      */
     parseToken(token) {
@@ -817,7 +805,7 @@ class Auth {
     /**
      * Generate a new confirm key.
      *
-     * @return {string} The new confirm key
+     * @return {String} The new confirm key
      */
     generateConfirmKey() {
         return hash(this.opts.hash, uuid() + this.opts.salt, 'hex')
@@ -832,8 +820,8 @@ class Auth {
      * @throws {InternalError}
      * @throws {ValidateError}
      *
-     * @param {string} The username
-     * @param {object} The user data
+     * @param {String} username The username
+     * @param {object} user The user data
      * @return {undefined}
      */
     _updateUser(username, user) {
@@ -850,7 +838,7 @@ class Auth {
      * @throws {AuthError}
      * @throws {InternalError}
      *
-     * @param function The callback to execute
+     * @param {Function} cb The callback to execute
      * @return The return value of the callback
      */
     async wrapInternalError(cb) {
@@ -870,8 +858,8 @@ class Auth {
      *
      * @throws {SecurityError}
      *
-     * @param {object} (optional) The environment variables
-     * @return {boolean} Whether all values are custom
+     * @param {object} env The environment variables
+     * @return {Boolean} Whether all values are custom
      */
     _checkSecurity(env) {
 
@@ -900,22 +888,20 @@ class Auth {
     }
 
     /**
-     * Getter for type. Delegates to impl.type.
+     * Delegates to impl.type.
+     * @type {String}
      */
     get type() {
         return this.impl.type
     }
 
     /**
-     * Getter for logLevel (integer).
+     * @type {Number}
      */
     get logLevel() {
         return this.logger.logLevel
     }
 
-    /**
-     * Setter for logLevel (integer).
-     */
     set logLevel(n) {
         this.logger.logLevel = n
         this.email.logLevel = n
