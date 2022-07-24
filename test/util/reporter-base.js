@@ -55,29 +55,29 @@
  * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-const {
-    arrays  : {append},
-    objects : {lget, lset},
-    strings : {lcfirst, ucfirst},
-    types   : {castToArray},
-} = require('@quale/core')
-const {colors: {Chalk}} = require('@quale/term')
+import {extend} from '@quale/core/arrays.js'
+import {lget, lset} from '@quale/core/objects.js'
+import {lcfirst, ucfirst} from '@quale/core/strings.js'
+import {castToArray} from '@quale/core/types.js'
+import {Chalk} from '@quale/term/colors.js'
+import ms from 'ms'
+// const ms = require('ms')
+import Base from 'mocha/lib/reporters/base'
+import Runner from 'mocha/lib/runner'
+import {stringify as mstringify} from 'mocha/lib/utils'
+// const Base        = require('mocha/lib/reporters/base')
+// const Runner      = require('mocha/lib/runner')
+// const mstringify  = require('mocha/lib/utils').stringify
 
-const ms = require('ms')
-const Base        = require('mocha/lib/reporters/base')
-const Runner      = require('mocha/lib/runner')
-const mstringify  = require('mocha/lib/utils').stringify
-
-const {
+import {
     induceBool,
     induceInt,
-    mapValues,
     nchars,
     sp,
-    stringWidth,
-} = require('../../src/lib/util.js')
+} from '../../src/lib/util.js'
 
-const Chalks = require('./reporter-chalks.js')
+import Chalks from './reporter-chalks.js'
+
 const Diffs  = require('./diffs.js')
 
 const chalk = new Chalk()
@@ -140,7 +140,7 @@ const stringify = arg => typeof arg == 'string' ? arg : mstringify(arg)
  *   - Tracks indententation level and failures count.
  *   - Loads generic listeners to all events and delagates to render*() methods.
  */
-class BaseReporter extends Base {
+export class BaseReporter extends Base {
 
     /**
      * Constructor
@@ -383,8 +383,8 @@ class BaseReporter extends Base {
     collectErrors(test) {
         const errs = []
         if (test && test.err) {
-            append(errs, castToArray(test.err))
-            append(errs, castToArray(test.err.multiple))
+            extend(errs, castToArray(test.err))
+            extend(errs, castToArray(test.err.multiple))
         }
         return errs
     }
@@ -682,7 +682,7 @@ class BaseReporter extends Base {
 /**
  * Default reporter implementation.
  */
-class DefaultReporter extends BaseReporter {
+export class DefaultReporter extends BaseReporter {
 
     /**
      * Add a new line at the start of the test run.
@@ -786,7 +786,7 @@ class DefaultReporter extends BaseReporter {
         // Failures
         if (stats.failures) {
             lines.push(this.indentLine(stLines.failures, tab))
-            append(lines, this.renderFailures(this.failures, tab).split('\n'))
+            extend(lines, this.renderFailures(this.failures, tab).split('\n'))
             lines.push('')
         }
 
@@ -840,13 +840,13 @@ class DefaultReporter extends BaseReporter {
                 if (groupErrors && eidx > 0) {
                     // Show warning line instead of test info after first error.
                     const warning = this.getWarnMulipleLines()
-                    append(lines, this.indentLines(warning, tab + 2))
+                    extend(lines, this.indentLines(warning, tab + 2))
                 } else {
                     // Repeat test info for each error.
-                    append(lines, common)
+                    extend(lines, common)
                 }
 
-                append(lines, [
+                extend(lines, [
                     // The error message.
                     this.indentLines( message , tab + 2),
                     // The diff, if any.
@@ -861,9 +861,4 @@ class DefaultReporter extends BaseReporter {
 
         return lines.join('\n')
     }
-}
-
-module.exports = {
-    BaseReporter,
-    DefaultReporter,
 }

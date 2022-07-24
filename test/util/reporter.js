@@ -22,16 +22,14 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-const {arrays: {append}} = require('@quale/core')
-
-const Base = require('./reporter-base.js').DefaultReporter
-const {pad, nchars, stringWidth} = require('../../src/lib/util.js')
+import {DefaultReporter as Base} from './reporter-base.js'
+import {nchars, stringWidth} from '../../src/lib/util.js'
 
 function wrap (inner, outer) {
     return outer + inner + outer
 }
 
-class Reporter extends Base {
+export default class Reporter extends Base {
 
     constructor(runner, opts) {
         super(runner, opts)
@@ -60,5 +58,3 @@ class Reporter extends Base {
         return this.indentLines(lines, this.counters.tab + 1)
     }
 }
-
-module.exports = Reporter

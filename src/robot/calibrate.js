@@ -22,45 +22,40 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-const Coordinator    = require('../lib/coordinator.js')
-const {Match, Board} = require('../lib/core.js')
-const Robot          = require('./player.js')
-const {
+import Coordinator from '../lib/coordinator.js'
+import {Match} from '../lib/core.js'
+import {
     arrayIncrement,
     chunkArray,
     createLogger,
     defaults,
     sp,
-} = require('../lib/util.js')
-const {
-    Colors: {Red, White},
-} = require('../lib/constants.js')
-const {
+} from '../lib/util.js'
+import {Red, White} from '../lib/constants.js'
+import {
     ConfidenceRobot,
     RobotDelegator,
-} = require('./player.js')
+} from './player.js'
 
-const fs   = require('fs')
-const fse  = require('fs-extra')
-const path = {resolve} = require('path')
-
+import fse from 'fs-extra'
+import {resolve} from 'path'
 const E_Action = {
     Run      : 'run',
     Generate : 'generate',
 }
 
-class Helper {
+export class Helper {
 
     static defaults() {
         return {
-            action      : E_Action.Run
-          , outDir      : null
-          , chunkFile   : null
-          , matchTotal  : 100
-          , startWeight : 0.1
-          , endWeight   : 1.0
-          , increment   : 0.1
-          , chunkSize   : 1000
+            action      : E_Action.Run,
+            outDir      : null,
+            chunkFile   : null,
+            matchTotal  : 100,
+            startWeight : 0.1,
+            endWeight   : 1.0,
+            increment   : 0.1,
+            chunkSize   : 1000,
         }
     }
 
@@ -262,5 +257,3 @@ class UnknownActionError extends Error {
 }
 
 Helper.E_Action = E_Action
-
-module.exports = {Helper}

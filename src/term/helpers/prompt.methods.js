@@ -49,25 +49,24 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
  * OTHER DEALINGS IN THE SOFTWARE.
  */
-const {EventEmitter} = require('events')
-
-const Features = require('./prompt.features.js')
-const {DuplicateKeyError} = require('../../lib/errors.js')
-const {
+import {EventEmitter} from 'events'
+import * as Features from './prompt.features.js'
+import {DuplicateKeyError} from '../../lib/errors.js'
+import {
     keypressName,
     nchars,
     padEnd,
     stringWidth,
-} = require('../../lib/util.js')
+} from '../../lib/util.js'
 
 const NullEmitter = new EventEmitter
 
-function debug(...args) {
+export function debug(...args) {
     const brs = nchars(15, '\n')
     console.log(brs, ...args, brs)
 }
 
-class BaseMethods {
+export class BaseMethods {
 
     _constructor(question) {
         this.emitter = (question.opts && question.opts.emitter) || NullEmitter
@@ -148,7 +147,7 @@ class BaseMethods {
     }
 }
 
-class TextMethods {
+export class TextMethods {
 
     // Generic methods for input/password prompts.
 
@@ -228,7 +227,7 @@ class TextMethods {
     }
 }
 
-class ListMethods {
+export class ListMethods {
 
     static overrides() {
         return ['render']
@@ -448,9 +447,3 @@ class ListMethods {
     }
 }
 
-module.exports = {
-    debug,
-    BaseMethods,
-    ListMethods,
-    TextMethods,
-}

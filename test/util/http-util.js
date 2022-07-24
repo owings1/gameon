@@ -22,12 +22,13 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-const {objects: {update}} = require('@quale/core')
-const fetch = require('node-fetch')
+import {update} from '@quale/core/objects.js'
+// const fetch = require('node-fetch')
+import fetch from 'node-fetch'
 
-const {URLSearchParams} = require('url')
+import {URLSearchParams} from 'url'
 
-function getUrlParams(obj) {
+export function getUrlParams(obj) {
     obj = obj || {}
     const params = new URLSearchParams
     for (let k in obj) {
@@ -37,12 +38,12 @@ function getUrlParams(obj) {
 }
 
 // https://stackoverflow.com/questions/34815845/how-to-send-cookies-with-node-fetch
-function parseCookies (response) {
+export function parseCookies (response) {
     const raw = response.headers.raw()['set-cookie']
     return raw.map(entry => entry.split(';')[0]).join(';')
 }
 
-const httpFixture = {
+export const httpFixture = {
 
     url : function (uri) {
         return this.fixture.baseUrl + uri
@@ -79,12 +80,6 @@ const httpFixture = {
         const method = this.fixture.method.toLowerCase()
         return this[method](this.fixture.uri, ...args)
     },
-}
-
-module.exports = {
-    httpFixture,
-    getUrlParams,
-    parseCookies,
 }
 
 function _getHeaders (_headers, fixture) {

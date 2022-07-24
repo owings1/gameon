@@ -22,33 +22,31 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-const {
-    Screen,
-    types: {castToArray, isFunction},
-} = require('@quale/core')
+import Screen from '@quale/core/screen.js'
+import {castToArray, isFunction} from '@quale/core/types.js'
 
-const {EventEmitter} = require('events')
+import {EventEmitter} from 'events'
 
-const Base = require('../lib/player.js')
-const Themes  = require('./themes.js')
-const {Board} = require('../lib/core.js')
-const {inquirer} = require('./inquirer.js')
-const IntlHelper = require('../lib/util/intl.js')
-const {DrawHelper} = require('./draw.js')
-const {RobotDelegator} = require('../robot/player.js')
-const {
+import Base from '../lib/player.js'
+import Themes  from './themes.js'
+import {Board} from '../lib/core.js'
+import {inquirer} from './inquirer.js'
+import IntlHelper from '../lib/util/intl.js'
+import {DrawHelper} from './draw.js'
+import {RobotDelegator} from '../robot/player.js'
+import {
     Colors,
     DefaultAnsiEnabled,
     DefaultThemeName,
     Opponent,
     OriginPoints,
     PointOrigins,
-} = require('../lib/constants.js')
-const {
+} from '../lib/constants.js'
+import {
     MatchCanceledError,
     WaitingFinishedError,
-} = require('../lib/errors.js')
-const {
+} from '../lib/errors.js'
+import {
     defaults,
     nchars,
     rejectDuplicatePrompter,
@@ -56,7 +54,7 @@ const {
     sortNumericDesc,
     sp,
     uniqueInts,
-} = require('../lib/util.js')
+} from '../lib/util.js'
 
 const Listeners = {
 
@@ -206,7 +204,7 @@ const Listeners = {
 
 const DefaultScreen = new Screen({isAnsi: DefaultAnsiEnabled})
 
-class TermPlayer extends Base {
+export default class TermPlayer extends Base {
 
     static defaults() {
         return {
@@ -854,5 +852,3 @@ class TermRobot extends TermPlayer {
 }
 
 TermPlayer.Robot = TermRobot
-
-module.exports = TermPlayer

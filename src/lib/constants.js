@@ -22,60 +22,63 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-const path = {resolve} = require('path')
-
+import fs from 'fs'
+import path from 'path'
+import { fileURLToPath } from 'url'
+const __filename = fileURLToPath(import.meta.url)
+const __dirname = path.dirname(__filename)
 /**
  * Package info
  */
-const BaseDir = resolve(__dirname, '../..')
-const Pkg = require(resolve(BaseDir, 'package.json'))
-const Version = Pkg.version
+export const BaseDir = path.resolve(__dirname, '../..')
+export const Pkg = JSON.parse(fs.readFileSync(path.resolve(BaseDir, 'package.json')))
+export const Version = Pkg.version
 
-const DefaultLocale = 'en'
-const LocaleNames   = Pkg.lingui.locales.map(locale => path.basename(locale))
-const LocalesDir    = resolve(BaseDir, 'locale')
+export const DefaultLocale = 'en'
+export const LocaleNames   = Pkg.lingui.locales.map(locale => path.basename(locale))
+export const LocalesDir    = path.resolve(BaseDir, 'locale')
 
 /**
  * Test Environment
  */
-const IsTest = parseInt(process.env.GAMEON_TEST) > 0
+export const IsTest = parseInt(process.env.GAMEON_TEST) > 0
 
 /**
  * Core
  */
-const White = 'White'
-const Red   = 'Red'
+export const White = 'White'
+export const Red   = 'Red'
 
-const Colors = {White, Red}
+export const Colors = {White, Red}
 
-const ColorAbbr = {
+export const ColorAbbr = {
     White : 'W',
     Red   : 'R',
 }
 
-const ColorNorm = {
+export const ColorNorm = {
     White,
     Red,
     W : White,
     R : Red,
 }
 
-const Direction = {
+export const Direction = {
     White : 1,
     Red   : -1,
 }
 
-const Opponent = {
+export const Opponent = {
     White : Red,
     Red   : White,
 }
 
-const InsideOrigins = {
+export const InsideOrigins = {
     White : [ 18, 19, 20, 21, 22, 23 ],
     Red   : [ 5, 4, 3, 2, 1, 0 ],
 }
 
-const OutsideOrigins = {
+export const OutsideOrigins = {
     White : [
        0,  1,  2,  3,  4,  5,  6,
        7,  8,  9, 10, 11, 12, 13,
@@ -88,22 +91,22 @@ const OutsideOrigins = {
     ],
 }
 
-const TopPoints = [
+export const TopPoints = [
   13, 14, 15, 16, 17,
   18, 19, 20, 21, 22,
   23, 24
 ]
-const BottomPoints = [
+export const BottomPoints = [
   12, 11, 10, 9, 8,
    7,  6,  5, 4, 3,
    2,  1
 ]
 
-const PointOrigins = {
+export const PointOrigins = {
     Red   : {'-1': -1},
     White : {'-1': -1},
 }
-const OriginPoints = {
+export const OriginPoints = {
     Red   : {'-1': -1},
     White : {'-1': -1},
 }
@@ -126,8 +129,8 @@ function populatePointsAndOrigins(pointOrigins, originPoints) {
 
 populatePointsAndOrigins(PointOrigins, OriginPoints)
 
-const MoveHashes = {}
-const MoveCoords = {}
+export const MoveHashes = {}
+export const MoveCoords = {}
 
 function populateMoveHashesCoords(hashes, coords) {
     const faces = [ 1, 2, 3, 4, 5, 6 ]
@@ -143,14 +146,14 @@ function populateMoveHashesCoords(hashes, coords) {
 
 populateMoveHashesCoords(MoveHashes, MoveCoords)
 
-const BoardStrings = {
+export const BoardStrings = {
     Initial: '0|0|2:W|0:|0:|0:|0:|5:R|0:|3:R|0:|0:|0:|5:W|5:R|0:|0:|0:|3:W|0:|5:W|0:|0:|0:|0:|2:R|0|0',
 }
 
 /**
  * Symbols
  */
-const Chars = {
+ export const Chars = {
     empty : '',
     sp    : ' ',
     dblSp : '  ',
@@ -211,45 +214,45 @@ Chars.table.bot  = Chars.table.bottom
 /**
  * User settings.
  */
-const DefaultAnsiEnabled = !IsTest
-const DefaultThemeName = 'Default'
-const DefaultServerUrl = 'https://gameon.dougowings.net'
-const ObsoleteServerUrls = [
+ export const DefaultAnsiEnabled = !IsTest
+ export const DefaultThemeName = 'Default'
+ export const DefaultServerUrl = 'https://gameon.dougowings.net'
+ export const ObsoleteServerUrls = [
     'ws://bg.dougowings.net:8080',
     'wss://bg.dougowings.net',
     'https://bg.dougowings.net',
 ]
-const CHash = 'a9c0fc569fd231b004d44e718add99e2'
+export const CHash = 'a9c0fc569fd231b004d44e718add99e2'
 
 /**
  * Server, Auth, Email
  */
 /* AUTH_SALT must be set to custom value in production environments. */
-const DefaultAuthSalt  = 'RYm!BtLhPTx4%QrGku_6?Q*NZsfM54Q=Y9?p^q5$9#TM42YcY4WfEGb#48-x88-n'
+export const DefaultAuthSalt  = 'RYm!BtLhPTx4%QrGku_6?Q*NZsfM54Q=Y9?p^q5$9#TM42YcY4WfEGb#48-x88-n'
 /* SESSION_COOKIE must be set to custom value in production environments. */
-const DefaultSessionCookie = 'gasid'
+export const DefaultSessionCookie = 'gasid'
 /* SESSION_SECRET must be set to custom value in production environments. */
-const DefaultSessionSecret = 'D2hjWtg95VkuzhFBVxnhDhSU4J9BYnz8'
+export const DefaultSessionSecret = 'D2hjWtg95VkuzhFBVxnhDhSU4J9BYnz8'
 /* TOKEN_COOKIE must be set to custom value in production environments. */
-const DefaultTokenCookie = 'gatoken'
+export const DefaultTokenCookie = 'gatoken'
 
-const DefaultAuthType         = 'anonymous'
-const DefaultAuthHash         = 'sha512'
-const DefaultAuthSaltHash     = 'sha256'
-const DefaultEmailFromName    = 'Gameon'
-const DefaultEmailFromAddress = 'noreply@nowhere.example'
-const DefaultEmailType        = 'mock'
+export const DefaultAuthType         = 'anonymous'
+export const DefaultAuthHash         = 'sha512'
+export const DefaultAuthSaltHash     = 'sha256'
+export const DefaultEmailFromName    = 'Gameon'
+export const DefaultEmailFromAddress = 'noreply@nowhere.example'
+export const DefaultEmailType        = 'mock'
 // Minimum eight characters, at least one letter and one number:
 // from: https://stackoverflow.com/questions/19605150/regex-for-password-must-contain-at-least-eight-characters-at-least-one-number-a
 // TODO: make translatable
-const DefaultPasswordHelp = 'Minimum eight characters, at least one lowercase letter, one uppercase letter, and one number'
-const DefaultPasswordMin = 8
-const DefaultPasswordRegex = '^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)[a-zA-Z\\d\\w\\W]{8,}$'
-const InvalidUsernameChars = '/\\?%*:|"\'&#'.split('')
-const EncryptedFlagPrefix = 'encrypted_'
+export const DefaultPasswordHelp = 'Minimum eight characters, at least one lowercase letter, one uppercase letter, and one number'
+export const DefaultPasswordMin = 8
+export const DefaultPasswordRegex = '^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)[a-zA-Z\\d\\w\\W]{8,}$'
+export const InvalidUsernameChars = '/\\?%*:|"\'&#'.split('')
+export const EncryptedFlagPrefix = 'encrypted_'
 
 
-const MatchCancelRef = {
+export const MatchCancelRef = {
     peerDisconnected: {
         reason: 'Peer disconnected',
         attrs: {
@@ -315,4 +318,4 @@ const Constants = {
     White,
 }
 
-module.exports = Constants
+export default Constants

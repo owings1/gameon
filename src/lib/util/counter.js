@@ -22,7 +22,7 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-class Counter {
+export default class Counter {
 
     constructor(name) {
         this.isCounter = true
@@ -47,5 +47,3 @@ class Counter {
 }
 
 const CounterCounter = new Counter('CounterCounter')
-
-module.exports = Counter

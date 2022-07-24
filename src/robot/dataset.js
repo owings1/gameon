@@ -22,31 +22,26 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-const Coordinator   = require('../lib/coordinator')
-const {Game, Board} = require('../lib/core')
-const Robot         = require('./player')
-const {
-    Direction,
-    Colors: {Red, White},
-} = require('../lib/constants.js')
-const {
+import Coordinator from '../lib/coordinator.js'
+import {Game, Board} from '../lib/core.js'
+import Robot from './player.js'
+import {Direction, Red, White} from '../lib/constants.js'
+import {
     createLogger,
     defaults,
     destroyAll,
     spreadScore,
-} = require('../lib/util.js')
+} from '../lib/util.js'
+import fse from 'fs-extra'
+import {resolve} from 'path'
 
-const fs   = require('fs')
-const fse  = require('fs-extra')
-const path = {resolve} = require('path')
-
-class Helper {
+export class Helper {
 
     static defaults() {
         return {
-            numGames : 100
-          , outDir   : null
-          , delim    : 0
+            numGames : 100,
+            outDir   : null,
+            delim    : 0,
         }
     }
 
@@ -66,8 +61,8 @@ class Helper {
 
         await fse.ensureDir(outDir)
         const players = {
-            White : this.newBestRobot(White)
-          , Red   : this.newBestRobot(Red)
+            White : this.newBestRobot(White),
+            Red   : this.newBestRobot(Red),
         }
 
         const turnDatas = []
@@ -109,15 +104,15 @@ class Helper {
             const spreadScores = spreadScore(totals)
             const startStructure = Helper.boardStructure(Board.fromStateString(startState))
             const startPos = startStructure.map(i => 1 / (i + 15))
-            const startSpread = spreadScore(startStructure)
+            // const startSpread = spreadScore(startStructure)
             Object.entries(totals).forEach(([endState, score]) => {
                 const endStructure = Helper.boardStructure(Board.fromStateString(endState))
                 const endPos = endStructure.map(i => 1 / (i + 15))
-                const endSpread = spreadScore(endStructure)
+                // const endSpread = spreadScore(endStructure)
                 const scoreSpread = spreadScores[endState]
                 trains.push({
-                    input  : startPos.concat(endPos)
-                  , output : scoreSpread
+                    input  : startPos.concat(endPos),
+                    output : scoreSpread,
                 })
             })
         })
@@ -133,13 +128,13 @@ class Helper {
     // moved from Board class since it wasn't used anywhere else
     static boardStructure(board) {
         return [
-            board.bars.White.length * Direction.White
-          , board.bars.Red.length * Direction.Red
+            board.bars.White.length * Direction.White,
+            board.bars.Red.length * Direction.Red,
         ].concat(board.slots.map(slot =>
             slot.length > 0 ? Direction[slot[0].color] * slot.length : 0
         )).concat([
-            board.homes.White.length * Direction.White
-          , board.homes.Red.length * Direction.Red
+            board.homes.White.length * Direction.White,
+            board.homes.Red.length * Direction.Red,
         ])
     }
 
@@ -178,8 +173,4 @@ class Helper {
         })
     })
     */
-}
-
-module.exports = {
-    Helper
 }

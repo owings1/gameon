@@ -1,7 +1,7 @@
 /**
  * gameon - Test reporter default chalks.
  *
- * Copyright (C) 2020-2021 Doug Owings
+ * Copyright (C) 2020-2022 Doug Owings
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files (the
@@ -22,54 +22,56 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-module.exports = (chalk) => ({
-    diff: {
-        unified: {
-            added     : chalk.green,
-            removed   : chalk.red,
+export default function chalks(chalk) {
+    return {
+        diff: {
+            unified: {
+                added     : chalk.green,
+                removed   : chalk.red,
+            },
+            inline: {
+                added     : chalk.bgGreen.black,
+                removed   : chalk.bgRed.black,
+                number    : chalk.reset,
+                separator : chalk.grey,
+            },
         },
-        inline: {
-            added     : chalk.bgGreen.black,
-            removed   : chalk.bgRed.black,
-            number    : chalk.reset,
-            separator : chalk.grey,
+        error: {
+            title   : chalk.reset,
+            message : chalk.red,
+            stack   : chalk.grey,
         },
-    },
-    error: {
-        title   : chalk.reset,
-        message : chalk.red,
-        stack   : chalk.grey,
-    },
-    stats: {
-        passes   : chalk.green,
-        pending  : chalk.cyan,
-        failures : chalk.red,
-        duration : chalk.grey,
-    },
-    suite: {
-        title : chalk.reset,
-        root  : {
-            title: chalk.reset,
+        stats: {
+            passes   : chalk.green,
+            pending  : chalk.cyan,
+            failures : chalk.red,
+            duration : chalk.grey,
         },
-    },
-    test: {
-        pass: {
-            title  : chalk.grey,
-            symbol : chalk.green,
+        suite: {
+            title : chalk.reset,
+            root  : {
+                title: chalk.reset,
+            },
         },
-        fail: {
-            title: chalk.red,
+        test: {
+            pass: {
+                title  : chalk.grey,
+                symbol : chalk.green,
+            },
+            fail: {
+                title: chalk.red,
+            },
+            pending: {
+                title: chalk.cyan,
+            },
+            speed: {
+                fast   : chalk.grey,
+                medium : chalk.yellow,
+                slow   : chalk.red,
+            },
         },
-        pending: {
-            title: chalk.cyan,
+        warn: {
+            message: chalk.yellow,
         },
-        speed: {
-            fast   : chalk.grey,
-            medium : chalk.yellow,
-            slow   : chalk.red,
-        },
-    },
-    warn: {
-        message: chalk.yellow,
-    },
-})
+    }
+}

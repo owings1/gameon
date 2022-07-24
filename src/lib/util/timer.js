@@ -22,13 +22,12 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-const Counter = require('./counter.js')
-
-const {IllegalStateError} = require('../errors.js')
+import Counter from './counter.js'
+import {IllegalStateError} from '../errors.js'
 
 const TimerCounter = new Counter('TimerCounter')
 
-class Timer {
+export default class Timer {
 
     // For more resolution, see https://stackoverflow.com/a/18197438/794513
 

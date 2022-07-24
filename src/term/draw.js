@@ -22,33 +22,31 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-const {
-    Screen,
-    strings: {stringWidth, stripAnsi},
-} = require('@quale/core')
+import Screen from '@quale/core/screen.js'
+import {stringWidth, stripAnsi} from '@quale/core/strings.js'
 
-const {Board, Game, Match} = require('../lib/core.js')
-const {Move} = require('../lib/moves.js')
-const Player = require('../lib/player.js')
-const Themes  = require('./themes.js')
-const IntlHelper = require('../lib/util/intl.js')
-const StringBuilder = require('../lib/util/string-builder.js')
-const {nchars} = require('../lib/util.js')
-const {
+import {Board, Game, Match} from '../lib/core.js'
+import {Move} from '../lib/moves.js'
+import Player from '../lib/player.js'
+import Themes  from './themes.js'
+import IntlHelper from '../lib/util/intl.js'
+import StringBuilder from '../lib/util/string-builder.js'
+import {nchars} from '../lib/util.js'
+import {
     BottomPoints,
     Chars,
     ColorAbbr,
     Colors,
-    Colors: {Red, White},
     DefaultAnsiEnabled,
     Opponent,
     OriginPoints,
     TopPoints,
-} = require('../lib/constants.js')
+    White,
+} from '../lib/constants.js'
 
 const DefaultScreen = new Screen({isAnsi: DefaultAnsiEnabled})
 
-class DrawHelper {
+export class DrawHelper {
 
     /**
      * @param {Player}
@@ -616,7 +614,7 @@ class DrawHelper {
     }
 }
 
-class Reporter {
+export class Reporter {
 
     /**
      * @param {DrawHelper} inst
@@ -903,9 +901,4 @@ class Reporter {
     hr() {
         return this.chlk.dim('-----------')
     }
-}
-
-module.exports = {
-    DrawHelper,
-    Reporter,
 }

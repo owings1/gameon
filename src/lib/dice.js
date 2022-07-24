@@ -22,32 +22,32 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-const {Red, White} = require('./constants')
+import {Red, White} from './constants.js'
+import {InvalidRollError, InvalidRollDataError} from './errors.js'
 
-const {InvalidRollError, InvalidRollDataError} = require('./errors')
-
-class Dice {
+export default class Dice {
 
     /**
-     * @return integer
+     * @return {Number}
      */
     static rollOne() {
         return Math.ceil(Math.random() * 6)
     }
 
     /**
-     * @return Array[integer]
+     * @return {Number[]}
      */
     static rollTwo() {
         return [Dice.rollOne(), Dice.rollOne()]
     }
 
     /**
-     * @return Array[integer]
+     * @param {Number[]} roll
+     * @return {Number[]}
      */
     static faces(roll) {
         const faces = [roll[0], roll[1]]
-        if (roll[0] == roll[1]) {
+        if (roll[0] === roll[1]) {
             faces.push(roll[0])
             faces.push(roll[1])
         }
@@ -55,7 +55,8 @@ class Dice {
     }
 
     /**
-     * @throws GameError.InvalidRollError
+     * @param {Number} face
+     * @throws {InvalidRollError}
      */
     static checkOne(face) {
         if (!Number.isInteger(face)) {
@@ -70,7 +71,8 @@ class Dice {
     }
 
     /**
-     * @throws GameError.InvalidRollError
+     * @param {Number[]} faces
+     * @throws {InvalidRollError}
      */
     static checkTwo(faces) {
         if (faces.length > 2) {
@@ -81,16 +83,18 @@ class Dice {
     }
 
     /**
-     * @throws GameError.InvalidRollError
+     * @param {Number[]} faces
+     * 
+     * @throws {InvalidRollError}
      */
     static checkFaces(faces)  {
-        if (faces.length == 4) {
+        if (faces.length === 4) {
             Dice.checkOne(faces[0])
-            if (faces[0] != faces[1] || faces[0] != faces[2] || faces[0] != faces[3]) {
+            if (faces[0] !== faces[1] || faces[0] !== faces[2] || faces[0] !== faces[3]) {
                 throw new InvalidRollError('4 faces must be equal')
             }
         } else {
-            if (faces.length != 2) {
+            if (faces.length !== 2) {
                 throw new InvalidRollError('faces must be length 2 or 4')
             }
             Dice.checkOne(faces[0])
@@ -99,23 +103,25 @@ class Dice {
     }
 
     /**
-     * @return string
+     * @param {Number[]} dice
+     * @return {String|null}
      */
     static getWinner(dice) {
-        if (dice[0] == dice[1]) {
+        if (dice[0] === dice[1]) {
             return null
         }
         return dice[0] > dice[1] ? White : Red
     }
 
     /**
-     * @return Array[Array[integer]]
+     * @param {Number[]} faces
+     * @return {Number[][]}
      */
     static sequencesForFaces(faces) {
-        if (faces.length == 2) {
+        if (faces.length === 2) {
             return [
-                [faces[0], faces[1]]
-              , [faces[1], faces[0]]
+                [faces[0], faces[1]],
+                [faces[1], faces[0]],
             ]
         }
         return [
@@ -124,7 +130,8 @@ class Dice {
     }
 
     /**
-     * @return Function
+     * @param {Array} rolls
+     * @return {Function}
      */
     static createRoller(rolls) {
         let rollIndex = 0
@@ -138,9 +145,10 @@ class Dice {
     }
 
     /**
-     * @throws ArgumentError.InvalidRollDataError
+     * @param {object} data
+     * @return {object}
      *
-     * @return Object
+     * @throws {InvalidRollDataError}
      */
     static validateRollsData(data) {
         if (!Array.isArray(data.rolls)) {
@@ -151,8 +159,8 @@ class Dice {
         }
         // check for at least one valid first roll
         let isUniqueFound = false
-        for (var i = 0; i < data.rolls.length; ++i) {
-            var dice = data.rolls[i]
+        for (let i = 0; i < data.rolls.length; ++i) {
+            let dice = data.rolls[i]
             try {
                 Dice.checkTwo(dice)
             } catch (err) {
@@ -168,5 +176,3 @@ class Dice {
         return data
     }
 }
-
-module.exports = Dice

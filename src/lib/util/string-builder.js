@@ -26,7 +26,7 @@
 /**
  * String builder.
  */
-class StringBuilder {
+export default class StringBuilder {
 
     constructor(...args) {
         this.arr = []
@@ -67,5 +67,3 @@ class StringBuilder {
         return this.arr.join('')
     }
 }
-
-module.exports = StringBuilder

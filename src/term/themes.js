@@ -22,29 +22,28 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-const fse    = require('fs-extra')
-const globby = require('globby')
-const path   = require('path')
+import fse from 'fs-extra'
+import globby from 'globby'
+import path from 'path'
 
-const StyleHelper = require('./helpers/styles.js')
-const DependencyHelper = require('../lib/util/dependency-helper.js')
-const {DefaultThemeName} = require('../lib/constants.js')
-const {filenameWithoutExtension} = require('../lib/util.js')
-const {
+import StyleHelper from './helpers/styles.js'
+import DependencyHelper from '../lib/util/dependency-helper.js'
+import {DefaultThemeName} from '../lib/constants.js'
+import {filenameWithoutExtension} from '../lib/util.js'
+import {
     MaxDepthExceededError,
     StyleError,
     ThemeExistsError,
-    ThemeConfigError,
     ThemeNotFoundError,
-} = require('../lib/errors.js')
-const ThemeConfig = {
+} from '../lib/errors.js'
+import * as ThemeConfig from './res/themes.config.js'
+const {
     Aliases,
     Categories,
     CategoriesMap,
     DefaultStyles,
-    Keys,
     KeysMap,
-} = require('./res/themes.config.js')
+} = ThemeConfig
 
 const MaxExtendsDepth = 10
 
@@ -250,7 +249,7 @@ function extendStyles(styles, parents, depth = 0) {
     })
 }
 
-class ThemeBuilder {
+export default class ThemeBuilder {
 
     static build(_styles, name) {
 
@@ -338,5 +337,3 @@ class ThemeBuilder {
 }
 
 class Theme {}
-
-module.exports = ThemeHelper

@@ -22,13 +22,12 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-const Client = require('../../net/client.js')
-const {createLogger} = require('../../lib/util.js')
-const {RequestError} = require('../../lib/errors.js')
+import Client from '../../net/client.js'
+import {createLogger} from '../../lib/util.js'
+import {RequestError} from '../../lib/errors.js'
+import fetch from 'node-fetch'
 
-const fetch = require('node-fetch')
-
-class MenuApiHelper {
+export default class MenuApiHelper {
 
     constructor(screen) {
         this.client = new Client
@@ -100,5 +99,3 @@ class MenuApiHelper {
         })
     }
 }
-
-module.exports = MenuApiHelper

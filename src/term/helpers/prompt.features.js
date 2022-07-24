@@ -49,14 +49,11 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
  * OTHER DEALINGS IN THE SOFTWARE.
  */
-const {
-    objects : {lset, valueHash},
-    strings : {stripAnsi},
-    types   : {castToArray},
-} = require('@quale/core')
-
-const Themes = require('../themes.js')
-const {DuplicateKeyError} = require('../../lib/errors.js')
+import {lset, valueHash} from '@quale/core/objects.js'
+import {stripAnsi} from '@quale/core/strings.js'
+import {castToArray} from '@quale/core/types.js'
+import Themes from '../themes.js'
+import {DuplicateKeyError} from '../../lib/errors.js'
 
 const ModifiedStatuses = {
     answered : true,
@@ -291,13 +288,13 @@ class ToggleFeature {
     }
 }
 
-module.exports = {
-    theme   : ThemeFeature,
-    cancel  : CancelFeature,
-    clear   : ClearFeature,
-    select  : SelectFeature,
-    expand  : ExpandFeature,
-    restore : RestoreFeature,
-    toggle  : ToggleFeature,
-    action  : ChoiceActionFeature,
+export {
+    ThemeFeature as theme,
+    CancelFeature as cancel,
+    ClearFeature as clear,
+    SelectFeature as select,
+    ExpandFeature as expand,
+    RestoreFeature as restore,
+    ToggleFeature as toggle,
+    ChoiceActionFeature as choice,
 }

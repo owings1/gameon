@@ -1,4 +1,4 @@
-class Messages {
+export default class Messages {
 
     constructor(menu) {
         this.menu = menu
@@ -48,5 +48,3 @@ class Messages {
         return this.menu.theme
     }
 }
-
-module.exports = Messages

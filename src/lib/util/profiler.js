@@ -22,10 +22,10 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-const Counter = require('./counter.js')
-const Timer   = require('./timer.js')
+import Counter from './counter.js'
+import Timer from './timer.js'
 
-class Profiler {
+export default class Profiler {
 
     static getDefaultInstance() {
         return DefaultProfiler
@@ -107,6 +107,4 @@ class Profiler {
     }
 }
 
-const DefaultProfiler = Profiler.createDisabled()
-
-module.exports = Profiler
+export const DefaultProfiler = Profiler.createDisabled()

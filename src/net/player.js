@@ -22,11 +22,8 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-const Base      = require('../lib/player')
-const Client    = require('./client.js')
-const Constants = require('../lib/constants')
-
-const {White, Red} = Constants
+import Base from '../lib/player.js'
+import Client from './client.js'
 
 const ClientListeners = {
 
@@ -108,7 +105,7 @@ const Listeners = {
     },
 }
 
-class NetPlayer extends Base {
+export default class NetPlayer extends Base {
     /**
      * @param {Client} client
      */

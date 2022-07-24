@@ -22,12 +22,11 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-const {objects: {valueHash}} = require('@quale/core')
-
-const {errMessage} = require('../../lib/util.js')
+import {valueHash} from '@quale/core/objects.js'
+import {errMessage} from '../../lib/util.js'
 
 // TODO: refactor to class and translate messages
-module.exports = {
+const Questions = {
     interactive: {
         name     : 'input',
         type     : 'expand',
@@ -121,3 +120,4 @@ module.exports = {
         }
     },
 }
+export default Questions

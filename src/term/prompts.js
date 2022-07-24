@@ -49,20 +49,14 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
  * OTHER DEALINGS IN THE SOFTWARE.
  */
-const Constants = require('../lib/constants')
-const Util      = require('../lib/util')
+import {Chars} from '../lib/constants.js'
+import {ensure, extendClass} from '../lib/util.js'
+import Inquirer from 'inquirer'
+import observe from 'inquirer/lib/utils/events'
+import {takeUntil} from 'rxjs/operators'
 
-const Inquirer    = require('inquirer')
-const observe     = require('inquirer/lib/utils/events')
-const {takeUntil} = require('rxjs/operators')
-
-const {Chars}  = Constants
-const {ensure, extendClass} = Util
-
-const Features = require('./helpers/prompt.features')
-const Methods  = require('./helpers/prompt.methods')
-
-const {BaseMethods, ListMethods, TextMethods} = Methods
+import * as Features from './helpers/prompt.features'
+import {BaseMethods, ListMethods, TextMethods} from './helpers/prompt.methods.js'
 
 class InputPrompt extends Inquirer.prompt.prompts.input {
 
@@ -478,6 +472,13 @@ const Prompts = {
     password : PasswordPrompt,
     rawlist  : RawListPrompt,
 }
+export {
+    ConfirmPrompt as confirm,
+    InputPrompt as input,
+    ListPrompt as list,
+    PasswordPrompt as password,
+    RawListPrompt as rawlist,
+}
 
 Object.entries(Prompts).forEach(([name, TargetClass]) => {
 
@@ -495,5 +496,3 @@ Object.entries(Prompts).forEach(([name, TargetClass]) => {
         extendClass(TargetClass, SourceClass, {overrides, optionals})
     })
 })
-
-module.exports = Prompts

@@ -22,12 +22,10 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-const {
-    objects : {valueHash},
-    types   : {castToArray},
-} = require('@quale/core')
+import {valueHash} from '@quale/core/objects.js'
+import {castToArray} from '@quale/core/types.js'
 
-function MockPrompter(responses, isSkipAssertAsked, isSkipAssertAnswered, isSkipAssertValid) {
+export default function MockPrompter(responses, isSkipAssertAsked, isSkipAssertAnswered, isSkipAssertValid) {
 
     const isAssertAsked    = !isSkipAssertAsked
     const isAssertAnswered = !isSkipAssertAnswered
@@ -158,5 +156,3 @@ class MockPrompterError extends Error {
         this.name = this.constructor.name
     }
 }
-
-module.exports = MockPrompter

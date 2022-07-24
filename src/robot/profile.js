@@ -22,27 +22,26 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-const fse = require('fs-extra')
+import fse from 'fs-extra'
+import Dice from '../lib/dice'
+import {Match} from '../lib/core.js'
+import Timer from '../lib/util/timer.js'
+import {DefaultProfiler as Profiler} from '../lib/util/profiler.js'
+import Coordinator from '../lib/coordinator'
+import {RobotDelegator} from './player.js'
+import {Table, TableHelper} from '../term/tables.js'
 
-const Dice     = require('../lib/dice')
-const {Match}  = require('../lib/core.js')
-const Timer    = require('../lib/util/timer.js')
-const Profiler = require('../lib/util/profiler.js').getDefaultInstance()
-const Coordinator = require('../lib/coordinator')
-const {RobotDelegator}     = require('./player.js')
-const {Table, TableHelper} = require('../term/tables.js')
-const {InvalidColumnError} = require('../lib/errors.js')
+import {Colors, DefaultThemeName} from '../lib/constants'
 
-const {Colors, DefaultThemeName} = require('../lib/constants')
-
-const {
+import {
     createLogger,
     defaults,
     destroyAll,
-} = require('../lib/util.js')
+} from '../lib/util.js'
 
+import path from 'path'
+const {resolve} = path
 
-const path = {resolve} = require('path')
 
 function f_round(value) {
     return Math.round(value).toLocaleString()
@@ -121,7 +120,7 @@ const Columns = [
     },
 ]
 
-class ProfileHelper {
+export default class ProfileHelper {
 
     static sortableColumns() {
         return Columns.filter(column => column.sortable).map(column => column.name)
@@ -166,11 +165,11 @@ class ProfileHelper {
         table.buildColumns().buildOpts()
 
         const {
-            breadthTrees
-          , filterRegex
-          , matchTotal
-          , numMatches
-          , rollsFile
+            breadthTrees,
+            filterRegex,
+            matchTotal,
+            numMatches,
+            rollsFile,
         } = this.opts
 
         const matchOpts = {breadthTrees}
@@ -199,8 +198,8 @@ class ProfileHelper {
         let turnCount  = 0
 
         const players = [
-            RobotDelegator.forDefaults(Colors.White)
-          , RobotDelegator.forDefaults(Colors.Red)
+            RobotDelegator.forDefaults(Colors.White),
+            RobotDelegator.forDefaults(Colors.Red),
         ]
 
         try {
@@ -227,10 +226,10 @@ class ProfileHelper {
             this.logger.info('Done')
 
             const summary = {
-                elapsed : summaryTimer.elapsed
-              , matchCount
-              , gameCount
-              , turnCount
+                elapsed : summaryTimer.elapsed,
+                matchCount,
+                gameCount,
+                turnCount,
             }
 
             table.data = this.buildData(Profiler)
@@ -259,12 +258,12 @@ class ProfileHelper {
 
     buildFooters(summary) {
         const footerInfo = [
-            ['Total Elapsed' , f_elapsed(summary.elapsed)]
-          , ['Total Matches' , summary.matchCount.toLocaleString()]
-          , ['Total Games'   , summary.gameCount.toLocaleString()]
-          , ['Total Turns'   , summary.turnCount.toLocaleString()]
-          , ['Games / Match' , f_round(summary.gameCount / summary.matchCount)]
-          , ['Turns / Game'  , f_round(summary.turnCount / summary.gameCount)]
+            ['Total Elapsed' , f_elapsed(summary.elapsed)],
+            ['Total Matches' , summary.matchCount.toLocaleString()],
+            ['Total Games'   , summary.gameCount.toLocaleString()],
+            ['Total Turns'   , summary.turnCount.toLocaleString()],
+            ['Games / Match' , f_round(summary.gameCount / summary.matchCount)],
+            ['Turns / Game'  , f_round(summary.turnCount / summary.gameCount)],
         ]
         const footerTitleWidth = Math.max(...footerInfo.map(it => it[0].length))
         const footerValueWidth = Math.max(...footerInfo.map(it => it[1].length))
@@ -298,5 +297,3 @@ class ProfileHelper {
         this.logger.logLevel = n
     }
 }
-
-module.exports = ProfileHelper

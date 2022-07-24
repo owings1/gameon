@@ -22,20 +22,34 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-const {expect} = require('chai')
-const tmp      = require('tmp')
-const Util    = require('../src/lib/util')
-const {
-    arrays: {append},
-    strings: {endsWith, stripAnsi},
-    objects: {update},
-} = require('@quale/core')
+// import {expect} from 'chai'
+import tmp from 'tmp'
+import fs from 'fs'
+import * as Util from '../src/lib/util.js'
+// import {stripAnsi} from '@quale/core/strings'
+// import {update} from '@quale/core/objects'
+// const Util    = require('../src/lib/util')
+
+import {Board} from '../src/lib/core.js'
+import Robot from '../src/robot/player.js'
+// const Robot   = require('../src/robot/player')
+
+import States from './states.js'
+
+import {httpFixture, getUrlParams, parseCookies} from './util/http-util.js'
+
+import {NullOutput, ReadlineStub} from './util/io.js'
 
 
-const {Board} = require('../src/lib/core')
-const Robot   = require('../src/robot/player')
+import path from 'path'
+import { fileURLToPath } from 'url'
+const __filename = fileURLToPath(import.meta.url)
+const __dirname = path.dirname(__filename)
 
-const States = require('./states')
+
+
+const Rolls = JSON.parse(fs.readFileSync(path.resolve(__dirname, 'rolls.json')))
+
 
 class GetErrorError extends Error {
     constructor(...args) {
@@ -79,9 +93,6 @@ function makeRandomMoves(turn, isFinish) {
     return turn
 }
 
-const {httpFixture, getUrlParams, parseCookies} = require('./util/http-util')
-
-const {NullOutput, ReadlineStub} = require('./util/io')
 
 const TestUtil = {
     // methods
@@ -93,7 +104,7 @@ const TestUtil = {
     noop       : () => {},
     normState  : str => Board.fromStateString(str).stateString(),
     parseKey   : params => params.Message.Body.Text.Data.match(/^Key: (.*)$/)[1],
-    requireSrc : p => require('../src/' + p),
+    // requireSrc : p => require('../src/' + p),
     tmpDir     : () => tmp.dirSync().name,
     tmpFile    : () => tmp.fileSync().name,
     // transforms
@@ -103,8 +114,8 @@ const TestUtil = {
     // passthru requires
     clientServer : require('./util/client-server'),
     MockPrompter : require('./util/mock-prompter'),
-    Rolls        : require('./rolls'),
-    expect,
+    Rolls,
+    // expect,
     getUrlParams,
     httpFixture,
     parseCookies,
@@ -112,12 +123,12 @@ const TestUtil = {
     NullOutput,
     States,
     // Util methods
-    append,
+    // extend,
     destroyAll        : Util.destroyAll,
     mapValues         : Util.mapValues,
     randomElement     : Util.randomElement,
-    stripAnsi,
+    // stripAnsi,
     stripLeadingSlash : Util.stripLeadingSlash,
-    update,
+    // update,
 }
-module.exports = TestUtil
+export default TestUtil

@@ -22,15 +22,11 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-const {
-    arrays : {append},
-    objects: {update},
-    strings: {ucfirst},
-} = require('@quale/core')
-
-const {nmap} = require('../../src/lib/util.js')
-
-const Client = require('../../src/net/client.js')
+import {extend} from '@quale/core/arrays.js'
+import {update} from '@quale/core/objects.js'
+import {ucfirst} from '@quale/core/strings.js'
+import {nmap} from '../../src/lib/util.js'
+import Client from '../../src/net/client.js'
 
 function initServers(servers, logLevel) {
     return Promise.all(
@@ -60,59 +56,56 @@ function createClients(server, count = 2) {
     return clients
 }
 
-module.exports = {
+export default async function testInit(logLevel, numClients = 2) {
 
-    testInit : async function(logLevel, numClients = 2) {
+    await initServers(this.servers, logLevel)
 
-        await initServers(this.servers, logLevel)
+    this.objects = this.objects || []
+    this.clients = this.clients || {}
 
-        this.objects = this.objects || []
-        this.clients = this.clients || {}
+    update(this.clients, Object.fromEntries(
+        Object.entries(this.servers).map(([name, server]) =>
+            [name, createClients(server, numClients)]
+        )
+    ))
 
-        update(this.clients, Object.fromEntries(
-            Object.entries(this.servers).map(([name, server]) =>
-                [name, createClients(server, numClients)]
-            )
-        ))
+    extend(this.objects, Object.values(this.servers).concat(
+        Object.values(this.clients).map(Object.values).flat()
+    ))
 
-        append(this.objects, Object.values(this.servers).concat(
-            Object.values(this.clients).map(Object.values).flat()
-        ))
-
-        if (!this.setLoglevel) {
-            this.setLoglevel = n => {
-                this.objects.forEach(obj => obj.logLevel = n)
-            }
+    if (!this.setLoglevel) {
+        this.setLoglevel = n => {
+            this.objects.forEach(obj => obj.logLevel = n)
         }
+    }
 
-        if (!this.closeObjects) {
-            this.closeObjects = function (objects) {
-                objects = objects || this.objects
-                objects.forEach(obj => {
-                    if (typeof obj.close == 'function') {
-                        obj.close()
-                    }
-                    if (typeof obj.destroy == 'function') {
-                        obj.destroy()
-                    }
-                })
-            }
+    if (!this.closeObjects) {
+        this.closeObjects = function (objects) {
+            objects = objects || this.objects
+            objects.forEach(obj => {
+                if (typeof obj.close == 'function') {
+                    obj.close()
+                }
+                if (typeof obj.destroy == 'function') {
+                    obj.destroy()
+                }
+            })
         }
-        if (!this.createMatch) {
-            // Returns the server's match instance
-            this.createMatch = async function (opts) {
-                opts = {total: 1, ...opts}
-                const {client1, client2} = this.fixture
-                let promise
-                let matchId
-                client1.once('matchCreated', id => {
-                    matchId = id
-                    promise = client2.joinMatch(id)
-                })
-                await client1.createMatch(opts)
-                await promise
-                return this.fixture.server.matches[matchId]
-            }
+    }
+    if (!this.createMatch) {
+        // Returns the server's match instance
+        this.createMatch = async function (opts) {
+            opts = {total: 1, ...opts}
+            const {client1, client2} = this.fixture
+            let promise
+            let matchId
+            client1.once('matchCreated', id => {
+                matchId = id
+                promise = client2.joinMatch(id)
+            })
+            await client1.createMatch(opts)
+            await promise
+            return this.fixture.server.matches[matchId]
         }
     }
 }

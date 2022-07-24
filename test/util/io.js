@@ -22,11 +22,11 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-const {strings: {stripAnsi}} = require('@quale/core')
-const stream = require('stream')
-const {EventEmitter} = require('events')
+import {stripAnsi} from '@quale/core/strings.js'
+import stream from 'stream'
+import {EventEmitter} from 'events'
 
-class NullOutput extends stream.Writable {
+export class NullOutput extends stream.Writable {
 
     constructor(opts = {}) {
         super()
@@ -93,7 +93,7 @@ class NullInput extends EventEmitter {
     }
 }
 
-class ReadlineStub extends EventEmitter {
+export class ReadlineStub extends EventEmitter {
 
     constructor(opts = {}) {
         super()
@@ -135,9 +135,4 @@ class ReadlineStub extends EventEmitter {
     _getCursorPos () {
         return {cols: 0, rows: 0}
     }    
-}
-
-module.exports = {
-    NullOutput,
-    ReadlineStub,
 }

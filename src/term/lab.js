@@ -22,43 +22,38 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-const {
-    objects : {isNullOrEmptyObject, revalue, update},
-    strings : {cat, stringWidth, stripAnsi, ucfirst},
-    types   : {castToArray},
-    Screen,
-} = require('@quale/core')
-const {colors: {Chalk}} = require('@quale/term')
+import {isNullOrEmptyObject, revalue, update} from '@quale/core/objects.js'
+import {cat, stringWidth, stripAnsi} from '@quale/core/strings.js'
+import Screen from '@quale/core/screen.js'
+import {Chalk} from '@quale/term/colors.js'
+import fse from 'fs-extra'
+import fs from 'fs'
+import path from 'path'
 
-const fse = require('fs-extra')
-
-const fs   = require('fs')
-const path = require('path')
-
-const Dice    = require('../lib/dice.js')
-const {Table} = require('./tables.js')
-const Themes  = require('./themes.js')
-const {inquirer}  = require('./inquirer.js')
-const IntlHelper  = require('../lib/util/intl.js')
-const Coordinator = require('../lib/coordinator.js')
-const {DrawHelper} = require('./draw.js')
-const StringBuilder = require('../lib/util/string-builder.js')
-const {RobotDelegator} = require('../robot/player.js')
-const {Board, Match, Turn} = require('../lib/core.js')
-const {
-    Colors: {Red, White},
+import Dice    from '../lib/dice.js'
+import {Table} from './tables.js'
+import Themes  from './themes.js'
+import {inquirer}  from './inquirer.js'
+import IntlHelper  from '../lib/util/intl.js'
+import Coordinator from '../lib/coordinator.js'
+import {DrawHelper} from './draw.js'
+import StringBuilder from '../lib/util/string-builder.js'
+import {RobotDelegator} from '../robot/player.js'
+import {Board, Match, Turn} from '../lib/core.js'
+import {
     BoardStrings,
     Chars,
     ColorAbbr,
     ColorNorm,
-    Colors,
+    Red,
+    White,
     DefaultAnsiEnabled,
     Opponent,
     OriginPoints,
     PointOrigins,
     Version,
-} = require('../lib/constants.js')
-const {
+} from '../lib/constants.js'
+import {
     createLogger,
     defaults,
     destroyAll,
@@ -67,10 +62,9 @@ const {
     homeTilde,
     nchars,
     padEnd,
-    sp,
     spaces,
     tildeHome,
-} = require('../lib/util.js')
+} from '../lib/util.js'
 
 const chalk = new Chalk()
 const DefaultScreen = new Screen({isAnsi: DefaultAnsiEnabled})
@@ -79,7 +73,7 @@ function stringify(data, indent = 2) {
     return JSON.stringify(data, null, indent)
 }
 
-class LabHelper {
+export default class LabHelper {
 
     static defaults() {
         return {
@@ -1118,5 +1112,3 @@ class LabHelper {
         return b.join('\n')
     }
 }
-
-module.exports = LabHelper

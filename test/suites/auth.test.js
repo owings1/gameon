@@ -22,23 +22,18 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-const {
-    objects: {update},
-    strings: {ucfirst},
-} = require('@quale/core')
-const AWS = require('aws-sdk')
-const fse = require('fs-extra')
-
-const fs  = require('fs')
+import fse from 'fs-extra'
+import fs from 'fs'
+import {expect} from 'chai'
+import Auth from '../../src/net/auth.js'
+import TestUtil from '../util.js'
+import process from 'process'
 
 const {
-    expect,
     getError,
     parseKey,
-    requireSrc,
     tmpDir,
-} = require('../util.js')
-const Auth = requireSrc('net/auth.js')
+} = TestUtil
 
 describe('Auth', () => {
 

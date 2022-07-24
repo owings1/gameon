@@ -22,20 +22,20 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-const lingui  = require('@lingui/core')
-const plurals = require('make-plural/plurals')
-const {
-    objects: {revalue, update, valueHash},
-} = require('@quale/core')
+import lingui from '@lingui/core'
+import plurals from 'make-plurals/plurals'
+// const lingui  = require('@lingui/core')
+// const plurals = require('make-plural/plurals')
 
-const path = require('path')
-
-const {
+import fs from 'fs'
+import path from 'path'
+import {revalue, valueHash} from '@quale/core/objects.js'
+import {
     DefaultLocale,
     LocaleNames,
     LocalesDir,
-} = require('../constants.js')
-const {ArgumentError} = require('../errors.js')
+} from '../constants.js'
+import {ArgumentError} from '../errors.js'
 
 const Locales = Object.freeze(LocaleNames.slice())
 const LocalesHash = valueHash(Locales, null)
@@ -50,8 +50,9 @@ function checkLocale(locale) {
 function getMessages(locale) {
     if (!Messages[locale]) {
         checkLocale(locale)
-        const file = path.resolve(LocalesDir, locale, 'messages.js')
-        Messages[locale] = require(file).messages
+        const file = path.resolve(LocalesDir, locale, 'messages.json')
+        const data = JSON.parse(fs.readFileSync(file))
+        Messages[locale] = data.messages
     }
     return Messages[locale]
 }
@@ -74,7 +75,7 @@ const StaticProps = {
     },
 }
 
-class IntlHelper {
+export default class IntlHelper {
 
     static getGlobalInstance() {
         if (GlobalInstance === null) {
@@ -186,5 +187,3 @@ function load(locale) {
         loaded[locale] = true
     }
 }
-
-module.exports = IntlHelper

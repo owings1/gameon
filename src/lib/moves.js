@@ -22,41 +22,45 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-const Constants = require('./constants')
-const Dice      = require('./dice')
-const Errors    = require('./errors')
-const Util      = require('./util')
+import Dice from './dice.js'
+import {
+    Direction,
+    MoveHashes,
+    MoveCoords,
+    Opponent,
+    OriginPoints,
+} from './constants.js'
 
-const {
-    Direction
- ,  MoveHashes
- ,  MoveCoords
- ,  Opponent
- ,  OriginPoints
-} = Constants
+import {
+    IllegalBareoffError,
+    MayNotBearoffError,
+    MoveOutOfRangeError,
+    NoPieceOnBarError,
+    NoPieceOnSlotError,
+    NotImplementedError,
+    OccupiedSlotError,
+    PieceOnBarError,
+} from './errors.js'
 
-const {
-    IllegalBareoffError
-  , MayNotBearoffError
-  , MoveOutOfRangeError
-  , NoPieceOnBarError
-  , NoPieceOnSlotError
-  , NotImplementedError
-  , OccupiedSlotError
-  , PieceOnBarError
-} = Errors
+import {DefaultProfiler as Profiler} from './util/profiler.js'
 
-const Profiler = Util.Profiler.getDefaultInstance()
+export class Move {
 
-class Move {
-
-    // Returns an object with two keys:
-    //
-    //    check: true iff the move is valid, else an error object {class, message}
-    //    build: an object for constructing the move {class, args}
-    //
-    // The caller must test whether check === true, else construct and throw the
-    // error. The build object may still populated even if there is an error.
+    /**
+     * Returns an object with two keys:
+     * 
+     *  - check: true iff the move is valid, else an error object {class, message}
+     *  - build: an object for constructing the move {class, args}
+     * 
+     * The caller must test whether check === true, else construct and throw the
+     * error. The build object may still populated even if there is an error.
+     * 
+     * @param {Board} board
+     * @param {String} color
+     * @param {Number} origin
+     * @param {Number} face
+     * @return {object}
+     */
     static check(board, color, origin, face) {
         Profiler.start('Move.check')
         try {
@@ -88,10 +92,15 @@ class Move {
             return {check, build}
         } finally {
             Profiler.stop('Move.check')
-        }
-        
+        }       
     }
 
+    /**
+     * @param {Board} board
+     * @param {String} color
+     * @param {Number} origin
+     * @param {Number} face
+     */
     constructor(board, color, origin, face) {
         this.board = board
         this.color = color
@@ -103,10 +112,22 @@ class Move {
         Profiler.inc('move.create')
     }
 
+    /**
+     * @return {Move}
+     */
     copy() {
         return new this.constructor(...this._constructArgs)
     }
 
+    /**
+     * @see Move.check
+     * 
+     * @param {Board} board
+     * @param {String} color
+     * @param {Number} origin
+     * @param {Number} face
+     * @return {object}
+     */
     check(...args) {
         const check = this.constructor.check(...args)
         if (check !== true) {
@@ -114,24 +135,36 @@ class Move {
         }
     }
 
+    /**
+     * @param {Board} board
+     * @return {Move}
+     */
     copyForBoard(board) {
         return new this.constructor(board, ...this._constructArgs.slice(1))
     }
 
-    // NB: implementations should use board push/pop methods, and not directly
-    //     modify board internals.
+    /** 
+     * NB: implementations should use board push/pop methods, and not directly
+     *     modify board internals.
+     * 
+     * @abstract
+     */
     do() {
         throw new NotImplementedError('Not Implemented')
     }
 
-    // NB: implementations should use board push/pop methods, and not directly
-    //     modify board internals.
+    /** 
+     * NB: implementations should use board push/pop methods, and not directly
+     *     modify board internals.
+     * 
+     * @abstract
+     */
     undo() {
         throw new NotImplementedError('Not Implemented')
     }
 }
 
-class ComeInMove extends Move {
+export class ComeInMove extends Move {
 
     // Returns true or error object
     static check(board, color, face) {
@@ -186,7 +219,7 @@ class ComeInMove extends Move {
     }
 }
 
-class RegularMove extends Move {
+export class RegularMove extends Move {
 
     // Returns true or error object
     static check(board, color, origin, face) {
@@ -247,7 +280,7 @@ class RegularMove extends Move {
     }
 }
 
-class BearoffMove extends Move {
+export class BearoffMove extends Move {
 
     // Returns true or error object
     static check(board, color, origin, face) {
@@ -284,9 +317,3 @@ class BearoffMove extends Move {
     }
 }
 
-module.exports = {
-    Move
-  , BearoffMove
-  , ComeInMove
-  , RegularMove
-}

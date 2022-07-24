@@ -22,16 +22,18 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-const {
-    Colors: {Red, White},
+import {
+    Red,
+    White,
     Direction,
     Opponent,
     OriginPoints,
     OutsideOrigins,
     PointOrigins,
-} = require('./constants.js')
-const Profiler = require('./util/profiler.js').getDefaultInstance()
-const {IllegalStateError} = require('./errors.js')
+} from './contants.js'
+
+import {DefaultProfiler as Profiler} from './util/profiler.js'
+import {IllegalStateError} from './errors.js'
 
 const CacheKeys = {}
 
@@ -44,17 +46,17 @@ function populateCacheKeys(keys) {
     atomicKeys.forEach(key => keys[key] = key)
 
     const colorKeys = [
-        'blotOrigins'
-      , 'maxOriginOccupied'
-      , 'maxPointOccupied'
-      , 'mayBearoff'
-      , 'minOriginOccupied'
-      , 'minPointOccupied'
-      , 'originsHeld'
-      , 'originsOccupied'
-      , 'pipCount'
-      , 'pointsHeld'
-      , 'pointsOccupied'
+        'blotOrigins',
+        'maxOriginOccupied',
+        'maxPointOccupied',
+        'mayBearoff',
+        'minOriginOccupied',
+        'minPointOccupied',
+        'originsHeld',
+        'originsOccupied',
+        'pipCount',
+        'pointsHeld',
+        'pointsOccupied',
     ]
 
     colorKeys.forEach(key => {
@@ -69,7 +71,7 @@ populateCacheKeys(CacheKeys)
 
 // NB: Caching methods return a reference for performance. Callers must make a copy
 ///    if they will modify the result
-class BoardAnalyzer {
+export default class BoardAnalyzer {
 
     constructor(board) {
         this.board = board
@@ -466,10 +468,7 @@ class BoardAnalyzer {
         if (board.slots.length != 24) {
             throw new IllegalStateError('Board has ' + board.slots.length + ' slots')
         }
-        const counts = {
-            Red   : 0
-          , White : 0
-        }
+        const counts = {Red: 0, White: 0}
         for (var i = 0; i < 24; ++i) {
             var slot = board.slots[i]
             var slotColor = null
@@ -644,5 +643,3 @@ class BlotHelper {
         return {points, opposers}
     }
 }
-
-module.exports = BoardAnalyzer

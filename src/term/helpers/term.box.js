@@ -22,19 +22,16 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-const {
-    objects: {update},
-    Screen,
-} = require('@quale/core')
+import {update} from '@quale/core/objects.js'
+import Screen from '@quale/core/screen.js'
+import {EventEmitter} from 'events'
 
-const {EventEmitter} = require('events')
-
-const {defaults, nchars} = require('../../lib/util.js')
-const {Chars, DefaultAnsiEnabled} = require('../../lib/constants.js')
+import {defaults, nchars} from '../../lib/util.js'
+import {Chars, DefaultAnsiEnabled} from '../../lib/constants.js'
 
 const DefaultScreen = new Screen({isAnsi: DefaultAnsiEnabled})
 
-class TermBox {
+export default class TermBox {
 
     static defaults() {
         return {
@@ -353,4 +350,4 @@ class BoxStatus extends EventEmitter {
     }
 }
 
-module.exports = update(TermBox, {BoxStatus})
+update(TermBox, {BoxStatus})

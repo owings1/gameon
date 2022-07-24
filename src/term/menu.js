@@ -22,59 +22,50 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-const {
-    arrays  : {append, sumArray},
-    objects : {lget, lset, update, isNonEmptyObject},
-    strings : {stringWidth, stripAnsi},
-    types   : {castToArray, isFunction},
-    Screen,
-} = require('@quale/core')
-const {merging : {merge}} = require('@quale/term')
 
-const fse    = require('fs-extra')
-const globby = require('globby')
+import {extend} from '@quale/core/arrays.js'
+import {lget, lset, update, isNonEmptyObject} from '@quale/core/objects.js'
+import {stringWidth} from '@quale/core/strings.js'
+import {castToArray, isFunction} from '@quale/core/types.js'
+import Screen from '@quale/core/screen.js'
+import {merge} from '@quale/term/merging.js'
+import fs from 'fs'
+import fse from 'fs-extra'
+import os from 'os'
+import path from 'path'
+import {EventEmitter} from 'events'
 
-const fs   = require('fs')
-const os   = require('os')
-const path = require('path')
-const {EventEmitter} = require('events')
-
-const Dice   = require('../lib/dice.js')
-const Client = require('../net/client.js')
-const Themes = require('./themes.js')
-const Alerts = require('./helpers/alerts.js')
-const ApiHelper  = require('./helpers/menu.api.js')
-const Questions  = require('./helpers/menu.questions.js')
-const TermBox    = require('./helpers/term.box.js')
-const NetPlayer  = require('../net/player.js')
-const {inquirer} = require('./inquirer.js')
-const LabHelper  = require('./lab.js')
-const IntlHelper = require('../lib/util/intl.js')
-const TermPlayer = require('./player.js')
-const Coordinator    = require('../lib/coordinator.js')
-const {Board, Match} = require('../lib/core.js')
-const {
+import Dice from '../lib/dice.js'
+import Client from '../net/client.js'
+import Themes from './themes.js'
+import Alerts  from './helpers/alerts.js'
+import ApiHelper  from './helpers/menu.api.js'
+import Questions  from './helpers/menu.questions.js'
+import TermBox    from './helpers/term.box.js'
+import NetPlayer  from '../net/player.js'
+import {inquirer} from './inquirer.js'
+import LabHelper  from './lab.js'
+import IntlHelper from '../lib/util/intl.js'
+import TermPlayer from './player.js'
+import Coordinator    from '../lib/coordinator.js'
+import {Board, Match} from '../lib/core.js'
+import {
     ConfidenceRobot,
     RobotDelegator,
-} = require('../robot/player.js')
-const {
+} from '../robot/player.js'
+import {
     createLogger,
     decrypt2,
     defaults,
-    DependencyHelper,
     destroyAll,
     encrypt2,
     forceLineReturn,
     getOrCall,
     isCredentialsFilled,
-    nchars,
-    ntimes,
     padEnd,
     rejectDuplicatePrompter,
-    StringBuilder,
-} = require('../lib/util')
-const {
-    Colors: {Red, White},
+} from '../lib/util'
+import {
     Chars,
     CHash,
     DefaultAnsiEnabled,
@@ -82,16 +73,13 @@ const {
     DefaultServerUrl,
     DefaultThemeName,
     ObsoleteServerUrls,
-    States,
-} = require('../lib/constants.js')
-const {
+    Red,
+    White,
+} from '../lib/constants.js'
+import {
     MatchCanceledError,
-    MenuError,
-    PromptActiveError,
-    RequestError,
-    ResetKeyNotEnteredError,
     WaitingAbortedError,
-} = require('../lib/errors.js')
+} from '../lib/errors.js'
 
 const ResizeTimoutMs = 300
 const InterruptCancelEvent = {
@@ -102,7 +90,7 @@ const InterruptCancelAnswers = {
     _cancelEvent: InterruptCancelEvent,
 }
 
-class Menu extends EventEmitter {
+export default class Menu extends EventEmitter {
 
     constructor(configDir) {
         super()
@@ -1041,7 +1029,7 @@ class Menu extends EventEmitter {
         const indent = left - 1
         const errors = []
         const levelsLines = alerts.map(alert => {
-            append(errors, alert.errors)
+            extend(errors, alert.errors)
             const formatted = this.alerts.getFormatted(alert, this.theme.alert)
             return forceLineReturn(formatted.string, maxWidth).split('\n').flat().map(line =>
                 [alert.level, padEnd(line, minWidth, format.pad(' '))]
@@ -1504,5 +1492,3 @@ class Menu extends EventEmitter {
         return path.resolve(os.homedir(), 'gameon')
     }
 }
-
-module.exports = Menu

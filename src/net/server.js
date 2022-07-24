@@ -22,41 +22,36 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-const {
-    objects: {update},
-    types  : {castToArray},
-} = require('@quale/core')
-const bodyParser = require('body-parser')
-const express    = require('express')
-const onFinished = require('on-finished')
-const prom       = require('prom-client')
-const WsServer   = require('websocket').server
-
-const {Match} = require('../lib/core.js')
-const Api     = require('./api.js')
-const Auth    = require('./auth.js')
-const Web     = require('./web.js')
-const {
-    Colors: {Red, White},
+import {update} from '@quale/core/objects.js'
+import {castToArray} from '@quale/core/types.js'
+import express from 'express'
+import onFinished from 'on-finished'
+import prom from 'prom-client'
+import {server as WsServer} from 'websocket'
+import {Match} from '../lib/core.js'
+import Api from './api.js'
+import Auth from './auth.js'
+import Web from './web.js'
+import {
+    Red, White,
     MatchCancelRef,
     Opponent,
-} = require('../lib/constants.js')
-const {
+} from '../lib/constants.js'
+import {
     createLogger,
     defaults,
     hash,
     makeErrorObject,
     uuid,
-} = require('../lib/util.js')
-const {
+} from '../lib/util.js'
+import {
     HandshakeError,
     InvalidActionError,
-    MatchAlreadyExistsError,
     MatchAlreadyJoinedError,
     MatchNotFoundError,
     RequestError,
     ValidateError,
-} = require('../lib/errors.js')
+} from '../lib/errors.js'
 
 function statusLogLevel(code) {
     if (code >= 500) {
@@ -87,7 +82,7 @@ function formatLog(req, res) {
     ].join(' ')
 }
 
-class Server {
+export default class Server {
 
     /**
      * Get the default options.
@@ -990,5 +985,3 @@ class Server {
         return hash('sha256', str, 'hex').substring(0, 8)
     }
 }
-
-module.exports = Server

@@ -22,26 +22,31 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-const {
+
+import bodyParser from 'body-parser'
+import cookieParser from 'cookie-parser'
+import express from 'express'
+import session from 'express-session'
+import {
     DefaultSessionCookie,
     DefaultSessionSecret,
     DefaultTokenCookie,
     IsTest,
-} = require('../lib/constants')
+} from '../lib/constants.js'
 
-const {
+import {
     createLogger,
     defaults,
     securityCheck,
-} = require('../lib/util')
+} from '../lib/util.js'
 
-const {SecurityError} = require('../lib/errors')
+import {SecurityError} from '../lib/errors.js'
 
-const bodyParser   = require('body-parser')
-const cookieParser = require('cookie-parser')
-const express      = require('express')
-const path         = require('path')
-const session      = require('express-session')
+import process from 'process'
+import path from 'path'
+import { fileURLToPath } from 'url'
+const __filename = fileURLToPath(import.meta.url)
+const __dirname = path.dirname(__filename)
 
 const {resolve} = path
 
@@ -49,7 +54,7 @@ const ResourcePath = resolve(__dirname, '../www')
 const StaticPath   = resolve(ResourcePath, 'static')
 const ViewPath     = resolve(ResourcePath, 'templates')
 
-class Web {
+export default class Web {
 
     static defaults(env) {
         return {
@@ -64,14 +69,10 @@ class Web {
     }
 
     constructor(auth, opts) {
-
         this.logger = createLogger(this, {type: 'server'})
-
         this.opts = defaults(Web.defaults(process.env), opts)
         this.auth = auth
-
         this._checkSecurity(process.env)
-
         this.app = this.createExpressApp()
     }
 
@@ -89,20 +90,19 @@ class Web {
         const formParser = bodyParser.urlencoded({extended: true})
 
         app.set('trust proxy', 1)
-
         app.set('view engine', 'ejs')
         app.set('views', ViewPath)
 
         app.use(session({
-            secret            : this.opts.sessionSecret
-          , name              : this.opts.sessionCookie
-          , resave            : false
-          , saveUninitialized : false
-          , cookie            : {
-                httpOnly : true
-              , secure   : !this.opts.sessionInsecure
-              , sameSite : true
-              , maxAge   : this.opts.sessionExpiry
+            secret            : this.opts.sessionSecret,
+            name              : this.opts.sessionCookie,
+            resave            : false,
+            saveUninitialized : false,
+            cookie            : {
+                httpOnly : true,
+                secure   : !this.opts.sessionInsecure,
+                sameSite : true,
+                maxAge   : this.opts.sessionExpiry,
             }
         }))
 
@@ -199,7 +199,6 @@ class Web {
      * @return {boolean} Whether all values are custom
      */
     _checkSecurity(env) {
-
         const checks = [
             {
                 name    : 'SESSION_SECRET',
@@ -217,22 +216,16 @@ class Web {
                 default : DefaultTokenCookie,
             }
         ]
-
         const {error, warning} = securityCheck(checks, env)
-
         if (error) {
             throw new SecurityError(error)
         }
-
         if (warning) {
             if (!IsTest) {
                 this.logger.warn(warning)
             }
             return false
         }
-
         return true
     }
 }
-
-module.exports = Web

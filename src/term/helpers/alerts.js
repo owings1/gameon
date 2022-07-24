@@ -22,32 +22,30 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-const {objects: {update}} = require('@quale/core')
-const Themes = require('../themes.js')
-const {ProgrammerError} = require('../../lib/errors.js')
-
-const {EventEmitter} = require('events')
+import Themes from '../themes.js'
+import {ProgrammerError} from '../../lib/errors.js'
+import {EventEmitter} from 'events'
 
 const LevelsMap = {
-    success : {
-        isPrintLevel : false
-    }
-  , info    : {
-        isPrintLevel : false
-    }
-  , warn    : {
-        isPrintLevel : true
-      , levelString  : '[WARN]'
-    }
-  , error   : {
-        isPrintLevel : true
-      , levelString  : '[ERROR]'
+    success: {
+        isPrintLevel: false,
+    },
+    info: {
+        isPrintLevel: false,
+    },
+    warn: {
+        isPrintLevel: true,
+        levelString: '[WARN]',
+    },
+    error: {
+        isPrintLevel: true,
+        levelString: '[ERROR]',
     }
 }
 
 const DefaultLevel = 'warn'
 
-class Alerts extends EventEmitter {
+export default class Alerts extends EventEmitter {
 
     constructor() {
         super()
@@ -110,45 +108,37 @@ class Alerts extends EventEmitter {
     }
 
     buildObject(level, args) {
-
         level = (level in LevelsMap) ? level : DefaultLevel
-
-        const {logLevel, isPrintLevel} = LevelsMap[level]
-        let {levelString} = LevelsMap[level]
-
+        const {isPrintLevel, levelString} = LevelsMap[level]
         const messages = args.map(arg => this.buildStringForArg(arg))
-
         const parts = messages.slice(0)
-        
         if (isPrintLevel) {
             parts.unshift(levelString)
         }
-
         const errors = args.filter(arg => arg instanceof Error)
-
         return {
-            level
-          , levelString
-          , errors
-          , messages
-          , parts
-          , message  : messages.join(' ')
-          , string   : parts.join(' ')
-          , error    : errors[0]
-          , isLogObj : true
+            level,
+            levelString,
+            errors,
+            messages,
+            parts,
+            message  : messages.join(' '),
+            string   : parts.join(' '),
+            error    : errors[0],
+            isLogObj : true,
         }
     }
 
     getFormatted(alert, themeish) {
         themeish = themeish || Themes.getDefaultInstance()
-        const {level, levelString} = alert
+        const {level} = alert
         const {isPrintLevel} = LevelsMap[level]
         const chlk = themeish[level] || themeish.alert[level]
         const fmt = {
-            level       : isPrintLevel ? chlk.level(alert.level) : null
-          , levelString : isPrintLevel ? chlk.level(alert.levelString) : null
-          , message     : chlk.message(alert.message)
-          , messages    : alert.messages.map(msg => chlk.message(msg))
+            level       : isPrintLevel ? chlk.level(alert.level) : null,
+            levelString : isPrintLevel ? chlk.level(alert.levelString) : null,
+            message     : chlk.message(alert.message),
+            messages    : alert.messages.map(msg => chlk.message(msg)),
         }
         let str = ''
         if (isPrintLevel) {
@@ -186,42 +176,42 @@ class Alerts extends EventEmitter {
 }
 
 const Methods = [
-    'concat'
-  , 'copyWithin'
-  , 'entries'
-  , 'every'
-  , 'fill'
-  , 'filter'
-  , 'find'
-  , 'findIndex'
-  , 'flat'
-  , 'flatMap'
-  , 'forEach'
-  , 'includes'
-  , 'indexOf'
-  , 'join'
-  , 'keys'
-  , 'lastIndexOf'
-  , 'map'
-  , 'pop'
-  , 'push'
-  , 'reduce'
-  , 'reduceRight'
-  , 'reverse'
-  , 'shift'
-  , 'slice'
-  , 'some'
-  , 'sort'
-  , 'splice'
-  , 'toLocaleString'
-  , 'toString'
-  , 'unshift'
-  , 'values'
+    'concat',
+    'copyWithin',
+    'entries',
+    'every',
+    'fill',
+    'filter',
+    'find',
+    'findIndex',
+    'flat',
+    'flatMap',
+    'forEach',
+    'includes',
+    'indexOf',
+    'join',
+    'keys',
+    'lastIndexOf',
+    'map',
+    'pop',
+    'push',
+    'reduce',
+    'reduceRight',
+    'reverse',
+    'shift',
+    'slice',
+    'some',
+    'sort',
+    'splice',
+    'toLocaleString',
+    'toString',
+    'unshift',
+    'values',
 ]
 
 const Overrides = {
-    toLocaleString : true
-  , toString       : true
+    toLocaleString : true,
+    toString       : true,
 }
 
 Methods.forEach(method => {
@@ -232,5 +222,3 @@ Methods.forEach(method => {
         return this.alerts[method](...args)
     }
 })
-
-module.exports = Alerts

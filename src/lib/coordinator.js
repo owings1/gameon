@@ -139,25 +139,20 @@
  * ┃                 ┃                                                               ┃
  * ┗━━━━━━━━━━━━━━━━━┻━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
  */
-const Constants = require('./constants')
+import fse from 'fs-extra'
+import path from 'path'
+import {extend} from '@quale/core/arrays.js'
+import {castToArray} from '@quale/core/types.js'
+import {InvalidDirError} from './errors'
 
-const fse  = require('fs-extra')
-const path = require('path')
-const {
-    arrays : {append},
-    types  : {castToArray},
-} = require('@quale/core')
-
-const {InvalidDirError} = require('./errors')
-
-const {
+import {
     defaults,
     createLogger,
     fileDateString,
     homeTilde,
-} = require('./util')
+} from './util.js'
 
-class Coordinator {
+export default class Coordinator {
 
     /**
      * Get the default options.
@@ -166,24 +161,22 @@ class Coordinator {
      */
     static defaults() {
         return {
-            isRecord  : false
-          , recordDir : null
+            isRecord  : false,
+            recordDir : null,
         }
     }
 
     /**
      * Constructor
      *
-     * @param {object} (optional) The options
+     * @param {object} opts The options
      *
-     * @throws ArgumentError.InvalidDirError
+     * @throws {InvalidDirError}
      */
-    constructor(opts) {
-
+    constructor(opts = undefined) {
         this.opts = defaults(Coordinator.defaults(), opts)
         this.name = this.constructor.name
         this.logger = createLogger(this, {type: 'named'})
-
         if (this.opts.isRecord) {
             try {
                 path.resolve(this.opts.recordDir)
@@ -198,15 +191,10 @@ class Coordinator {
      *
      * @async
      *
-     * @param {Match} The match to run
-     * @param {object{color: Player}|array[Player]|Player} The players of the
-     *        match, or the White player.
-     * @param {Player} (optional) The Red player, if the White player was
-     *        passed as the first argument.
+     * @param {Match} match The match to run
+     * @param {{Player}|Player[]|Player} players The players
      *
-     * @throws Error
-     *
-     * @return {undefined}
+     * @throws
      */
     async runMatch(match, ...players) {
 
@@ -264,15 +252,13 @@ class Coordinator {
      *
      * @async
      *
-     * @param {object{color: Player}} Players object
-     * @param {Game} The game to run
-     * @param {Match} (optional) The match of the game
+     * @param {object{color: Player}} players Players object
+     * @param {Game} game The game to run
+     * @param {Match} match The match of the game
      *
-     * @throws Error
-     *
-     * @return undefined
+     * @throws
      */
-    async runGame(players, game, match) {
+    async runGame(players, game, match = undefined) {
 
         this.checkCancel(match, game)
 
@@ -350,13 +336,11 @@ class Coordinator {
      *
      * @async
      *
-     * @param {Match} The match to cancel
-     * @param {object{color: Player}|array[Player]} The players
-     * @param {Error} The reason the match is canceled
+     * @param {Match} match The match to cancel
+     * @param {{Player}Player[]} players The players
+     * @param {Error} err The reason the match is canceled
      *
-     * @throws Error
-     *
-     * @return {undefined}
+     * @throws
      */
     cancelMatch(match, players, err) {
         match.cancel(err)
@@ -366,11 +350,9 @@ class Coordinator {
     /**
      * Check all arguments for isCanceled property, and throw the cancelError.
      *
-     * @param ...{any} Objects to check for isCanceled
+     * @param {*...} args Objects to check for isCanceled
      *
-     * @throws Error
-     *
-     * @return {undefined}
+     * @throws
      */
     checkCancel(...args) {
         for (let i = 0; i < args.length; ++i) {
@@ -385,13 +367,11 @@ class Coordinator {
      *
      * @async
      *
-     * @param {Match} The match to record
-     * @param {string} Output file
-     * @param {object{color: Player}} The players of the match
+     * @param {Match} match The match to record
+     * @param {String} file Output file
+     * @param {{Player}} players The players of the match
      *
-     * @throws Error
-     *
-     * @return {undefined}
+     * @throws
      */
     async recordMatch(match, file, players) {
         const dir = path.dirname(file)
@@ -412,20 +392,18 @@ class Coordinator {
      *
      * @async
      *
-     * @param {Game} The game to record
-     * @param {string} The output file
+     * @param {Game} game The game to record
+     * @param {String} file The output file
      *
-     * @throws Error
-     *
-     * @return {undefined}
+     * @throws
      */
     async recordGame(game, file) {
         const dir = path.dirname(file)
         this.logger.info('Recording game')
         await fse.ensureDir(dir)
         const meta = {
-            ...game.meta()
-          , turnHistory : game.turnHistory
+            ...game.meta(),
+            turnHistory: game.turnHistory
         }
         await fse.writeJson(file, meta, {spaces: 2})
     }
@@ -433,13 +411,13 @@ class Coordinator {
     /**
      * Emit an event on all the players, await any holds, and check for canceled.
      *
-     * @param {object{color: Player}|array[Player]} The players to emit
-     * @param {string} Event name
-     * @param ...{any} Arguments for the listener
+     * @async
+     * 
+     * @param {object|Player[]} players The players to emit
+     * @param {String} event Event name
+     * @param {...*} args Arguments for the listener
      *
-     * @throws Error
-     *
-     * @return {undefined}
+     * @throws
      */
     async emitWaitAndCheck(players, event, ...args) {
         await this.emitAndWait(players, event, ...args)
@@ -451,13 +429,11 @@ class Coordinator {
      *
      * @async
      *
-     * @param {object{color: Player}|array[Player]} The players to emit
-     * @param {string} Event name
-     * @param {...any} Arguments for the listener
+     * @param {object|Player[]} players The players to emit
+     * @param {String} event Event name
+     * @param {...*} args... Arguments for the listener
      *
-     * @throws Error
-     *
-     * @return {undefined}
+     * @throws
      */
     async emitAndWait(players, event, ...args) {
         this.logger.debug('emitAndWait', event)
@@ -466,7 +442,7 @@ class Coordinator {
             const holds = []
             for (let i = 0; i < emitters.length; ++i) {
                 emitters[i].emit(event, ...args)
-                append(holds, castToArray(emitters[i].holds).splice(0))
+                extend(holds, castToArray(emitters[i].holds).splice(0))
             }
             await Promise.all(holds)
         } catch (err) {
@@ -518,9 +494,8 @@ class Coordinator {
     /**
      * Get the directory to record match information.
      *
-     * @param {Match}
-     *
-     * @return {string}
+     * @param {Match} match
+     * @return {String}
      */
     getMatchDir(match) {
         const dateString = fileDateString(match.createDate).substring(0, 19)
@@ -529,16 +504,10 @@ class Coordinator {
         return path.resolve(this.opts.recordDir, 'matches', dirname)
     }
 
-    /**
-     * Getter for logLevel (integer)
-     */
     get logLevel() {
         return this.logger.logLevel
     }
 
-    /**
-     * Setter for logLevel (integer)
-     */
     set logLevel(n) {
         this.logger.logLevel = n
     }
@@ -546,9 +515,9 @@ class Coordinator {
     /**
      * Build the players object from the arguments.
      *
-     * @param {object{color: Player}|array[Player]|Player} The players of the
+     * @param {object|Player[]|Player} player The players of the
      *        match, or the White player.
-     * @param {Player} (optional) The Red player, if the White player was
+     * @param {Player} player2 The Red player, if the White player was
      *        passed as the first argument.
      *
      * @return {object} Players map {White: Player, Red: Player}
@@ -571,5 +540,3 @@ class Coordinator {
         return players
     }
 }
-
-module.exports = Coordinator

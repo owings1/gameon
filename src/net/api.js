@@ -22,13 +22,10 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-const Auth      = require('./auth')
-const Util      = require('../lib/util')
-
-const bodyParser = require('body-parser')
-const express    = require('express')
-
-const {createLogger} = Util
+import express from 'express'
+import bodyParser from 'body-parser'
+import Auth from './auth.js'
+import {createLogger, defaults} from '../lib/util.js'
 
 const Messages = {
     accountConfirmed : 'Account confirmed.',
@@ -43,7 +40,7 @@ const Messages = {
     resetKeySent     : 'A reset key has been sent if the account exists, check your email.',
 }
 
-class Api {
+export default class Api {
 
     /**
      * Class default options.
@@ -59,10 +56,8 @@ class Api {
      * @param {object} opts
      */
     constructor(auth, opts) {
-
-        this.opts = Util.defaults(Api.defaults(process.env), opts)
+        this.opts = defaults(Api.defaults(process.env), opts)
         this.logger = createLogger(this, {type: 'server'})
-
         this.auth = auth
         this.v1 = this.create_v1()
     }
@@ -78,32 +73,23 @@ class Api {
         })
 
         app.post('/authenticate', jsonParser, (req, res) => {
-
             const message = Messages.authenticated
             const {username, password} = req.body
-
             this.auth.authenticate(username, password).then(user => {
-
                 const status = 200
                 const {passwordEncrypted} = user
                 const body = {status, message, passwordEncrypted}
-
                 res.status(status).send(body)
-
             }).catch(res.errorHandler)
         })
 
         app.post('/signup', jsonParser, (req, res) => {
-
             const message = Messages.accountCreated
             const {username, password} = req.body
-
             this.auth.createUser(username, password).then(user => {
-
                 const status = 201
                 const {passwordEncrypted} = user
                 const body = {status, message, passwordEncrypted}
-
                 this.auth.sendConfirmEmail(username).then(() =>
                     res.status(status).send(body)
                 ).catch(res.errorHandler)
@@ -112,13 +98,10 @@ class Api {
         })
 
         app.post('/send-confirm-email', jsonParser, (req, res) => {
-
             const message = Messages.confirmKeySent
             const {username} = req.body
-
             const status = 200
             const body = {status, message}
-
             this.auth.sendConfirmEmail(username).then(() => 
                 res.status(status).send(body)
             ).catch(err => {
@@ -133,13 +116,10 @@ class Api {
         })
 
         app.post('/forgot-password', jsonParser, (req, res) => {
-
             const message = Messages.resetKeySent
             const {username} = req.body
-
             const status = 200
             const body = {status, message}
-
             this.auth.sendResetEmail(username).then(() =>
                 res.status(status).send(body)
             ).catch(err => {
@@ -154,47 +134,34 @@ class Api {
         })
 
         app.post('/confirm-account', jsonParser, (req, res) => {
-
             const message = Messages.accountConfirmed
             const {username, confirmKey} = req.body
-
             const status = 200
             const body = {status, message}
-
             this.auth.confirmUser(username, confirmKey).then(() =>
                 res.status(status).send(body)
             ).catch(res.errorHandler)
         })
 
         app.post('/change-password', jsonParser, (req, res) => {
-
             const message = Messages.passwordChanged
             const {username, oldPassword, newPassword} = req.body
-
             this.auth.changePassword(username, oldPassword, newPassword).then(user => {
-
                 const status = 200
                 const {passwordEncrypted} = user
                 const body = {status, message, passwordEncrypted}
-
                 res.status(status).send(body)
-
             }).catch(res.errorHandler)
         })
 
         app.post('/reset-password', jsonParser, (req, res) => {
-
             const message = Messages.passwordReset
             const {username, password, resetKey} = req.body
-
             this.auth.resetPassword(username, password, resetKey).then(user => {
-
                 const status = 200
                 const {passwordEncrypted} = user
                 const body = {status, message, passwordEncrypted}
-
                 res.status(status).send(body)
-
             }).catch(res.errorHandler)
         })
 
@@ -237,5 +204,3 @@ class Api {
         this.logger.logLevel = n
     }
 }
-
-module.exports = Api

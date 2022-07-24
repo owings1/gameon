@@ -22,14 +22,14 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-const {
+import {
     CircularDependencyError,
     DependencyError,
     MissingDependencyError,
     UnresolvedDependencyError,
-} = require('../errors.js')
+} from '../errors.js'
 
-class DependencyHelper {
+export default class DependencyHelper {
 
     constructor(roots) {
         this.resolved = {}
@@ -121,5 +121,3 @@ class DependencyHelper {
         return count
     }
 }
-
-module.exports = DependencyHelper

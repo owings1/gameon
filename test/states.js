@@ -22,7 +22,7 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-module.exports = {
+const States = {
 
     // ------------------
     // Legal Boards
@@ -134,3 +134,4 @@ module.exports = {
     // corner case, one piece on board
   , OneWhitePiece     : '0|0|1:W|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0:|0|0'
 }
+export default States

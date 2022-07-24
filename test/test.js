@@ -23,20 +23,17 @@
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 const IsPrintOnly = false
-const {
-    objects: {valueHash},
-    strings: {ucfirst},
-    types  : {castToArray},
-} = require('@quale/core')
-const globby = require('globby')
+import {valueHash} from '@quale/core/objects.js'
+import {ucfirst} from '@quale/core/strings.js'
+import globby from 'globby'
+import TestUtil from './util.js'
+const {mapValues} = TestUtil
 
-const path   = require('path')
+import path from 'path'
+import { fileURLToPath } from 'url'
+const __filename = fileURLToPath(import.meta.url)
+const __dirname = path.dirname(__filename)
 
-const {
-    mapValues,
-    stripLeadingSlash,
-} = require('./util.js')
-const {Chars} = require('../src/lib/constants.js')
 
 const onlys = [
     //'auth',

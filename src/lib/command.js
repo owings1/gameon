@@ -22,12 +22,12 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-const {Command} = require('@oclif/command')
+import {Command} from '@oclif/command'
 
-const {createLogger} = require('./util')
-const Menu   = require('../term/menu')
+import {createLogger} from './util.js'
+import Menu from '../term/menu.js'
 
-class AppCommand extends Command {
+export class AppCommand extends Command {
 
     async init(..._args) {
         await super.init(..._args)
@@ -41,7 +41,7 @@ class AppCommand extends Command {
     }
 }
 
-class UserCommand extends AppCommand {
+export class UserCommand extends AppCommand {
 
     async init(...args) {
         await super.init(...args)
@@ -132,9 +132,4 @@ class UserCommand extends AppCommand {
             this.logger.warn(err)
         }
     }
-}
-
-module.exports = {
-    AppCommand
-  , UserCommand
 }

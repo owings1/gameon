@@ -43,7 +43,7 @@ function addProps(err, src) {
     }
 }
 
-class BaseError extends Error {
+export class BaseError extends Error {
 
     constructor(message, ...args) {
         if (Array.isArray(message)) {
@@ -85,7 +85,7 @@ class BaseError extends Error {
     }
 }
 
-class RequestError extends BaseError {
+export class RequestError extends BaseError {
 
     static forResponse(res, body, ...args) {
         const err = new RequestError(...args)
@@ -113,7 +113,7 @@ class RequestError extends BaseError {
     }
 }
 
-class ClientError extends BaseError {
+export class ClientError extends BaseError {
 
     static forConnectFailedError(err) {
         // WebSocketClient throws generic Error
@@ -178,195 +178,108 @@ class ClientError extends BaseError {
     }
 }
 
-class ArgumentError   extends BaseError {}
-class AuthError       extends BaseError {}
-class DependencyError extends BaseError {}
-class GameError       extends BaseError {}
-class InternalError   extends BaseError {}
-class MenuError       extends BaseError {}
-class ProgrammerError extends BaseError {}
-class PromptError     extends BaseError {}
-class RobotError      extends BaseError {}
-class SecurityError   extends BaseError {}
-class ThemeError      extends BaseError {}
+export class ArgumentError   extends BaseError {}
+export class AuthError       extends BaseError {}
+export class DependencyError extends BaseError {}
+export class GameError       extends BaseError {}
+export class InternalError   extends BaseError {}
+export class MenuError       extends BaseError {}
+export class ProgrammerError extends BaseError {}
+export class PromptError     extends BaseError {}
+export class RobotError      extends BaseError {}
+export class SecurityError   extends BaseError {}
+export class ThemeError      extends BaseError {}
 
 // ArgumentError
-class DuplicateColumnError  extends ArgumentError {}
-class DuplicateKeyError     extends ArgumentError {}
-class InvalidColorError     extends ArgumentError {}
-class InvalidColumnError    extends ArgumentError {}
-class InvalidDirError       extends ArgumentError {}
-class InvalidRegexError     extends ArgumentError {}
-class InvalidRollDataError  extends ArgumentError {}
-class InvalidSortDirError   extends ArgumentError {}
-class MaxDepthExceededError extends ArgumentError {}
+export class DuplicateColumnError  extends ArgumentError {}
+export class DuplicateKeyError     extends ArgumentError {}
+export class InvalidColorError     extends ArgumentError {}
+export class InvalidColumnError    extends ArgumentError {}
+export class InvalidDirError       extends ArgumentError {}
+export class InvalidRegexError     extends ArgumentError {}
+export class InvalidRollDataError  extends ArgumentError {}
+export class InvalidSortDirError   extends ArgumentError {}
+export class MaxDepthExceededError extends ArgumentError {}
 
 // AuthError
-class BadCredentialsError   extends AuthError {}
-class UserConfirmedError    extends AuthError {}
-class UserExistsError       extends AuthError {}
-class UserLockedError       extends AuthError {}
-class UserNotConfirmedError extends AuthError {}
-class UserNotFoundError     extends AuthError {}
+export class BadCredentialsError   extends AuthError {}
+export class UserConfirmedError    extends AuthError {}
+export class UserExistsError       extends AuthError {}
+export class UserLockedError       extends AuthError {}
+export class UserNotConfirmedError extends AuthError {}
+export class UserNotFoundError     extends AuthError {}
 
 // ClientError
-class ConnectionClosedError   extends ClientError {}
-class ConnectionFailedError   extends ClientError {}
-class ParallelRequestError    extends ClientError {}
-class UnexpectedResponseError extends ClientError {}
+export class ConnectionClosedError   extends ClientError {}
+export class ConnectionFailedError   extends ClientError {}
+export class ParallelRequestError    extends ClientError {}
+export class UnexpectedResponseError extends ClientError {}
 
 // DependencyError
-class CircularDependencyError   extends DependencyError {}
-class MissingDependencyError    extends DependencyError {}
-class UnresolvedDependencyError extends DependencyError {}
+export class CircularDependencyError   extends DependencyError {}
+export class MissingDependencyError    extends DependencyError {}
+export class UnresolvedDependencyError extends DependencyError {}
 
 // GameError
-class IllegalStateError    extends GameError {}
-class IllegalMoveError     extends GameError {}
-class InvalidRollError     extends GameError {}
-class MatchCanceledError   extends GameError {}
-class NotImplementedError  extends GameError {}
-class WaitingFinishedError extends GameError {}
+export class IllegalStateError    extends GameError {}
+export class IllegalMoveError     extends GameError {}
+export class InvalidRollError     extends GameError {}
+export class MatchCanceledError   extends GameError {}
+export class NotImplementedError  extends GameError {}
+export class WaitingFinishedError extends GameError {}
 
 // GameError > IllegalMoveError
-class IllegalBareoffError   extends IllegalMoveError {}
-class MayNotBearoffError    extends IllegalMoveError {}
-class MoveOutOfRangeError   extends IllegalMoveError {}
-class NoPieceOnBarError     extends IllegalMoveError {}
-class NoPieceOnSlotError    extends IllegalMoveError {}
-class OccupiedSlotError     extends IllegalMoveError {}
-class PieceOnBarError       extends IllegalMoveError {}
+export class IllegalBareoffError   extends IllegalMoveError {}
+export class MayNotBearoffError    extends IllegalMoveError {}
+export class MoveOutOfRangeError   extends IllegalMoveError {}
+export class NoPieceOnBarError     extends IllegalMoveError {}
+export class NoPieceOnSlotError    extends IllegalMoveError {}
+export class OccupiedSlotError     extends IllegalMoveError {}
+export class PieceOnBarError       extends IllegalMoveError {}
 
 // GameError > IllegalStateError
-class AlreadyRolledError       extends IllegalStateError {}
-class DoubleNotAllowedError    extends IllegalStateError {}
-class GameAlreadyStartedError  extends IllegalStateError {}
-class GameFinishedError        extends IllegalStateError {}
-class GameNotFinishedError     extends IllegalStateError {}
-class GameNotStartedError      extends IllegalStateError {}
-class HasNotDoubledError       extends IllegalStateError {}
-class HasNotRolledError        extends IllegalStateError {}
-class MatchFinishedError       extends IllegalStateError {}
-class MovesRemainingError      extends IllegalStateError {}
-class NoMovesMadeError         extends IllegalStateError {}
-class NoMovesRemainingError    extends IllegalStateError {}
-class TurnAlreadyFinishedError extends IllegalStateError {}
-class TurnCanceledError        extends IllegalStateError {}
-class TurnNotFinishedError     extends IllegalStateError {}
+export class AlreadyRolledError       extends IllegalStateError {}
+export class DoubleNotAllowedError    extends IllegalStateError {}
+export class GameAlreadyStartedError  extends IllegalStateError {}
+export class GameFinishedError        extends IllegalStateError {}
+export class GameNotFinishedError     extends IllegalStateError {}
+export class GameNotStartedError      extends IllegalStateError {}
+export class HasNotDoubledError       extends IllegalStateError {}
+export class HasNotRolledError        extends IllegalStateError {}
+export class MatchFinishedError       extends IllegalStateError {}
+export class MovesRemainingError      extends IllegalStateError {}
+export class NoMovesMadeError         extends IllegalStateError {}
+export class NoMovesRemainingError    extends IllegalStateError {}
+export class TurnAlreadyFinishedError extends IllegalStateError {}
+export class TurnCanceledError        extends IllegalStateError {}
+export class TurnNotFinishedError     extends IllegalStateError {}
 
 // MenuError
-class ResetKeyNotEnteredError extends MenuError {}
-class WaitingAbortedError     extends MenuError {}
+export class ResetKeyNotEnteredError extends MenuError {}
+export class WaitingAbortedError     extends MenuError {}
 
 // PromptError
-class PromptActiveError extends PromptError {}
+export class PromptActiveError extends PromptError {}
 
 // RequestError
-class HandshakeError          extends RequestError {}
-class InvalidActionError      extends RequestError {}
-class MatchAlreadyExistsError extends RequestError {}
-class MatchAlreadyJoinedError extends RequestError {}
-class MatchNotFoundError      extends RequestError {}
-class ValidateError           extends RequestError {}
+export class HandshakeError          extends RequestError {}
+export class InvalidActionError      extends RequestError {}
+export class MatchAlreadyExistsError extends RequestError {}
+export class MatchAlreadyJoinedError extends RequestError {}
+export class MatchNotFoundError      extends RequestError {}
+export class ValidateError           extends RequestError {}
 
 // RobotError
-class InvalidRobotError  extends RobotError {}
-class InvalidWeightError extends RobotError {}
-class NoDelegatesError   extends RobotError {}
-class UndecidedMoveError extends RobotError {}
+export class InvalidRobotError  extends RobotError {}
+export class InvalidWeightError extends RobotError {}
+export class NoDelegatesError   extends RobotError {}
+export class UndecidedMoveError extends RobotError {}
 
 // RobotError > InvalidRobotError
-class InvalidRobotVersionError extends InvalidRobotError {}
+export class InvalidRobotVersionError extends InvalidRobotError {}
 
 // ThemeError
-class StyleError         extends ThemeError {}
-class ThemeConfigError   extends ThemeError {}
-class ThemeExistsError   extends ThemeError {}
-class ThemeNotFoundError extends ThemeError {}
-
-const Errors = {
-    AlreadyRolledError
-  , ArgumentError
-  , AuthError
-  , BadCredentialsError
-  , BaseError
-  , CircularDependencyError
-  , ClientError
-  , ConnectionClosedError
-  , ConnectionFailedError
-  , DependencyError
-  , DoubleNotAllowedError
-  , DuplicateColumnError
-  , DuplicateKeyError
-  , GameAlreadyStartedError
-  , GameError
-  , GameFinishedError
-  , GameNotFinishedError
-  , GameNotStartedError
-  , HandshakeError
-  , HasNotDoubledError
-  , HasNotRolledError
-  , IllegalBareoffError
-  , IllegalMoveError
-  , IllegalStateError
-  , InternalError
-  , InvalidActionError
-  , InvalidColorError
-  , InvalidColumnError
-  , InvalidDirError
-  , InvalidRegexError
-  , InvalidRobotError
-  , InvalidRobotVersionError
-  , InvalidRollDataError
-  , InvalidRollError
-  , InvalidSortDirError
-  , InvalidWeightError
-  , MatchAlreadyExistsError
-  , MatchAlreadyJoinedError
-  , MatchCanceledError
-  , MatchFinishedError
-  , MatchNotFoundError
-  , MaxDepthExceededError
-  , MayNotBearoffError
-  , MenuError
-  , MissingDependencyError
-  , MoveOutOfRangeError
-  , MovesRemainingError
-  , NoDelegatesError
-  , NoMovesMadeError
-  , NoMovesRemainingError
-  , NoPieceOnBarError
-  , NoPieceOnSlotError
-  , NotImplementedError
-  , OccupiedSlotError
-  , ParallelRequestError
-  , PieceOnBarError
-  , ProgrammerError
-  , PromptError
-  , PromptActiveError
-  , RequestError
-  , ResetKeyNotEnteredError
-  , RobotError
-  , SecurityError
-  , StyleError
-  , ThemeConfigError
-  , ThemeError
-  , ThemeExistsError
-  , ThemeNotFoundError
-  , TurnAlreadyFinishedError
-  , TurnCanceledError
-  , TurnNotFinishedError
-  , UndecidedMoveError
-  , UnexpectedResponseError
-  , UnresolvedDependencyError
-  , UserConfirmedError
-  , UserExistsError
-  , UserLockedError
-  , UserNotConfirmedError
-  , UserNotFoundError
-  , ValidateError
-  , WaitingAbortedError
-  , WaitingFinishedError
-}
-
-module.exports = Errors
+export class StyleError         extends ThemeError {}
+export class ThemeConfigError   extends ThemeError {}
+export class ThemeExistsError   extends ThemeError {}
+export class ThemeNotFoundError extends ThemeError {}

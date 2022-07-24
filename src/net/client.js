@@ -22,30 +22,28 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-const {objects: {update}}  = require('@quale/core')
-const {Match} = require('../lib/core')
+import {EventEmitter} from 'events'
+import {update} from '@quale/core/objects.js'
+import {client as WsClient} from 'websocket'
+import {Match} from '../lib/core.js'
+import {White, Red} from '../lib/constants.js'
 
-const {EventEmitter} = require('events')
-const WsClient       = require('websocket').client
-
-const {White, Red} = require('../lib/constants')
-
-const {
+import {
     createLogger,
     httpToWs,
     secret1,
     stripTrailingSlash,
     trimMessageData,
     wsToHttp,
-} = require('../lib/util')
+} from '../lib/util.js'
 
-const {
+import {
     ClientError,
     ConnectionClosedError,
     MatchCanceledError,
     ParallelRequestError,
     UnexpectedResponseError,
-} = require('../lib/errors')
+} from '../lib/errors.js'
 
 /**
  * Events:
@@ -65,7 +63,7 @@ const {
  *    - matchCanceled
  *    - responseError
  */
-class Client extends EventEmitter {
+export default class Client extends EventEmitter {
 
     /**
      * @constructor
@@ -650,5 +648,3 @@ class Client extends EventEmitter {
         return res
     }
 }
-
-module.exports = Client

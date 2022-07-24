@@ -22,13 +22,13 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-const {strings: {ucfirst}} = require('@quale/core')
-const {colors: {Chalk}} = require('@quale/term')
+import {Chalk} from '@quale/term/colors.js'
+import {ucfirst} from '@quale/core/strings.js'
+import {StyleError} from '../../lib/errors.js'
 
-const {StyleError} = require('../../lib/errors.js')
-const chalk = new Chalk()
+const chalk = new Chalk
 
-class StyleHelper {
+export default class StyleHelper {
 
     // Examples:
     //
@@ -44,7 +44,7 @@ class StyleHelper {
     //
     static buildDefFromStyle(value, isBackground) {
 
-        if (value == 'default') {
+        if (value === 'default') {
             return []
         }
 
@@ -55,7 +55,7 @@ class StyleHelper {
             if (isHex) {
                 return ['bgHex', color]
             }
-            var builtInName = 'bg' + ucfirst(color)
+            const builtInName = 'bg' + ucfirst(color)
             if (mod) {
                 builtInName += ucfirst(mod)
             }
@@ -83,7 +83,7 @@ class StyleHelper {
 
         if (bgDef) {
             if (bgDef.length) {
-                if (bgDef.length == 1) {
+                if (bgDef.length === 1) {
                     // native chalk method, e.g. bgRed or bgRedBright
                     theChalk = theChalk[bgDef[0]]
                 } else {
@@ -136,11 +136,9 @@ class StyleHelper {
     }
 
     static isValidHexColor(value) {
-        if (value[0] != '#') {
+        if (value[0] !== '#') {
             return false
         }
         return !isNaN(parseInt('0x' + value.substring(1)))
     }
 }
-
-module.exports = StyleHelper

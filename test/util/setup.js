@@ -1,4 +1,4 @@
-const {Assertion} = require('chai')
+import {Assertion} from 'chai'
 
 // see https://www.chaijs.com/guide/helpers/ 
 Assertion.addMethod('erri', function (type) {

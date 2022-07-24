@@ -22,11 +22,10 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-const {EventEmitter} = require('events')
-
-const {Opponent} = require('./constants.js')
-const {NotImplementedError} = require('./errors.js')
-const {createLogger, uuid} = require('./util.js')
+import {EventEmitter} from 'events'
+import {Opponent} from './constants.js'
+import {NotImplementedError} from './errors.js'
+import {createLogger, uuid} from './util.js'
 
 const Listeners = {
 
@@ -63,7 +62,7 @@ const Listeners = {
     },
 }
 
-class Player extends EventEmitter {
+export default class Player extends EventEmitter {
 
     constructor(color) {
 
@@ -118,5 +117,3 @@ class Player extends EventEmitter {
         this.logger.logLevel = n
     }
 }
-
-module.exports = Player

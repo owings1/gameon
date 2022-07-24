@@ -22,11 +22,15 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-const {objects: {update}} = require('@quale/core')
+import {update} from '@quale/core/objects.js'
+import Email from './email.js'
+import fs from 'fs'
+import fse from 'fs-extra'
+import path from 'path'
 
-const Email = require('./email.js')
+import AWS from 'aws-sdk'
 
-const {
+import {
     DefaultAuthHash,
     DefaultAuthSalt,
     DefaultAuthSaltHash,
@@ -37,11 +41,13 @@ const {
     EncryptedFlagPrefix,
     InvalidUsernameChars,
     IsTest,
-} = require('../lib/constants.js')
+} from '../lib/constants.js'
 
-const {
+import {
+    ArgumentError,
     BadCredentialsError,
     InternalError,
+    NotImplementedError,
     SecurityError,
     UserConfirmedError,
     UserExistsError,
@@ -49,9 +55,9 @@ const {
     UserNotConfirmedError,
     UserNotFoundError,
     ValidateError,
-} = require('../lib/errors.js')
+} from '../lib/errors.js'
 
-const {
+import {
     createLogger,
     decrypt2,
     encrypt2,
@@ -61,13 +67,9 @@ const {
     securityCheck,
     tstamp,
     uuid,
-} = require('../lib/util.js')
+} from '../lib/util.js'
 
-const ImplClasses = {
-    get anonymous() { return require('./auth/anonymous.js') },
-    get directory() { return require('./auth/directory.js') },
-    get s3()        { return require('./auth/s3.js') },
-}
+
 
 const ErrorMessages = {
     badConfirmKey     : 'Invalid username and confirm key combination',
@@ -92,7 +94,7 @@ const ValidateMessages = {
     regexPassword   : help => `Invalid password: ${help}`,
 }
 
-class Auth {
+export default class Auth {
 
     /**
      * Get the default options.
@@ -180,12 +182,10 @@ class Auth {
      * @return {object} The user data with `passwordEncrypted` and `token` keys
      */
     async authenticate(username, password) {
-
         if (this.impl.isAnonymous) {
             const anonEnc = password ? this.encryptPassword(password) : ''
             return {passwordEncrypted: anonEnc}
         }
-
         let user
         try {
             user = await this.readUser(username)
@@ -198,7 +198,6 @@ class Auth {
             }
             throw err
         }
-
         try {
             if (this.isEncryptedPassword(password)) {
                 password = this.decryptPassword(password)
@@ -212,9 +211,7 @@ class Auth {
             this.logger.warn(err, {username})
             throw err
         }
-
         this.logger.info('Authenticate', {username})
-
         return update(user, {
             passwordEncrypted : this.encryptPassword(password),
             token             : this.getToken(username, password),
@@ -236,14 +233,11 @@ class Auth {
      * @return {object} The user data with `passwordEncrypted` and `token` keys
      */
     async createUser(username, password, confirmed = false) {
-
         username = this.validateUsername(username)
         this.validatePassword(password)
-
         if (await this.userExists(username)) {
             throw new UserExistsError(ErrorMessages.userExists)
         }
-
         const timestamp = tstamp()
         const user = {
             username,
@@ -257,11 +251,8 @@ class Auth {
             created           : timestamp,
             updated           : timestamp,
         }
-
         await this.wrapInternalError(() => this.impl.createUser(username, user))
-
         this.logger.info('CreateUser', {username})
-
         return update(user, {
             passwordEncrypted : this.encryptPassword(password),
             token             : this.getToken(username, password),
@@ -350,23 +341,18 @@ class Auth {
      * @return {object} The user data
      */
     async sendConfirmEmail(username) {
-
         const user = await this.readUser(username)
         username = user.username
-
         this.assertNotLocked(user)
         this.assertNotConfirmed(user)
-
         const timestamp = tstamp()
         const confirmKey = this.generateConfirmKey()
-
         await this._updateUser(username, update(user, {
             confirmed         : false,
             confirmKey        : this.hashPassword(confirmKey),
             confirmKeyCreated : timestamp,
             updated           : timestamp,
         }))
-
         await this.email.send({
             Destination: {
                 ToAddresses: [username],
@@ -388,9 +374,7 @@ class Auth {
                 },
             },
         })
-
         this.logger.info('SendConfirmEmail', {username})
-
         return user
     }
 
@@ -407,22 +391,17 @@ class Auth {
      * @return {object} The user data
      */
     async sendResetEmail(username) {
-
         const user = await this.readUser(username)
         username = user.username
-
         this.assertNotLocked(user)
         this.assertConfirmed(user)
-
         const timestamp = tstamp()
         const resetKey = this.generateConfirmKey()
-
         await this._updateUser(username, update(user, {
             resetKey        : this.hashPassword(resetKey),
             resetKeyCreated : timestamp,
             updated         : timestamp,
         }))
-
         await this.email.send({
             Destination: {
                 ToAddresses: [username],
@@ -444,9 +423,7 @@ class Auth {
                 },
             },
         })
-
         this.logger.info('SendResetEmail', {username})
-
         return user
     }
 
@@ -464,30 +441,23 @@ class Auth {
      * @return {object} The user data
      */
     async confirmUser(username, confirmKey) {
-
         const user = await this.readUser(username)
         username = user.username
-
         if (!confirmKey || this.hashPassword(confirmKey) != user.confirmKey) {
             throw new BadCredentialsError(ErrorMessages.badConfirmKey)
         }
-
         const timestamp = tstamp()
         if (timestamp > user.confirmKeyCreated + this.opts.confirmExpiry) {
             throw new BadCredentialsError(ErrorMessages.expiredConfirmKey)
         }
-
         this.assertNotLocked(user)
-
         await this._updateUser(username, update(user, {
             confirmed         : true,
             confirmKey        : null,
             confirmKeyCreated : null,
             updated           : timestamp,
         }))
-
         this.logger.info('ConfirmUser', {username})
-
         return user
     }
 
@@ -506,31 +476,24 @@ class Auth {
      * @return {object} The user data
      */
     async resetPassword(username, password, resetKey) {
-
         const user = await this.readUser(username)
         username = user.username
-
         if (!this.checkHashed(resetKey, user.resetKey)) {
             throw new BadCredentialsError(ErrorMessages.badResetKey)
         }
-
         const timestamp = tstamp()
         if (tstamp() > user.resetKeyCreated + this.opts.resetExpiry) {
             throw new BadCredentialsError(ErrorMessages.expiredResetKey)
         }
-
         this.assertNotLocked(user)
         this.validatePassword(password)
-        
         await this._updateUser(username, update(user, {
             password        : this.hashPassword(password),
             resetKey        : null,
             resetKeyCreated : null,
             updated         : timestamp,
         }))
-
         this.logger.info('ResetPassword', {username})
-
         return update(user, {
             passwordEncrypted : this.encryptPassword(password),
             token             : this.getToken(username, password),
@@ -552,29 +515,22 @@ class Auth {
      * @return {object} The user data
      */
     async changePassword(username, oldPassword, newPassword) {
-
         const user = await this.readUser(username)
         username = user.username
-
         if (!this.checkHashed(oldPassword, user.password)) {
             throw new BadCredentialsError(ErrorMessages.generic)
         }
-
         this.assertNotLocked(user)
         this.validatePassword(newPassword)
-
         await this._updateUser(username, update(user, {
             password : this.hashPassword(newPassword),
             updated  : tstamp(),
         }))
-
         this.logger.info('ChangePassword', {username})
-
         return update(user, {
             passwordEncrypted : this.encryptPassword(newPassword),
             token             : this.getToken(username, newPassword),
         })
-        return user
     }
 
     /**
@@ -590,17 +546,13 @@ class Auth {
      * @return {object} The user data
      */
     async lockUser(username) {
-
         const user = await this.readUser(username)
         username = user.username
-
         await this._updateUser(username, update(user, {
-            locked  : true,
-            updated : tstamp(),
+            locked: true,
+            updated: tstamp(),
         }))
-
         this.logger.info('LockUser', {username})
-
         return user
     }
 
@@ -613,17 +565,13 @@ class Auth {
      * @return {object} The user data
      */
     async unlockUser(username) {
-
         const user = await this.readUser(username)
         username = user.username
-
         await this._updateUser(username, update(user, {
             locked  : false,
             updated : tstamp(),
         }))
-
         this.logger.info('UnlockUser', {username})
-
         return user
     }
 
@@ -862,7 +810,6 @@ class Auth {
      * @return {Boolean} Whether all values are custom
      */
     _checkSecurity(env) {
-
         const checks = [
             {
                 name    : 'AUTH_SALT',
@@ -870,34 +817,25 @@ class Auth {
                 default : DefaultAuthSalt,
             },
         ]
-
         const {error, warning} = securityCheck(checks, env)
-
         if (error) {
             throw new SecurityError(error)
         }
-
         if (warning) {
             if (!IsTest) {
                 this.logger.warn(warning)
             }
             return false
         }
-
         return true
     }
 
-    /**
-     * Delegates to impl.type.
-     * @type {String}
-     */
+    /** @type {String} */
     get type() {
         return this.impl.type
     }
 
-    /**
-     * @type {Number}
-     */
+    /** @type {Number} */
     get logLevel() {
         return this.logger.logLevel
     }
@@ -908,4 +846,193 @@ class Auth {
     }
 }
 
-module.exports = Auth
+class AuthImpl {
+
+    async createUser(username, user) {
+        throw new NotImplementedError
+    }
+
+    async readUser(username) {
+        throw new NotImplementedError
+    }
+
+    async updateUser(username, user) {
+        throw new NotImplementedError
+    }
+
+    async deleteUser(username) {
+        throw new NotImplementedError
+    }
+
+    async userExists(username) {
+        throw new NotImplementedError
+    }
+
+    async listAllUsers() {
+        throw new NotImplementedError
+    }
+}
+
+class AnonymousAuth extends AuthImpl {
+
+    constructor(opts) {
+        super()
+        this.type = 'anonymous'
+        this.isAnonymous = true
+    }
+}
+
+
+class DirectoryAuth extends AuthImpl {
+
+    static defaults(env) {
+        return {
+            authDir : env.AUTH_DIR  || ''
+        }
+    }
+
+    constructor(opts){
+        super()
+        this.type = 'directory'
+        this.opts = defaults(DirectoryAuth.defaults(process.env), opts)
+        if (!this.opts.authDir) {
+            throw new ArgumentError('Auth directory not set.')
+        }
+        if (!fs.existsSync(this.opts.authDir)) {
+            throw new ArgumentError('Auth directory not found: ' + this.opts.authDir)
+        }
+    }
+
+    async createUser(username, user) {
+        return this.updateUser(username, user)
+    }
+
+    async readUser(username) {
+        let user
+        try {
+            user = await fse.readJson(this._userFile(username))
+        } catch (err) {
+            if ('ENOENT' == err.code) {
+                throw new UserNotFoundError
+            }
+            throw err
+        }
+        return user
+    }
+
+    async updateUser(username, user) {
+        await fse.writeJson(this._userFile(username), user)
+    }
+
+    async deleteUser(username) {
+        await fse.remove(this._userFile(username))
+    }
+
+    async userExists(username) {
+        return await fse.pathExists(this._userFile(username))
+    }
+
+    listAllUsers() {
+        return new Promise((resolve, reject) => {
+            fs.readdir(this.opts.authDir, (err, files) => {
+                if (err) {
+                    reject(err)
+                    return
+                }
+                resolve(files)
+            })
+        })
+    }
+
+    _userFile(username) {
+        return path.resolve(this.opts.authDir, this._userFilename(username))
+    }
+
+    _userFilename(username) {
+        return path.basename(username)
+    }
+}
+
+
+class S3Auth extends AuthImpl {
+
+    static defaults(env) {
+        return {
+            s3_bucket: env.AUTH_S3_BUCKET  || '',
+            s3_prefix: env.AUTH_S3_PREFIX || 'users/',
+        }
+    }
+
+    constructor(opts){
+        super()
+        this.type = 's3'
+        this.opts = defaults(S3Auth.defaults(process.env), opts)
+        this.s3 = new AWS.S3()
+    }
+
+    async createUser(username, user) {
+        await this.updateUser(username, user)
+    }
+
+    async readUser(username) {
+        const params = {
+            Bucket: this.opts.s3_bucket,
+            Key: this._userKey(username),
+        }
+        try {
+            const result = await this.s3.getObject(params).promise()
+            return JSON.parse(result.Body)
+        } catch (err) {
+            if (err.statusCode === 404) {
+                throw new UserNotFoundError
+            } else {
+                throw err
+            }
+        }
+    }
+
+    async updateUser(username, user) {
+        const params = {
+            Bucket: this.opts.s3_bucket,
+            Key: this._userKey(username),
+            Body: Buffer.from(JSON.stringify(user, null, 2)),
+            ContentType: 'application/json',
+        }
+        await this.s3.putObject(params).promise()
+    }
+
+    async deleteUser(username) {
+        const params = {
+            Bucket: this.opts.s3_bucket,
+            Key: this._userKey(username),
+        }
+        await this.s3.deleteObject(params).promise()
+    }
+
+    async userExists(username) {
+        const params = {
+            Bucket: this.opts.s3_bucket,
+            Key: this._userKey(username),
+        }
+        try {
+            await this.s3.headObject(params).promise()
+        } catch (err) {
+            if (err.statusCode === 404) {
+                return false
+            } else {
+                throw err
+            }
+        }
+        return true
+    }
+
+    _userKey(username) {
+        return this.opts.s3_prefix + username
+    }
+}
+
+const ImplClasses = {
+    anonymous: AnonymousAuth,
+    directory: DirectoryAuth,
+    s3: S3Auth,
+}

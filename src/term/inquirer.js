@@ -49,32 +49,29 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
  * OTHER DEALINGS IN THE SOFTWARE.
  */
-const {
-    objects : {update},
-    Screen,
-    strings : {stripAnsi},
-    types   : {castToArray},
-} = require('@quale/core')
-const {defer, from} = require('rxjs')
-const Inquirer      = require('inquirer')
-const ScreenBase    = require('inquirer/lib/utils/screen-manager')
+import {update} from '@quale/core/objects.js'
+import {stripAnsi} from '@quale/core/strings.js'
+import {castToArray} from '@quale/core/types.js'
+import Screen from '@quale/core/screen.js'
+import {defer, from} from 'rxjs'
+import Inquirer from 'inquirer'
+import ScreenBase from 'inquirer/lib/utils/screen-manager.js'
 
-const {EventEmitter} = require('events')
+import {EventEmitter} from 'events'
 
-const Prompts = require('./prompts.js')
-const {debug} = require('./helpers/prompt.methods.js')
-const {
+import Prompts from './prompts.js'
+import {
     Chars,
     DefaultAnsiEnabled,
-} = require('../lib/constants.js')
-const {
+} from '../lib/constants.js'
+import {
     cliWidth,
     ensure,
     forceLineReturn,
     nchars,
     ntimes,
     stringWidth,
-} = require('../lib/util.js')
+} from '../lib/util.js'
 
 const NullEmitter = new EventEmitter
 const DefaultScreen = new Screen({isAnsi: DefaultAnsiEnabled})
@@ -489,6 +486,5 @@ class Separator extends Inquirer.Separator {
 /**
  * Instantiate prompter module
  */
-module.exports = {
-    inquirer : createPromptModule().restoreDefaultPrompts()
-}
+const inq = createPromptModule().restoreDefaultPrompts()
+export {inq as inquirer}

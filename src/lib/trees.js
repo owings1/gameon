@@ -22,17 +22,12 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-const Dice   = require('./dice')
-const Errors = require('./errors')
-const Util   = require('./util')
+import Dice from './dice.js'
+import {MaxDepthExceededError, NotImplementedError} from './errors.js'
+import {DefaultProfiler as Profiler} from './util/profiler.js'
+import {sortNumericAsc, sortNumericDesc} from './util.js'
 
-const {MaxDepthExceededError, NotImplementedError} = Errors
-
-const Profiler = Util.Profiler.getDefaultInstance()
-
-const {sortNumericAsc, sortNumericDesc} = Util
-
-class TurnBuilder {
+export class TurnBuilder {
 
     constructor(turn) {
         this.turn        = turn
@@ -46,13 +41,13 @@ class TurnBuilder {
     compute() {
         this.result = {
             // state28 strings
-            allowedEndStates  : []
+            allowedEndStates  : [],
             // Map of {moveHash: {move, index: {...}}}
-          , allowedMoveIndex  : {}
+            allowedMoveIndex  : {},
             // Map of state28 to move coords
-          , endStatesToSeries : {}
-          , allowedFaces      : []
-          , hasWinner         : false
+            endStatesToSeries : {},
+            allowedFaces      : [],
+            hasWinner         : false,
         }
         const trees = this.buildTrees()
         this.result.maxDepth = this.maxDepth
@@ -91,69 +86,50 @@ class TurnBuilder {
     }
 
     processTrees(trees) {
-
         const {result, maxDepth, highestFace} = this
-
         for (let i = 0, ilen = trees.length; i < ilen && maxDepth > 0; ++i) {
-
             let tree = trees[i]
-
             tree.prune(maxDepth, highestFace, true)
-
             let isEmpty = true
-            for (var hash in tree.index) {
+            for (let hash in tree.index) {
                 result.allowedMoveIndex[hash] = tree.index[hash]
                 isEmpty = false
             }
-
             if (isEmpty) {
                 continue
             }
-
             this.processLeaves(tree.depthIndex[maxDepth])
             this.processWinners(tree.winners)
             if (tree.hasWinner || tree.winners.length) {
                 result.hasWinner = true
             }
-
             this.trees.push(tree)
         }
     }
 
     processLeaves(leaves) {
-
         if (!leaves) {
             return
         }
-
-        const {result, flagKeys, turn, maxDepth, highestFace} = this
-
+        const {result, flagKeys, turn} = this
         for (let j = 0, jlen = leaves.length; j < jlen; ++j) {
-
             let node = leaves[j]
             this.leaves.push(node)
-
             let flagKey = node.flagKey()
-
             if (flagKey) {
                 if (flagKeys[flagKey]) {
                     continue
                 }
                 flagKeys[flagKey] = true
             }
-
             let endState = node.move.board.state28()
-            
             if (result.endStatesToSeries[endState]) {
                 continue
             }
-
             // Only about 25% of leaves are kept, flag key gets about twice
             // as many as endState.
-
             result.endStatesToSeries[endState] = node.moveSeries()
             result.allowedEndStates.push(endState)
-
             if (!this.maxExample) {
                 this.maxExample = result.endStatesToSeries[endState]
             }
@@ -163,21 +139,15 @@ class TurnBuilder {
     }
 
     processWinners(winners) {
-
         const {result} = this
-
         for (let j = 0, jlen = winners.length; j < jlen; ++j) {
-
             let node = winners[j]
-
             if (node.depth == this.maxDepth) {
                 // already covered in leaves
                 continue
             }
-
             let {board} = node.move
             let endState = board.state28()
-
             if (result.endStatesToSeries[endState]) {
                 // This condition is never met for legal rolls.
                 //
@@ -196,11 +166,9 @@ class TurnBuilder {
                 // for it (DeviantBuilder).
                 continue
             }
-
             this.leaves.push(node)
             result.endStatesToSeries[endState] = node.moveSeries()
             result.allowedEndStates.push(endState)
-
             // populate turn board cache
             this.turn.boardCache[endState] = board
         }
@@ -210,26 +178,29 @@ class TurnBuilder {
         return this.newTree(board, color, sequence).build()
     }
 
+    /**
+     * @abstract
+     */
     newTree(board, color, sequence) {
         throw new NotImplementedError
     }
 }
 
-class DepthBuilder extends TurnBuilder {
+export class DepthBuilder extends TurnBuilder {
 
     newTree(board, color, sequence) {
         return new DepthTree(board, color, sequence)
     }
 }
 
-class BreadthBuilder extends TurnBuilder {
+export class BreadthBuilder extends TurnBuilder {
 
     newTree(board, color, sequence) {
         return new BreadthTree(board, color, sequence)
     }
 }
 
-class AbstractNode {
+export class AbstractNode {
 
     constructor() {
         this.parent      = null
@@ -245,10 +216,10 @@ class AbstractNode {
 
     static serialize(node, sorter) {
         return {
-            maxDepth    : node.maxDepth
-          , highestFace : node.highestFace
-          , hasWinner   : node.hasWinner
-          , index       : this.serializeIndex(node.index, sorter)
+            maxDepth    : node.maxDepth,
+            highestFace : node.highestFace,
+            hasWinner   : node.hasWinner,
+            index       : this.serializeIndex(node.index, sorter),
         }
     }
 
@@ -262,29 +233,25 @@ class AbstractNode {
         if (sorter) {
             hashes.sort(sorter)
         }
-        for (var i = 0, ilen = hashes.length; i < ilen; ++i) {
-            var hash = hashes[i]
-            var node = index[hash]
+        for (let i = 0, ilen = hashes.length; i < ilen; ++i) {
+            let hash = hashes[i]
+            let node = index[hash]
             cleaned[hash] = node.serialize(sorter)
         }
         return cleaned
     } 
 }
 
-class SequenceTree extends AbstractNode {
+export class SequenceTree extends AbstractNode {
 
     constructor(board, color, sequence) {
-
         super()
-
         Dice.checkFaces(sequence)
-
-        this.board       = board
-        this.color       = color
-        this.sequence    = sequence
-
-        this.depthIndex  = []
-        this.winners     = []
+        this.board = board
+        this.color = color
+        this.sequence = sequence
+        this.depthIndex = []
+        this.winners = []
     }
 
     build() {
@@ -297,10 +264,8 @@ class SequenceTree extends AbstractNode {
     }
 
     registerNode(node, index) {
-
         const {depth, parent, move} = node
         const {face, board} = move
-
         if (board.getWinner() == this.color) {
             node.setWinner()
             this.hasWinner = true
@@ -325,35 +290,26 @@ class SequenceTree extends AbstractNode {
     }
 
     prune(maxDepth, highestFace, isRecursive, index = null) {
-
         index = index || this.index
-
         // copy the keys for modifying in place
         const hashes = Object.keys(index)
-
-        for (var i = 0, ilen = hashes.length; i < ilen; ++i) {
-
+        for (let i = 0, ilen = hashes.length; i < ilen; ++i) {
             Profiler.inc('SequenceTree.prune.check')
-
-            var hash = hashes[i]
-            var node = index[hash]
-
+            let hash = hashes[i]
+            let node = index[hash]
             if (node.hasWinner) {
                 continue
             }
-
             if (node.maxDepth < maxDepth) {
                 Profiler.inc('SequenceTree.prune.delete.maxDepth')
                 delete index[hash]
                 continue
             }
-
             if (node.highestFace < highestFace) {
                 Profiler.inc('SequenceTree.prune.delete.highestFace')
                 delete index[hash]
                 continue
             }
-
             if (isRecursive && node.depth < maxDepth - 1) {
                 // We don't need to prune all the children if this depth >= maxDepth -1,
                 // since all the children will have depth == maxDepth. In fact, it is
@@ -373,80 +329,68 @@ class SequenceTree extends AbstractNode {
 
     static serialize(tree, sorter) {
         return {
-            ...super.serialize(tree, sorter)
-          , board     : tree.board.state28()
-          , color     : tree.color
-          , sequence  : tree.sequence
+            ...super.serialize(tree, sorter),
+            board     : tree.board.state28(),
+            color     : tree.color,
+            sequence  : tree.sequence,
         }
     }
 }
 
-class DepthTree extends SequenceTree {
+export class DepthTree extends SequenceTree {
 
     // Recursive
     buildSequence(board, sequence, index, parent, depth = 0) {
-
         if (depth > 4) {
             throw new MaxDepthExceededError
         }
-
         const face = sequence[0]
         const moves = board.getPossibleMovesForFace(this.color, face)
-
         if (!moves.length) {
             return
         }
-
         depth += 1
-
         if (!this.depthIndex[depth]) {
             this.depthIndex[depth] = []
         }
-
         const nextFaces = sequence.slice(1)
-
-        for (var i = 0, ilen = moves.length; i < ilen; ++i) {
-
-            var move = moves[i]
-
+        for (let i = 0, ilen = moves.length; i < ilen; ++i) {
+            let move = moves[i]
             move.board = move.board.copy()
             move.do()
-
-            var node = this.createNode(move, depth, parent)
+            let node = this.createNode(move, depth, parent)
             this.registerNode(node, index)
-
             if (!nextFaces.length) {
                 continue
             }
-
             // recurse
             this.buildSequence(move.board, nextFaces, node.index, node, depth)
         }
     }
 }
 
-class BreadthTree extends SequenceTree {
+export class BreadthTree extends SequenceTree {
 
     buildSequence(board, sequence, index) {
 
-        var lastNodes = [null]
+        let lastNodes = [null]
 
-        for (var i = 0, ilen = sequence.length; i < ilen; ++i) {
+        for (let i = 0, ilen = sequence.length; i < ilen; ++i) {
 
-            var nextNodes = []
+            let nextNodes = []
 
-            var face = sequence[i]
-            var depth = i + 1
+            let face = sequence[i]
+            let depth = i + 1
 
-            for (var j = 0, jlen = lastNodes.length; j < jlen; ++j) {
+            for (let j = 0, jlen = lastNodes.length; j < jlen; ++j) {
 
-                var parent = lastNodes[j]
+                let parent = lastNodes[j]
                 if (parent) {
                     board = parent.move.board
                     index = parent.index
                 }
 
-                var moves = board.getPossibleMovesForFace(this.color, face)
+                let moves = board.getPossibleMovesForFace(this.color, face)
 
                 if (!moves.length) {
                     continue
@@ -456,13 +400,13 @@ class BreadthTree extends SequenceTree {
                     this.depthIndex[depth] = []
                 }
 
-                for (var k = 0, klen = moves.length; k < klen; ++k) {
+                for (let k = 0, klen = moves.length; k < klen; ++k) {
 
-                    var move = moves[k]
+                    let move = moves[k]
                     move.board = move.board.copy()
                     move.do()
 
-                    var node = this.createNode(move, depth, parent)
+                    let node = this.createNode(move, depth, parent)
 
                     this.registerNode(node, index)
                     nextNodes.push(node)
@@ -474,7 +418,7 @@ class BreadthTree extends SequenceTree {
     }
 }
 
-class TreeNode extends AbstractNode {
+export class TreeNode extends AbstractNode {
 
     constructor(move, depth, parent) {
 
@@ -504,7 +448,7 @@ class TreeNode extends AbstractNode {
     moveSeries() {
         // profiling shows caching unnecessary (never hit)
         const moveSeries = []
-        for (var parent = this.parent, i = this.depth - 2; parent; parent = parent.parent, --i) {
+        for (let parent = this.parent, i = this.depth - 2; parent; parent = parent.parent, --i) {
             moveSeries[i] = parent.move.coords
         }
         moveSeries.push(this.move.coords)
@@ -544,7 +488,7 @@ class TreeNode extends AbstractNode {
     // profiling shows caching not needed - never hit
     flagKey() {
 
-        var flagKey = null
+        let flagKey = null
 
         // only do for doubles
         if (this.flag == 8 && this.depth == 4) {
@@ -552,13 +496,13 @@ class TreeNode extends AbstractNode {
             Profiler.start('TreeNode.flagKey')
 
             const origins = [this.move.origin]
-            for (var parent = this.parent; parent; parent = parent.parent) {
+            for (let parent = this.parent; parent; parent = parent.parent) {
                 origins.push(parent.move.origin)
             }
             origins.sort(sortNumericAsc)
 
             flagKey = '8/4-' + origins[0]
-            for (var i = 1; i < 4; ++i) {
+            for (let i = 1; i < 4; ++i) {
                 flagKey += ',' + origins[i]
             }
 
@@ -574,22 +518,11 @@ class TreeNode extends AbstractNode {
 
     static serialize(node, sorter) {
         return {
-            ...super.serialize(node, sorter)
-          , move     : node.move.coords
-          , endState : node.move.board.state28()
-          , flag     : node.flag
-          , depth    : node.depth
+            ...super.serialize(node, sorter),
+            move     : node.move.coords,
+            endState : node.move.board.state28(),
+            flag     : node.flag,
+            depth    : node.depth,
         }
     }
-}
-
-module.exports = {
-    AbstractNode
-  , BreadthBuilder
-  , BreadthTree
-  , DepthBuilder
-  , DepthTree
-  , SequenceTree
-  , TreeNode
-  , TurnBuilder
 }

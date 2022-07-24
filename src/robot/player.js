@@ -22,25 +22,24 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-const path = require('path')
-const Base = require('../lib/player.js')
-const Profiler = require('../lib/util/profiler.js').getDefaultInstance()
-const {spreadScore} = require('../lib/util.js')
-const {KnownRobots} = require('./res/robots.config.js')
-const {
+import Base from '../lib/player.js'
+import {DefaultProfiler as Profiler} from '../lib/util/profiler.js'
+import {intRange, spreadScore} from '../lib/util.js'
+import {
     HasNotRolledError,
     InvalidRobotError,
     InvalidRobotVersionError,
     InvalidWeightError,
     NoDelegatesError,
     NotImplementedError,
-    RobotError,
     UndecidedMoveError,
-} = require('../lib/errors')
+} from '../lib/errors.js'
+import {Opponent, Colors, PointOrigins} from '../lib/constants.js'
+import FirstTurns from './res/first-turns.js'
 
-const ZERO_SCORES = 'ZERO_SCORES'
+export const ZERO_SCORES = 'ZERO_SCORES'
 
-class Robot extends Base {
+export class Robot extends Base {
 
     constructor(...args) {
         super(...args)
@@ -88,7 +87,7 @@ class Robot extends Base {
     }
 }
 
-class ConfidenceRobot extends Robot {
+export class ConfidenceRobot extends Robot {
 
     // default
     static getClassVersions() {
@@ -100,8 +99,7 @@ class ConfidenceRobot extends Robot {
         if (!classMeta) {
             throw new InvalidRobotError(`Unknown robot: ${name}`)
         }
-        if (!classMeta.class) {
-            classMeta.class = require('./robots/' + path.basename(classMeta.filename))
+        if (!classMeta.versions) {
             classMeta.versions = classMeta.class.getClassVersions()
         }
         // make a copy
@@ -214,7 +212,7 @@ const Sorters = {
         if (cmp) {
             return cmp
         }
-        cmp = (b == result.selectedEndState) - (a == result.selectedEndState)
+        cmp = (b === result.selectedEndState) - (a == result.selectedEndState)
         if (cmp) {
             return cmp
         }
@@ -233,7 +231,7 @@ const Sorters = {
     },
 }
 
-class RobotDelegator extends Robot {
+export class RobotDelegator extends Robot {
 
     static listClassNames() {
         return Object.keys(KnownRobots)
@@ -394,8 +392,8 @@ class RobotDelegator extends Robot {
 
     meta() {
         return {
-            ...super.meta()
-          , delegates : this.delegates.map(({robot, moveWeight, doubleWeight}) => {
+            ...super.meta(),
+            delegates : this.delegates.map(({robot, moveWeight, doubleWeight}) => {
                 return {moveWeight, doubleWeight, ...robot.meta()}
             })
         }
@@ -482,21 +480,21 @@ class RobotDelegator extends Robot {
 
             const delegate = this.delegates[i]
             const info = {
-                name       : delegate.robot.name
-              , moveWeight : delegate.moveWeight
-              , rankings   : myRankedStates.map((endState, i) => {
+                name       : delegate.robot.name,
+                moveWeight : delegate.moveWeight,
+                rankings   : myRankedStates.map((endState, i) => {
                     return {
-                        endState
-                      , moves       : result.turn.endStatesToSeries[endState]
+                        endState,
+                        moves       : result.turn.endStatesToSeries[endState],
                         // just for reference
-                      , myScore     : res[endState]
-                      , actualScore : result.totals[endState]
+                        myScore     : res[endState],
+                        actualScore : result.totals[endState],
                         // what the delegator said
-                      , actualRank  : overallRankingsMap[endState]
+                        actualRank  : overallRankingsMap[endState],
                         // what i said
-                      , myRank      : myRankedStatesMap[endState]
+                        myRank      : myRankedStatesMap[endState],
                     }
-                })
+                }),
             }
             info.rankings.sort(Sorters.delegateRankings)
 
@@ -506,20 +504,20 @@ class RobotDelegator extends Robot {
         const rankList = overallRankings.map(endState => {
             const rank = overallRankingsMap[endState]
             const info = {
-                endState
-              , finalScore : result.totals[endState]
-              , rank       : rank
-              , rankCount  : overallRankCounts[rank]
-              , moves      : result.turn.endStatesToSeries[endState]
-              , isChosen   : endState == result.selectedEndState
-              , delegates  : this.delegates.map((delegate, i) => {
+                endState,
+                finalScore : result.totals[endState],
+                rank       : rank,
+                rankCount  : overallRankCounts[rank],
+                moves      : result.turn.endStatesToSeries[endState],
+                isChosen   : endState === result.selectedEndState,
+                delegates  : this.delegates.map((delegate, i) => {
                     const myScore = result.results[i][endState]
                     const myRank = delegateRankedStatesMaps[i][endState]
                     return {
-                        name     : delegate.robot.name
-                      , weighted : myScore * delegate.moveWeight
-                      , myScore
-                      , myRank
+                        name     : delegate.robot.name,
+                        weighted : myScore * delegate.moveWeight,
+                        myScore,
+                        myRank,
                     }
                 })
             }
@@ -599,9 +597,428 @@ class RobotDelegator extends Robot {
 
 RobotDelegator.Sorters = Sorters
 
-module.exports = {
-    Robot,
-    ConfidenceRobot,
-    RobotDelegator,
-    ZERO_SCORES,
+
+
+
+class BearoffRobot extends ConfidenceRobot {
+
+    async getScores(turn, game, match) {
+
+        const baseline = turn.board.analyzer.piecesHome(turn.color)
+
+        const scores = {}
+        var hasBearoff = false
+        turn.allowedEndStates.forEach(endState => {
+            const {analyzer} = turn.fetchBoard(endState)
+            if (!analyzer.mayBearoff(turn.color)) {
+                scores[endState] = 0
+                return
+            }
+            hasBearoff = true
+            const homes = analyzer.piecesHome(turn.color) - baseline
+            scores[endState] = homes * 10
+            if (analyzer.isDisengaged()) {
+                const pointsCovered = analyzer.pointsOccupied(turn.color).length
+                scores[endState] += pointsCovered
+            }
+        })
+        return hasBearoff ? this.spreadScore(scores) : ZERO_SCORES
+    }
+}
+
+class DoubleRobot extends ConfidenceRobot {
+
+    async getScores(turn, game, match) {
+        return ZERO_SCORES
+    }
+
+    async getDoubleConfidence(turn, game, match) {
+        const {analyzer} = turn.board
+        // naive implementation: pip count <= 75% of opponent's
+        const myPipCount = analyzer.pipCount(this.color)
+        const opponentPipCount = analyzer.pipCount(Opponent[this.color])
+        return myPipCount < opponentPipCount * 0.75
+    }
+
+    async getAcceptDoubleConfidence(turn, game, match) {
+        const {analyzer} = turn.board
+        // naive implementation: pip count <= 120% of opponent's
+        const myPipCount = analyzer.pipCount(this.color)
+        const opponentPipCount = analyzer.pipCount(Opponent[this.color])
+        return myPipCount < opponentPipCount * 1.2
+    }
+}
+
+class FirstTurnRobot extends ConfidenceRobot {
+
+    static getFirstTurnMoveIndex() {
+        return FirstTurns
+    }
+
+    async getScores(turn, game, match) {
+        // skip non-game, greater than second turn, and doubles
+        if (!game) {
+            return ZERO_SCORES
+        }
+        const turnCount = game.getTurnCount()
+        if (turnCount > 2 || turn.dice[0] == turn.dice[1]) {
+            return ZERO_SCORES
+        }
+        const scores = this.zeroScores(turn)
+        const diceHash = turn.diceSorted.join(',')
+        // we only have one potential move series
+        const {moveHashes, firstMoveEndState} = FirstTurns[turn.color][diceHash]
+        // check if the anticipated end state is allowed
+        if (firstMoveEndState in turn.endStatesToSeries) {
+            scores[firstMoveEndState] = 1
+        } else {
+            // check the allowedMoveIndex for the available moves
+            var store = turn.allowedMoveIndex[moveHashes[0]]
+            if (store) {
+                store = store.index[moveHashes[1]]
+                if (store) {
+                    scores[store.move.board.state28()] = 1 / turnCount
+                }
+            }
+        }
+        return scores
+    }
+
+    static generateMoveIndex(pointMoves, board) {
+
+        const moveIndex = {}
+        for (let color in Colors) {
+            moveIndex[color] = {}
+            for (let diceHash in pointMoves) {
+                board.setup()
+                let moveHashes = pointMoves[diceHash].map(({point, face}) =>
+                    board.move(color, PointOrigins[color][point], face).hash
+                )
+                moveIndex[color][diceHash] = {
+                    moveHashes,
+                    firstMoveEndState : board.state28(),
+                }
+            }
+        }
+        return moveIndex
+    }
+}
+
+
+class HittingRobot extends ConfidenceRobot {
+
+    async getScores(turn, game, match) {
+
+        const baseline = turn.board.bars[turn.opponent].length
+
+        const counts = {}
+        //const zeros = []
+
+        // TODO: quadrant/pip offset
+        turn.allowedEndStates.forEach(endState => {
+            const board = turn.fetchBoard(endState)
+            const added = board.bars[turn.opponent].length - baseline
+            counts[endState] = added
+            //if (added < 1) {
+            //    zeros.push(endState)
+            //}
+        })
+
+        const scores = this.spreadScore(counts)
+        //zeros.forEach(endState => scores[endState] = 0)
+
+        return scores
+    }
+}
+
+class OccupyRobot extends ConfidenceRobot {
+
+    // maximum number of points held
+    async getScores(turn, game, match) {
+        if (turn.board.analyzer.isDisengaged()) {
+            return ZERO_SCORES
+        }
+        const pointCounts = {}
+        turn.allowedEndStates.forEach(endState => {
+            const {analyzer} = turn.fetchBoard(endState)
+            pointCounts[endState] = analyzer.originsHeld(turn.color).length
+        })
+        return this.spreadScore(pointCounts)
+    }
+}
+
+class PrimeRobot extends ConfidenceRobot {
+
+    async getScores(turn, game, match) {
+
+        if (turn.board.analyzer.isDisengaged()) {
+            return ZERO_SCORES
+        }
+
+        const scores = {}
+        const zeros = []
+
+        turn.allowedEndStates.forEach(endState => {
+            const {analyzer} = turn.fetchBoard(endState)
+            const primes = analyzer.primes(turn.color)
+            if (primes.length) {
+                const maxSize = Math.max(...primes.map(prime => prime.size))
+                scores[endState] = maxSize + this.sizeBonus(maxSize)
+            } else {
+                scores[endState] = 0
+                zeros.push(endState)
+            }
+        })
+
+        const finalScores = this.spreadScore(scores)
+        zeros.forEach(endState => finalScores[endState] = 0)
+
+        return finalScores
+    }
+
+    sizeBonus(size) {
+        return (size - 2) * 2
+    }
+}
+
+
+class RandomRobot extends ConfidenceRobot {
+
+    static getClassVersions() {
+        return {
+            v1 : this,
+            v2 : RandomRobot_v2,
+            v3 : RandomRobot_v3,
+        }
+    }
+
+    async getScores(turn, game, match) {
+        return this.spreadScore(this.zeroScores(turn))
+    }
+}
+
+class RandomRobot_v2 extends ConfidenceRobot {
+
+    async getScores(turn, game, match) {
+        const scores = {}
+        turn.allowedEndStates.forEach(endState => {
+            scores[endState] = Math.random()
+        })
+        return this.spreadScore(scores)
+    }
+}
+
+class RandomRobot_v3 extends ConfidenceRobot {
+
+    async getScores(turn, game, match) {
+        return ZERO_SCORES
+    }
+}
+
+
+
+class RunningRobot extends ConfidenceRobot {
+
+    async getScores(turn, game, match) {
+        const scores = {}
+        const len = turn.allowedEndStates.length
+        for (var i = 0; i < len; i++) {
+            var endState = turn.allowedEndStates[i]
+            scores[endState] = this._scoreEndState(turn, endState)
+        }
+        // Inverse scoring
+        return this.spreadScore(scores, true)
+    }
+
+    _scoreEndState(turn, endState) {
+        const {analyzer} = turn.fetchBoard(endState)
+        const points = analyzer.pointsOccupied(turn.color)
+        const len = points.length
+        var score = 0
+        for (var i = 0; i < len; i++) {
+            var point = points[i]
+            score += point * analyzer.piecesOnPoint(turn.color, point) * RunningRobot.QM[point]
+        }
+        return score
+    }
+}
+
+RunningRobot.QM = {}
+
+intRange(1, 24).forEach(point => {
+    let qm
+    const quadrant = Math.ceil(point / 6)
+    if (quadrant === 4) {
+        qm = 8
+    } else {
+        qm = (quadrant - 1) / 2
+    }
+    RunningRobot.QM[point] = qm
+})
+
+
+
+
+
+class SafetyRobot extends ConfidenceRobot {
+
+    static getClassVersions() {
+        return {
+            v1 : this,
+            v2 : SafetyRobot_v2,
+            v3 : SafetyRobot_v3,
+        }
+    }
+
+    constructor(...args) {
+        super(...args)
+        this.isIncludeAllBlots = true
+    }
+
+    async getScores(turn, game, match) {
+
+        if (turn.board.analyzer.isDisengaged()) {
+            return ZERO_SCORES
+        }
+
+        const scores = {}
+        const zeros = []
+
+        for (var i = 0, ilen = turn.allowedEndStates.length; i < ilen; ++i) {
+            var endState = turn.allowedEndStates[i]
+            var {analyzer} = turn.fetchBoard(endState)
+            
+            var blots = this._fetchBlots(analyzer, turn.color)
+            var {score, directCount} = this._scoreBlots(blots)
+
+            scores[endState] = score
+            if (directCount == 0) {
+                zeros.push(endState)
+            }
+        }
+        const finalScores = this.spreadScore(scores, true)
+        for (var i = 0, ilen = zeros.length; i < ilen; ++i) {
+            finalScores[zeros[i]] = 1
+        }
+        return finalScores
+    }
+
+    _fetchBlots(analyzer, color) {
+        return analyzer.blots(color, this.isIncludeAllBlots)
+    }
+
+    _scoreBlots(blots) {
+        var score = 0
+        var directCount = 0
+        for (var i = 0, ilen = blots.length; i < ilen; ++i) {
+            var blot = blots[i]
+            directCount += blot.directCount
+            score += (blot.directCount * 4 + blot.indirectCount) * SafetyRobot.QM[blot.point]
+        }
+        return {score, directCount}
+    }
+}
+
+class SafetyRobot_v2 extends SafetyRobot {
+
+    constructor(...args) {
+        super(...args)
+        this.isIncludeAllBlots = false
+    }
+}
+
+class SafetyRobot_v3 extends SafetyRobot_v2 {
+
+    // Enforces spread on scores
+    async getScores(turn, game, match) {
+        return this.spreadScore(await super.getScores(turn, game, match))
+    }
+}
+
+SafetyRobot.QM = {}
+
+intRange(1, 24).forEach(point => {
+    const quadrant = Math.ceil(point / 6)
+    const qm = (4 - quadrant) * 2
+    SafetyRobot.QM[point] = qm
+})
+
+const KnownRobots = {
+    BearoffRobot: {
+        class: BearoffRobot,
+        defaults: {
+            moveWeight   : 0.6,
+            doubleWeight : 0,
+            version      : 'v1',
+        },
+    },
+    FirstTurnRobot: {
+        class: FirstTurnRobot,
+        defaults: {
+            moveWeight   : 1.0,
+            doubleWeight : 0,
+            version      : 'v1',
+        },
+    },
+    HittingRobot   : {
+        class: HittingRobot,
+        isCalibrate: true,
+        defaults: {
+            moveWeight   : 0.4,
+            doubleWeight : 0,
+            version      : 'v1',
+        },
+    },
+    OccupyRobot: {
+        class: OccupyRobot,
+        isCalibrate : true,
+        defaults : {
+            moveWeight   : 0.45,
+            doubleWeight : 0,
+            version      : 'v1',
+        },
+    },
+    PrimeRobot: {
+        class: PrimeRobot,
+        isCalibrate: true,
+        defaults: {
+            moveWeight   : 0.55,
+            doubleWeight : 0,
+            version      : 'v1',
+        },
+    },
+    RandomRobot: {
+        class: RandomRobot,
+        defaults: {
+            moveWeight   : 0,
+            doubleWeight : 0,
+            version      : 'v1',
+        },
+    },
+    RunningRobot: {
+        class: RunningRobot,
+        isCalibrate: true,
+        defaults: {
+            moveWeight   : 0.44,
+            doubleWeight : 0,
+            version      : 'v1',
+        },
+    },
+    SafetyRobot: {
+        class: SafetyRobot,
+        isCalibrate: true,
+        defaults: {
+            moveWeight   : 0.5,
+            doubleWeight : 0,
+            version      : 'v2',
+        },
+    },
+    DoubleRobot: {
+        class: DoubleRobot,
+        defaults: {
+            moveWeight   : 0,
+            doubleWeight : 1,
+            version      : 'v1',
+        },
+    },
 }

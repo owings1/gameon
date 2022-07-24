@@ -22,36 +22,24 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-const {
-    arrays: {append},
-    strings: {stringWidth},
-    types: {isFunction, isString},
-} = require('@quale/core')
-const fse = require('fs-extra')
-
-const fs = require('fs')
-const path = {resolve} = require('path')
-
-const Dice    = require('../../lib/dice.js')
-const {Board} = require('../../lib/core.js')
-const {Chars} = require('../../lib/constants.js')
-const Themes  = require('../themes.js')
-const Messages = require('./menu.messages.js')
-const {
+import fse from 'fs-extra'
+import {stringWidth} from '@quale/core/strings.js'
+import {isFunction, isString} from '@quale/core/types.js'
+import {resolve} from 'path'
+import Dice from '../../lib/dice.js'
+import {Board} from '../../lib/core.js'
+import {Chars} from '../../lib/constants.js'
+import Themes from '../themes.js'
+import Messages from './menu.messages.js'
+import {RobotDelegator} from '../../robot/player.js'
+import {  
     errMessage,
     homeTilde,
     isCredentialsFilled,
     padEnd,
-    padStart,
     sp,
-    StringBuilder,
     tildeHome,
-} = require('../../lib/util.js')
-const {
-    ConfidenceRobot,
-    RobotDelegator,
-} = require('../../robot/player.js')
-
+} from '../../lib/util.js'
 
 function getDiffChalk(a, b, chlk) {
     if (a === b) {
@@ -86,7 +74,7 @@ const ToggleChars = {
     bool: ['up', 'down'],
 }
 
-class Questions {
+export default class Questions {
 
     constructor(menu) {
         this.menu = menu
@@ -960,5 +948,3 @@ class Questions {
         return this.menu.theme
     }
 }
-
-module.exports = Questions

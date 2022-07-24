@@ -22,37 +22,34 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-const {
-    arrays  : {append, arraySum},
-    objects : {valueHash},
-    strings : {stringWidth},
-    types   : {castToArray, isNumber, isObject, isRegex, isString},
-    Screen,
-} = require('@quale/core')
-
-const Themes = require('./themes.js')
+import Screen from '@quale/core/screen.js'
+import {extend, sum as arraySum} from '@quale/core/arrays.js'
+import {valueHash} from '@quale/core/objects.js'
+import {stringWidth} from '@quale/core/strings.js'
+import {castToArray, isNumber, isObject, isRegex, isString} from '@quale/core/types.js'
+import Themes from './themes.js'
 // TODO: refactor to class and translate messages
-const Questions  = require('./helpers/tables.questions.js')
+import Questions  from './helpers/tables.questions.js'
 
-const {inquirer} = require('./inquirer.js')
-const IntlHelper = require('../lib/util/intl.js')
-const {
+import {inquirer} from './inquirer.js'
+import IntlHelper from '../lib/util/intl.js'
+import {
     Chars,
     DefaultAnsiEnabled,
     DefaultThemeName,
-} = require('../lib/constants.js')
-const {
+} from '../lib/constants.js'
+import {
     createLogger,
     defaults,
     mapValues,
     nchars,
     pad,
-} = require('../lib/util.js')
-const {
+} from '../lib/util.js'
+import {
     DuplicateColumnError,
     InvalidColumnError,
     InvalidRegexError,
-} = require('../lib/errors.js')
+} from '../lib/errors.js'
 
 const DefaultScreen = new Screen({isAnsi: DefaultAnsiEnabled})
 
@@ -611,7 +608,7 @@ class Table {
         const lines = []
 
         if (strings.title.length) {
-            append(lines, [
+            extend(lines, [
                 strings.border.pretitle,
                 strings.title,
                 strings.border.posttitle,
@@ -619,7 +616,7 @@ class Table {
         } else {
             lines.push(strings.border.top)
         }
-        append(lines, [
+        extend(lines, [
             strings.head,
             strings.border.mid,
         ])
@@ -631,7 +628,7 @@ class Table {
         })
         if (strings.foot.length) {
             lines.push(strings.border.prefoot)
-            append(lines, strings.foot)
+            extend(lines, strings.foot)
             lines.push(strings.border.postfoot)
         } else {
             lines.push(strings.border.bot)
@@ -643,7 +640,7 @@ class Table {
         const {strings, title} = this
         const lines = []
         if (strings.title.length) {
-            append(lines, [
+            extend(lines, [
                 strings.border.pretitle,
                 strings.title,
             ])
@@ -654,7 +651,7 @@ class Table {
             lines.push(strings.border.footOnlyTop)
         }
         if (strings.foot.length) {
-            append(lines, strings.foot)
+            extend(lines, strings.foot)
         }
         lines.push(strings.border.footOnlyBot)
         return lines
