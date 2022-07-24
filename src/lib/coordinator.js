@@ -143,7 +143,7 @@ import fse from 'fs-extra'
 import path from 'path'
 import {extend} from '@quale/core/arrays.js'
 import {castToArray} from '@quale/core/types.js'
-import {InvalidDirError} from './errors'
+import {InvalidDirError} from './errors.js'
 
 import {
     defaults,

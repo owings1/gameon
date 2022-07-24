@@ -27,7 +27,7 @@ import {castToArray} from '@quale/core/types.js'
 import express from 'express'
 import onFinished from 'on-finished'
 import prom from 'prom-client'
-import {server as WsServer} from 'websocket'
+import WebSocket from 'websocket'
 import {Match} from '../lib/core.js'
 import Api from './api.js'
 import Auth from './auth.js'
@@ -293,11 +293,11 @@ export default class Server {
 
     /**
      * @param {http.Server}
-     * @return {WebSocketServer}
+     * @return {WebSocket.server}
      */
     createSocketServer(httpServer) {
 
-        const server = new WsServer({httpServer})
+        const server = new WebSocket.server({httpServer})
         server.conns = {}
 
         server.on('request', request => {

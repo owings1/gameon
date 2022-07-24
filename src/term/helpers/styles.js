@@ -55,7 +55,7 @@ export default class StyleHelper {
             if (isHex) {
                 return ['bgHex', color]
             }
-            const builtInName = 'bg' + ucfirst(color)
+            let builtInName = 'bg' + ucfirst(color)
             if (mod) {
                 builtInName += ucfirst(mod)
             }

@@ -73,5 +73,3 @@ export default class Timer {
         return this.startCount
     }
 }
-
-module.exports = Timer

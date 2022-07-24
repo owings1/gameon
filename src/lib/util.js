@@ -33,7 +33,7 @@ import {isString, isObject, castToArray} from '@quale/core/types.js'
 import cliWidth from 'cli-width'
 import emailval from 'email-validator'
 import roundTo from 'round-to'
-import Uuid from 'uuid'
+import * as Uuid from 'uuid'
 
 import crypto from 'crypto'
 import os from 'os'
@@ -47,9 +47,9 @@ import {
     PromptActiveError,
 } from './errors.js'
 
-import StringBuilder from './util/string-builder'
+import StringBuilder from './util/string-builder.js'
 
-export {StringBuilder, cliWidth, sum as sumArray}
+export {StringBuilder, cliWidth, sum as sumArray, stringWidth}
 
 const LoggerTypes = {
     named: {
@@ -1003,17 +1003,6 @@ export function stripTrailingSlash(str) {
         return str.substring(0, str.length - 1)
     }
     return str
-}
-
-/**
- * Get the width of the string, ignoring ANSI codes, and accounting for
- * multi-byte characters.
- *
- * @param {String} str The input string
- * @return {Number} The string width
- */
-export function stringWidth(str) {
-    return stringWidth(str)
 }
 
 /**

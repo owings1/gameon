@@ -30,7 +30,7 @@ import {
     OriginPoints,
     OutsideOrigins,
     PointOrigins,
-} from './contants.js'
+} from './constants.js'
 
 import {DefaultProfiler as Profiler} from './util/profiler.js'
 import {IllegalStateError} from './errors.js'

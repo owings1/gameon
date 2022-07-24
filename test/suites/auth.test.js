@@ -22,18 +22,18 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-import fse from 'fs-extra'
-import fs from 'fs'
-import {expect} from 'chai'
-import Auth from '../../src/net/auth.js'
-import TestUtil from '../util.js'
 import process from 'process'
+import fs from 'fs'
+import fse from 'fs-extra'
 
-const {
+import {expect} from 'chai'
+import {
     getError,
     parseKey,
     tmpDir,
-} = TestUtil
+} from '../util.js'
+
+import Auth from '../../src/net/auth.js'
 
 describe('Auth', () => {
 
@@ -95,12 +95,12 @@ describe('Auth', () => {
         })
 
         const nimps = [
-            'createUser'
-          , 'readUser'
-          , 'updateUser'
-          , 'deleteUser'
-          , 'userExists'
-          , 'listAllUsers'
+            'createUser',
+            'readUser',
+            'updateUser',
+            'deleteUser',
+            'userExists',
+            'listAllUsers',
         ]
 
         nimps.sort().forEach(method => {
@@ -109,6 +109,7 @@ describe('Auth', () => {
 
                 it(`should throw NotImplementedError for ${method}`, async function () {
                     const err = await getError(() => this.auth.impl[method]())
+                    console.log(err)
                     expect(err.name).to.equal('NotImplementedError')
                 })
             })            
@@ -117,14 +118,14 @@ describe('Auth', () => {
         describe('#validateUsername', () => {
 
             const passCases = [
-                'nobody@nowhere.example'
-              , 'Kimberly@nowhere.example'
+                'nobody@nowhere.example',
+                'Kimberly@nowhere.example',
             ]
 
             const throwCases = [
-                [''                     , 'empty']
-              , ['foo?@example.example' , 'bad char ?']
-              , ['chunky'               , 'bad email chunky']
+                [''                     , 'empty'],
+                ['foo?@example.example' , 'bad char ?'],
+                ['chunky'               , 'bad email chunky'],
             ]
 
             passCases.forEach(input => {
@@ -146,17 +147,17 @@ describe('Auth', () => {
         describe('#validatePassword', () => {
 
             const passCases = [
-                'dbHg5eva'
-              , 'dY@a45-S'
-              , '=Bwx4r%aWB_T'
-              , 'a1d//////G'
+                'dbHg5eva',
+                'dY@a45-S',
+                '=Bwx4r%aWB_T',
+                'a1d//////G',
             ]
 
             const throwCases = [
-                [''                     , 'empty']
-              , ['5ZycJj3'              , 'length 7']
-              , ['aDlvkdoslK'           , 'missing number']
-              , ['encrypted_aDlvkdoslK' , 'start with encrypted_']
+                [''                     , 'empty'],
+                ['5ZycJj3'              , 'length 7'],
+                ['aDlvkdoslK'           , 'missing number'],
+                ['encrypted_aDlvkdoslK' , 'start with encrypted_'],
             ]
 
             passCases.forEach(input => {

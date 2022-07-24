@@ -31,7 +31,7 @@ import * as Util from '../src/lib/util.js'
 // const Util    = require('../src/lib/util')
 
 import {Board} from '../src/lib/core.js'
-import Robot from '../src/robot/player.js'
+import {ConfidenceRobot} from '../src/robot/player.js'
 // const Robot   = require('../src/robot/player')
 
 import States from './states.js'
@@ -46,10 +46,9 @@ import { fileURLToPath } from 'url'
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
 
-
-
-const Rolls = JSON.parse(fs.readFileSync(path.resolve(__dirname, 'rolls.json')))
-
+const Rolls = JSON.parse(
+    fs.readFileSync(path.resolve(__dirname, 'rolls.json'))
+)
 
 class GetErrorError extends Error {
     constructor(...args) {
@@ -58,7 +57,7 @@ class GetErrorError extends Error {
     }
 }
 
-function getError(cb) {
+export function getError(cb) {
     let ret
     try {
         ret = cb()
@@ -78,10 +77,10 @@ function getError(cb) {
     }
 }
 
-function makeRandomMoves(turn, isFinish) {
+export function makeRandomMoves(turn, isFinish) {
     while (true) {
         const moves = turn.getNextAvailableMoves()
-        if (moves.length == 0) {
+        if (moves.length === 0) {
             break
         }
         const move = Util.randomElement(moves)
@@ -93,27 +92,45 @@ function makeRandomMoves(turn, isFinish) {
     return turn
 }
 
+export function parseKey(params) {
+    return params.Message.Body.Text.Data.match(/^Key: (.*)$/)[1]
+}
+
+export function tmpDir() {
+    return tmp.dirSync().name
+}
+
+export function tmpFile() {
+    return tmp.fileSync().name
+}
+
+export function fetchBoard(name) {
+    return Board.fromStateString(States[name])
+}
+
+export function newRando(...args) {
+    return ConfidenceRobot.getDefaultInstance('RandomRobot', ...args)
+}
 
 const TestUtil = {
     // methods
-    ger: getError,
+    // ger: getError,
     getError,
     makeRandomMoves,
-    fetchBoard : name => Board.fromStateString(States[name]),
-    newRando   : (...args) => Robot.ConfidenceRobot.getDefaultInstance('RandomRobot', ...args),
+    fetchBoard,
+    // newRando   : (...args) => Robot.ConfidenceRobot.getDefaultInstance('RandomRobot', ...args),
     noop       : () => {},
     normState  : str => Board.fromStateString(str).stateString(),
-    parseKey   : params => params.Message.Body.Text.Data.match(/^Key: (.*)$/)[1],
-    // requireSrc : p => require('../src/' + p),
-    tmpDir     : () => tmp.dirSync().name,
-    tmpFile    : () => tmp.fileSync().name,
+    parseKey,
+    tmpDir,
+    // tmpFile    : () => tmp.fileSync().name,
     // transforms
     States28: Object.fromEntries(Object.entries(States).map(([key, value]) =>
         [key, Board.fromStateString(value).state28()]
     )),
     // passthru requires
-    clientServer : require('./util/client-server'),
-    MockPrompter : require('./util/mock-prompter'),
+    // clientServer : require('./util/client-server'),
+    // MockPrompter : require('./util/mock-prompter'),
     Rolls,
     // expect,
     getUrlParams,
@@ -131,4 +148,5 @@ const TestUtil = {
     stripLeadingSlash : Util.stripLeadingSlash,
     // update,
 }
-export default TestUtil
+
+// export default TestUtil

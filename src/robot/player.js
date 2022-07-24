@@ -86,6 +86,7 @@ export class Robot extends Base {
         return {...super.meta(), isRobot: this.isRobot}
     }
 }
+export default Robot
 
 export class ConfidenceRobot extends Robot {
 

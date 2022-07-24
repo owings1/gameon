@@ -22,41 +22,35 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-const {
-    arrays: {append},
-    objects: {update},
-} = require('@quale/core')
-const fse = require('fs-extra')
+import {expect} from 'chai'
 
-const fs  = require('fs')
-const {resolve} = require('path')
-
-const {
-    destroyAll,
-    expect,
+import fs from 'fs'
+import fse from 'fs-extra'
+import {resolve} from 'path'
+import {extend} from '@quale/core/arrays.js'
+import {update} from '@quale/core/objects.js'
+import {destroyAll} from '../../src/lib/util.js'
+import MockPrompter from '../util/mock-prompter.js'
+import {NullOutput} from '../util/io.js'
+import States from '../states.js'
+import {
     fetchBoard,
     getError,
-    MockPrompter,
     newRando,
-    NullOutput,
-    requireSrc,
     tmpDir,
     tmpFile,
-    States,
-} = require('../util.js')
+} from '../util.js'
+
+import Coordinator from '../../src/lib/coordinator.js'
+import Dice from '../../src/lib/dice.js'
+import Player from '../../src/lib/player.js'
+import TermPlayer from '../../src/term/player.js'
+
+import {Match, Game} from '../../src/lib/core.js'
+import {White, Red, PointOrigins} from '../../src/lib/constants.js'
+import {MatchCanceledError} from '../../src/lib/errors.js'
 
 describe('Coordinator', () => {
-
-    const Coordinator = requireSrc('lib/coordinator')
-    const Player      = requireSrc('lib/player')
-
-    const Robot       = requireSrc('robot/player')
-    const TermPlayer  = requireSrc('term/player')
-
-    const Dice = requireSrc('lib/dice')
-    const {White, Red, PointOrigins} = requireSrc('lib/constants')
-    const {Match, Game} = requireSrc('lib/core')
-    const {MatchCanceledError} = requireSrc('lib/errors')
 
     const logLevel = 1//4
 
@@ -112,7 +106,7 @@ describe('Coordinator', () => {
             this.fixture.rolls = arr
         }
         this.addRolls = function(arr) {
-            append(this.fixture.rolls, arr)
+            extend(this.fixture.rolls, arr)
         }
         this.addRoll = function(roll) {
             this.fixture.rolls.push(roll)
@@ -349,7 +343,7 @@ describe('Coordinator', () => {
                 beforeEach(function () {
                     this.setRolls([[2, 1]])
                     const {players} = this.fixture
-                    append(players.White.moves, [
+                    extend(players.White.moves, [
                         pointMove(White, 1, 2)
                     ])
                 })
@@ -374,7 +368,7 @@ describe('Coordinator', () => {
                 beforeEach(function () {
                     this.setRolls([[2, 1]])
                     const {players} = this.fixture
-                    append(players.White.moves, [
+                    extend(players.White.moves, [
                         pointMove(White, 6, 2),
                         pointMove(White, 5, 1)
                     ])
@@ -409,7 +403,7 @@ describe('Coordinator', () => {
                             beforeEach(function () {
                                 this.addRoll([6, 5])
                                 const {players} = this.fixture
-                                append(players.Red.moves, [
+                                extend(players.Red.moves, [
                                     pointMove(Red, 6, 6),
                                     pointMove(Red, 5, 5)
                                 ])
@@ -430,7 +424,7 @@ describe('Coordinator', () => {
                     beforeEach(function () {
                         this.addRoll([6, 5])
                         const {players} = this.fixture
-                        append(players.Red.moves, [
+                        extend(players.Red.moves, [
                             pointMove(Red, 6, 6),
                             pointMove(Red, 5, 5)
                         ])
@@ -458,7 +452,7 @@ describe('Coordinator', () => {
             beforeEach(function () {
                 const t1 = new TermPlayer(White)
                 const t2 = new TermPlayer(Red)
-                append(this.objects, [t1, t2])
+                extend(this.objects, [t1, t2])
                 t1.logLevel = logLevel
                 t2.logLevel = logLevel
                 t1.output = new NullOutput
@@ -488,7 +482,7 @@ describe('Coordinator', () => {
                     beforeEach(function () {
                         this.setRolls([[6, 1]])
                         const {responses} = this.fixture
-                        append(responses.White, [
+                        extend(responses.White, [
                             {origin: '13'},
                             {origin: '8'},
                             {finish: 'f'}
@@ -499,7 +493,7 @@ describe('Coordinator', () => {
 
                         beforeEach(function () {
                             const {responses} = this.fixture
-                            append(responses.Red, [
+                            extend(responses.Red, [
                                 {action: 'd'}
                             ])
                         })
@@ -508,7 +502,7 @@ describe('Coordinator', () => {
 
                             beforeEach(function () {
                                 const {responses} = this.fixture
-                                append(responses.White, [
+                                extend(responses.White, [
                                     {accept: 'n'}
                                 ])
                             })
@@ -526,7 +520,7 @@ describe('Coordinator', () => {
 
                             beforeEach(function () {
                                 const {responses} = this.fixture
-                                append(responses.White, [
+                                extend(responses.White, [
                                     {accept: 'y'}
                                 ])
                             })
@@ -580,7 +574,7 @@ describe('Coordinator', () => {
                     beforeEach(function () {
                         this.setRolls([[6, 1]])
                         const {responses} = this.fixture
-                        append(responses.White, [
+                        extend(responses.White, [
                             {origin: '13'},
                             {face:    '6'},
                             {origin:  '8'},
@@ -592,7 +586,7 @@ describe('Coordinator', () => {
 
                         beforeEach(function () {
                             const {responses} = this.fixture
-                            append(responses.Red, [
+                            extend(responses.Red, [
                                 {action: 'd'}
                             ])
                         })
@@ -601,7 +595,7 @@ describe('Coordinator', () => {
 
                             beforeEach(function () {
                                 const {responses} = this.fixture
-                                append(responses.White, [
+                                extend(responses.White, [
                                     {accept: 'y'}
                                 ])
                             })
@@ -611,7 +605,7 @@ describe('Coordinator', () => {
                                 beforeEach(function () {
                                     const {responses} = this.fixture
                                     this.addRoll([6, 6])
-                                    append(responses.Red, [
+                                    extend(responses.Red, [
                                         {origin: '6'},
                                         {origin: '6'},
                                         {origin: '6'},
@@ -633,7 +627,7 @@ describe('Coordinator', () => {
                                 beforeEach(function () {
                                     this.addRoll([6, 5])
                                     const {responses} = this.fixture
-                                    append(responses.Red, [
+                                    extend(responses.Red, [
                                         {origin: '6'},
                                         {finish: 'f'}
                                     ])
@@ -644,7 +638,7 @@ describe('Coordinator', () => {
                                     beforeEach(function () {
                                         this.addRoll([1, 2])
                                         const {responses} = this.fixture
-                                        append(responses.White, [
+                                        extend(responses.White, [
                                             {action:  'r'},
                                             {origin: '24'},
                                             {face:    '2'},
@@ -658,7 +652,7 @@ describe('Coordinator', () => {
                                         beforeEach(function () {
                                             this.addRoll([6, 6])
                                             const {responses} = this.fixture
-                                            append(responses.Red, [
+                                            extend(responses.Red, [
                                                 {origin: '6'},
                                                 {origin: '6'},
                                                 {origin: '6'},
@@ -683,7 +677,7 @@ describe('Coordinator', () => {
                         beforeEach(function () {
                             this.addRoll([6, 6])
                             const {responses} = this.fixture
-                            append(responses.Red, [
+                            extend(responses.Red, [
                                 {action: 'r'},
                                 {origin: '6'},
                                 {origin: '6'},
@@ -725,7 +719,7 @@ describe('Coordinator', () => {
                 beforeEach(function () {
                     const r1 = newRando(White)
                     const r2 = newRando(Red)
-                    append(this.objects, [r1, r2])
+                    extend(this.objects, [r1, r2])
                     update(this.fixture, {
                         players: {
                            White: r1
@@ -747,7 +741,7 @@ describe('Coordinator', () => {
                 beforeEach(function () {
                     this.setRolls([[2, 1]])
                     const {players} = this.fixture
-                    append(players.White.moves, [
+                    extend(players.White.moves, [
                         pointMove(White, 1, 2)
                     ])
                 })

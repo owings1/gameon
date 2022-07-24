@@ -22,8 +22,8 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-import lingui from '@lingui/core'
-import plurals from 'make-plurals/plurals'
+import * as lingui from '@lingui/core'
+import * as plurals from 'make-plural/plurals'
 // const lingui  = require('@lingui/core')
 // const plurals = require('make-plural/plurals')
 

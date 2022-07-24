@@ -22,19 +22,14 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-const {objects: {update}} = require('@quale/core')
+import {expect} from 'chai'
+import {update} from '@quale/core/objects.js'
+import {fetchBoard, getError} from '../util.js'
 
-const {
-    expect,
-    fetchBoard,
-    getError,
-    requireSrc,
-} = require('../util.js')
+import {Board, Piece} from '../../src/lib/core.js'
+import {White, Red} from '../../src/lib/constants.js'
 
 describe('BoardAnalyzer', () => {
-
-    const {Board, Piece} = requireSrc('lib/core')
-    const {White, Red}   = requireSrc('lib/constants')
 
     beforeEach(function () {
         this.load = function (name) {

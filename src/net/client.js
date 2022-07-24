@@ -24,10 +24,9 @@
  */
 import {EventEmitter} from 'events'
 import {update} from '@quale/core/objects.js'
-import {client as WsClient} from 'websocket'
+import WebSocket from 'websocket'
 import {Match} from '../lib/core.js'
 import {White, Red} from '../lib/constants.js'
-
 import {
     createLogger,
     httpToWs,
@@ -83,7 +82,7 @@ export default class Client extends EventEmitter {
         this.username = username
         this.password = password
 
-        this.socketClient = new WsClient
+        this.socketClient = new WebSocket.client
         this.secret = secret1()
 
         this.token = null
@@ -465,39 +464,27 @@ export default class Client extends EventEmitter {
      * @return {object|Error|null}
      */
     async _waitForResponse(action = null) {
-
         const data = await this._waitForMessage()
-
         try {
-
             if (data.isError) {
                 this.logger.debug('data.isError', 'throwing')
                 throw ClientError.forData(data)
             }
-
-            if (!action || data.action == action) {
+            if (!action || data.action === action) {
                 this.logger.debug('action met', action)
                 return data
             }
-
-            if (data.action == 'matchCanceled') {
+            if (data.action === 'matchCanceled') {
                 throw new MatchCanceledError(data.reason, {attrs: data.attrs})
             }
-
             throw new UnexpectedResponseError(
                 `Expecting response ${action}, but got ${data.action} instead`
             )
-
         } catch (err) {
-
             try {
-
                 if (err.isMatchCanceledError) {
-
                     this.logger.debug('cancelMatch.from._waitForResponse')
-
                     if (!this.cancelMatch(err)) {
-
                         // This is for debugging.
                         if (this.emit('responseError', err, data)) {
                             this.logger.warn(err)
@@ -506,14 +493,12 @@ export default class Client extends EventEmitter {
                         }
                     }
                 }
-
             } finally {
                 if (err.isClientShouldClose) {
                     this.logger.debug('waitForResponse.isClientShouldClose')
                     this.close(err)
                 }
             }
-
             throw err
         }
     }

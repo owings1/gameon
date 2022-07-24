@@ -22,23 +22,18 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-const {objects: {update}} = require('@quale/core')
-const {
-    clientServer,
-    expect,
+import clientServer from '../util/client-server.js'
+import {expect} from 'chai'
+import {
     getError,
     makeRandomMoves,
-    requireSrc,
-} = require('../util.js')
+} from '../util.js'
+
+import {Red, White, MatchCancelRef} from '../../src/lib/constants.js'
+import {RequestError} from '../../src/lib/errors.js'
+import Server from '../../src/net/server.js'
 
 describe('Client', () => {
-
-    const Client = requireSrc('net/client')
-    const Server = requireSrc('net/server')
-
-    const Errors = requireSrc('lib/errors')
-
-    const {Red, White, MatchCancelRef} = requireSrc('lib/constants')
 
     const logLevel = 1
 
@@ -50,11 +45,11 @@ describe('Client', () => {
             anon : new Server
         }
 
-        await clientServer.testInit.call(this, logLevel)
+        await clientServer.call(this, logLevel)
 
         this.fixture = {
-            server : this.servers.anon
-          , ...this.clients.anon
+            server : this.servers.anon,
+            ...this.clients.anon
         }
     })
 
@@ -255,7 +250,7 @@ describe('Client', () => {
         it('should close when server sends error with isClientShouldClose', async function () {
             const {client, server} = this.fixture
             client.logLevel = 0
-            const err = new Errors.RequestError('test', {attrs: {isClientShouldClose: true}})
+            const err = new RequestError('test', {attrs: {isClientShouldClose: true}})
             let caught
             client.on('error', err => {
                 caught = err
@@ -372,7 +367,7 @@ describe('Client', () => {
         it('should close when server sends error with isClientShouldClose', async function () {
             const {client, server} = this.fixture
             await client.connect()
-            const err = new Errors.RequestError('test', {attrs: {isClientShouldClose: true}})
+            const err = new RequestError('test', {attrs: {isClientShouldClose: true}})
             const prom = client._waitForResponse()
             server.sendMessage(Object.values(server.socketServer.conns), err)
             const caught = await getError(() => prom)

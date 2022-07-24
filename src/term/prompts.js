@@ -52,10 +52,10 @@
 import {Chars} from '../lib/constants.js'
 import {ensure, extendClass} from '../lib/util.js'
 import Inquirer from 'inquirer'
-import observe from 'inquirer/lib/utils/events'
+import observe from 'inquirer/lib/utils/events.js'
 import {takeUntil} from 'rxjs/operators'
 
-import * as Features from './helpers/prompt.features'
+import * as Features from './helpers/prompt.features.js'
 import {BaseMethods, ListMethods, TextMethods} from './helpers/prompt.methods.js'
 
 class InputPrompt extends Inquirer.prompt.prompts.input {
@@ -480,6 +480,9 @@ export {
     RawListPrompt as rawlist,
 }
 
+export default Prompts
+
+console.log(Features)
 Object.entries(Prompts).forEach(([name, TargetClass]) => {
 
     const {features, inherits} = Object.fromEntries(
@@ -488,8 +491,9 @@ Object.entries(Prompts).forEach(([name, TargetClass]) => {
         )
     )
 
+    console.log(TargetClass)
     const sources = [BaseMethods, ...features.map(name => Features[name]), ...inherits]
-
+    console.log(sources)
     sources.forEach(SourceClass => {
         const overrides = SourceClass.overrides ? SourceClass.overrides() : null
         const optionals = SourceClass.optionals ? SourceClass.optionals() : null

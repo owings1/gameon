@@ -56,7 +56,7 @@ function createClients(server, count = 2) {
     return clients
 }
 
-export default async function testInit(logLevel, numClients = 2) {
+export default async function(logLevel, numClients = 2) {
 
     await initServers(this.servers, logLevel)
 

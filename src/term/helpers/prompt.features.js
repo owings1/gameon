@@ -296,5 +296,5 @@ export {
     ExpandFeature as expand,
     RestoreFeature as restore,
     ToggleFeature as toggle,
-    ChoiceActionFeature as choice,
+    ChoiceActionFeature as action,
 }

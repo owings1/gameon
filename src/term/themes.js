@@ -54,7 +54,7 @@ const Store = {
     Instances : {},
 }
 
-class ThemeHelper {
+export default class ThemeHelper {
 
     static register(name, config) {
         if (Store.All[name]) {
@@ -249,7 +249,7 @@ function extendStyles(styles, parents, depth = 0) {
     })
 }
 
-export default class ThemeBuilder {
+class ThemeBuilder {
 
     static build(_styles, name) {
 
