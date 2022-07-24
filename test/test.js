@@ -26,14 +26,14 @@ const IsPrintOnly = false
 import {valueHash} from '@quale/core/objects.js'
 import {ucfirst} from '@quale/core/strings.js'
 import globby from 'globby'
-import TestUtil from './util.js'
-const {mapValues} = TestUtil
+import {mapValues} from '../src/lib/util.js'
 
 import path from 'path'
 import { fileURLToPath } from 'url'
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
 
+import process from 'process'
 
 const onlys = [
     //'auth',

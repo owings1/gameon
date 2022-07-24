@@ -22,17 +22,24 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-const {
-    expect,
+import {expect} from 'chai'
+import {
     getError,
     noop,
-    requireSrc,
-    update,
-} = require('../util')
+} from '../util.js'
+
+import {chalk} from '@quale/term/colors.js'
+
+import * as Util from '../../src/lib/util.js'
+import Profiler from '../../src/lib/util/profiler.js'
+import Counter from '../../src/lib/util/counter.js'
+import Timer from '../../src/lib/util/timer.js'
+import DependencyHelper from '../../src/lib/util/dependency-helper.js'
+import StringBuilder from '../../src/lib/util/string-builder.js'
+
+import os from 'os'
 
 describe('Util', () => {
-
-    const Util = requireSrc('lib/util')
 
     function makeCases(method, ...args) {
 
@@ -45,7 +52,7 @@ describe('Util', () => {
 
             const argsDesc = '(' + input.map(arg => {
                 const argType = typeof arg
-                if (argType == 'function') {
+                if (argType === 'function') {
                     if (arg.name) {
                         return arg.name + '()'
                     }
@@ -74,9 +81,6 @@ describe('Util', () => {
             
         })
     }
-
-    const chalk = require('chalk')
-    const os    = require('os')
 
     describe('#arrayIncrement', () => {
 
@@ -820,21 +824,21 @@ describe('Util', () => {
     describe('#trimMessageData', () => {
 
         makeCases('trimMessageData', {isJson: true}, [
-            [null                      , null]
-          , [{turn: {}}                , {turn: {}}]
-          , [{token: '***'}            , {token: 'foo/bar'}]
-          , [{secret: '***'}           , {secret: 123}]
-          , [{password: '***'}         , {password: 'abc'}]
-          , [{passwordEncrypted: '***'}, {passwordEncrypted: 'enc_abc'}]
-          , [
+            [null                      , null],
+            [{turn: {}}                , {turn: {}}],
+            [{token: '***'}            , {token: 'foo/bar'}],
+            [{secret: '***'}           , {secret: 123}],
+            [{password: '***'}         , {password: 'abc'}],
+            [{passwordEncrypted: '***'}, {passwordEncrypted: 'enc_abc'}],
+            [
               {
                   turn: {
                       allowedMoveIndex: '[trimmed]',
                       allowedEndStates: '[trimmed]',
-                      endStatesToSeries: '[trimmed]'
+                      endStatesToSeries: '[trimmed]',
                   }
-              }
-            , {turn: {allowedMoveIndex: {}}}]
+              },
+              {turn: {allowedMoveIndex: {}}}],
         ])
     })
 
@@ -881,7 +885,6 @@ describe('Util', () => {
 
 describe('Profiler', () => {
 
-    const Profiler = requireSrc('lib/util/profiler')
 
     it('should start/stop and have startCount of 1', function () {
         const profiler = Profiler.createEnabled()
@@ -984,8 +987,6 @@ describe('Profiler', () => {
 
 describe('Counter', () => {
 
-    const Counter = requireSrc('lib/util/counter')
-
     it('should give a default name', () => {
         const counter = new Counter
         expect(counter.name).to.have.length.greaterThan(0)
@@ -993,8 +994,6 @@ describe('Counter', () => {
 })
 
 describe('Timer', () => {
-
-    const Timer = requireSrc('lib/util/timer')
 
     it('should throw IllegalStateError on stop unstarted', function () {
         const timer = new Timer
@@ -1005,10 +1004,7 @@ describe('Timer', () => {
 
 describe('DependencyHelper', () => {
 
-    const DependencyHelper = requireSrc('lib/util/dependency-helper')
-
     it('should throw MissingDependencyError', function () {
-
         const roots = ['Default']
         // missing c, d
         const configs = {
@@ -1027,7 +1023,6 @@ describe('DependencyHelper', () => {
     })
 
     it('should resolve basic case', function () {
-
         const roots = ['Default']
         const configs = {
             a: ['c']
@@ -1044,16 +1039,13 @@ describe('DependencyHelper', () => {
         // load order should be 
         const exp = ['e', 'c', 'a', 'd', 'b', 'f']
         const result = helper.resolve()
-
         expect(result).to.jsonEqual(exp)
     })
 
     it('should throw CircularDependencyError for tight circle', function () {
-
         const helper = new DependencyHelper
         helper.add('a', ['b'])
         const err = getError(() => helper.add('b', ['a']))
-
         expect(err.name).to.equal('CircularDependencyError')
     })
 
@@ -1083,7 +1075,6 @@ describe('DependencyHelper', () => {
 
 describe('StringBuilder', () => {
 
-    const StringBuilder = requireSrc('lib/util/string-builder')
 
     describe('#length', () => {
 

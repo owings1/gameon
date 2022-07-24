@@ -22,47 +22,25 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-const {objects: {update}} = require('@quale/core')
-const fse  = require('fs-extra')
-
-const fs   = require('fs')
-const path = {resolve} = require('path')
-const {EventEmitter} = require('events')
-
-const {
-    destroyAll,
-    expect,
-    getError,
-    makeRandomMoves,
-    NullOutput,
-    parseKey,
-    requireSrc,
-    MockPrompter,
-    noop,
-    tmpDir,
-    States
-} = require('../util.js')
-
-const {DrawHelper} = requireSrc('term/draw.js')
-const TermPlayer   = requireSrc('term/player.js')
-const Coordinator = requireSrc('lib/coordinator.js')
-const Dice        = requireSrc('lib/dice.js')
-const Player      = requireSrc('lib/player.js')
-const Client      = requireSrc('net/client.js')
-const Server      = requireSrc('net/server.js')
-const NetPlayer   = requireSrc('net/player.js')
-const {RequestError} = requireSrc('lib/errors.js')
-const {Colors: {White, Red}} = requireSrc('lib/constants.js')
-const {Match, Game, Board, Turn} = requireSrc('lib/core.js')
-const {
-    ConfidenceRobot,
-    RobotDelegator,
-} = requireSrc('robot/player.js')
-
-
-function newRando(...args) {
-    return ConfidenceRobot.getDefaultInstance('RandomRobot', ...args)
-}
+import {expect} from 'chai'
+import {update} from '@quale/core/objects.js'
+import {destroyAll} from '../../src/lib/util.js'
+import {getError, noop, makeRandomMoves, newRando} from '../util.js'
+import States from '../states.js'
+import MockPrompter from '../util/mock-prompter.js'
+import {NullOutput} from '../util/io.js'
+import {RobotDelegator} from '../../src/robot/player.js'
+import Server from '../../src/net/server.js'
+import {Red, White} from '../../src/lib/constants.js'
+import Coordinator from '../../src/lib/coordinator.js'
+import Dice from '../../src/lib/dice.js'
+import Client from '../../src/net/client.js'
+import NetPlayer from '../../src/net/player.js'
+import TermPlayer from '../../src/term/player.js'
+import DrawHelper from '../../src/term/draw.js'
+import Menu from '../../src/term/menu.js'
+import Player from '../../src/lib/player.js'
+import {Match, Game, Board, Turn} from '../../src/lib/core.js'
 
 describe('Draw', () => {
 
@@ -269,7 +247,6 @@ describe('TermPlayer', () => {
 
     describe('#newRobot', () => {
 
-        const Menu = requireSrc('term/menu')
 
         it('should return instance when isCustomRobot and robots are configs', function () {
             const {player} = this.fixture

@@ -22,30 +22,29 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-const {objects: {update}} = require('@quale/core')
-const fse = require('fs-extra')
 
-const {
-    clientServer,
-    expect,
+
+import {update} from '@quale/core/objects.js'
+
+import {expect} from 'chai'
+import clientServer from '../util/client-server.js'
+import {
     getError,
-    httpFixture,
     makeRandomMoves,
-    parseCookies,
     parseKey,
-    requireSrc,
-    States,
     tmpDir,
-} = require('../util.js')
+} from '../util.js'
+import States from '../states.js'
+
+import {Red, White} from '../../src/lib/constants.js'
+import Dice from '../../src/lib/dice.js'
+import Client from '../../src/net/client.js'
+import Server from '../../src/net/server.js'
+import {httpFixture, parseCookies} from '../util/http-util.js'
+
+import fse from 'fs-extra'
 
 describe('Server', () => {
-
-    const Client = requireSrc('net/client')
-    const Server = requireSrc('net/server')
-
-    const Dice = requireSrc('lib/dice')
-
-    const {White, Red} = requireSrc('lib/constants')
 
     const logLevel = 1
 
@@ -56,21 +55,21 @@ describe('Server', () => {
         // Create servers.
         this.authDir = tmpDir()
         this.servers = {
-            anon : new Server
-          , auth : new Server({
-                authType: 'directory'
-              , authDir : this.authDir
-              , sessionInsecure : true
+            anon : new Server,
+            auth : new Server({
+                authType: 'directory',
+                authDir : this.authDir,
+                sessionInsecure : true,
             })
         }
 
-        await clientServer.testInit.call(this, logLevel)
+        await clientServer.call(this, logLevel)
 
         // Provide default
         this.fixture = {
-            server  : this.servers.anon
-          , auth    : this.servers.auth.auth
-          , ...this.clients.anon
+            server  : this.servers.anon,
+            auth    : this.servers.auth.auth,
+            ...this.clients.anon,
         }
     })
 
@@ -134,9 +133,9 @@ describe('Server', () => {
                     const {server} = this.fixture
                     server.close()
                     update(server, {
-                        socketServer      : null
-                      , httpServer        : null
-                      , metricsHttpServer : null
+                        socketServer      : null,
+                        httpServer        : null,
+                        metricsHttpServer : null,
                     })
                     server.close()
                 })

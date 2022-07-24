@@ -22,41 +22,27 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-const TestUtil = require('../util')
-
-const {
-    expect,
-    getError,
-    makeRandomMoves,
-    randomElement,
-    requireSrc,
-    Rolls,
-    States,
-    States28,
-    Structures
-} = TestUtil
-
-const Constants = requireSrc('lib/constants')
-const Core = requireSrc('lib/core')
-const Util = requireSrc('lib/util')
-const {
-    AbstractNode
-  , BreadthTree
-  , DepthBuilder
-  , DepthTree
-  , SequenceTree
-  , TurnBuilder
-} = requireSrc('lib/trees')
-
-const {White, Red} = Constants
-const {
-    Board
-  , Dice
-  , Game
-  , Match
-  , Piece
-  , Turn
-} = Core
+import {expect} from 'chai'
+import {getError} from '../util.js'
+import States from '../states.js'
+import {Red, White} from '../../src/lib/constants.js'
+import {
+    AbstractNode,
+    BreadthTree,
+    DepthBuilder,
+    DepthTree,
+    SequenceTree,
+    TurnBuilder,
+} from '../../src/lib/trees.js'
+import {intRange} from '../../src/lib/util.js'
+import {Game, Board, Turn} from '../../src/lib/core.js'
+import fs from 'fs'
+import path from 'path'
+import { fileURLToPath } from 'url'
+const __dirname = path.dirname(fileURLToPath(import.meta.url))
+const Rolls = JSON.parse(
+    fs.readFileSync(path.resolve(__dirname, '../rolls.json'))
+)
 
 describe('TurnBuilder', () => {
 
@@ -481,7 +467,7 @@ describe('SequenceTree', () => {
                     }
                 })
 
-                Util.intRange(2, 60).forEach(i => {
+                intRange(2, 60).forEach(i => {
                     it('should be equivalent at turn ' + i + ' for roll ' + rolls[i].join(','), () => {
                         
                         const turns = [game1.nextTurn().roll(), game2.nextTurn().roll()]

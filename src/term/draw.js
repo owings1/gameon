@@ -614,6 +614,8 @@ export class DrawHelper {
     }
 }
 
+export default DrawHelper
+
 export class Reporter {
 
     /**

@@ -22,26 +22,19 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-const TestUtil = require('../util')
-const {
-    expect,
+import {expect} from 'chai'
+import {
     getError,
-    parseKey,
-    requireSrc,
-    MockPrompter,
-    noop,
-    tmpDir
-} = TestUtil
-
-const fs   = require('fs')
-const fse  = require('fs-extra')
-const path = require('path')
-
-const {resolve} = path
+    tmpDir,
+} from '../util.js'
+import fs from 'fs'
+import fse from 'fs-extra'
+import {resolve} from 'path'
+import ThemeHelper from '../../src/term/themes.js'
+import * as ThemeConfig from '../../src/term/res/themes.config.js'
 
 describe('ThemeHelper', () => {
 
-    const ThemeHelper = requireSrc('term/themes')
 
     beforeEach(() => {
         ThemeHelper.clearCustom()
@@ -375,7 +368,6 @@ describe('ThemeHelper', () => {
 
     describe('Theme', () => {
 
-        const ThemeConfig = requireSrc('term/res/themes.config')
 
         describe('minimal', () => {
 

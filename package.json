@@ -8,7 +8,7 @@
     "postpack": "rm -f oclif.manifest.json",
     "lint": "eslint .",
     "prepack": "oclif-dev manifest && oclif-dev readme && lingui compile",
-    "test": "GAMEON_TEST=1 NODE_OPTIONS='--trace-warnings' nyc --reporter=text-summary mocha test/test.js && nyc report --reporter=lcov",
+    "test": "GAMEON_TEST=1 NODE_OPTIONS='--trace-warnings' nyc --reporter=text-summary mocha test/suites/** && nyc report --reporter=lcov",
     "version": "oclif-dev readme && git add README.md",
     "dist": "oclif-dev pack",
     "dist:mac": "oclif-dev pack:macos",

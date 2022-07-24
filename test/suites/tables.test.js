@@ -22,17 +22,15 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-const TestUtil = require('../util')
-const {
-    expect,
+import {expect} from 'chai'
+import {
     getError,
-    requireSrc,
-    MockPrompter,
     noop,
-    NullOutput
-} = TestUtil
+} from '../util.js'
+import MockPrompter from '../util/mock-prompter.js'
+import {NullOutput} from '../util/io.js'
 
-const {Table, TableHelper} = requireSrc('term/tables')
+import {Table, TableHelper} from '../../src/term/tables.js'
 
 describe('TableHelper', () => {
 

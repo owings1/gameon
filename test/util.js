@@ -39,13 +39,12 @@ import States from './states.js'
 
 import {httpFixture, getUrlParams, parseCookies} from './util/http-util.js'
 
-import {NullOutput, ReadlineStub} from './util/io.js'
+// import {NullOutput, ReadlineStub} from './util/io.js'
 
 
 import path from 'path'
 import { fileURLToPath } from 'url'
-const __filename = fileURLToPath(import.meta.url)
-const __dirname = path.dirname(__filename)
+const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
 const Rolls = JSON.parse(
     fs.readFileSync(path.resolve(__dirname, 'rolls.json'))
@@ -137,8 +136,8 @@ const TestUtil = {
     Rolls,
     // expect,
     getUrlParams,
-    httpFixture,
-    parseCookies,
+    // httpFixture,
+    // parseCookies,
     // ReadlineStub,
     // NullOutput,
     // States,
@@ -146,7 +145,7 @@ const TestUtil = {
     // extend,
     // destroyAll        : Util.destroyAll,
     mapValues         : Util.mapValues,
-    randomElement     : Util.randomElement,
+    // randomElement     : Util.randomElement,
     // stripAnsi,
     stripLeadingSlash : Util.stripLeadingSlash,
     // update,

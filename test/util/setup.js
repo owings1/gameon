@@ -1,5 +1,18 @@
 import {Assertion} from 'chai'
 
+import process from 'process'
+
+let oldEnv
+
+before(() => {
+    oldEnv = process.env.GAMEON_TEST
+    process.env.GAMEON_TEST = '1'
+})
+
+after(() => {
+    process.env.GAMEON_TEST = oldEnv
+})
+
 // see https://www.chaijs.com/guide/helpers/ 
 Assertion.addMethod('erri', function (type) {
     const obj = this._obj
@@ -28,10 +41,10 @@ Assertion.addMethod('jsonEqual', function assertJsonEqual(b) {
     const exp = JSON.stringify(this._obj)
     const res = JSON.stringify(b)
     this.assert(
-        exp == res
-      , "expected #{act} to equal #{exp}"
-      , "expected #{exp} to not equal #{act}"
-      , res
-      , exp
+        exp == res,
+        "expected #{act} to equal #{exp}",
+        "expected #{exp} to not equal #{act}",
+        res,
+        exp,
     )
 })
