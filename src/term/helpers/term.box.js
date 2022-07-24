@@ -31,7 +31,7 @@ import {Chars, DefaultAnsiEnabled} from '../../lib/constants.js'
 
 const DefaultScreen = new Screen({isAnsi: DefaultAnsiEnabled})
 
-export default class TermBox {
+export class TermBox {
 
     static defaults() {
         return {
@@ -249,10 +249,11 @@ export default class TermBox {
     }
 }
 
+export default TermBox
 /**
  * Box status tracker helper class
  */
-class BoxStatus extends EventEmitter {
+export class BoxStatus extends EventEmitter {
 
     constructor(defaults) {
 

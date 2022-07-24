@@ -22,20 +22,12 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-const TestUtil = require('../util')
-const {
-    expect,
-    getError,
-    makeRandomMoves,
-    requireSrc
-} = TestUtil
+import {expect} from 'chai'
+import {getError, makeRandomMoves} from '../util.js'
 
-const Constants = requireSrc('lib/constants')
-const Core   = requireSrc('lib/core')
-const Player = requireSrc('lib/player')
-
-const {White, Red} = Constants
-const {Match, Game} = Core
+import Player from '../../src/lib/player.js'
+import {Red, White} from '../../src/lib/constants.js'
+import {Match, Game} from '../../src/lib/core.js'
 
 const players = {}
 

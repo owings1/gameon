@@ -317,7 +317,7 @@ class RawListPrompt extends Inquirer.prompt.prompts.rawlist {
         if (this.isCancel) {
             return this.opt.cancel.value
         }
-        if (index == null || index == '') {
+        if (index == null || index === '') {
             if (this.selected != null) {
                 // super expects 1-based, not 0-based.
                 return super.getCurrentValue(this.selected + 1)
@@ -336,15 +336,10 @@ class RawListPrompt extends Inquirer.prompt.prompts.rawlist {
 
     // Called by keypressSelect
     selectIndex(index, isSubmit) {
-
         this.selected = index
-
         const line = (index + 1).toString()
-
         this.setLine(line)
-
         this.render()
-
         if (isSubmit) {
             this.clearLine(true)
         }
@@ -382,7 +377,7 @@ class ConfirmPrompt extends Inquirer.prompt.prompts.confirm {
         if (this.handleKeypress(e)) {
             return
         }
-        if (this.lastWasToggle && e.key.name == 'backspace') {
+        if (this.lastWasToggle && e.key.name === 'backspace') {
             this.currentValue = this.opt.filter()
             this.clearLine()
         }
@@ -419,7 +414,7 @@ class ConfirmPrompt extends Inquirer.prompt.prompts.confirm {
     onEnd(input) {
         if (!this.isCancel) {
             this.status = 'answered'
-            if (input != null && input != '') {
+            if (input != null && input !== '') {
                 this.currentValue = this.opt.filter(input)
             }
         }
@@ -436,27 +431,22 @@ class ConfirmPrompt extends Inquirer.prompt.prompts.confirm {
     * See https://github.com/SBoudrias/Inquirer.js/blob/master/packages/inquirer/lib/prompts/confirm.js
     */
     render(error) {
-
         const {chlk} = this
         let message = this.getQuestion()
         let bottomContent = ''
-
         message += chlk.message.prompt(' ')
         if (this.isCancel) {
             message += chlk.message.help(this.opt.cancel.message)
-        } else if (this.status == 'answered') {
+        } else if (this.status === 'answered') {
             const text = this.valueText(this.currentValue)
             message += chlk.answer(text)
         } else {
             message += chlk.input(this.rl.line)
         }
-
         if (error) {
             bottomContent += this.getErrorString(error)
         }
-
         this.screen.render(message, bottomContent)
-
         return this
     }
 }
@@ -472,6 +462,7 @@ const Prompts = {
     password : PasswordPrompt,
     rawlist  : RawListPrompt,
 }
+
 export {
     ConfirmPrompt as confirm,
     InputPrompt as input,
@@ -482,7 +473,6 @@ export {
 
 export default Prompts
 
-console.log(Features)
 Object.entries(Prompts).forEach(([name, TargetClass]) => {
 
     const {features, inherits} = Object.fromEntries(
@@ -490,10 +480,7 @@ Object.entries(Prompts).forEach(([name, TargetClass]) => {
             [key, TargetClass[key] ? TargetClass[key]() : []]
         )
     )
-
-    console.log(TargetClass)
     const sources = [BaseMethods, ...features.map(name => Features[name]), ...inherits]
-    console.log(sources)
     sources.forEach(SourceClass => {
         const overrides = SourceClass.overrides ? SourceClass.overrides() : null
         const optionals = SourceClass.optionals ? SourceClass.optionals() : null

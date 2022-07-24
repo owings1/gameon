@@ -53,7 +53,7 @@ import {
 
 const DefaultScreen = new Screen({isAnsi: DefaultAnsiEnabled})
 
-class TableHelper {
+export class TableHelper {
 
     static defaults() {
         return {
@@ -183,7 +183,7 @@ class TableHelper {
     }
 }
 
-class Table {
+export class Table {
 
     static defaults() {
         return {
@@ -720,9 +720,4 @@ class Table {
         }
         return column
     }
-}
-
-module.exports = {
-    Table,
-    TableHelper,
 }

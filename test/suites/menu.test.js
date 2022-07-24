@@ -22,39 +22,29 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-const {objects: {update}} = require('@quale/core')
-const fse  = require('fs-extra')
+import {expect} from 'chai'
+import {update} from '@quale/core/objects.js'
+import fse from 'fs-extra'
+import {dirname, resolve} from 'path'
+import {fileURLToPath} from 'url'
+import fs from 'fs'
+import {destroyAll} from '../../src/lib/util.js'
+import {getError, parseKey, noop, tmpDir} from '../util.js'
+import States28 from '../states28.js'
+import MockPrompter from '../util/mock-prompter.js'
+import {ReadlineStub} from '../util/io.js'
+import Choices from 'inquirer/lib/objects/choices.js'
 
-const fs   = require('fs')
-const path = {resolve} = require('path')
+import {MatchCanceledError} from '../../src/lib/errors.js'
+import Menu from '../../src/term/menu.js'
+import {ConfidenceRobot} from '../../src/robot/player.js'
+import {BoxStatus}  from '../../src/term/helpers/term.box.js'
+import Server from '../../src/net/server.js'
+import ThemeHelper from '../../src/term/themes.js'
 
-const {
-    destroyAll,
-    expect,
-    getError,
-    parseKey,
-    requireSrc,
-    MockPrompter,
-    noop,
-    NullOutput,
-    ReadlineStub,
-    States28,
-    tmpDir,
-} = require('../util')
+const DIR = dirname(fileURLToPath(import.meta.url))
 
 describe('Menu', () => {
-
-    const Coordinator = requireSrc('lib/coordinator')
-    const Errors      = requireSrc('lib/errors')
-    const Menu        = requireSrc('term/menu')
-    const Robot       = requireSrc('robot/player')
-    const {BoxStatus} = requireSrc('term/helpers/term.box')
-    const Server      = requireSrc('net/server')
-    const ThemeHelper = requireSrc('term/themes')
-
-    const {MatchCanceledError} = Errors
-
-    const Choices = require('inquirer/lib/objects/choices')
 
     beforeEach(async function () {
 
@@ -749,7 +739,7 @@ describe('Menu', () => {
 
             it('should set RandomRobot moveWeight to 1 then reset', async function () {
                 const {menu} = this
-                const {defaults} = Robot.ConfidenceRobot.getClassMeta('RandomRobot')
+                const {defaults} = ConfidenceRobot.getClassMeta('RandomRobot')
                 menu.prompt = MockPrompter([
                     {choice: 'RandomRobot'},
                     {choice: 'moveWeight'},
@@ -764,7 +754,7 @@ describe('Menu', () => {
 
             it('should set RandomRobot version to v2', async function () {
                 const {menu} = this
-                const {defaults} = Robot.ConfidenceRobot.getClassMeta('RandomRobot')
+                // const {defaults} = ConfidenceRobot.getClassMeta('RandomRobot')
                 menu.prompt = MockPrompter([
                     {choice: 'RandomRobot'},
                     {choice: 'version'},
@@ -857,7 +847,7 @@ describe('Menu', () => {
                 const {menu} = this
                 const defaults = Menu.settingsDefaults().matchOpts
                 const res = await menu.getMatchOpts(defaults, {
-                    rollsFile: resolve(__dirname, '../rolls.json')
+                    rollsFile: resolve(DIR, '../rolls.json')
                 })
                 expect(typeof res.roller).to.equal('function')
             })
@@ -1169,7 +1159,7 @@ describe('Menu', () => {
                 const {menu} = this
                 const advancedOpts = {}
                 menu.prompt = MockPrompter([
-                    {startState: '', rollsFile: resolve(__dirname, '../rolls.json')}
+                    {startState: '', rollsFile: resolve(DIR, '../rolls.json')}
                 ])
                 const res = await menu.promptMatchAdvancedOpts(advancedOpts)
                 expect(res.rollsFile).to.contain('rolls.json')

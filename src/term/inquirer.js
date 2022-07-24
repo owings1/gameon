@@ -486,5 +486,5 @@ class Separator extends Inquirer.Separator {
 /**
  * Instantiate prompter module
  */
-const inq = createPromptModule().restoreDefaultPrompts()
-export {inq as inquirer}
+export const inquirer = createPromptModule().restoreDefaultPrompts()
+export default inquirer

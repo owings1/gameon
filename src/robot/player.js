@@ -198,6 +198,7 @@ export class ConfidenceRobot extends Robot {
     }
 }
 
+
 ConfidenceRobot.ZERO_SCORES = ZERO_SCORES
 
 const Sorters = {
@@ -599,6 +600,10 @@ export class RobotDelegator extends Robot {
 RobotDelegator.Sorters = Sorters
 
 
+/** @deprecated */
+Robot.RobotDelegator = RobotDelegator
+/** @deprecated */
+Robot.ConfidenceRobot = ConfidenceRobot
 
 
 class BearoffRobot extends ConfidenceRobot {

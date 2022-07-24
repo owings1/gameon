@@ -24,7 +24,7 @@
  */
 
 import {extend} from '@quale/core/arrays.js'
-import {lget, lset, update, isNonEmptyObject} from '@quale/core/objects.js'
+import {lget, lset, update, isNonEmpty} from '@quale/core/objects.js'
 import {stringWidth} from '@quale/core/strings.js'
 import {castToArray, isFunction} from '@quale/core/types.js'
 import Screen from '@quale/core/screen.js'
@@ -38,16 +38,16 @@ import {EventEmitter} from 'events'
 import Dice from '../lib/dice.js'
 import Client from '../net/client.js'
 import Themes from './themes.js'
-import Alerts  from './helpers/alerts.js'
-import ApiHelper  from './helpers/menu.api.js'
-import Questions  from './helpers/menu.questions.js'
-import TermBox    from './helpers/term.box.js'
-import NetPlayer  from '../net/player.js'
-import {inquirer} from './inquirer.js'
-import LabHelper  from './lab.js'
+import Alerts from './helpers/alerts.js'
+import ApiHelper from './helpers/menu.api.js'
+import Questions from './helpers/menu.questions.js'
+import TermBox from './helpers/term.box.js'
+import NetPlayer from '../net/player.js'
+import inquirer from './inquirer.js'
+import Lab from './lab.js'
 import IntlHelper from '../lib/util/intl.js'
 import TermPlayer from './player.js'
-import Coordinator    from '../lib/coordinator.js'
+import Coordinator from '../lib/coordinator.js'
 import {Board, Match} from '../lib/core.js'
 import {
     ConfidenceRobot,
@@ -64,7 +64,7 @@ import {
     isCredentialsFilled,
     padEnd,
     rejectDuplicatePrompter,
-} from '../lib/util'
+} from '../lib/util.js'
 import {
     Chars,
     CHash,
@@ -455,7 +455,7 @@ export default class Menu extends EventEmitter {
         const {alerts, settings, __} = this
         /* i18n-extract menu.title.robots */
         return this.runMenu('robots', async (choose, loop) => {
-            if (!isNonEmptyObject(this.settings.robots)) {
+            if (!isNonEmpty(this.settings.robots)) {
                 alerts.info(__('alerts.loadingRobotDefaults'))
                 settings.robots = this.robotsDefaults()
                 await this.saveSettings()
@@ -481,7 +481,7 @@ export default class Menu extends EventEmitter {
         /* i18n-extract menu.title.robot */
         return this.runMenu('robot', async (choose, loop) => {
             const {settings} = this
-            if (!isNonEmptyObject(settings.robots[name])) {
+            if (!isNonEmpty(settings.robots[name])) {
                 settings.robots[name] = this.robotMinimalConfig(name)
             }
             await loop(async () => {
@@ -815,7 +815,7 @@ export default class Menu extends EventEmitter {
             rollsFile,
             screen,
         }
-        const helper = new LabHelper(labOpts)
+        const helper = new Lab(labOpts)
         this.emit('beforeRunLab', helper)
         if (cmds && cmds.length) {
             cmds = castToArray(cmds)
@@ -1210,7 +1210,7 @@ export default class Menu extends EventEmitter {
         if (intl.locale !== settings.locale) {
             intl.locale = settings.locale
         }
-        if (settings.isCustomRobot && !isNonEmptyObject(settings.robots)) {
+        if (settings.isCustomRobot && !isNonEmpty(settings.robots)) {
             // Populate for legacy format.
             update(settings.robots,  Menu.robotsDefaults())
             this.alerts.info(__('alerts.migratingLegacyRobotConfig'))

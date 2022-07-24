@@ -22,17 +22,14 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-const {objects: {update}} = require('@quale/core')
-const {
-    expect,
-    getError,
-    ReadlineStub,
-    requireSrc,
-} = require('../util.js')
+import {expect} from 'chai'
+import {update} from '@quale/core/objects.js'
+import {ReadlineStub} from '../util/io.js'
+import Prompts from '../../src/term/prompts.js'
+
 
 describe('Prompts', () => {
 
-    const Prompts = requireSrc('term/prompts')
 
     beforeEach(function () {
         this.rl = new ReadlineStub

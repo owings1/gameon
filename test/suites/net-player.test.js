@@ -22,30 +22,21 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-const {
-    arrays : {append},
-    objects: {update},
-    strings: {ucfirst},
-} = require('@quale/core')
+import {expect} from 'chai'
+import {newRando} from '../util.js'
+import clientServer from '../util/client-server.js'
 
-const {
-    clientServer,
-    destroyAll,
-    expect,
-    getError,
-    newRando,
-    requireSrc,
-} = require('../util.js')
+import {extend} from '@quale/core/arrays.js'
+import {ucfirst} from '@quale/core/strings.js'
+
+import Coordinator from '../../src/lib/coordinator.js'
+import {Red, White} from '../../src/lib/constants.js'
+import Server from '../../src/net/server.js'
+import NetPlayer from '../../src/net/player.js'
 
 describe('NetPlayer', () => {
 
     const logLevel = 1
-
-    const Coordinator = requireSrc('lib/coordinator')
-    const Server      = requireSrc('net/server')
-    const NetPlayer   = requireSrc('net/player')
-
-    const {Colors: {Red, White}} = requireSrc('lib/constants')
 
     beforeEach(async function () {
 
@@ -55,7 +46,7 @@ describe('NetPlayer', () => {
             anon : new Server
         }
 
-        await clientServer.testInit.call(this, logLevel)
+        await clientServer.call(this, logLevel)
 
         this.fixture = {
             server : this.servers.anon
@@ -126,7 +117,7 @@ describe('NetPlayer', () => {
         const {client1, client2, server} = this.fixture
         const p1 = new NetPlayer(client1, White)
         const p2 = new NetPlayer(client2, White)
-        append(this.objects, [p1, p2])
+        extend(this.objects, [p1, p2])
         p1.opponent = p2
         p2.once('matchCanceled', () => done())
         client1.once('matchCreated', () => server.close())

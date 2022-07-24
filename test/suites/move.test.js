@@ -22,26 +22,13 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-const TestUtil = require('../util')
+import {expect} from 'chai'
+import {getError} from '../util.js'
+import States from '../states.js'
 
-const {
-    expect,
-    getError,
-    makeRandomMoves,
-    randomElement,
-    requireSrc,
-    Rolls,
-    States,
-    States28,
-    Structures
-} = TestUtil
-
-const Constants = requireSrc('lib/constants')
-const Core = requireSrc('lib/core')
-const Util = requireSrc('lib/util')
-const {Board} = Core
-const {Move, BearoffMove, ComeInMove, RegularMove} = requireSrc('lib/moves')
-const {White, Red} = Constants
+import {Board} from '../../src/lib/core.js'
+import {Move, BearoffMove, ComeInMove, RegularMove} from '../../src/lib/moves.js'
+import {White, Red} from '../../src/lib/constants.js'
 
 
 describe('Move', () => {

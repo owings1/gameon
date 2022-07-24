@@ -22,29 +22,17 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-const Test = require('../util')
+import {expect} from 'chai'
+import States from '../states.js'
+import States28 from '../states28.js'
+import {getError, makeRandomMoves} from '../util.js'
 
-const {
-    expect,
-    getError,
-    makeRandomMoves,
-    randomElement,
-    requireSrc,
-    Rolls,
-    States,
-    States28,
-    Structures
-} = Test
+import {White, Red} from '../../src/lib/constants.js'
 
-const Constants = requireSrc('lib/constants')
-const Core = requireSrc('lib/core')
-const Dice = requireSrc('lib/dice')
-const Player = requireSrc('lib/player')
-const Util = requireSrc('lib/util')
-
-const {White, Red} = Constants
-const {Match, Game, Board, Turn, Piece} = Core
-
+import Dice from '../../src/lib/dice.js'
+import Player from '../../src/lib/player.js'
+import {Match, Game, Board, Turn, Piece} from '../../src/lib/core.js'
+import {destroyAll} from '../../src/lib/util.js'
 
 describe('Match', () => {
 
@@ -1702,13 +1690,13 @@ describe('Player', () => {
 
         it('should have 0 listeners on matchCanceled after Util.destroyAll object', function() {
             const player = new Player(Red)
-            Util.destroyAll({a: player})
+            destroyAll({a: player})
             expect(player.listenerCount('matchCanceled')).to.equal(0)
         })
 
         it('should have 0 listeners on matchCanceled after Util.destroyAll array', function() {
             const player = new Player(Red)
-            Util.destroyAll([player])
+            destroyAll([player])
             expect(player.listenerCount('matchCanceled')).to.equal(0)
         })
     })

@@ -22,16 +22,10 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-const Test = require('../util')
-const {
-    expect,
-    getError,
-    requireSrc,
-} = Test
+import {expect} from 'chai'
+import * as Errors from '../../src/lib/errors.js'
 
 describe('Error', () => {
-
-    const Errors = requireSrc('lib/errors')
 
     beforeEach(function() {
         this.load = function () {
@@ -88,11 +82,11 @@ describe('Error', () => {
                 })
 
                 const expTrueProps = [
-                    'isAlreadyRolledError'
-                  , 'isIllegalStateError'
-                  , 'isGameError'
-                  , 'isRequestError'
-                  , 'isBaseError'
+                    'isAlreadyRolledError',
+                    'isIllegalStateError',
+                    'isGameError',
+                    'isRequestError',
+                    'isBaseError',
                 ]
 
                 expTrueProps.forEach(prop => {

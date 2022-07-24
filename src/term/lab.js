@@ -22,7 +22,7 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-import {isNullOrEmptyObject, revalue, update} from '@quale/core/objects.js'
+import {isNullOrEmpty, revalue, update} from '@quale/core/objects.js'
 import {cat, stringWidth, stripAnsi} from '@quale/core/strings.js'
 import Screen from '@quale/core/screen.js'
 import {Chalk} from '@quale/term/colors.js'
@@ -33,7 +33,7 @@ import path from 'path'
 import Dice    from '../lib/dice.js'
 import {Table} from './tables.js'
 import Themes  from './themes.js'
-import {inquirer}  from './inquirer.js'
+import inquirer  from './inquirer.js'
 import IntlHelper  from '../lib/util/intl.js'
 import Coordinator from '../lib/coordinator.js'
 import {DrawHelper} from './draw.js'
@@ -94,7 +94,7 @@ export default class LabHelper {
 
         this.board = opts.board
 
-        this.opts = defaults(LabHelper.defaults(), opts)
+        this.opts = defaults(this.constructor.defaults(), opts)
         this.persp = this.opts.persp
 
         this.logs   = []        
@@ -969,7 +969,7 @@ export default class LabHelper {
     }
 
     newRobot(...args) {
-        if (this.opts.isCustomRobot && !isNullOrEmptyObject(this.opts.robots)) {
+        if (this.opts.isCustomRobot && !isNullOrEmpty(this.opts.robots)) {
             return RobotDelegator.forSettings(this.opts.robots, ...args)
         }
         return RobotDelegator.forDefaults(...args)

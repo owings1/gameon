@@ -22,31 +22,24 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-const {
-    expect,
-    getError,
-    requireSrc,
-    MockPrompter,
-    noop,
-    NullOutput,
-    tmpDir,
-    States,
-} = require('../util.js')
+import {expect} from 'chai'
+import {getError, tmpDir} from '../util.js'
+import MockPrompter from '../util/mock-prompter.js'
+import {NullOutput} from '../util/io.js'
+import States from '../states.js'
+import {Chalk} from '@quale/term/colors.js'
+import fse from 'fs-extra'
+import {dirname, resolve} from 'path'
+import {fileURLToPath} from 'url'
 
-const {colors: {Chalk}} = require('@quale/term')
-const fs    = require('fs')
-const fse   = require('fs-extra')
-const path = {resolve} = require('path')
+import Lab from '../../src/term/lab.js'
+import Menu from '../../src/term/menu.js'
+import {Board} from '../../src/lib/core.js'
+import {BoardStrings, Red, White} from '../../src/lib/constants.js'
+
+const DIR = dirname(fileURLToPath(import.meta.url))
 
 describe('Lab', () => {
-
-    const Lab  = requireSrc('term/lab.js')
-    const Menu = requireSrc('term/menu.js')
-    const {Board} = requireSrc('lib/core.js')
-    const {
-        BoardStrings,
-        Colors: {Red, White},
-    } = requireSrc('lib/constants.js')
 
     beforeEach(function () {
         this.chalk = new Chalk({level: 2})
@@ -406,7 +399,7 @@ describe('Lab', () => {
         it('should do rollout with 1 game with rolls file', async function () {
             this.respond([
                 {input: 'r 1'},
-                {rollsFile: resolve(__dirname, '../rolls.json')},
+                {rollsFile: resolve(DIR, '../rolls.json')},
                 {input: 'q'}
             ])
             await this.lab.interactive()

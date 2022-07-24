@@ -23,15 +23,15 @@
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 import fse from 'fs-extra'
-import Dice from '../lib/dice'
+import Dice from '../lib/dice.js'
 import {Match} from '../lib/core.js'
 import Timer from '../lib/util/timer.js'
 import {DefaultProfiler as Profiler} from '../lib/util/profiler.js'
-import Coordinator from '../lib/coordinator'
+import Coordinator from '../lib/coordinator.js'
 import {RobotDelegator} from './player.js'
 import {Table, TableHelper} from '../term/tables.js'
 
-import {Colors, DefaultThemeName} from '../lib/constants'
+import {Colors, DefaultThemeName} from '../lib/constants.js'
 
 import {
     createLogger,
@@ -40,7 +40,6 @@ import {
 } from '../lib/util.js'
 
 import path from 'path'
-const {resolve} = path
 
 
 function f_round(value) {
@@ -284,7 +283,7 @@ export default class ProfileHelper {
     }
 
     async loadRollsFile(file) {
-        const data = await fse.readJson(resolve(file))
+        const data = await fse.readJson(path.resolve(file))
         const {rolls} = Dice.validateRollsData(data)
         return Dice.createRoller(rolls)
     }

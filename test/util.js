@@ -26,6 +26,7 @@
 import tmp from 'tmp'
 import fs from 'fs'
 import * as Util from '../src/lib/util.js'
+import {randomElement} from '../src/lib/util.js'
 // import {stripAnsi} from '@quale/core/strings'
 // import {update} from '@quale/core/objects'
 // const Util    = require('../src/lib/util')
@@ -83,7 +84,7 @@ export function makeRandomMoves(turn, isFinish) {
         if (moves.length === 0) {
             break
         }
-        const move = Util.randomElement(moves)
+        const move = randomElement(moves)
         turn.move(move.origin, move.face)
     }
     if (isFinish) {
@@ -112,22 +113,24 @@ export function newRando(...args) {
     return ConfidenceRobot.getDefaultInstance('RandomRobot', ...args)
 }
 
+export function noop() {}
+
 const TestUtil = {
     // methods
     // ger: getError,
-    getError,
-    makeRandomMoves,
-    fetchBoard,
+    // getError,
+    // makeRandomMoves,
+    // fetchBoard,
     // newRando   : (...args) => Robot.ConfidenceRobot.getDefaultInstance('RandomRobot', ...args),
-    noop       : () => {},
+    // noop       : () => {},
     normState  : str => Board.fromStateString(str).stateString(),
-    parseKey,
-    tmpDir,
+    // parseKey,
+    // tmpDir,
     // tmpFile    : () => tmp.fileSync().name,
     // transforms
-    States28: Object.fromEntries(Object.entries(States).map(([key, value]) =>
-        [key, Board.fromStateString(value).state28()]
-    )),
+    // States28: Object.fromEntries(Object.entries(States).map(([key, value]) =>
+    //     [key, Board.fromStateString(value).state28()]
+    // )),
     // passthru requires
     // clientServer : require('./util/client-server'),
     // MockPrompter : require('./util/mock-prompter'),
@@ -136,12 +139,12 @@ const TestUtil = {
     getUrlParams,
     httpFixture,
     parseCookies,
-    ReadlineStub,
-    NullOutput,
-    States,
+    // ReadlineStub,
+    // NullOutput,
+    // States,
     // Util methods
     // extend,
-    destroyAll        : Util.destroyAll,
+    // destroyAll        : Util.destroyAll,
     mapValues         : Util.mapValues,
     randomElement     : Util.randomElement,
     // stripAnsi,

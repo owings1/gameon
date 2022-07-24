@@ -187,5 +187,3 @@ export default class NetPlayer extends Base {
         super.destroy()
     }
 }
-
-module.exports = NetPlayer

@@ -22,34 +22,31 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-const Test = require('../util')
-const {
-    expect,
+import {dirname, resolve} from 'path'
+import {fileURLToPath} from 'url'
+const __dirname = dirname(fileURLToPath(import.meta.url))
+
+import {expect} from 'chai'
+import {uniqueInts} from '../../src/lib/util.js'
+
+import {NullOutput} from '../util/io.js'
+import States from '../states.js'
+import States28 from '../states28.js'
+import {
+    noop,
     getError,
     makeRandomMoves,
-    noop,
-    randomElement,
-    requireSrc,
-    normState,
-    NullOutput,
-    States,
-    States28
-} = Test
+} from '../util.js'
 
-const path = require('path')
-const {resolve} = path
+import Coordinator from '../../src/lib/coordinator.js'
+import Dice from '../../src/lib/dice.js'
+import {Game, Match, Turn, Board} from '../../src/lib/core.js'
+import {White, Red} from '../../src/lib/constants.js'
+import {ConfidenceRobot, Robot, RobotDelegator} from '../../src/robot/player.js'
+import ProfileHelper from '../../src/robot/profile.js'
+import {TableHelper} from '../../src/term/tables.js'
 
-const Constants   = requireSrc('lib/constants')
-const Coordinator = requireSrc('lib/coordinator')
-const Core  = requireSrc('lib/core')
-const Dice  = requireSrc('lib/dice')
-const Robot = requireSrc('robot/player')
-const Util  = requireSrc('lib/util')
 
-const {ConfidenceRobot} = Robot
-
-const {White, Red} = Constants
-const {Game, Match, Turn, Board} = Core
 
 var game
 var robot
@@ -80,7 +77,7 @@ afterEach(async () => {
 describe('Robot', () => {
 
     beforeEach(() => {
-        robot = new Robot.Robot(White)
+        robot = new Robot(White)
     })
 
     describe('#decideDouble', () => {
@@ -339,8 +336,6 @@ describe('FirstTurnRobot', () => {
             const keys = Object.keys(moveIndex)
             expect(keys).to.contain(Red)
             expect(keys).to.contain(White)
-            //console.log(moveIndex.White)
-            //console.log(moveIndex.Red)
         })
     })
     describe('#getScores', () => {
@@ -379,7 +374,7 @@ describe('FirstTurnRobot', () => {
             const turn = game.nextTurn()
             turn.setRoll([6, 5])
             const result = await robot.getScores(turn, game)
-            const uniqueVals = Util.uniqueInts(Object.values(result))
+            const uniqueVals = uniqueInts(Object.values(result))
             expect(uniqueVals).to.jsonEqual([0])
         })
     })
@@ -652,7 +647,7 @@ describe('RobotDelegator', () => {
     }
 
     beforeEach(() => {
-        robot = new Robot.RobotDelegator(White)
+        robot = new RobotDelegator(White)
         rando = getRobot('RandomRobot', White)
         always = new AlwaysDoubleRobot(White)
         never = new NeverDoubleRobot(White)
@@ -667,7 +662,7 @@ describe('RobotDelegator', () => {
     describe('#addDelegate', () => {
 
         it('should throw InvalidRobotError if for base Robot', async () => {
-            const baseRobot = new Robot.Robot(White)
+            const baseRobot = new Robot(White)
             const err = getError(() => robot.addDelegate(baseRobot, 0, 0))
             await baseRobot.destroy()
             expect(err.name).to.equal('InvalidRobotError')
@@ -886,8 +881,7 @@ describe('BestRobot', () => {
 
 describe('ProfileHelper', () => {
 
-    const ProfileHelper = requireSrc('robot/profile')
-    const {TableHelper} = requireSrc('term/tables')
+
     var helper
 
     beforeEach(() => {
