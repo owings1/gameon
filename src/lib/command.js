@@ -22,7 +22,7 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-import {Command} from '@oclif/command'
+import {Command} from '@oclif/core'
 
 import {createLogger} from './util.js'
 import Menu from '../term/menu.js'
@@ -34,7 +34,7 @@ export class AppCommand extends Command {
         this.logger = this.logger || createLogger(this)
         this.proc = this.proc || process
         this.env = this.env || this.proc.env
-        const {flags, args, argv} = this.parse(this.constructor)
+        const {flags, args, argv} = await this.parse(this.constructor)
         this.flags = flags
         this.args = args
         this.argv = argv

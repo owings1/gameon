@@ -22,10 +22,10 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-const {flags} = require('@oclif/command')
-const Base    = require('../../lib/command').UserCommand
+import {Flags} from '@oclif/core'
+import {UserCommand as Base} from '../../lib/command.js'
 
-class PlayJoinCommand extends Base {
+export default class PlayJoinCommand extends Base {
 
     async run() {
         try {
@@ -50,15 +50,8 @@ PlayJoinCommand.aliases = ['join']
 PlayJoinCommand.description = `Join an online match`
 
 PlayJoinCommand.flags = {
-    id : flags.string({
-        char: 'i'
-      , description: 'match id to join'
+    id: Flags.string({
+        char: 'i',
+        description: 'match id to join',
     })
 }
-
-//MatchJoinCommand.args = [
-//    {name: 'matchId'}
-//]
-
-
-module.exports = PlayJoinCommand

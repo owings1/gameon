@@ -22,10 +22,10 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-const {flags} = require('@oclif/command')
-const Base    = require('../../lib/command').UserCommand
+import {Flags} from '@oclif/core'
+import {UserCommand as Base} from '../../lib/command.js'
 
-class PlayRobotCommand extends Base {
+export default class PlayRobotCommand extends Base {
 
     async run() {
         if (this.flags.start) {
@@ -39,10 +39,8 @@ class PlayRobotCommand extends Base {
 PlayRobotCommand.description = `Play robot`
 
 PlayRobotCommand.flags = {
-    start : flags.boolean({
-        char: 's'
-      , description: 'start now with previous match settings'
+    start: Flags.boolean({
+        char: 's',
+        description: 'start now with previous match settings'
     })
 }
-
-module.exports = PlayRobotCommand

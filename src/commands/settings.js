@@ -22,10 +22,9 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-const {flags} = require('@oclif/command')
-const Base    = require('../lib/command').UserCommand
+import {UserCommand as Base} from '../lib/command.js'
 
-class SettingsCommand extends Base {
+export default class SettingsCommand extends Base {
 
     async run() {
         await this.menu.settingsMenu()
@@ -39,4 +38,3 @@ SettingsCommand.flags = {
 
 }
 
-module.exports = SettingsCommand

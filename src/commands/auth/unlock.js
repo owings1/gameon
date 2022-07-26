@@ -22,12 +22,11 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-const {flags} = require('@oclif/command')
-const Base    = require('../../lib/command.js').AppCommand
+import {Flags} from '@oclif/core'
+import {AppCommand as Base} from '../../lib/command.js'
+import Auth from '../../net/auth.js'
 
-const Auth = require('../../net/auth.js')
-
-class AuthUnlockCommand extends Base {
+export default class AuthUnlockCommand extends Base {
 
     async init(...args) {
         await super.init(...args)
@@ -45,11 +44,10 @@ class AuthUnlockCommand extends Base {
 AuthUnlockCommand.description = `Unlock user`
 
 AuthUnlockCommand.flags = {
-    username : flags.string({
-        char: 'u'
-      , description: 'username'
-      , required: true
+    username: Flags.string({
+        char: 'u',
+        description: 'username',
+        required: true,
     })
 }
 
-module.exports = AuthUnlockCommand

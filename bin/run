@@ -1,4 +1,9 @@
 #!/usr/bin/env node
+import oclif from '@oclif/core'
+import flush from '@oclif/core/flush.js'
+import handle from '@oclif/core/handle.js'
+oclif.run().then(flush).catch(handle)
+/*
 if (process.argv.length > 2) {
     require('@oclif/command').run()
     .then(require('@oclif/command/flush'))
@@ -9,3 +14,4 @@ if (process.argv.length > 2) {
 }
 
 
+*/

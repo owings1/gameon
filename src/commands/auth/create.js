@@ -22,18 +22,17 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-const {flags} = require('@oclif/command')
-const Base    = require('../../lib/command.js').AppCommand
+import {Flags} from '@oclif/core'
+import {AppCommand as Base} from '../../lib/command.js'
+import {castToArray} from '@quale/core/types.js'
+import {errMessage} from '../../lib/util.js'
 
-const {types: {castToArray}} = require('@quale/core')
-const {errMessage} = require('../../lib/util.js')
-
-const Auth     = require('../../net/auth.js')
-const {inquirer} = require('../../term/inquirer.js')
+import Auth from '../../net/auth.js'
+import inquirer from '../../term/inquirer.js'
 
 // TODO: option to read password from stdin
 
-class AuthCreateCommand extends Base {
+export default class AuthCreateCommand extends Base {
 
     async init(...args) {
         await super.init(...args)
@@ -60,10 +59,10 @@ class AuthCreateCommand extends Base {
 
     async promptPassword() {
         const question = {
-            name    : 'password'
-          , message : 'Enter password'
-          , type    : 'password'
-          , validate : value => errMessage(() => this.helper.validatePassword(value))
+            name    : 'password',
+            message : 'Enter password',
+            type    : 'password',
+            validate : value => errMessage(() => this.helper.validatePassword(value))
         }
         const answers = await this.prompt(question)
         return answers.password
@@ -78,27 +77,26 @@ class AuthCreateCommand extends Base {
 AuthCreateCommand.description = `Create user`
 
 AuthCreateCommand.flags = {
-    username : flags.string({
-        char: 'u'
-      , description: 'username'
-      , required: true
-    })
-  , password : flags.string({
-        char: 'p'
-      , description: 'password, default is to prompt'
-    })
-  , confirmed : flags.boolean({
-        char: 'c'
-      , description: 'create the user as confirmed'
-    })
-  , email : flags.boolean({
-       char: 'e'
-     , description: 'send the confirmation email'
-    })
-  , token : flags.boolean({
-       char: 't'
-     , description: 'output enrypted token only'
-    })
+    username : Flags.string({
+        char: 'u',
+        description: 'username',
+        required: true,
+    }),
+    password : Flags.string({
+        char: 'p',
+        description: 'password, default is to prompt',
+    }),
+    confirmed : Flags.boolean({
+        char: 'c',
+        description: 'create the user as confirmed',
+    }),
+    email : Flags.boolean({
+       char: 'e',
+       description: 'send the confirmation email',
+    }),
+    token : Flags.boolean({
+       char: 't',
+       description: 'output enrypted token only',
+    }),
 }
 
-module.exports = AuthCreateCommand

@@ -22,19 +22,18 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-const {flags} = require('@oclif/command')
-const Base    = require('../../../lib/command').AppCommand
+import {Flags} from '@oclif/core'
+import {AppCommand as Base} from '../../../lib/command.js'
+import {Helper} from '../../../robot/calibrate.js'
 
-const Helper = require('../../../robot/calibrate').Helper
-
-class CalibrateRunCommand extends Base {
+export default class CalibrateRunCommand extends Base {
 
     async init(...args) {
         await super.init(...args)
         this.opts = {
-            action    : Helper.E_Action.Run
-          , outDir    : this.flags.outdir || this.env.CAL_OUTDIR
-          , chunkFile : this.flags.file   || this.env.CAL_FILE
+            action    : Helper.E_Action.Run,
+            outDir    : this.flags.outdir || this.env.CAL_OUTDIR,
+            chunkFile : this.flags.file   || this.env.CAL_FILE,
         }
         this.helper = this.helper || new Helper(this.opts)
     }
@@ -47,14 +46,13 @@ class CalibrateRunCommand extends Base {
 CalibrateRunCommand.description = `Run config case chunk for calibrating robot`
 
 CalibrateRunCommand.flags = {
-    outdir: flags.string({
-        char        : 'd'
-      , description : '(required) output directory, will try env CAL_OUTDIR'
-    })
-  , file: flags.string({
-        char        : 'f'
-      , description : '(required) input chunk file, will try env CAL_FILE'
+    outdir: Flags.string({
+        char        : 'd',
+        description : '(required) output directory, will try env CAL_OUTDIR',
+    }),
+    file: Flags.string({
+        char        : 'f',
+        description : '(required) input chunk file, will try env CAL_FILE',
     })
 }
 
-module.exports = CalibrateRunCommand

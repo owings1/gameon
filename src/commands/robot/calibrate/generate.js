@@ -22,25 +22,24 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-const {flags} = require('@oclif/command')
-const Base    = require('../../../lib/command').AppCommand
-
-const Helper = require('../../../robot/calibrate').Helper
+import {Flags} from '@oclif/core'
+import {AppCommand as Base} from '../../../lib/command.js'
+import {Helper} from '../../../robot/calibrate.js'
 
 const defaults = Helper.defaults()
 
-class CalibrateGenerateCommand extends Base {
+export default class CalibrateGenerateCommand extends Base {
 
     async init(...args) {
         await super.init(...args)
         this.opts = {
-            action      : Helper.E_Action.Generate
-          , outDir      : this.flags.outdir
-          , matchTotal  : +this.flags.matchtotal
-          , startWeight : +this.flags.startweight
-          , endWeight   : +this.flags.endweight
-          , increment   : +this.flags.increment
-          , chunkSize   : +this.flags.chunksize
+            action      : Helper.E_Action.Generate,
+            outDir      : this.flags.outdir,
+            matchTotal  : +this.flags.matchtotal,
+            startWeight : +this.flags.startweight,
+            endWeight   : +this.flags.endweight,
+            increment   : +this.flags.increment,
+            chunkSize   : +this.flags.chunksize,
         }
         this.helper = this.helper || new Helper(this.opts)
     }
@@ -53,36 +52,35 @@ class CalibrateGenerateCommand extends Base {
 CalibrateGenerateCommand.description = `Generate config case chunk files for calibrating robot`
 
 CalibrateGenerateCommand.flags = {
-    outdir: flags.string({
-        char        : 'd'
-      , description : 'output directory'
-      , required    : true
-    })
-  , matchtotal: flags.string({
-        char        : 't'
-      , description : 'match total'
-      , default     : defaults.matchTotal.toString()
-    })
-  , startweight: flags.string({
-        char        : 's'
-      , description : 'start weight'
-      , default     : defaults.startWeight.toString()
-    })
-  , endweight: flags.string({
-        char        : 'e'
-      , description : 'end weight'
-      , default     : defaults.endWeight.toString()
-    })
-  , increment: flags.string({
-        char        : 'i'
-      , description : 'increment'
-      , default     : defaults.increment.toString()
-    })
-  , chunksize: flags.string({
-        char        : 'c'
-      , description : 'chunk size'
-      , default     : defaults.chunkSize.toString()
+    outdir: Flags.string({
+        char        : 'd',
+        description : 'output directory',
+        required    : true,
+    }),
+    matchtotal: Flags.string({
+        char        : 't',
+        description : 'match total',
+        default     : defaults.matchTotal.toString(),
+    }),
+    startweight: Flags.string({
+        char        : 's',
+        description : 'start weight',
+        default     : defaults.startWeight.toString(),
+    }),
+    endweight: Flags.string({
+        char        : 'e',
+        description : 'end weight',
+        default     : defaults.endWeight.toString(),
+    }),
+    increment: Flags.string({
+        char        : 'i',
+        description : 'increment',
+        default     : defaults.increment.toString(),
+    }),
+    chunksize: Flags.string({
+        char        : 'c',
+        description : 'chunk size',
+        default     : defaults.chunkSize.toString(),
     })
 }
 
-module.exports = CalibrateGenerateCommand

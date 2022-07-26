@@ -22,11 +22,10 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-const {flags} = require('@oclif/command')
-const Base    = require('../lib/command').UserCommand
-const {objects: {update}} = require('@quale/core')
+import {update} from '@quale/core/objects.js'
+import {UserCommand as Base} from '../lib/command.js'
 
-class LabCommand extends Base {
+export default class LabCommand extends Base {
 
     async init(...args) {
         await super.init(...args)
@@ -51,4 +50,3 @@ update(LabCommand, {
     ]
 })
 
-module.exports = LabCommand

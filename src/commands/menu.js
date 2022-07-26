@@ -22,10 +22,9 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-const {flags} = require('@oclif/command')
-const Base    = require('../lib/command').UserCommand
+import {UserCommand as Base} from '../lib/command.js'
 
-class MenuCommand extends Base {
+export default class MenuCommand extends Base {
 
     async run() {
         await this.menu.mainMenu()
@@ -36,4 +35,3 @@ MenuCommand.description = `Gameon main menu`
 
 MenuCommand.flags = {}
 
-module.exports = MenuCommand

@@ -22,14 +22,14 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-const {flags} = require('@oclif/command')
-const Base    = require('../lib/command').AppCommand
+import {Flags} from '@oclif/core'
+import {UserCommand as Base} from '../lib/command.js'
+import Server from '../net/server.js'
 
-class ServerCommand extends Base {
+export default class ServerCommand extends Base {
 
     async init(...args) {
         await super.init(...args)
-        const Server = require('../net/server')
         this.server = this.server || new Server
         this._loadProcHandlers()
     }
@@ -78,14 +78,12 @@ class ServerCommand extends Base {
 ServerCommand.description = `Server entrypoint`
 
 ServerCommand.flags = {
-    'http-port' : flags.string({
+    'http-port' : Flags.string({
         char        : 'p'
       , description : 'the port to listen on. default is env HTTP_PORT or 8080'
     }),
-    'metrics-port' : flags.string({
+    'metrics-port' : Flags.string({
         char        : 'm'
       , description : 'the port for metrics, default is METRICS_PORT or 8181'
     })
 }
-
-module.exports = ServerCommand

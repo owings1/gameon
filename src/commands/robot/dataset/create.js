@@ -22,12 +22,11 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-const {flags} = require('@oclif/command')
-const Base    = require('../../../lib/command').AppCommand
+import {Flags} from '@oclif/core'
+import {AppCommand as Base} from '../../../lib/command.js'
+import {Helper} from '../../../robot/dataset.js'
 
-const Helper = require('../../../robot/dataset').Helper
-
-class CreateCommand extends Base {
+export default class CreateCommand extends Base {
 
     async init(...args) {
         await super.init(...args)
@@ -46,16 +45,15 @@ class CreateCommand extends Base {
 CreateCommand.description = `Create AI dataset`
 
 CreateCommand.flags = {
-    outdir: flags.string({
-        char        : 'd'
-      , description : 'output directory'
-      , required    : true
-    })
-  , games: flags.string({
-        char        : 'g'
-      , description : 'number of games to run'
-      , default     : '100'
+    outdir: Flags.string({
+        char        : 'd',
+        description : 'output directory',
+        required    : true,
+    }),
+    games: Flags.string({
+        char        : 'g',
+        description : 'number of games to run',
+        default     : '100',
     })
 }
 
-module.exports = CreateCommand
