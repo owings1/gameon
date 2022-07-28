@@ -23,7 +23,7 @@
     "@oclif/core": "^1.12.1",
     "@oclif/plugin-help": "^5.1.12",
     "@oclif/plugin-update": "3.0.0",
-    "@quale/core": "^1.0.0",
+    "@quale/core": "^1.1.0",
     "@quale/term": "^1.0.0",
     "aws-sdk": "^2.991.0",
     "body-parser": "^1.19.0",
