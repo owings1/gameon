@@ -110,24 +110,18 @@ export default class NetPlayer extends Base {
      * @param {Client} client
      */
     constructor(client, ...args) {
-
         super(...args)
-
         this.client = client
         this.isNet = true
-
         this.dice = null
-
         this.clientListeners = Object.fromEntries(
             Object.entries(ClientListeners).map(([event, listener]) =>
                 [event, listener.bind(this)]
             )
         )
-
         Object.entries(this.clientListeners).forEach(([event, listener]) =>
             this.client.on(event, listener)
         )
-
         Object.entries(Listeners).forEach(([event, listener]) =>
             this.on(event, listener)
         )

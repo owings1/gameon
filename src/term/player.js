@@ -24,9 +24,7 @@
  */
 import Screen from '@quale/core/screen.js'
 import {castToArray, isFunction} from '@quale/core/types.js'
-
 import {EventEmitter} from 'events'
-
 import Base from '../lib/player.js'
 import Themes  from './themes.js'
 import {Board} from '../lib/core.js'
@@ -34,6 +32,7 @@ import {inquirer} from './inquirer.js'
 import IntlHelper from '../lib/util/intl.js'
 import {DrawHelper} from './draw.js'
 import {RobotDelegator} from '../robot/player.js'
+import {MatchCanceledError, WaitingFinishedError} from '../lib/errors.js'
 import {
     Colors,
     DefaultAnsiEnabled,
@@ -42,10 +41,6 @@ import {
     OriginPoints,
     PointOrigins,
 } from '../lib/constants.js'
-import {
-    MatchCanceledError,
-    WaitingFinishedError,
-} from '../lib/errors.js'
 import {
     defaults,
     nchars,
@@ -59,24 +54,16 @@ import {
 const Listeners = {
 
     matchStart: function(match) {
-
         if (match.isCanceled) {
             this.emit('matchCanceled', match.cancelError)
             return
         }
-
         this.isDualTerm = this.opponent.isTerm
         this.isDualRobot = this.isRobot && this.opponent.isRobot
-
         this.drawer.match = match
         this.drawer.persp = this.persp
-
         this.removeOpponentListeners(this.opponent)
-
-        const listenersMap = {
-            matchResponse: []
-        }
-
+        const listenersMap = {matchResponse: []}
         if (this.opponent.isNet) {
             listenersMap.matchResponse.push((req, res) => {
                 if (!this.isWaitingPrompt) {
@@ -90,17 +77,13 @@ const Listeners = {
                 }
             })
         }
-
         this.addOpponentListeners(this.opponent, listenersMap)
     },
 
     gameStart: function(game, match, players) {
-
         this.drawer.game = game
         this.drawer.board = game.board
-
         this.report('gameStart', match ? match.games.length : null)
-
         if (!this.isDualTerm || this.color === Colors.White) {
             this.output.write(nchars(21, '\n'))
         }
@@ -219,27 +202,20 @@ export default class TermPlayer extends Base {
     }
 
     constructor(color, opts) {
-
         super(color)
-
         this.logger.opts.oneout = true
-
         this.isTerm = true
         this.persp = color
         this.opts = defaults(TermPlayer.defaults(), opts)
         this.theme = Themes.getInstance(this.opts.theme)
         this.logs = []
-
         this.drawer = DrawHelper.forTermPlayer(this)
-
         this.inquirer = inquirer.createPromptModule({output: this.output})
-
         // Track which players we've loaded handlers on
         // {id: {event: [listener, ...]}}
         this.opponentListeners = {}
         // {id: player}
         this.opponentRegistry = {}
-
         Object.entries(Listeners).forEach(([event, listener]) => {
             this.on(event, listener)
         })
@@ -294,11 +270,9 @@ export default class TermPlayer extends Base {
 
     // @implement
     async playRoll(turn, game, match) {
-
         if (turn.isCantMove) {
             return
         }
-
         if (turn.isForceMove && this.opts.fastForced) {
             this.report('forceMove', turn.color, turn.diceSorted)
             this.drawBoard()
@@ -306,11 +280,8 @@ export default class TermPlayer extends Base {
             this.drawBoard()
             return
         }
-
         while (true) {
-
             this.drawBoard()
-
             let prefix = null
             if (!this.isRobot) {
                 prefix = sp(
@@ -322,39 +293,27 @@ export default class TermPlayer extends Base {
                     'remaining',
                 ) + '\n'
             }
-
-            let moves = turn.getNextAvailableMoves()
-            let origins = moves.map(move => move.origin)
-
-            let canUndo = turn.moves.length > 0
-
-            let origin = await this.promptOrigin(turn, origins, canUndo, prefix)
-
-            if (origin == 'undo') {
+            const moves = turn.getNextAvailableMoves()
+            const origins = moves.map(move => move.origin)
+            const canUndo = turn.moves.length > 0
+            const origin = await this.promptOrigin(turn, origins, canUndo, prefix)
+            if (origin === 'undo') {
                 turn.unmove()
                 this.logs.pop()
                 continue
             }
-
-            let faces = moves.filter(move => move.origin === origin).map(move => move.face)
-            let face = await this.promptFace(turn, faces)
-
-            let move = turn.move(origin, face)
-
+            const faces = moves.filter(move => move.origin === origin).map(move => move.face)
+            const face = await this.promptFace(turn, faces)
+            const move = turn.move(origin, face)
             this.report('move', move)
-
             if (turn.getNextAvailableMoves().length === 0) {
-
                 if (!this.isRobot) {
                     this.drawBoard()
                 }
-
-                let isFinish = await this.promptFinish()
-
+                const isFinish = await this.promptFinish()
                 if (isFinish) {
                     break
                 }
-
                 turn.unmove()
                 this.logs.pop()
             }
@@ -433,7 +392,7 @@ export default class TermPlayer extends Base {
 
     async promptFace(turn, faces) {
         faces = uniqueInts(faces).sort(sortNumericDesc)
-        if (faces.length == 1) {
+        if (faces.length === 1) {
             return faces[0]
         }
         const choices = faces.map(face => face.toString())
@@ -445,7 +404,7 @@ export default class TermPlayer extends Base {
             default  : choices[0],
             validate : this.choicesValidator(choices),
         })
-        return +answers.face
+        return Number(answers.face)
     }
 
     async promptFinish() {
@@ -520,7 +479,7 @@ export default class TermPlayer extends Base {
                         })
                         this.output.write(`Robot says: ${moveStrs.join(', ')}\n`)
                     } finally {
-                        await robot.destroy()
+                        robot.destroy()
                     }
                 } catch (err) {
                     this.logger.error(err)
@@ -541,12 +500,9 @@ export default class TermPlayer extends Base {
     }
 
     getOriginQuestion(origins, canUndo, prefix) {
-
         const points = uniqueInts(origins).map(origin => this.originPoint(origin))
         points.sort(sortNumericAsc)
-
         const choices = points.map(p => p.toString())
-
         let message = 'Origin '
         if (points[0] === -1) {
             message += ' [(b)ar]'
@@ -558,9 +514,7 @@ export default class TermPlayer extends Base {
             choices.push('u')
             message += ' or (u)ndo'
         }
-
         choices.push('q')
-
         const question = {
             name     : 'origin',
             type     : 'input',
@@ -568,11 +522,9 @@ export default class TermPlayer extends Base {
             prefix,
             validate : this.choicesValidator(choices, true),
         }
-
         if (points.length === 1) {
             question.default = choices[0]
         }
-
         return question
     }
 
@@ -585,42 +537,31 @@ export default class TermPlayer extends Base {
         this.screen.showCursor()
     }
 
-    originPoint(origin, color) {
+    originPoint(origin, color = undefined) {
         color = color || this.color
         return OriginPoints[color][origin]
     }
 
-    pointOrigin(point, color) {
+    pointOrigin(point, color = undefined) {
         color = color || this.color
         return PointOrigins[color][point]
     }
 
     prompt(questions, answers, opts) {
-
         return new Promise((resolve, reject) => {
-
             if (rejectDuplicatePrompter(this.prompter, reject)) {
                 return
             }
-
             const {logger} = this
             // We need to call cleanup at the right time, and can't use promise.finally.
-
             const cleanup = () => {
                 logger.debug('prompter.cleanup')
                 this.promptReject = null
                 this.prompter = null
             }
-
-            opts = {
-                theme: this.theme,
-                ...opts,
-            }
-
+            opts = {theme: this.theme, ...opts,}
             logger.debug('prompter.create')
-
             this.prompter = this.inquirer.prompt(questions, answers, opts)
-
             this.promptReject = err => {
                 logger.debug('promptReject')
                 if (this.prompter) {
@@ -642,7 +583,6 @@ export default class TermPlayer extends Base {
                 cleanup()
                 reject(err)
             }
-
             this.prompter.then(answers => {
                 logger.debug('prompter.then')
                 // Cleanup before resolve
@@ -771,7 +711,6 @@ export default class TermPlayer extends Base {
     }
 
     destroy() {
-
         Object.values(this.opponentRegistry).forEach(player => {
             try {
                 this.removeOpponentListeners(player)
@@ -780,12 +719,10 @@ export default class TermPlayer extends Base {
                 this.logger.error('Failed to remove opponent listeners for player id', id, err)
             }
         })
-
         Object.entries(Listeners).forEach(([event, listener]) => {
             this.removeListener(event, listener)
         })
-
-        return super.destroy()
+        super.destroy()
     }
 }
 
@@ -843,7 +780,7 @@ class TermRobot extends TermPlayer {
 
     destroy() {
         this.robot.destroy()
-        return super.destroy()
+        super.destroy()
     }
 
     meta() {

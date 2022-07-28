@@ -36,6 +36,7 @@ import {ReadlineStub} from '../util/io.js'
 import Choices from 'inquirer/lib/objects/choices.js'
 
 import {MatchCanceledError} from '../../src/lib/errors.js'
+import {DefaultServerUrl} from '../../src/lib/constants.js'
 import Menu from '../../src/term/menu.js'
 import {ConfidenceRobot} from '../../src/robot/player.js'
 import {BoxStatus}  from '../../src/term/helpers/term.box.js'
@@ -870,7 +871,7 @@ describe('Menu', () => {
             it('should replace obsolete server url', async function () {
                 const {menu} = this
                 await fse.writeJson(menu.getCredentialsFile(), {serverUrl: 'ws://bg.dougowings.net:8080'})
-                const exp = Menu.getDefaultServerUrl()
+                const exp = DefaultServerUrl
                 await menu.loadCredentials()
                 expect(menu.credentials.serverUrl).to.equal(exp)
             })

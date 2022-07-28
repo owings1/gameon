@@ -167,14 +167,11 @@ export default class ThemeHelper {
     }
 
     static async loadDirectory(themesDir) {
-
         const configs = {}
         const files = await globby(path.join(themesDir, '*.json'))
         const helper = this._newDependencyHelper(this.list())
-
         const loaded = []
         const errors = []
-
         for (const file of files) {
             const name = filenameWithoutExtension(file)
             try {
@@ -185,7 +182,6 @@ export default class ThemeHelper {
                 errors.push({name, file, error})
             }
         }
-
         let order
         try {
             order = helper.resolve()
@@ -197,7 +193,6 @@ export default class ThemeHelper {
             // load what we can
             order = helper.order
         }
-
         for (const name of order) {
             try {
                 this.update(name, configs[name])
@@ -206,7 +201,6 @@ export default class ThemeHelper {
                 errors.push({name, error})
             }
         }
-
         return {loaded, errors}
     }
 
@@ -220,9 +214,9 @@ function getStyleType(key) {
     return key.substring(key.lastIndexOf('.') + 1)
 }
 
-function getStyleSection(key) {
-    return key.substring(0, key.indexOf('.'))
-}
+// function getStyleSection(key) {
+//     return key.substring(0, key.indexOf('.'))
+// }
 
 function keyIsBackground(key) {
     return getStyleType(key) === 'background'
@@ -252,38 +246,30 @@ function extendStyles(styles, parents, depth = 0) {
 class ThemeBuilder {
 
     static build(_styles, name) {
-
         const styles = this._buildStyles(_styles)
         const defs   = this._buildDefs(styles)
         const chalks = this._buildChalks(defs)
-
         return this._create(chalks, name)
     }
 
     static _buildStyles(_styles) {
-
         // Minimal defaults.
         const styles = {...DefaultStyles, ..._styles}
-
         // Default aliases.
         Object.entries(Aliases).forEach(([key, alias]) => {
             if (!styles[key] && styles[alias]) {
                 styles[key] = styles[alias]
             }
         })
-
         return styles
     }
 
     // Convert values into array definitions to construct chalk callables.
     static _buildDefs(styles) {
-
         const defs = {}
-
         Object.entries(styles).forEach(([key, value]) => {
             defs[key] = StyleHelper.buildDefFromStyle(value, keyIsBackground(key))
         })
-
         return defs
     }
 
@@ -292,24 +278,17 @@ class ThemeBuilder {
     // category, e.g. text or board.piece.white, which includes both the
     // foreground and background styles.
     static _buildChalks(defs) {
-
         const chalks = {}
-
         Categories.forEach(category => {
-
             const bgKey = category + '.background'
             const fgKey = category + '.color'
-
             const bgDef = defs[bgKey]
             const fgDef = defs[fgKey]
-
             const result = StyleHelper.buildChalkListFromDefs(fgDef, bgDef)
-
             chalks[category] = result[0]
             chalks[fgKey]    = result[1]
             chalks[bgKey]    = result[2]
         })
-
         return chalks
     }
 

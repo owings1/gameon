@@ -50,9 +50,10 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  */
 import {update} from '@quale/core/objects.js'
-import {stripAnsi} from '@quale/core/strings.js'
+import {stripAnsi, stringWidth} from '@quale/core/strings.js'
 import {castToArray} from '@quale/core/types.js'
 import Screen from '@quale/core/screen.js'
+import cliWidth from 'cli-width'
 import {defer, from} from 'rxjs'
 import Inquirer from 'inquirer'
 import ScreenBase from 'inquirer/lib/utils/screen-manager.js'
@@ -65,12 +66,10 @@ import {
     DefaultAnsiEnabled,
 } from '../lib/constants.js'
 import {
-    cliWidth,
     ensure,
     forceLineReturn,
     nchars,
     ntimes,
-    stringWidth,
 } from '../lib/util.js'
 
 const NullEmitter = new EventEmitter
@@ -248,13 +247,13 @@ class ScreenManager extends ScreenBase {
      *
      * See https://github.com/SBoudrias/Inquirer.js/blob/master/packages/inquirer/lib/utils/screen-manager.js
      *
-     * @param {string} The main body content
-     * @param {string} (optional) The footer content
-     * @param {boolean} (optional) Whether we are rendering the spinner
+     * @param {string} body The main body content
+     * @param {string} foot The footer content
+     * @param {boolean} spinning Whether we are rendering the spinner
      *
      * @return self
      */
-    render(body, foot, spinning = false) {
+    render(body, foot = undefined, spinning = false) {
 
         foot = foot || ''
 

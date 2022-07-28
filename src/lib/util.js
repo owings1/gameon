@@ -27,10 +27,6 @@ import {merge} from '@quale/term/merging.js'
 import {lget, update, valueHash} from '@quale/core/objects.js'
 import {breakLines, stringWidth} from '@quale/core/strings.js'
 import {isString, isObject, castToArray} from '@quale/core/types.js'
-// const cliWidth = require('cli-width')
-// const emailval = require('email-validator')
-// const roundTo  = require('round-to')
-import cliWidth from 'cli-width'
 import emailval from 'email-validator'
 import roundTo from 'round-to'
 import * as Uuid from 'uuid'
@@ -39,8 +35,6 @@ import crypto from 'crypto'
 import os from 'os'
 import path from 'path'
 
-import {sum} from '@quale/core/arrays.js'
-
 import {
     ArgumentError,
     ProgrammerError,
@@ -48,8 +42,6 @@ import {
 } from './errors.js'
 
 import StringBuilder from './util/string-builder.js'
-
-export {StringBuilder, cliWidth, sum as sumArray, stringWidth}
 
 const LoggerTypes = {
     named: {
@@ -76,10 +68,7 @@ const LoggerTypes = {
 }
 
 
-
 /**
- * @throws {TypeError}
- * 
  * @param {Array} arr
  * @param {Number} inc
  * @param {Number} min
@@ -91,7 +80,7 @@ export function arrayIncrement(arr, inc, min, max, place = undefined) {
     const precision = inc === Math.floor(inc)
         ? 0
         : inc.toString().split('.')[1].length
-    if (typeof place === 'undefined') {
+    if (place === undefined) {
         place = arr.length - 1
     }
     if (arr[place] + inc <= max) {
@@ -111,7 +100,6 @@ export function arrayIncrement(arr, inc, min, max, place = undefined) {
 /**
  * Break up an array into chunks.
  *
- * @throws {TypeError}
  * @param {Array} arr The array to chunk
  * @param {Number} numChunks The number of chunks
  * @return {Array} The array of chunks
@@ -196,20 +184,18 @@ export function decrypt2(text, key) {
     if (!text || text.length < 41) {
         throw new ArgumentError('Invalid text argument')
     }
-    if (!key || key.length != 32) {
+    if (!key || key.length !== 32) {
         throw new ArgumentError('Invalid key argument')
     }
     const textParts = text.split(':')
     const iv = Buffer.from(textParts.shift(), 'hex')
-    if (iv.length != 16) {
+    if (iv.length !== 16) {
         throw new ArgumentError('Invalid IV length')
     }
     const encryptedText = Buffer.from(textParts.join(':'), 'hex')
     const decipher = crypto.createDecipheriv('aes-256-ctr', Buffer.from(key), iv)
     let decrypted = decipher.update(encryptedText)
-
     decrypted = Buffer.concat([decrypted, decipher.final()])
-
     return decrypted.toString()
 }
 /**
@@ -254,16 +240,12 @@ export function encrypt2(text, key) {
     const iv = crypto.randomBytes(16)
     const cipher = crypto.createCipheriv('aes-256-ctr', Buffer.from(key), iv)
     let encrypted = cipher.update(text)
-
     encrypted = Buffer.concat([encrypted, cipher.final()])
-
     return iv.toString('hex') + ':' + encrypted.toString('hex')
 }
 
 /**
  * Update the target object with the defaults if the key does not yet exist.
- *
- * @throws {TypeError}
  *
  * @param {object} target The target object to update
  * @param {object} defaults The defaults to use
@@ -285,7 +267,6 @@ export function ensure(target, defaults) {
  * occurs.
  *
  * @param {Function} cb The callback to execute
- *
  * @return {Boolean|String} The string error message or `false` for empty
  *          message, or `true` if no error was thrown.
  */
@@ -312,9 +293,7 @@ export function errMessage(cb) {
  * @return {class} The target class
  */
 export function extendClass(TargetClass, SourceClass, opts = undefined) {
-
     opts = opts || {}
-
     Object.values(['overrides', 'optionals']).forEach(key => {
         if (opts[key] === true) {
             opts[key] = {'*': true}
@@ -324,11 +303,9 @@ export function extendClass(TargetClass, SourceClass, opts = undefined) {
             opts[key] = valueHash(castToArray(opts[key]))
         }
     })
-
     const {overrides, optionals} = opts
     const isOverride = overrides['*'] || opts.isOverride
     const isOptional = optionals['*'] || opts.isOptional
-
     Object.getOwnPropertyNames(SourceClass.prototype).forEach(name => {
         if (name === 'constructor' || name === '_constructor') {
             return
@@ -343,7 +320,6 @@ export function extendClass(TargetClass, SourceClass, opts = undefined) {
         }
         TargetClass.prototype[name] = SourceClass.prototype[name]
     })
-
     return TargetClass
 }
 
@@ -354,7 +330,6 @@ export function extendClass(TargetClass, SourceClass, opts = undefined) {
  *          -----------------------
  * Example: 2021-07-29_02-01-09_584
  *
- * @throws {TypeError}
  * @param {Date} date The date reference, default is current date.
  * @return {String} The result string
  */
@@ -384,7 +359,6 @@ export function fileDateString(date = undefined) {
 /**
  * Get the basename of the file path, without the extension.
  *
- * @throws {TypeError}
  * @param {String} str The input path string
  * @return {String} The basename without the extension
  */
@@ -395,7 +369,6 @@ export function filenameWithoutExtension(str) {
 /**
  * Get the file path without the extension.
  *
- * @throws {TypeError}
  * @param {String} str The input path string
  * @return {String} The path without the extension
  */
@@ -406,7 +379,6 @@ export function filepathWithoutExtension(str) {
 /**
  * From inquirer/lib/utils/screen-manager.
  *
- * @throws {TypeError}
  * @param {String} content
  * @param {Number} width
  * @return {String}
@@ -434,7 +406,7 @@ export function homeTilde(str) {
         return str
     }
     const homeDir = os.homedir()
-    if (str.indexOf(homeDir) != 0) {
+    if (str.indexOf(homeDir) !== 0) {
         return str
     }
     return '~' + str.substring(homeDir.length)
@@ -456,7 +428,6 @@ export function httpToWs(str) {
     }
     return str.replace(/^(http)/, 'ws')
 }
-
 
 const BOOLSTR = {
     '1': true,
@@ -486,12 +457,9 @@ export function induceBool(value, defaultValue = false) {
         if (defaultValue) {
             // Default is true, so check for explicit false.
             return BOOLSTR[value] !== false
-            // return !FALSE_STRS.includes(value)
-            // return ['0', 'false', 'no', 'n', 'off'].indexOf(value) < 0
         }
         // Default is false, so check for explicit true.
         return BOOLSTR[value] === true
-        // return ['1', 'true', 'yes', 'y', 'on'].indexOf(value) > -1
     }
     return Boolean(defaultValue)
 }
@@ -541,8 +509,6 @@ export function intRange(a, b) {
  * Check whether both the `username` and `password` keys are non-empty, and
  * optionally the `serverUrl` key.
  *
- * @throws {TypeError}
- *
  * @param {object} credentials The credentials object to check
  * @param {Boolean} isServer Whether to also check for `serverUrl`
  * @return {Boolean} Whether the keys are non-empty
@@ -568,8 +534,6 @@ const METAKEYS = ['ctrl', 'meta', 'shift']
 /**
  * Get the normalized keypress name from an event object.
  *
- * @throws {TypeError}
- *
  * @param {object} e The keypress event object
  * @return {String} The normalized keypress name
  */
@@ -593,8 +557,6 @@ export function keypressName(e) {
 
 /**
  * Create a plain object from an Error, suitable for serialization.
- *
- * @throws {TypeError}
  *
  * @param {Error} err The input error
  * @return {object} The result object
@@ -632,25 +594,18 @@ export function makeErrorObject(err, depth = 1) {
  * Return a new object with the same keys, transforming values with the
  * given callback.
  *
- * @throws {TypeError}
- *
  * @param {object} obj The input object
  * @param {Function} cb The callback, to transform the value
  * @return {object} The result object
  */
 export function mapValues(obj, cb) {
-    return Object.fromEntries(
-        Object.entries(obj).map(
-            ([k, v]) => [k, cb(v)]
-        )
-    )
+    return Object.fromEntries(Object.entries(obj).map(([k, v]) => [k, cb(v)]))
 }
 
 /**
  * Create a string of length n from the input character.
  *
  * @throws {ArgumentError}
- * @throws {TypeError}
  *
  * @param {Number} n The desired length
  * @param {String} chr The character to repeat
@@ -670,7 +625,6 @@ export function nchars(n, chr) {
  * Map the range from 0 for n (exclusive) by the given callback.
  *
  * @throws {ArgumentError}
- * @throws {TypeError}
  *
  * @param {Number} n The range limit
  * @param {Function} cb The callback to execute
@@ -691,7 +645,6 @@ export function nmap(n, cb) {
  * Run the callback n times.
  *
  * @throws {ArgumentError}
- * @throws {TypeError}
  *
  * @param {Number} n The number of times to run the callback
  * @param {Function} cb The callback to execute
@@ -712,7 +665,6 @@ export function ntimes(n, cb) {
  * Pad a string, left or right, ANSI-safe.
  *
  * @throws {ArgumentError}
- * @throws {TypeError}
  *
  * @param {String} str The string to pad
  * @param {String} align Alignment, 'left' or 'right', default 'left'
@@ -776,8 +728,6 @@ export function padStart(str, n, chr) {
 }
 
 /**
- * @throws {TypeError}
- *
  * @param {object} obj
  * @param {array|object} keys
  * @return {object}
@@ -786,7 +736,7 @@ export function propsFrom(obj, keys) {
     keys = Array.isArray(keys) ? keys : Object.keys(keys)
     obj = obj || {}
     const ret = {}
-    for (var k of keys) {
+    for (const k of keys) {
         ret[k] = obj[k]
     }
     return ret
@@ -794,8 +744,6 @@ export function propsFrom(obj, keys) {
 
 /**
  * Get a random element from an array.
- *
- * @throws {TypeError}
  *
  * @param {Array} arr The input array
  * @return {*} The value of a random index of the array
@@ -849,26 +797,19 @@ export function secret1() {
  * @return {object} Result {isPass, error, warning, missing}
  */
 export function securityCheck(checks, env) {
-
     env = env || process.env
-
     const getter = it => typeof it === 'function' ? it() : it
     const missing = checks.filter(it =>
         getter(it.value) == getter(it.default)
     )
-
     const count = missing.length
     const isPass = !count
     const isProd = env.NODE_ENV === 'production'
-
     let error
     let warning
-
     if (count) {
-
         const strs = []
         const names = missing.map(it => it.name)
-
         if (count > 1) {
             // Join all but the last with commas. If count is only 2,
             // this will just add the first name.
@@ -876,28 +817,24 @@ export function securityCheck(checks, env) {
         }
         // Add the last name.
         strs.push(names[count - 1])
-
         // Use Oxford comma.
         // For two names: 'A and B'.
         // For three or more name: 'A, B, and C'.
         const joiner = count > 2 ? ', and ' : ' and '
         const joined = strs.join(joiner)
-
         // Cheap pluralization.
         const [noun, adj] = count > 1
             ? ['defaults' , 'These']
             : ['default'  , 'This']
-
         if (isProd) {
             error = `Must set custom ${joined} in production environments`
         } else {
             warning = [
-                `${joined} not set, using ${noun}.`
-                , `${adj} must be set in production environments.`
+                `${joined} not set, using ${noun}.`,
+                `${adj} must be set in production environments.`,
             ].join(' ')
         }
     }
-
     return {isPass, error, warning, missing}
 }
 
@@ -978,8 +915,6 @@ export function spreadScore(obj, isInverse = false) {
 /**
  * Strips one forward slash from the start of a string, if any.
  *
- * @throws {TypeError}
- *
  * @param {String} str The input string
  * @return {String} The result string
  */
@@ -993,8 +928,6 @@ export function stripLeadingSlash(str) {
 /**
  * Strips one forward slash from the end of a string, if any.
  *
- * @throws {TypeError}
- *
  * @param {String} str The input string
  * @return {String} The result string
  */
@@ -1007,8 +940,6 @@ export function stripTrailingSlash(str) {
 
 /**
  * Replace ~ at the start of a string with the os home dir.
- *
- * @throws {TypeError}
  *
  * @param {String} str The input path string
  * @return {String} The result string
@@ -1076,10 +1007,8 @@ export function trimMessageData(data) {
 /**
  * Returns an array with all the unique integers of the input array.
  *
- * @throws {TypeError}
- *
- * @param {Array} The input array
- * @return {Array} The unique numbers
+ * @param {Number[]} The input array
+ * @return {Number[]} The unique numbers
  */
 export function uniqueInts(arr) {
     const map = {}
@@ -1090,10 +1019,8 @@ export function uniqueInts(arr) {
 /**
  * Returns an array with all the unique strings of the input array.
  *
- * @throws {TypeError}
- *
- * @param {Array} arr The input array
- * @return {Array} The unique strings
+ * @param {String[]} arr The input array
+ * @return {String[]} The unique strings
  */
 export function uniqueStrings(arr) {
     return uniquePrimitives(arr).map(String)
@@ -1101,8 +1028,6 @@ export function uniqueStrings(arr) {
 
 /**
  * Returns an array with all the unique primitives of the input array.
- *
- * @throws {TypeError}
  *
  * @param {Array} arr The input array
  * @return {Array} The unique primitives
@@ -1125,8 +1050,6 @@ export function uuid() {
 /**
  * Normalize websocket URL to an http(s) URL.
  *
- * @throws {TypeError}
- *
  * @param {String} str The URL string to normalized
  * @return {String} The normalized string
  *
@@ -1138,12 +1061,3 @@ export function wsToHttp(str) {
     }
     return str.replace(/^(ws)/, 'http')
 }
-
-// update(Util, {
-//     get Counter()          { return require('./util/counter') },
-//     get DependencyHelper() { return require('./util/dependency-helper') },
-//     get Intl()             { return require('./util/intl') },
-//     get Profiler()         { return require('./util/profiler') },
-//     get Timer()            { return require('./util/timer') },
-//     StringBuilder,
-// })

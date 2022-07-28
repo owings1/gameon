@@ -100,29 +100,22 @@ export default class Menu extends EventEmitter {
             credentials : {value: Menu.credentialDefaults()},
         })
         this.intl = IntlHelper.newInstance()
-
         this.chash = CHash
         this.bread = []
-
         this.theme = Themes.getDefaultInstance()
         this.screen = new Screen({isAnsi: this.settings.isAnsi})
         this.inquirer = inquirer.createPromptModule({escapeCodeTimeout: 100})
-
         this.logger = createLogger(this, {type: 'named', oneout: true})
         this.alerter = createLogger('Alerter', {type: 'raw', oneout: true})
         this.alerts = new Alerts
         this.api = new ApiHelper(this.screen)
-
         this.isCredentialsLoaded = false
         this.isSettingsLoaded = false
         this.isThemesLoaded = false
-
         this.q = new Questions(this)
         this.m = this.q.m
-
         this.handleResize = this.handleResize.bind(this)
         this.on('resize', this.handleResize)
-
         this.boxes = {
             menu   : new TermBox({
                 top         : 10,
@@ -943,9 +936,7 @@ export default class Menu extends EventEmitter {
     handleResize() {
         this.hasMenuBackground = false
         if (this.players) {
-            Object.values(this.players).forEach(player =>
-                player.emit('resize')
-            )
+            Object.values(this.players).forEach(player => player.emit('resize'))
         }
         if (!this.settings.isAnsi) {
             return
@@ -1261,7 +1252,7 @@ export default class Menu extends EventEmitter {
         }
         const creds = await fse.readJson(file)
         if (ObsoleteServerUrls.includes(creds.serverUrl)) {
-            creds.serverUrl = Menu.getDefaultServerUrl()
+            creds.serverUrl = DefaultServerUrl
         }
         update(this.creds, defaults(Menu.credentialDefaults(), creds))
         this.isCredentialsLoaded = true
@@ -1447,7 +1438,7 @@ export default class Menu extends EventEmitter {
 
     static credentialDefaults() {
         return {
-            serverUrl    : this.getDefaultServerUrl(),
+            serverUrl    : DefaultServerUrl,
             username     : '',
             password     : '',
             needsConfirm : false,
@@ -1482,10 +1473,6 @@ export default class Menu extends EventEmitter {
 
     static getDefaultConfigDir() {
         return path.resolve(os.homedir(), '.gameon')
-    }
-
-    static getDefaultServerUrl() {
-        return DefaultServerUrl
     }
 
     static getDefaultRecordDir() {

@@ -991,7 +991,7 @@ export default class LabHelper {
         const outDir = path.resolve(this.opts.recordDir, subDir, prefix)
         logger.info(__('alerts.savingTo{path}', {path: homeTilde(outDir)}))
         await fse.ensureDir(outDir)
-        const records = await this.fetchLastRecords()
+        const records = this.fetchLastRecords()
         this.fetchLastRecords = null
         for (const [basename, data] of Object.entries(records)) {
             const file = path.resolve(outDir, path.basename(basename))

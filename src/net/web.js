@@ -22,7 +22,6 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-
 import bodyParser from 'body-parser'
 import cookieParser from 'cookie-parser'
 import express from 'express'
@@ -33,26 +32,20 @@ import {
     DefaultTokenCookie,
     IsTest,
 } from '../lib/constants.js'
-
 import {
     createLogger,
     defaults,
     securityCheck,
 } from '../lib/util.js'
-
 import {SecurityError} from '../lib/errors.js'
-
 import process from 'process'
 import path from 'path'
 import { fileURLToPath } from 'url'
-const __filename = fileURLToPath(import.meta.url)
-const __dirname = path.dirname(__filename)
 
-const {resolve} = path
-
-const ResourcePath = resolve(__dirname, '../www')
-const StaticPath   = resolve(ResourcePath, 'static')
-const ViewPath     = resolve(ResourcePath, 'templates')
+const DIR = path.dirname(fileURLToPath(import.meta.url))
+const ResourcePath = path.resolve(DIR, '../www')
+const StaticPath = path.resolve(ResourcePath, 'static')
+const ViewPath = path.resolve(ResourcePath, 'templates')
 
 export default class Web {
 
@@ -85,29 +78,24 @@ export default class Web {
     }
 
     createExpressApp() {
-
         const app = express()
         const formParser = bodyParser.urlencoded({extended: true})
-
         app.set('trust proxy', 1)
         app.set('view engine', 'ejs')
         app.set('views', ViewPath)
-
         app.use(session({
-            secret            : this.opts.sessionSecret,
-            name              : this.opts.sessionCookie,
-            resave            : false,
-            saveUninitialized : false,
-            cookie            : {
-                httpOnly : true,
-                secure   : !this.opts.sessionInsecure,
-                sameSite : true,
-                maxAge   : this.opts.sessionExpiry,
+            secret: this.opts.sessionSecret,
+            name: this.opts.sessionCookie,
+            resave: false,
+            saveUninitialized: false,
+            cookie: {
+                httpOnly: true,
+                secure: !this.opts.sessionInsecure,
+                sameSite: true,
+                maxAge: this.opts.sessionExpiry,
             }
         }))
-
         app.use(cookieParser())
-
         app.use((req, res, next) => {
             const hasCookie = Boolean(req.cookies[this.opts.sessionCookie])
             const hasUser = Boolean(req.session.user)
@@ -126,7 +114,6 @@ export default class Web {
             res.locals.errors = null
             next()
         })
-
         function requireLogin(req, res, next) {
             if (!req.loggedIn) {
                 res.status(302).redirect('/login')
@@ -134,15 +121,12 @@ export default class Web {
                 next()
             }
         }
-
         app.get('/', (req, res) => {
             res.status(200).render('index')
         })
-
         app.get('/login', (req, res) => {
             res.status(200).render('login')
         })
-
         app.post('/login', formParser, (req, res) => {
             const {username, password} = req.body
             this.auth.authenticate(username, password).then(user => {
@@ -162,18 +146,15 @@ export default class Web {
                 res.render('login', {errors: [err]})
             })
         })
-
         app.get('/logout', (req, res) => {
             res.clearCookie(this.opts.sessionCookie)
             delete req.session.user
             req.loggedIn = false
             res.status(302).redirect('/')
         })
-
         app.get('/dashboard', requireLogin, (req, res) => {
             res.status(200).render('dashboard')
         })
-
         app.get('/play', requireLogin, (req, res) => {
             res.status(200).render('play', {
                 Gameon: {
@@ -181,22 +162,19 @@ export default class Web {
                 }
             })
         })
-
         app.use('/static', express.static(StaticPath))
-
         app.use((req, res) => {
             res.status(404).send('Not found')
         })
-
         return app
     }
 
     /**
      * Ensure the defaults are not used in production environments.
      *
-     * @throws {SecurityError}     *
-     * @param {object} (optional) The environment variables
-     * @return {boolean} Whether all values are custom
+     * @throws {SecurityError}
+     * @param {object} env The environment variables
+     * @return {Boolean} Whether all values are custom
      */
     _checkSecurity(env) {
         const checks = [

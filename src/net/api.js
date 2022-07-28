@@ -63,15 +63,12 @@ export default class Api {
     }
 
     create_v1() {
-
         const app = express()
         const jsonParser = bodyParser.json()
-
         app.use((req, res, next) => {
             res.errorHandler = err => this.handleError(err, res)
             jsonParser(req, res, next)
         })
-
         app.post('/authenticate', jsonParser, (req, res) => {
             const message = Messages.authenticated
             const {username, password} = req.body
@@ -82,7 +79,6 @@ export default class Api {
                 res.status(status).send(body)
             }).catch(res.errorHandler)
         })
-
         app.post('/signup', jsonParser, (req, res) => {
             const message = Messages.accountCreated
             const {username, password} = req.body
@@ -96,7 +92,6 @@ export default class Api {
 
             }).catch(res.errorHandler)
         })
-
         app.post('/send-confirm-email', jsonParser, (req, res) => {
             const message = Messages.confirmKeySent
             const {username} = req.body
@@ -114,7 +109,6 @@ export default class Api {
                 res.errorHandler(err)
             })
         })
-
         app.post('/forgot-password', jsonParser, (req, res) => {
             const message = Messages.resetKeySent
             const {username} = req.body
@@ -132,7 +126,6 @@ export default class Api {
                 res.errorHandler(err)
             })
         })
-
         app.post('/confirm-account', jsonParser, (req, res) => {
             const message = Messages.accountConfirmed
             const {username, confirmKey} = req.body
@@ -142,7 +135,6 @@ export default class Api {
                 res.status(status).send(body)
             ).catch(res.errorHandler)
         })
-
         app.post('/change-password', jsonParser, (req, res) => {
             const message = Messages.passwordChanged
             const {username, oldPassword, newPassword} = req.body
@@ -153,7 +145,6 @@ export default class Api {
                 res.status(status).send(body)
             }).catch(res.errorHandler)
         })
-
         app.post('/reset-password', jsonParser, (req, res) => {
             const message = Messages.passwordReset
             const {username, password, resetKey} = req.body
@@ -164,14 +155,12 @@ export default class Api {
                 res.status(status).send(body)
             }).catch(res.errorHandler)
         })
-
         app.use((req, res) => {
             const status = 404
             const message = Messages.notFound
             const body = {status, message}
             res.status(status).send(body)
         })
-
         return app
     }
 

@@ -65,18 +65,13 @@ const Listeners = {
 export default class Player extends EventEmitter {
 
     constructor(color) {
-
         super()
-
         this.id = uuid()
         this.logger = createLogger(this, {type: 'named'})
-
         this.isPlayer = true
-
-        this.name   = this.constructor.name
-        this.color  = color
-        this.holds  = []
-
+        this.name = this.constructor.name
+        this.color = color
+        this.holds = []
         Object.entries(Listeners).forEach(([event, listener]) => {
             this.on(event, listener)
         })

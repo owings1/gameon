@@ -148,14 +148,6 @@ describe('Util', () => {
         ])
     })
 
-    describe('#cliWidth', () => {
-
-        it('should return integer', function () {
-            const res = Util.cliWidth()
-            expect(Number.isInteger(res)).to.equal(true)
-        })
-    })
-
     describe('#createHash', () => {
 
         it('should return hash object updated with text when no digest passed', function () {
@@ -773,14 +765,6 @@ describe('Util', () => {
                 expect(result1).to.jsonEqual(result2)
             })
         })
-    })
-
-    describe('#stringWidth', () => {
-
-        makeCases('stringWidth', [
-            [0, null]
-          , [4, chalk.green('asdf')]
-        ])
     })
 
     describe('#stripLeadingSlash', () => {

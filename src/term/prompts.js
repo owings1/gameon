@@ -77,9 +77,7 @@ class InputPrompt extends Inquirer.prompt.prompts.input {
     constructor(...args) {
         super(...args)
         this.initializer(...args)
-        ensure(this.opt, {
-            writeInvalid: value => value
-        })
+        ensure(this.opt, {writeInvalid: value => value})
     }
 
     /**
@@ -105,14 +103,10 @@ class InputPrompt extends Inquirer.prompt.prompts.input {
     * See https://github.com/SBoudrias/Inquirer.js/blob/master/packages/inquirer/lib/prompts/input.js
     */
     render(error) {
-    
         const {chlk} = this
-    
         const {transformer} = this.opt
-    
         let message = this.getQuestion()
         let bottomContent = ''
-    
         message += chlk.message.prompt(' ')
         if (this.isCancel) {
             message += chlk.message.help(this.opt.cancel.message)
@@ -130,11 +124,9 @@ class InputPrompt extends Inquirer.prompt.prompts.input {
                 }
             }
         }
-    
         if (error) {
             bottomContent += this.getErrorString(error)
         }
-    
         if (this.opt.spin) {
             this.screen.renderWithSpinner(message, bottomContent)
         } else {
@@ -175,12 +167,9 @@ class PasswordPrompt extends Inquirer.prompt.prompts.password {
     * See https://github.com/SBoudrias/Inquirer.js/blob/master/packages/inquirer/lib/prompts/password.js
     */
     render(error) {
-
         const {chlk} = this
-
         let message = this.getQuestion()
         let bottomContent = ''
-
         message += chlk.message.prompt(' ')
         if (this.isCancel) {
             message += chlk.message.help(this.opt.cancel.message)
@@ -193,12 +182,10 @@ class PasswordPrompt extends Inquirer.prompt.prompts.password {
         } else {
             message += chlk.message.help('[input is hidden] ')
         }
-
         if (error) {
             bottomContent += '\n'
             bottomContent += this.getErrorString(error)
         }
-
         this.screen.render(message, bottomContent)
     }
 
@@ -474,7 +461,6 @@ export {
 export default Prompts
 
 Object.entries(Prompts).forEach(([name, TargetClass]) => {
-
     const {features, inherits} = Object.fromEntries(
         ['features', 'inherits'].map(key =>
             [key, TargetClass[key] ? TargetClass[key]() : []]

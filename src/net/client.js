@@ -70,27 +70,20 @@ export default class Client extends EventEmitter {
      * @param {object} credentials The credentials {serverUrl, username, password}
      */
     constructor(credentials = undefined) {
-
         super()
-
         this.name = this.constructor.name
-        this.logger = createLogger(this, {type: 'named'})//new Logger({name: this.constructor.name, prefix: loggerPrefixNamed})
-
+        this.logger = createLogger(this, {type: 'named'})
         const {serverUrl, username, password} = credentials || {}
-
         this.setServerUrl(serverUrl)
         this.username = username
         this.password = password
-
         this.socketClient = new WebSocket.client
         this.secret = secret1()
-
         this.token = null
         this.conn = null
         this.isHandshake = null
         this.match = null
         this.matchId = null
-
         this.isClosing = false
     }
 
@@ -101,29 +94,21 @@ export default class Client extends EventEmitter {
      * @return {Promise}
      */
     connect() {
-
         return new Promise((resolve, reject) => {
-
             if (this.isConnected) {
                 resolve()
                 return
             }
-
             this.isClosing = false
-
             this.socketClient
                 .removeAllListeners('connectFailed')
                 .removeAllListeners('connect')
-
             this.socketClient.on('connectFailed', err => {
                 // WebSocketClient throws generic Error
                 reject(ClientError.forConnectFailedError(err))
             })
-
             this.socketClient.on('connect', conn => {
-
                 this.conn = conn
-
                 conn.on('error', err => {
                     // Observed errors:
                     //  ❯ ECONNRESET, syscall: read, errno: -54
@@ -135,7 +120,6 @@ export default class Client extends EventEmitter {
                         this.logger.error(err)
                     }
                 })
-
                 conn.on('close', (code, description) => {
                     /**
                      * ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
@@ -156,17 +140,14 @@ export default class Client extends EventEmitter {
                      * ┃ 1015  ┃ TLS Handshake Failed                          ┃
                      * ┗━━━━━━━┻━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
                      */
-
                     this.logger.debug('conn.close', code, description)
                     this.conn = null
                     this.isHandshake = false
-
                     // Removing listeners could swallow some errors, for example
                     // a connection reset on a server shutdown. But in theory
                     // these represent more general events handled elsewhere.
                     conn.removeAllListeners()
                 })
-
                 conn.on('message', msg => {
                     let data
                     try {
@@ -179,14 +160,12 @@ export default class Client extends EventEmitter {
                     }
                     this._handleMessage(data)
                 })
-
                 this._handshake().then(() => {
                     resolve()
                     // In case we reject afterward, probably a noop.
                     reject = err => this.emit('error', err)
                 }).catch(reject)
             })
-
             try {
                 this.socketClient.connect(this.serverSocketUrl)
             } catch (err) {
@@ -196,10 +175,10 @@ export default class Client extends EventEmitter {
     }
 
     /**
-     * @throws {ClientError.ConnectionClosedError} When a pending response
-     *         is expected
+     * @param {Error} err
+     * @throws {ClientError} When a pending response is expected
      */
-    close(err = null) {
+    close(err = undefined) {
         this.isClosing = true
         try {
             err = err || new ConnectionClosedError('Client closing')
@@ -224,68 +203,48 @@ export default class Client extends EventEmitter {
      * `opponentJoined` event when the opponent joins, and returns the match.
      *
      * @async
-     *
+     * @param {object} opts The match options, which must include `total`
+     * @return {Match}
      * @throws {ClientError}
      * @throws {MatchCanceledError}
-     *
      * @emits matchCreated
      * @emits opponentJoined
-     *
-     * @param {object} The match options, which must include `total`
-     * @return {Match}
      */
     async createMatch(opts) {
-
         await this.connect()
-
         const {total} = opts
         const req = {action: 'createMatch', total, opts}
         let res = await this._sendAndWaitForResponse(req, 'matchCreated')
-
         const {id, match} = res
-
         this.matchId = id
         this.match = Match.unserialize(match)
         this.color = White
-
         this.logger.info('Created new match', id)
         this.emit('matchCreated', id, this.match)
-
         this.logger.info('Waiting for opponent to join')
-
         res = await this._waitForResponse('opponentJoined')
-
         this.logger.info('Opponent joined', id)
         this.emit('opponentJoined', this.match)
-
         return this.match
     }
 
     /**
      * @async
-     *
-     * @throws {ClientError}
-     *
-     * @emits matchJoined
-     *
      * @param {integer} id The match ID
      * @return {Match}
+     * @throws {ClientError}
+     * @emits matchJoined
      */
     async joinMatch(id) {
-
         await this.connect()
-
         this.logger.info('Joining match', id)
         const req = {action: 'joinMatch', id}
         const {match} = await this._sendAndWaitForResponse(req, 'matchJoined')
-
         this.matchId = id
         this.match = Match.unserialize(match)
         this.color = Red
-
         this.logger.info('Joined match', id, 'to', this.match.total, 'points')
         this.emit('matchJoined', this.match)
-
         return this.match
     }
 
@@ -295,17 +254,14 @@ export default class Client extends EventEmitter {
      * See {@method waitForResponse}
      *
      * @async
-     *
-     * @throws {ClientError}     
-     * @throws {MatchCanceledError}
-     * @throws {WaitingAbortedError}
-     *
-     * @emits matchRequest
-     * @emits matchResponse
-     *
      * @param {string} action The play action
      * @param {object} params Additional request data
      * @return {object} The response
+     * @throws {ClientError}     
+     * @throws {MatchCanceledError}
+     * @throws {WaitingAbortedError}
+     * @emits matchRequest
+     * @emits matchResponse
      */
     async matchRequest(action, params) {
         const req = {...this.matchParams(action), ...params}
@@ -411,16 +367,14 @@ export default class Client extends EventEmitter {
      * See {@method waitForResponse}
      *
      * @async
-     *
-     * @throws {ClientError}
-     * @throws {GameError.MatchCanceledError}
-     * @throws {MenuError.WaitingAbortedError}
-     *
      * @param {object} req The request data.
      * @param {string} action The expected action of the response.
      * @return {object|Error|null}
+     * @throws {ClientError}
+     * @throws {GameError.MatchCanceledError}
+     * @throws {MenuError.WaitingAbortedError}
      */
-    _sendAndWaitForResponse(req, action = null) {
+    _sendAndWaitForResponse(req, action = undefined) {
         const promise = this._waitForResponse(action)
         this._sendMessage(req)
         return promise
@@ -449,21 +403,18 @@ export default class Client extends EventEmitter {
      *  ❯ Then the error is thrown.
      *
      * @async
-     *
-     * @emits `matchCanceled`
-     * @emits `responseError`
-     *
+     * @param {string} action The expected action of the response
+     * @return {object|Error|null}
+     * @emits matchCanceled
+     * @emits responseError
      * @throws {ConnectionClosedError}
      * @throws {ParallelRequestError}
      * @throws {UnexpectedResponseError}
      * @throws {ClientError}
      * @throws {MatchCanceledError}
      * @throws {WaitingAbortedError}
-     *
-     * @param {string} action The expected action of the response
-     * @return {object|Error|null}
      */
-    async _waitForResponse(action = null) {
+    async _waitForResponse(action = undefined) {
         const data = await this._waitForMessage()
         try {
             if (data.isError) {
@@ -507,18 +458,14 @@ export default class Client extends EventEmitter {
      * Wait for any valid JSON message.
      *
      * @async
-     *
-     * @throws {ClientError.ConnectionClosedError}
-     * @throws {ClientError.ParallelRequestError}
-     * @throws {GameError.MatchCanceledError}
-     * @throws {MenuError.WaitingAbortedError}
-     *
-     * @emits response
-     *
      * @return {object}
+     * @throws {ClientError}
+     * @throws {ClientError}
+     * @throws {GameError}
+     * @throws {MenuError}
+     * @emits response
      */
     _waitForMessage() {
-
         return new Promise((resolve, reject) => {
             if (!this.isConnected) {
                 reject(new ConnectionClosedError('Connection lost'))
@@ -530,15 +477,12 @@ export default class Client extends EventEmitter {
             }
             this.isWaiting = true
             this.messageResolve = data => {
-
                 this.emit('response', data)
                 this.logger.debug('response', trimMessageData(data))
-
                 resolve(data)
-
                 // Clear current match if finished.
                 if (data.match && data.match.uuid && data.match.isFinished) {
-                    if (this.match && this.match.uuid == data.match.uuid) {
+                    if (this.match && this.match.uuid === data.match.uuid) {
                         this.clearCurrentMatch()
                     }
                 }
@@ -558,16 +502,13 @@ export default class Client extends EventEmitter {
     /**
      * Message event handler.
      *
+     * @param {object} data
      * @emits matchCanceled
      * @emits unhandledMessage
      * @emits error
-     *
-     * @param {object} data
      */
     _handleMessage(data) {
-
         this.logger.debug('message', trimMessageData(data))
-
         if (this.messageResolve) {
             this.messageResolve(data)
             return
@@ -575,7 +516,7 @@ export default class Client extends EventEmitter {
         // If there is no messageResolve, there is no messageReject.
         let err
         try {
-            if (data.action == 'matchCanceled') {
+            if (data.action === 'matchCanceled') {
                 err = new MatchCanceledError(data.reason, {attrs: data.attrs})
                 // Let the matchCanceled handler take care of the error.
                 this.logger.debug('cancelMatch.from._handleMessage')
@@ -589,17 +530,13 @@ export default class Client extends EventEmitter {
             if (this.emit('unhandledMessage', data)) {
                 return
             }
-        
             this.logger.warn('Unhandled message from server', err)
-
             // Since this is recoverable, we emit an error instead of throwing.
             // Interesting: this exits the process even on tests, no matter
             // whether we throw or emit.
             //throw err
             this.emit('error', err)
-
         } finally {
-
             if (err && err.isClientShouldClose) {
                 this.logger.debug('handleMessage.isClientShouldClose')
                 this.close(err)
@@ -619,10 +556,9 @@ export default class Client extends EventEmitter {
     }
 
     /**
+     * @return {object}
      * @async
      * @throws {ClientError}
-     *
-     * @return {object}
      */
     async _handshake() {
         const {username, password, token} = this

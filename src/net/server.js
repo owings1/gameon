@@ -82,12 +82,15 @@ function formatLog(req, res) {
     ].join(' ')
 }
 
+const symMcnt = Symbol('matchCount')
+const symCcnt = Symbol('connCount')
+
 export default class Server {
 
     /**
      * Get the default options.
      *
-     * @param {object} (optional) The environment variables
+     * @param {object} env The environment variables
      * @return {object} The default options
      */
     static defaults(env) {
@@ -98,27 +101,21 @@ export default class Server {
     }
 
     /**
-     * @constructor
-     *
-     * @param {object} (optional) The options
-     * @throws {TypeError}
+     * @param {object} opts The options
      */
-    constructor(opts) {
-
+    constructor(opts = undefined) {
         this.logger = createLogger(this, {type: 'server'})
-
         this.opts = defaults(Server.defaults(process.env), opts)
         this.auth = Auth.create({...opts, ...this.opts})
-        this.api  = new Api(this.auth, opts)
-        this.web  = new Web(this.auth, opts)
-
+        this.api = new Api(this.auth, opts)
+        this.web = new Web(this.auth, opts)
         this.app = this.createApp()
         this.metricsApp = this.createMetricsApp()
-
         this.promRegistry = null
         this.metrics = null
-
         this.matches = {}
+        this[symMcnt] = 0
+        this[symCcnt] = 0
         this.httpServer = null
         this.socketServer = null
         this.port = null
@@ -127,14 +124,11 @@ export default class Server {
 
     /**
      * @async
-     *
-     * @param {integer} (optional)
-     * @param {integer} (optional)
+     * @param {Number} port
+     * @param {Number} metricsPort
      */
-    async listen(port, metricsPort) {
-
+    async listen(port = undefined, metricsPort = undefined) {
         this.close(true)
-
         await new Promise((resolve, reject) => {
             try {
                 this.httpServer = this.app.listen(port, resolve)
@@ -144,9 +138,7 @@ export default class Server {
         })
         this.port = this.httpServer.address().port
         this.logger.info('Listening on port', this.port, 'with', this.auth.type, 'auth')
-
         this.socketServer = this.createSocketServer(this.httpServer)
-
         await new Promise((resolve, reject) => {
             try {
                 this.promRegistry = new prom.Registry
@@ -157,15 +149,14 @@ export default class Server {
                 reject(err)
             }
         })
-
         this.metricsPort = this.metricsHttpServer.address().port
         this.logger.info('Metrics listening on port', this.metricsPort)
         return this
     }
 
     /**
-     * @param {boolean} (optional)
-     * @return {self}
+     * @param {Boolean} isSkipLog
+     * @return {Server} self
      */
     close(isSkipLog = false) {
         if (!isSkipLog) {
@@ -198,38 +189,30 @@ export default class Server {
     }
 
     /**
-     * @return {function} Express app
+     * @return {Function} Express app
      */
     createApp() {
-
         const app = express()
-
         app.use((req, res, next) => {
             const level = statusLogLevel(res.statusCode)
             onFinished(res, () => this.logger[level](formatLog(req, res)))
             next()
         })
-
         app.get('/health', (req, res) => {
             res.status(200).send('OK')
         })
-
         app.use('/api/v1', this.api.v1)
-
         if (this.opts.webEnabled) {
             app.use('/', this.web.app)
         }
-
         return app
     }
 
     /**
-     * @return {function} Express app
+     * @return {Function} Express app
      */
     createMetricsApp() {
-
         const app = express()
-
         app.get('/metrics', (req, res) => {
             try {
                 res.set('content-type', this.promRegistry.contentType)
@@ -240,7 +223,6 @@ export default class Server {
                 res.status(500).send(body)
             }
         })
-
         return app
     }
 
@@ -284,7 +266,6 @@ export default class Server {
 
     /**
      * @async
-     *
      * @return {object}
      */
     fetchMetrics() {
@@ -292,37 +273,31 @@ export default class Server {
     }
 
     /**
-     * @param {http.Server}
+     * @param {http.Server} httpServer
      * @return {WebSocket.server}
      */
     createSocketServer(httpServer) {
-
         const server = new WebSocket.server({httpServer})
         server.conns = {}
-
         server.on('request', request => {
-
             const {conns} = server
             const connId = Server.newConnectionId()
-
             // Being extra careful not to keep a reference to conn in this scope.
             conns[connId] = request.accept(null, request.origin)
             conns[connId].connId = connId
-
+            this[symCcnt] += 1
             this.logger.info('Peer', connId, 'connected', conns[connId].remoteAddress)
-
-            this.metrics.connections.labels().set(Object.keys(conns).length)
-
+            this.metrics.connections.labels().set(this[symCcnt])
             conns[connId].on('close', () => {
                 const conn = conns[connId]
                 clearTimeout(conn.handShakeTimeoutId)
                 this.logger.info('Peer', connId, 'disconnected')
                 this.cancelMatchId(conn.matchId, MatchCancelRef.peerDisconnected)
                 delete conns[connId]
-                this.metrics.connections.labels().set(Object.keys(conns).length)
+                this[symCcnt] -= 1
+                this.metrics.connections.labels().set(this[symCcnt])
                 this.logActive()
             })
-
             conns[connId].on('message', msg => {
                 const conn = conns[connId]
                 this.metrics.messagesReceived.labels().inc()
@@ -336,7 +311,6 @@ export default class Server {
                 this.logger.log('Received message from', conn.color, connId, req.action)
                 this.response(conn, req)
             })
-
             conns[connId].handShakeTimeoutId = setTimeout(() => {
                 const conn = conns[connId]
                 if (conn && conn.connected && !conn.secret) {
@@ -368,49 +342,37 @@ export default class Server {
      *   ❯ ValidateError
      *
      * @async
-     *
-     * @param {WebSocketConnection} The client connection
-     * @param {object} The request data
-     * @return {undefined}
+     * @param {WebSocketConnection} conn The client connection
+     * @param {object} req The request data
      */
     async response(conn, req) {
-
         try {
-
-            if (typeof req != 'object') {
+            if (typeof req !== 'object') {
                 throw new RequestError('Invalid request data')
             }
-
             const {action} = req
-
-            if (action != 'establishSecret') {
+            if (action !== 'establishSecret') {
                 if (!conn.secret) {
                     throw new HandshakeError('no secret')
                 }
-                if (req.secret != conn.secret) {
+                if (req.secret !== conn.secret) {
                     throw new HandshakeError('bad secret')
                 }
             }
-
             switch (action) {
-
                 case 'establishSecret':
                     await this.handshakeResponse(conn, req)
                     break
-
                 case 'createMatch':
                     this.matchCreateResponse(conn, req)
                     break
-
                 case 'joinMatch':
                     this.matchJoinResponse(conn, req)
                     break
-
                 default:
                     this.matchPlayResponse(req)
                     break
             }
-
         } catch (err) {
             if (req.password) {
                 req.password = '***'
@@ -425,30 +387,23 @@ export default class Server {
 
     /**
      * @async
-     *
+     * @param {WebSocketConnection} conn The client connection
+     * @param {object} req The request data
      * @throws {AuthError}
      * @throws {InternalError}
      * @throws {RequestError}
      * @throws {ValidateError}
-     *
-     * @param {WebSocketConnection} The client connection
-     * @param {object} The request data
-     * @return {undefined}
      */
     async handshakeResponse(conn, req) {
-
         clearTimeout(conn.handShakeTimeoutId)
-
         try {
             Server.validateSecret(req.secret)
         } catch (err) {
             throw new HandshakeError(err.message)
         }
-
         if (conn.secret && conn.secret != req.secret) {
             throw new HandshakeError('handshake disagreement')
         }
-
         if (req.token) {
             try {
                 var {username, password} = this.auth.parseToken(req.token)
@@ -462,33 +417,21 @@ export default class Server {
         } else {
             var {username, password} = req
         }
-
         const {passwordEncrypted} = await this.auth.authenticate(username, password)
-
-        update(conn, {
-            username
-          , secret: req.secret
-        })
-
+        update(conn, {username, secret: req.secret})
         this.sendMessage(conn, {action: 'acknowledgeSecret', passwordEncrypted})
         this.logger.log('Client connected', conn.connId)
     }
 
     /**
      * Handle a createMatch response.
-     *
+     * @param {WebSocketConnection} conn The client connection
+     * @param {object} req The request data
      * @throws {ValidateError}
-     *
-     * @param {WebSocketConnection} The client connection
-     * @param {object} The request data
-     * @return {undefined}
      */
     matchCreateResponse(conn, req) {
-
         const id = Server.matchIdFromSecret(conn.secret)
-
         Server.validateMatchId(id)
-
         const {total, opts} = req
         let match
         try {
@@ -500,18 +443,14 @@ export default class Server {
             // Reduce error tree, only pass message.
             throw new ValidateError(err.message)
         }
-
         this.logger.info('Match', id, 'created')
-
         update(match, {id, conns: {White: conn, Red: null}, sync: {}})
         update(conn, {matchId: id, color: White})
-
         this.matches[id] = match
-
+        this[symMcnt] += 1
         this.sendMessage(conn, {action: 'matchCreated', id, match: match.meta()})
-
         this.logActive()
-        this.metrics.matchesInProgress.labels().set(Object.keys(this.matches).length)
+        this.metrics.matchesInProgress.labels().set(this[symMcnt])
     }
 
     /**
@@ -520,40 +459,27 @@ export default class Server {
      * `opponentJoined` response to the waiting match creator (White) with
      * the match ID.
      *
-     * @throws {RequestError.MatchAlreadyJoinedError}
-     * @throws {RequestError.MatchNotFoundError}
+     * @param {WebSocketConnection} conn The client connection
+     * @param {object} req The request data
+     * @throws {RequestError}
      * @throws {ValidateError}
-     *
-     * @param {WebSocketConnection} The client connection
-     * @param {object} The request data
-     * @return {undefined}
      */
     matchJoinResponse(conn, req) {
-
         const {id} = req
-
         Server.validateMatchId(id)
-
         const match = this.matches[id]
-
         if (!match) {
             throw new MatchNotFoundError('match not found')
         }
-
         if (match.conns.Red) {
             throw new MatchAlreadyJoinedError('match already joined')
         }
-
         const {total, opts} = match
-
         match.conns.Red = conn
         update(conn, {matchId: id, color: Red})
-
         this.logger.info('Match', id, 'joined')
-
         this.sendMessage(match.conns.White, {action: 'opponentJoined', id})
         this.sendMessage(conn, {action: 'matchJoined', id, total, opts, match: match.meta()})
-        
         this.logActive()
     }
 
@@ -566,30 +492,21 @@ export default class Server {
      *   ❯ RequestError
      *   ❯ ValidateError
      *
-     * @throws {RequestError.HandshakeError}
-     * @throws {RequestError.MatchNotFoundError}
+     * @param {object} req The request data
+     * @throws {RequestError}
      * @throws {ValidateError}
-     *
-     * @param {object} The request data
-     * @return {undefined}
      */
     matchPlayResponse(req) {
-
         const match = this.getMatchForRequest(req)
-
         const {action, color} = req
-
         Server.validateColor(color)
-
         const opponent = Opponent[color]
         const isFirst = !Object.keys(match.sync).length
         const {thisGame} = match
         const thisTurn = thisGame && thisGame.thisTurn
-
         const resolve = res => {
             this.sendMessage(Object.values(match.conns), {action, ...res})
         }
-
         const reject = err => {
             // When one client sends a bad request, it doesn't make sense to
             // send the same error to the other client. This is not ideal, since
@@ -598,16 +515,14 @@ export default class Server {
             //this.sendMessage(Object.values(match.conns), err)
             this.sendMessage(match.conns[color], err)
         }
-
         const sync = next => {
             match.sync[color] = action
             this.logger.debug({action, color, sync: match.sync})
-            if (match.sync.White == match.sync.Red) {
+            if (match.sync.White === match.sync.Red) {
                 match.sync = {}
                 resolve(next())
             }
         }
-
         const handle = (before, done) => {
             let ret
             try {
@@ -618,11 +533,8 @@ export default class Server {
             }
             sync(() => done(ret))
         }
-
         switch (action) {
-
             case 'nextGame':
-
                 handle(
                     () => {
                         if (thisGame) {
@@ -632,66 +544,54 @@ export default class Server {
                             return match.nextGame()
                         }
                         return thisGame
-                    }
-                  , game => ({game: game.meta()})
+                    },
+                    game => ({game: game.meta()})
                 )
-
                 break
-
             case 'firstTurn':
-
                 handle(
-                    () => isFirst ? thisGame.firstTurn() : thisTurn
-                  , turn => ({
-                        dice: turn.dice
-                      , turn: turn.serialize()
+                    () => isFirst ? thisGame.firstTurn() : thisTurn,
+                    turn => ({
+                        dice: turn.dice,
+                        turn: turn.serialize(),
                     })
                 )
-
                 break
-
             case 'nextTurn':
-
                 handle(
                     () => {
                         if (isFirst) {
                             return thisGame.nextTurn()
                         }
                         return thisTurn
-                    }                            
-                  , turn => ({
-                        turn: turn.meta()
-                      , game: thisGame.meta()
+                    },
+                    turn => ({
+                        turn: turn.meta(),
+                        game: thisGame.meta(),
                     })
                 )
-
                 break
-
             case 'turnOption':
-
                 handle(
                     () => {
-                        if (thisTurn.color == color) {
+                        if (thisTurn.color === color) {
                             if (req.isDouble) {
                                 thisTurn.setDoubleOffered()
                             }
                         }
                         return thisTurn
-                    }
-                  , turn => ({
-                        isDouble : turn.isDoubleOffered && !turn.isRolled
-                      , turn     : turn.meta()
-                      , game     : thisGame.meta()
+                    },
+                    turn => ({
+                        isDouble : turn.isDoubleOffered && !turn.isRolled,
+                        turn     : turn.meta(),
+                        game     : thisGame.meta(),
                     })
                 )
-
                 break
-
             case 'doubleResponse':
-
                 handle(
                     () => {
-                        if (thisTurn.color == opponent) {
+                        if (thisTurn.color === opponent) {
                             if (req.isAccept) {
                                 thisGame.double()
                             } else {
@@ -702,39 +602,33 @@ export default class Server {
                             this.checkMatchFinished(match)
                         }
                         return thisTurn
-                    }
-                  , turn => ({
-                        isAccept : !turn.isDoubleDeclined
-                      , turn     : turn.meta()
-                      , game     : thisGame.meta()
-                      , match    : match.meta()
+                    },
+                    turn => ({
+                        isAccept : !turn.isDoubleDeclined,
+                        turn     : turn.meta(),
+                        game     : thisGame.meta(),
+                        match    : match.meta(),
                     })
                 )
-
                 break
-
             case 'rollTurn':
-
                 handle(
                     () => {
-                        if (thisTurn.color == color) {
+                        if (thisTurn.color === color) {
                             thisTurn.roll()
                         }
                         return thisTurn
-                    }
-                  , turn => ({
-                        dice : turn.dice
-                      , turn : turn.serialize()
+                    },
+                    turn => ({
+                        dice : turn.dice,
+                        turn : turn.serialize(),
                     })
                 )
-
                 break
-
             case 'playRoll':
-
                 handle(
                     () => {
-                        if (thisTurn.color == color) {
+                        if (thisTurn.color === color) {
                             if (!Array.isArray(req.moves)) {
                                 throw new ValidateError('moves missing or invalid format')
                             }
@@ -745,17 +639,15 @@ export default class Server {
                             this.checkMatchFinished(match)
                         }
                         return thisTurn
-                    }
-                  , turn => ({
-                        moves : turn.moves.map(move => move.coords)
-                      , turn  : turn.meta()
-                      , game  : thisGame.meta()
-                      , match : match.meta()
+                    },
+                    turn => ({
+                        moves : turn.moves.map(move => move.coords),
+                        turn  : turn.meta(),
+                        game  : thisGame.meta(),
+                        match : match.meta(),
                     })
                 )
-
                 break
-
             default:
                 reject(new InvalidActionError(`Bad action ${action}`))
                 break
@@ -765,14 +657,12 @@ export default class Server {
     /**
      * Send a message to one or more socket connections.
      *
-     * @param {WebSocketConnection|array} The connection, or array of connections
-     * @param {object} The message data
-     * @return {boolean} Whether all messages were send successfully
+     * @param {WebSocketConnection|Array} conns The connection, or array of connections
+     * @param {object} data The message data
+     * @return {Boolean} Whether all messages were send successfully
      */
     sendMessage(conns, data) {
-
         data = data || {}
-
         let title = data.action
         if (data instanceof Error) {
             if (!data.isRequestError) {
@@ -781,9 +671,7 @@ export default class Server {
             data = makeErrorObject(data)
             title = data.namePath || data.name
         }
-
         const body = JSON.stringify(data)
-
         let isSuccess = true
         castToArray(conns).forEach(conn => {
             try {
@@ -800,7 +688,6 @@ export default class Server {
                 this.closeConn(conn)
             }
         })
-
         return isSuccess
     }
 
@@ -808,8 +695,8 @@ export default class Server {
      * Check if a match is finished, and update the match score. If the match
      * is finished, delete the match from the stored matches.
      *
-     * @param {Match} The match to check
-     * @return {boolean} Whether the match is finished
+     * @param {Match} match The match to check
+     * @return {Boolean} Whether the match is finished
      */
     checkMatchFinished(match) {
         if (match.thisGame && match.thisGame.checkFinished()) {
@@ -820,7 +707,8 @@ export default class Server {
             this.logger.info('Match', match.id, 'is completed')
             this.metrics.matchesCompleted.labels().inc()
             delete this.matches[match.id]
-            this.metrics.matchesInProgress.labels().set(Object.keys(this.matches).length)
+            this[symMcnt] -= 1
+            this.metrics.matchesInProgress.labels().set(this[symMcnt])
             this.logActive()
             return true
         }
@@ -829,19 +717,21 @@ export default class Server {
 
     /**
      * Log the current active connection information.
-     * @return {undefined}
      */
     logActive() {
-        const numConns = this.socketServer ? Object.keys(this.socketServer.conns).length : 0
-        const numMatches = Object.keys(this.matches).length
-        this.logger.info('There are now', numMatches, 'active matches, and', numConns, 'active connections')
+        const numConns = this.socketServer
+            ? this[symCcnt]
+            : 0
+        const numMatches = this[symMcnt]
+        this.logger.info('There are now', this[symMcnt], 'active matches, and', numConns, 'active connections')
     }
 
     /**
      *
-     * @param {string} The match ID
-     * @param {string} The reference object {reason, attrs}
-     * @return {self}
+     * @param {String} id The match ID
+     * @param {String} reason
+     * @param {object} attrs
+     * @return {Server} self
      */
     cancelMatchId(id, {reason, attrs}) {
         const match = this.matches[id]
@@ -851,29 +741,29 @@ export default class Server {
         this.logger.info('Canceling match', id)
         this.sendMessage(Object.values(match.conns), {action: 'matchCanceled', reason, attrs})
         delete this.matches[id]
-        this.metrics.matchesInProgress.labels().set(Object.keys(this.matches).length)
+        this[symMcnt] -= 1
+        this.metrics.matchesInProgress.labels().set(this[symMcnt])
         return this
     }
 
     /**
-     * @throws {RequestError.HandshakeError}
-     * @throws {RequestError.MatchNotFoundError}
+     * @throws {RequestError}
      * @throws {ValidateError}
      *
-     * @param {object} The request data
+     * @param {object} req The request data
      * @return {Match} The match from the stored matches
      */
     getMatchForRequest(req) {
         const {id, color, secret} = req
-        if (!secret || secret.length != 64) {
+        if (!secret || secret.length !== 64) {
             throw new HandshakeError('bad secret')
         }
         Server.validateColor(color)
-        if (!this.matches[id]) {
+        const match = this.matches[id]
+        if (!match) {
             throw new MatchNotFoundError('match not found')
         }
-        const match = this.matches[id]
-        if (!match.conns[color] || secret != match.conns[color].secret) {
+        if (!match.conns[color] || secret !== match.conns[color].secret) {
             throw new HandshakeError('bad secret')
         }
         return match
@@ -882,11 +772,10 @@ export default class Server {
     /**
      * Safely close connection(s).
      *
-     * @param {WebSocketConnection|array} The connection, or array of connections
-     * @return {self}
+     * @param {WebSocketConnection|array} conns connection, or array of connections
+     * @return {Server} self
      */
     closeConn(conns) {
-
         castToArray(conns).forEach(conn => {
             try {
                 if (conn && conn.connected) {
@@ -897,7 +786,6 @@ export default class Server {
                 this.logger.warn('Failed to close connection', {id}, err)
             }
         })
-
         return this
     }
 
@@ -923,11 +811,11 @@ export default class Server {
      *
      * @throws {ValidateError}
      *
-     * @param {string} The color string to test
-     * @return {string} The color string
+     * @param {String} color The color string to test
+     * @return {String} The color string
      */
     static validateColor(color) {
-        if (color != White && color != Red) {
+        if (color !== White && color !== Red) {
             throw new ValidateError(`Invalid color: ${color}.`)
         }
         return color
@@ -938,11 +826,11 @@ export default class Server {
      *
      * @throws {ValidateError}
      *
-     * @param {string} The string to test
-     * @return {string} The match ID string
+     * @param {String} str The string to test
+     * @return {String} The match ID string
      */
     static validateMatchId(str) {
-        if (!str || typeof str != 'string' || str.length != 8) {
+        if (!str || typeof str !== 'string' || str.length !== 8) {
             throw new ValidateError('Invalid match ID.')
         }
         return str
@@ -953,11 +841,11 @@ export default class Server {
      *
      * @throws {ValidateError}
      *
-     * @param {string} The string to test
-     * @return {string} The secret string
+     * @param {String} str The string to test
+     * @return {String} The secret string
      */
     static validateSecret(str) {
-        if (!str || typeof str != 'string' || str.length != 64) {
+        if (!str || typeof str !== 'string' || str.length !== 64) {
             throw new ValidateError('Invalid secret.')
         }
         return str
@@ -966,7 +854,7 @@ export default class Server {
     /**
      * Generate a new connection ID.
      *
-     * @return {string} The connection ID
+     * @return {String} The connection ID
      */
     static newConnectionId() {
         return uuid()
@@ -977,8 +865,8 @@ export default class Server {
      *
      * @throws {ValidateError}
      *
-     * @param {string} The client secret
-     * @return {string} The 8-character match ID
+     * @param {String} str The client secret
+     * @return {String} The 8-character match ID
      */
     static matchIdFromSecret(str) {
         Server.validateSecret(str)

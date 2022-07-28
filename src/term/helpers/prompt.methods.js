@@ -49,6 +49,7 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
  * OTHER DEALINGS IN THE SOFTWARE.
  */
+import {stringWidth} from '@quale/core/strings.js'
 import {EventEmitter} from 'events'
 import * as Features from './prompt.features.js'
 import {DuplicateKeyError} from '../../lib/errors.js'
@@ -56,7 +57,6 @@ import {
     keypressName,
     nchars,
     padEnd,
-    stringWidth,
 } from '../../lib/util.js'
 
 const NullEmitter = new EventEmitter

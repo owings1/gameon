@@ -49,7 +49,7 @@ const DefaultScreen = new Screen({isAnsi: DefaultAnsiEnabled})
 export class DrawHelper {
 
     /**
-     * @param {Player}
+     * @param {Player} player
      * @return {DrawHelper}
      */
     static forTermPlayer(player) {
@@ -71,16 +71,16 @@ export class DrawHelper {
     constructor(params) {
         const {board, game, match, persp, logs, theme, screen, intl} = params
 
-        this.game  = game
+        this.game = game
         this.board = board || (game && game.board) || null
         this.match = match
         this.persp = persp || White
-        this.logs  = logs || []
-        this.theme  = Themes.getSemiSafe(theme)
+        this.logs = logs || []
+        this.theme = Themes.getSemiSafe(theme)
         this.screen = screen || DefaultScreen
         this.intl = intl || IntlHelper.getGlobalInstance()
 
-        this.chars    = Chars.table
+        this.chars = Chars.table
         this.reporter = new Reporter(this)
 
         this.BoardWidth = 53
@@ -95,9 +95,6 @@ export class DrawHelper {
         return this.intl.__
     }
 
-    /**
-     * @return {void}
-     */
     reload() {
 
         const {analyzer} = this.board
@@ -571,16 +568,12 @@ export class DrawHelper {
     /**
      * @param {String} method
      * @param {*} args...
-     * @return {void}
      */
     report(method, ...args) {
         const res = this.reporter[method](...args)
         this.logs.push(res.toString())
     }
 
-    /**
-     * @return {void}
-     */
     buildBorders() {
         const {chars} = this
         const quadWidth = Math.floor(this.BoardWidth / 2 - 1)

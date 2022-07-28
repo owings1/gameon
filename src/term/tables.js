@@ -26,11 +26,16 @@ import Screen from '@quale/core/screen.js'
 import {extend, sum as arraySum} from '@quale/core/arrays.js'
 import {valueHash} from '@quale/core/objects.js'
 import {stringWidth} from '@quale/core/strings.js'
-import {castToArray, isNumber, isObject, isRegex, isString} from '@quale/core/types.js'
+import {
+    castToArray,
+    isNumber,
+    isObject,
+    isRegex,
+    isString,
+} from '@quale/core/types.js'
 import Themes from './themes.js'
 // TODO: refactor to class and translate messages
 import Questions  from './helpers/tables.questions.js'
-
 import {inquirer} from './inquirer.js'
 import IntlHelper from '../lib/util/intl.js'
 import {
@@ -84,25 +89,18 @@ export class TableHelper {
         return this.intl.__
     }
 
-    // TODO: refactor Questions to class andtranslate messages
+    // TODO: refactor Questions to class and translate messages
     async interactive(table) {
-
         if (!table.isBuilt) {
             table.build()
         }
-
         const originalOpts = {...table.opts}
-
         while (true) {
-
             this.printTable(table)
-
             const {input} = await this.prompt(Questions.interactive)
-
-            if (input == 'quit') {
+            if (input === 'quit') {
                 break
             }
-
             switch (input) {
 
                 case 'filterRegex':
@@ -166,9 +164,7 @@ export class TableHelper {
     }
 
     prompt(questions) {
-        const opts = {
-            theme: this.theme
-        }
+        const opts = {theme: this.theme}
         this.prompter = this.inquirer.prompt(castToArray(questions), null, opts)
         return this.prompter
     }
@@ -206,60 +202,42 @@ export class Table {
     }
 
     constructor(columns, data, opts) {
-
         this.columns = columns
         this.data = data
         this.opts = defaults(Table.defaults(), opts)
-
         this.isBuilt = false
-
         this.preBuild()
     }
 
     build() {
-
         this.preBuild()
-
         this.buildColumns()
         this.buildOpts()
-
         this.sortData()
         this.buildRows()
-
         this.calculatePre()
-
         this.buildParts()
         this.buildStrings()
         this.buildLines()
-
         this.calculatePost()
-
         this.isBuilt = true
-
         return this
     }
 
     preBuild() {
-
         this.name = this.opts.name
         this.title = this.opts.title || ''
-
         this.rows    = null
         this.parts   = null
         this.strings = null
-
         this.theme   = Themes.getInstance(this.opts.theme)
         this.chars   = Chars.table
         this.chlk    = this.theme.table
-
         this.opts.footerLines = castToArray(this.opts.footerLines)
         this.opts.filterRegex = castToArray(this.opts.filterRegex)
         this.opts.filterFixed = castToArray(this.opts.filterFixed)
-
         this.lines = []
-
         this.footerLines = this.opts.footerLines.slice(0)
-
         return this
     }
 
@@ -280,12 +258,7 @@ export class Table {
             for (const opt of ['dirSeparator', 'arrSeparator']) {
                 const chr = this.opts[opt]
                 if (column.name.indexOf(chr) > -1) {
-                    const msg = [
-                        'Column name cannot contain',
-                        opt,
-                        '(' + chr + '):',
-                        column.name,
-                    ].join(' ')
+                    const msg = `Column name cannot contain ${opt} (${chr}): ${column.name}`
                     throw new InvalidColumnError(msg)
                 }
             }
@@ -519,16 +492,11 @@ export class Table {
     }
 
     makePartsBorder() {
-
         const {top, mid, bot, foot, dash} = this.chars
-
         const ndashes = n => nchars(n, dash)
-
         const dashParts = this.showColumns.map(column => ndashes(column.width))
         const dashLine = ndashes(this.innerWidth)
-
         const jp = chr => dashParts.join(dash + chr + dash)
-
         return {
             top          : [top.left  , jp(top.mid)  , top.right  ],
             mid          : [mid.left  , jp(mid.mid)  , mid.right  ],
@@ -576,7 +544,6 @@ export class Table {
     }
 
     makeStrings() {
-
         const {chlk, chars, parts} = this
         const pipe = chlk.border(chars.pipe)
         const space = {
@@ -587,7 +554,6 @@ export class Table {
         }
         // join parts (p) with pipe wrapped with space (s)
         const jps = (p, s) => p.join(s + pipe + s)
-
         return {
             title : parts.title ? [pipe, parts.title, pipe].join(space.t) : '',
             head  : [pipe, jps(parts.head, space.h), pipe].join(space.h),
@@ -606,7 +572,6 @@ export class Table {
     makeLinesNormal() {
         const {strings, opts} = this
         const lines = []
-
         if (strings.title.length) {
             extend(lines, [
                 strings.border.pretitle,

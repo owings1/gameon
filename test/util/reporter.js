@@ -22,8 +22,9 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
+import {stringWidth} from '@quale/core/strings.js'
 import {DefaultReporter as Base} from './reporter-base.js'
-import {nchars, stringWidth} from '../../src/lib/util.js'
+import {nchars} from '../../src/lib/util.js'
 
 function wrap (inner, outer) {
     return outer + inner + outer
@@ -39,11 +40,9 @@ export default class Reporter extends Base {
     }
 
     renderSuiteBegin(suite) {
-
         if (this.depth != 1) {
             return super.renderSuiteBegin(suite)
         }
-
         const chlk = this.chalks.suite.root
         const {title} = suite
         const spaces = nchars(stringWidth(title) + 2, ' ')
@@ -52,9 +51,7 @@ export default class Reporter extends Base {
             wrap(title.toUpperCase(), ' '),
             spaces,
         ].map(line => chlk.title(line))
-
         lines.push('')
-
         return this.indentLines(lines, this.counters.tab + 1)
     }
 }
