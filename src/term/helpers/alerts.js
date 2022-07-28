@@ -83,7 +83,7 @@ export default class Alerts extends EventEmitter {
         const alerts = this.splice(0)
         const ret = []
         try {
-            for (var alert = alerts.shift(); alert || alerts.length; alert = alerts.shift()) {
+            for (let alert = alerts.shift(); alert || alerts.length; alert = alerts.shift()) {
                 if (!alert) {
                     continue
                 }
@@ -153,8 +153,8 @@ export default class Alerts extends EventEmitter {
         if (arg instanceof Error) {
             return [arg.name || arg.constructor.name, arg.message].join(': ')
         }
-        if (typeof arg == 'object') {
-            if (arg.constructor == Object) {
+        if (typeof arg === 'object') {
+            if (arg.constructor === Object) {
                 try {
                     return JSON.stringify(arg)
                 } catch (err) {

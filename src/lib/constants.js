@@ -25,12 +25,11 @@
 import fs from 'fs'
 import path from 'path'
 import { fileURLToPath } from 'url'
-const __filename = fileURLToPath(import.meta.url)
-const __dirname = path.dirname(__filename)
+const DIR = path.dirname(fileURLToPath(import.meta.url))
 /**
  * Package info
  */
-export const BaseDir = path.resolve(__dirname, '../..')
+export const BaseDir = path.resolve(DIR, '../..')
 export const Pkg = JSON.parse(fs.readFileSync(path.resolve(BaseDir, 'package.json')))
 export const Version = Pkg.version
 
@@ -111,40 +110,34 @@ export const OriginPoints = {
     White : {'-1': -1},
 }
 
-function populatePointsAndOrigins(pointOrigins, originPoints) {
-    for (let origin = 0; origin < 24; ++origin) {
-        // Origins are from 0 to 23
-        // Points are from 1 to 24
-        let point = origin + 1
-        // Red point 1 is origin 0
-        pointOrigins.Red[point] = point - 1
-        // White point 1 is origin 23
-        pointOrigins.White[point] = 24 - point
-        // Red origin 0 is point 1
-        originPoints.Red[origin] = origin + 1
-        // White origin 0 is point 24
-        originPoints.White[origin] = 24 - origin
-    }
+for (let origin = 0; origin < 24; ++origin) {
+    // Origins are from 0 to 23
+    // Points are from 1 to 24
+    let point = origin + 1
+    // Red point 1 is origin 0
+    PointOrigins.Red[point] = point - 1
+    // White point 1 is origin 23
+    PointOrigins.White[point] = 24 - point
+    // Red origin 0 is point 1
+    OriginPoints.Red[origin] = origin + 1
+    // White origin 0 is point 24
+    OriginPoints.White[origin] = 24 - origin
 }
 
-populatePointsAndOrigins(PointOrigins, OriginPoints)
 
 export const MoveHashes = {}
 export const MoveCoords = {}
 
-function populateMoveHashesCoords(hashes, coords) {
-    const faces = [ 1, 2, 3, 4, 5, 6 ]
-    for (let origin = -1; origin < 24; ++origin) {
-        hashes[origin] = {}
-        coords[origin] = {}
-        faces.forEach(face => {
-            hashes[origin][face] = origin + ':' + face
-            coords[origin][face] = {origin, face}
-        })
-    }
+const faces = [ 1, 2, 3, 4, 5, 6 ]
+for (let origin = -1; origin < 24; ++origin) {
+    MoveHashes[origin] = {}
+    MoveCoords[origin] = {}
+    faces.forEach(face => {
+        MoveHashes[origin][face] = origin + ':' + face
+        MoveCoords[origin][face] = {origin, face}
+    })
 }
 
-populateMoveHashesCoords(MoveHashes, MoveCoords)
 
 export const BoardStrings = {
     Initial: '0|0|2:W|0:|0:|0:|0:|5:R|0:|3:R|0:|0:|0:|5:W|5:R|0:|0:|0:|3:W|0:|5:W|0:|0:|0:|0:|2:R|0|0',
@@ -269,53 +262,3 @@ export const MatchCancelRef = {
         },
     },
 }
-
-const Constants = {
-    BaseDir,
-    BoardStrings,
-    BottomPoints,
-    Chars,
-    CHash,
-    ColorAbbr,
-    ColorNorm,
-    Colors,
-    DefaultAnsiEnabled,
-    DefaultAuthHash,
-    DefaultAuthSaltHash,
-    DefaultAuthType,
-    DefaultEmailFromAddress,
-    DefaultEmailFromName,
-    DefaultEmailType,
-    DefaultLocale,
-    DefaultPasswordHelp,
-    DefaultPasswordMin,
-    DefaultPasswordRegex,
-    DefaultAuthSalt,
-    DefaultServerUrl,
-    DefaultSessionCookie,
-    DefaultSessionSecret,
-    DefaultThemeName,
-    DefaultTokenCookie,
-    Direction,
-    EncryptedFlagPrefix,
-    InsideOrigins,
-    InvalidUsernameChars,
-    IsTest,
-    LocaleNames,
-    LocalesDir,
-    MatchCancelRef,
-    MoveCoords,
-    MoveHashes,
-    ObsoleteServerUrls,
-    Opponent,
-    OriginPoints,
-    OutsideOrigins,
-    Pkg,
-    PointOrigins,
-    Red,
-    TopPoints,
-    Version,
-    White,
-}
-
-export default Constants

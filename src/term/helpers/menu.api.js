@@ -81,9 +81,9 @@ export default class MenuApiHelper {
 
     async _handleRequest(serverUrl, uri, data) {        
         const params = {
-            method  : 'POST'
-          , headers : {'content-type': 'application/json'}
-          , body    : JSON.stringify(data)
+            method  : 'POST',
+            headers : {'content-type': 'application/json'},
+            body    : JSON.stringify(data),
         }
         uri = 'api/v1/' + uri
         return this.screen.noCursor(async () => {

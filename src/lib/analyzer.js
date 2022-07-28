@@ -61,8 +61,8 @@ function populateCacheKeys(keys) {
 
     colorKeys.forEach(key => {
         keys[key] = {
-            Red   : key + '.' + Red
-          , White : key + '.' + White
+            Red   : key + '.' + Red,
+            White : key + '.' + White,
         }
     })
 }
@@ -107,7 +107,7 @@ export default class BoardAnalyzer {
 
     canOccupyOrigin(color, origin) {
         const slot = this.board.slots[origin]
-        return slot.length < 2 || slot[0].color == color
+        return slot.length < 2 || slot[0].color === color
     }
 
     hasBar(color) {
@@ -117,16 +117,16 @@ export default class BoardAnalyzer {
     // To check for bearing off for less than a face value
     // No cache
     hasPieceBehind(color, origin) {
-
+        let start, end
         if (Direction[color] == 1) {
-            var start = 0
-            var end   = origin - 1
+            start = 0
+            end = origin - 1
         } else {
-            var start = origin + 1
-            var end   = 23
+            start = origin + 1
+            end = 23
         }
-        for (var i = start; i <= end; ++i) {
-            if (this.board.slots[i][0] && this.board.slots[i][0].color == color) {
+        for (let i = start; i <= end; ++i) {
+            if (this.board.slots[i][0] && this.board.slots[i][0].color === color) {
                 return true
             }
         }
@@ -142,7 +142,7 @@ export default class BoardAnalyzer {
     }
 
     isAllHome(color) {
-        return this.board.homes[color].length == 15
+        return this.board.homes[color].length === 15
     }
 
     // This function is relatively fast, but we cache since several robots use it.
@@ -151,20 +151,24 @@ export default class BoardAnalyzer {
         //Profiler.start('BoardAnalyzer.isDisengaged')
         const key = CacheKeys.isDisengaged
         if (!(key in this.cache)) {
+            let isDisengaged
             if (this.board.hasWinner()) {
-                var isDisengaged = true
+                isDisengaged = true
             } else if (this.hasBar(White) || this.hasBar(Red)) {
-                var isDisengaged = false
+                isDisengaged = false
             } else {
                 const originsRed = this.originsOccupied(Red)
                 const originsWhite = this.originsOccupied(White)
-                const backmostRed = originsRed.length ? originsRed[originsRed.length - 1] : -Infinity
-                const backmostWhite = originsWhite.length ? originsWhite[0] : Infinity
-                var isDisengaged = backmostWhite > backmostRed
+                const backmostRed = originsRed.length
+                    ? originsRed[originsRed.length - 1]
+                    : -Infinity
+                const backmostWhite = originsWhite.length
+                    ? originsWhite[0]
+                    : Infinity
+                isDisengaged = backmostWhite > backmostRed
             }
             this.cache[key] = isDisengaged
         }
-        //Profiler.stop('BoardAnalyzer.isDisengaged')
         return this.cache[key]
     }
 
@@ -182,16 +186,16 @@ export default class BoardAnalyzer {
     maxPointOccupied(color) {
         const key = CacheKeys.maxPointOccupied[color]
         if (!(key in this.cache)) {
-            if (color == White) {
-                var origin = this.minOriginOccupied(color)
-                if (origin == Infinity) {
+            if (color === White) {
+                const origin = this.minOriginOccupied(color)
+                if (origin === Infinity) {
                     this.cache[key] = -Infinity
                 } else {
                     this.cache[key] = OriginPoints[color][origin]
                 }
             } else {
-                var origin = this.maxOriginOccupied(color)
-                if (origin == -Infinity) {
+                const origin = this.maxOriginOccupied(color)
+                if (origin === -Infinity) {
                     this.cache[key] = -Infinity
                 } else {
                     this.cache[key] = OriginPoints[color][origin]
@@ -207,7 +211,7 @@ export default class BoardAnalyzer {
         const key = CacheKeys.mayBearoff[color]
         if (!(key in this.cache)) {
             Profiler.inc('board.mayBearoff.cache.miss')
-            var isAble = !this.hasBar(color)
+            let isAble = !this.hasBar(color)
             if (isAble) {
                 const maxKey = CacheKeys.maxPointOccupied[color]
                 if (maxKey in this.cache) {
@@ -215,9 +219,9 @@ export default class BoardAnalyzer {
                     isAble = this.cache[maxKey] < 7
                 } else {
                     Profiler.inc('board.mayBearoff.cache.maxPoint.miss')
-                    for (var i = 0; i < 18; ++i) {
-                        var piece = this.board.slots[OutsideOrigins[color][i]][0]
-                        if (piece && piece.color == color) {
+                    for (let i = 0; i < 18; ++i) {
+                        const piece = this.board.slots[OutsideOrigins[color][i]][0]
+                        if (piece && piece.color === color) {
                             isAble = false
                             break
                         }
@@ -246,16 +250,16 @@ export default class BoardAnalyzer {
     minPointOccupied(color) {
         const key = CacheKeys.minPointOccupied[color]
         if (!(key in this.cache)) {
-            if (color == White) {
-                var origin = this.maxOriginOccupied(color)
-                if (origin == -Infinity) {
+            if (color === White) {
+                const origin = this.maxOriginOccupied(color)
+                if (origin === -Infinity) {
                     this.cache[key] = Infinity
                 } else {
                     this.cache[key] = OriginPoints[color][origin]
                 }
             } else {
-                var origin = this.minOriginOccupied(color)
-                if (origin == Infinity) {
+                const origin = this.minOriginOccupied(color)
+                if (origin === Infinity) {
                     this.cache[key] = Infinity
                 } else {
                     this.cache[key] = OriginPoints[color][origin]
@@ -276,7 +280,7 @@ export default class BoardAnalyzer {
 
     occupiesOrigin(color, origin) {
         const slot = this.board.slots[origin]
-        return slot[0] && slot[0].color == color
+        return slot[0] && slot[0].color === color
     }
 
     originOccupier(origin) {
@@ -294,9 +298,9 @@ export default class BoardAnalyzer {
         const key = CacheKeys.originsHeld[color]
         if (!this.cache[key]) {
             const origins = []
-            for (var i = 0; i < 24; ++i) {
-                var slot = this.board.slots[i]
-                if (slot.length > 1 && slot[0].color == color) {
+            for (let i = 0; i < 24; ++i) {
+                const slot = this.board.slots[i]
+                if (slot.length > 1 && slot[0].color === color) {
                     origins.push(i)
                 }
             }
@@ -315,9 +319,9 @@ export default class BoardAnalyzer {
             const minKey = CacheKeys.minOriginOccupied[color]
             const maxKey = CacheKeys.maxOriginOccupied[color]
             const origins = []
-            for (var i = 0; i < 24; ++i) {
-                var slot = this.board.slots[i]
-                if (slot[0] && slot[0].color == color) {
+            for (let i = 0; i < 24; ++i) {
+                const slot = this.board.slots[i]
+                if (slot[0] && slot[0].color === color) {
                     origins.push(i)
                 }
             }
@@ -356,9 +360,9 @@ export default class BoardAnalyzer {
     pipCount(color) {
         const key = CacheKeys.pipCount[color]
         if (!(key in this.cache)) {
-            var count = this.board.bars[color].length * 25
+            let count = this.board.bars[color].length * 25
             const points = this.pointsOccupied(color)
-            for (var i = 0, ilen = points.length; i < ilen; ++i) {
+            for (let i = 0, ilen = points.length; i < ilen; ++i) {
                 count += this.piecesOnPoint(color, points[i]) * points[i]
             }
             this.cache[key] = count
@@ -368,8 +372,8 @@ export default class BoardAnalyzer {
 
     pipCounts() {
         return {
-            White : this.pipCount(White)
-          , Red   : this.pipCount(Red)
+            White : this.pipCount(White),
+            Red   : this.pipCount(Red),
         }
     }
 
@@ -398,15 +402,13 @@ export default class BoardAnalyzer {
     // One or more pieces
     // @cache
     pointsOccupied(color) {
-        //Profiler.start('BoardAnalyzer.pointsOccupied')
         const key = CacheKeys.pointsOccupied[color]
         if (!this.cache[key]) {
-            //Profiler.start('BoardAnalyzer.pointsOccupied.1')
             const points = []
             const origins = this.originsOccupied(color)
             for (var i = 0, ilen = origins.length; i < ilen; ++i) {
                 // create pre-sorted
-                if (color == Red) {
+                if (color === Red) {
                     // Origin 0 is Red point 1
                     points.push(OriginPoints[color][origins[i]])
                 } else {
@@ -415,9 +417,7 @@ export default class BoardAnalyzer {
                 }
             }
             this.cache[key] = points
-            //Profiler.stop('BoardAnalyzer.pointsOccupied.1')
         }
-        //Profiler.stop('BoardAnalyzer.pointsOccupied')
         return this.cache[key]
     }
 
@@ -430,16 +430,16 @@ export default class BoardAnalyzer {
         while (pointsHeld.length > 1) {
             var pointStart = pointsHeld.shift()
             var pointEnd = pointStart
-            while (pointsHeld[0] == pointEnd + 1) {
+            while (pointsHeld[0] === pointEnd + 1) {
                 pointEnd = pointsHeld.shift()
             }
             if (pointEnd > pointStart) {
                 primes.push({
-                    pointStart
-                  , pointEnd
-                  , start : PointOrigins[color][pointStart]
-                  , end   : PointOrigins[color][pointEnd]
-                  , size  : pointEnd - pointStart + 1
+                    pointStart,
+                    pointEnd,
+                    start : PointOrigins[color][pointStart],
+                    end   : PointOrigins[color][pointEnd],
+                    size  : pointEnd - pointStart + 1,
                 })
             }
         }
@@ -464,17 +464,20 @@ export default class BoardAnalyzer {
         BoardAnalyzer.validateLegalBoard(this.board)
     }
 
+    /**
+     * @param {Board} board
+     */
     static validateLegalBoard(board) {
-        if (board.slots.length != 24) {
+        if (board.slots.length !== 24) {
             throw new IllegalStateError('Board has ' + board.slots.length + ' slots')
         }
         const counts = {Red: 0, White: 0}
-        for (var i = 0; i < 24; ++i) {
-            var slot = board.slots[i]
-            var slotColor = null
+        for (let i = 0; i < 24; ++i) {
+            const slot = board.slots[i]
+            let slotColor = null
             for (var p = 0; p < slot.length; ++p) {
                 var piece = slot[p]
-                if (slotColor && slotColor != piece.color) {
+                if (slotColor && slotColor !== piece.color) {
                     throw new IllegalStateError('Different colors on origin ' + i)
                 }
                 if (!(piece.color in counts)) {
@@ -484,29 +487,29 @@ export default class BoardAnalyzer {
                 counts[piece.color] += 1
             }
         }
-        for (var color in counts) {
-            for (var p = 0; p < board.homes[color].length; ++p) {
-                var piece = board.homes[color][p]
-                if (piece.color != color) {
+        for (const color in counts) {
+            for (let p = 0; p < board.homes[color].length; ++p) {
+                const piece = board.homes[color][p]
+                if (piece.color !== color) {
                     throw new IllegalStateError(color + ' home has ' + piece.color + ' piece')
                 }
                 counts[color] += 1
             }
-            for (var p = 0; p < board.bars[color].length; ++p) {
-                var piece = board.bars[color][p]
-                if (piece.color != color) {
+            for (let p = 0; p < board.bars[color].length; ++p) {
+                const piece = board.bars[color][p]
+                if (piece.color !== color) {
                     throw new IllegalStateError(color + ' bar has ' + piece.color + ' piece')
                 }
                 counts[color] += 1
             }
-            if (counts[color] != 15) {
+            if (counts[color] !== 15) {
                 throw new IllegalStateError(color + ' has ' + counts[color] + ' pieces on the board')
             }
         }
-        if (board.homes.Red.length == 15 && board.homes.White.length == 15) {
+        if (board.homes.Red.length === 15 && board.homes.White.length === 15) {
             throw new IllegalStateError('both colors have 15 on home')
         }
-        if (board.bars.Red.length == 15 && board.bars.White.length == 15) {
+        if (board.bars.Red.length === 15 && board.bars.White.length === 15) {
             throw new IllegalStateError('both colors have 15 on the bar')
         }
     }

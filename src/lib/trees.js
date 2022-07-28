@@ -69,7 +69,7 @@ export class TurnBuilder {
         const {turn} = this
         const sequences = this.buildSequences(turn.faces)
         for (let i = 0, ilen = sequences.length; i < ilen; ++i) {
-            let tree = this.buildTree(turn.board, turn.color, sequences[i])
+            const tree = this.buildTree(turn.board, turn.color, sequences[i])
             if (tree.maxDepth > this.maxDepth) {
                 this.maxDepth = tree.maxDepth
             }
@@ -88,7 +88,7 @@ export class TurnBuilder {
     processTrees(trees) {
         const {result, maxDepth, highestFace} = this
         for (let i = 0, ilen = trees.length; i < ilen && maxDepth > 0; ++i) {
-            let tree = trees[i]
+            const tree = trees[i]
             tree.prune(maxDepth, highestFace, true)
             let isEmpty = true
             for (let hash in tree.index) {
@@ -113,16 +113,16 @@ export class TurnBuilder {
         }
         const {result, flagKeys, turn} = this
         for (let j = 0, jlen = leaves.length; j < jlen; ++j) {
-            let node = leaves[j]
+            const node = leaves[j]
             this.leaves.push(node)
-            let flagKey = node.flagKey()
+            const flagKey = node.flagKey()
             if (flagKey) {
                 if (flagKeys[flagKey]) {
                     continue
                 }
                 flagKeys[flagKey] = true
             }
-            let endState = node.move.board.state28()
+            const endState = node.move.board.state28()
             if (result.endStatesToSeries[endState]) {
                 continue
             }
@@ -141,13 +141,13 @@ export class TurnBuilder {
     processWinners(winners) {
         const {result} = this
         for (let j = 0, jlen = winners.length; j < jlen; ++j) {
-            let node = winners[j]
+            const node = winners[j]
             if (node.depth == this.maxDepth) {
                 // already covered in leaves
                 continue
             }
-            let {board} = node.move
-            let endState = board.state28()
+            const {board} = node.move
+            const endState = board.state28()
             if (result.endStatesToSeries[endState]) {
                 // This condition is never met for legal rolls.
                 //
@@ -234,8 +234,8 @@ export class AbstractNode {
             hashes.sort(sorter)
         }
         for (let i = 0, ilen = hashes.length; i < ilen; ++i) {
-            let hash = hashes[i]
-            let node = index[hash]
+            const hash = hashes[i]
+            const node = index[hash]
             cleaned[hash] = node.serialize(sorter)
         }
         return cleaned
@@ -295,8 +295,8 @@ export class SequenceTree extends AbstractNode {
         const hashes = Object.keys(index)
         for (let i = 0, ilen = hashes.length; i < ilen; ++i) {
             Profiler.inc('SequenceTree.prune.check')
-            let hash = hashes[i]
-            let node = index[hash]
+            const hash = hashes[i]
+            const node = index[hash]
             if (node.hasWinner) {
                 continue
             }
@@ -355,10 +355,10 @@ export class DepthTree extends SequenceTree {
         }
         const nextFaces = sequence.slice(1)
         for (let i = 0, ilen = moves.length; i < ilen; ++i) {
-            let move = moves[i]
+            const move = moves[i]
             move.board = move.board.copy()
             move.do()
-            let node = this.createNode(move, depth, parent)
+            const node = this.createNode(move, depth, parent)
             this.registerNode(node, index)
             if (!nextFaces.length) {
                 continue
@@ -372,47 +372,33 @@ export class DepthTree extends SequenceTree {
 export class BreadthTree extends SequenceTree {
 
     buildSequence(board, sequence, index) {
-
         let lastNodes = [null]
-
         for (let i = 0, ilen = sequence.length; i < ilen; ++i) {
-
-            let nextNodes = []
-
-            let face = sequence[i]
-            let depth = i + 1
-
+            const nextNodes = []
+            const face = sequence[i]
+            const depth = i + 1
             for (let j = 0, jlen = lastNodes.length; j < jlen; ++j) {
-
-                let parent = lastNodes[j]
+                const parent = lastNodes[j]
                 if (parent) {
                     board = parent.move.board
                     index = parent.index
                 }
-
-                let moves = board.getPossibleMovesForFace(this.color, face)
-
+                const moves = board.getPossibleMovesForFace(this.color, face)
                 if (!moves.length) {
                     continue
                 }
-
                 if (!this.depthIndex[depth]) {
                     this.depthIndex[depth] = []
                 }
-
                 for (let k = 0, klen = moves.length; k < klen; ++k) {
-
-                    let move = moves[k]
+                    const move = moves[k]
                     move.board = move.board.copy()
                     move.do()
-
-                    let node = this.createNode(move, depth, parent)
-
+                    const node = this.createNode(move, depth, parent)
                     this.registerNode(node, index)
                     nextNodes.push(node)
                 }
             }
-
             lastNodes = nextNodes
         }
     }
@@ -421,19 +407,15 @@ export class BreadthTree extends SequenceTree {
 export class TreeNode extends AbstractNode {
 
     constructor(move, depth, parent) {
-
         super()
-
-        this.parent      = parent
-        this.maxDepth    = depth
+        this.parent = parent
+        this.maxDepth = depth
         this.highestFace = move.face
-
-        this.move   = move
-        this.depth  = depth
-        this.flag   = move.flag
-
+        this.move = move
+        this.depth = depth
+        this.flag = move.flag
         if (parent) {
-            if (parent.flag != this.flag) {
+            if (parent.flag !== this.flag) {
                 this.flag = -1
             }
             if (parent.move.face > this.highestFace) {
@@ -441,7 +423,6 @@ export class TreeNode extends AbstractNode {
                 this.highestFace = parent.move.face
             }
         }
-
         Profiler.inc('TreeNode.create')
     }
 
@@ -487,28 +468,21 @@ export class TreeNode extends AbstractNode {
 
     // profiling shows caching not needed - never hit
     flagKey() {
-
         let flagKey = null
-
         // only do for doubles
         if (this.flag == 8 && this.depth == 4) {
-
             Profiler.start('TreeNode.flagKey')
-
             const origins = [this.move.origin]
             for (let parent = this.parent; parent; parent = parent.parent) {
                 origins.push(parent.move.origin)
             }
             origins.sort(sortNumericAsc)
-
             flagKey = '8/4-' + origins[0]
             for (let i = 1; i < 4; ++i) {
                 flagKey += ',' + origins[i]
             }
-
             Profiler.stop('TreeNode.flagKey')
         }
-
         return flagKey
     }
 

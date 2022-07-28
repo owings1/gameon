@@ -197,50 +197,30 @@ export default class Coordinator {
      * @throws
      */
     async runMatch(match, ...players) {
-
         players = Coordinator.buildPlayers(...players)
-
         this.checkCancel(match)
-
         await this.emitWaitAndCheck(players, 'matchStart', match, players)
-
         let gamePad
         let matchDir
         if (this.opts.isRecord) {
             matchDir = this.getMatchDir(match)
             gamePad = (match.total * 2 - 1).toString().length
         }
-
         let gameCount = 0
-
         do {
-
             gameCount += 1
-
             this.checkCancel(match)
-
             await this.emitWaitAndCheck(players, 'beforeNextGame', match, players)
-
             await this.runGame(players, match.nextGame(), match)
             this.checkCancel(match, match.thisGame)
-
             if (this.opts.isRecord) {
                 const numStr = gameCount.toString().padStart(gamePad, '0')
                 const gameFile = path.resolve(matchDir, 'game_' + numStr + '.json')
                 await this.recordGame(match.thisGame, gameFile)
             }
-
             match.updateScore()
-
         } while (!match.checkFinished())
-
         await this.emitAndWait(players, 'matchEnd', match)
-        //if (match.isCanceled) {
-        //    this.logger.warn('The match was canceled')
-        //} else {
-        //    await this.emitAndWait(players, 'matchEnd', match)
-        //}
-
         if (this.opts.isRecord) {
             const matchFile = path.resolve(matchDir, 'match.json')
             await this.recordMatch(match, matchFile, players)
@@ -259,48 +239,29 @@ export default class Coordinator {
      * @throws
      */
     async runGame(players, game, match = undefined) {
-
         this.checkCancel(match, game)
-
         await this.emitWaitAndCheck(players, 'gameStart', game, match, players)
-
         const firstTurn = game.firstTurn()
-
         await this.emitWaitAndCheck(players, 'firstRoll', firstTurn, game, match)
-
         await this.emitWaitAndCheck(players, 'afterRoll', firstTurn, game, match)
-
         await players[firstTurn.color].playRoll(firstTurn, game, match)
         this.checkCancel(match, game, firstTurn)
-
         firstTurn.finish()
-
         await this.emitWaitAndCheck(players, 'turnEnd', firstTurn, game, match)
-
         while (!game.checkFinished()) {
-
             const turn = game.nextTurn()
-
             await this.emitWaitAndCheck(players, 'turnStart', turn, game, match)
-
             if (game.canDouble(turn.color)) {
-
                 await this.emitWaitAndCheck(players, 'beforeOption', turn, game, match)
-
                 await players[turn.color].turnOption(turn, game, match)
                 this.checkCancel(match, game, turn)
-
                 await this.emitWaitAndCheck(players, 'afterOption', turn, game, match)
             }
-
             if (turn.isDoubleOffered) {
-
                 await this.emitWaitAndCheck(players, 'doubleOffered', turn, game, match)
-
                 await players[turn.opponent].decideDouble(turn, game, match)
                 this.checkCancel(match, game, turn)
             }
-
             if (turn.isDoubleDeclined) {
                 await this.emitWaitAndCheck(players, 'doubleDeclined', turn, game, match)
             } else {
@@ -308,27 +269,16 @@ export default class Coordinator {
                     game.double()
                     await this.emitWaitAndCheck(players, 'doubleAccepted', turn, game, match)
                 }
-
                 await players[turn.color].rollTurn(turn, game, match)
                 this.checkCancel(match, game, turn)
-
                 await this.emitWaitAndCheck(players, 'afterRoll', turn, game, match)
-
                 await players[turn.color].playRoll(turn, game, match)
                 this.checkCancel(match, game, turn)
             }
-
             turn.finish()
-
             await this.emitWaitAndCheck(players, 'turnEnd', turn, game, match)
         }
-
         await this.emitWaitAndCheck(players, 'gameEnd', game, match)
-        //if (game.isCanceled) {
-        //    this.logger.warn('The game was canceled')
-        //} else {
-        //    await this.emitWaitAndCheck(players, 'gameEnd', game, match)
-        //}
     }
 
     /**
@@ -378,10 +328,10 @@ export default class Coordinator {
         this.logger.info('Recording match to', homeTilde(dir))
         await fse.ensureDir(dir)
         const meta = {
-            ...match.meta()
-          , players : {
-                White : players.White.meta()
-              , Red   : players.Red.meta()
+            ...match.meta(),
+            players : {
+                White : players.White.meta(),
+                Red   : players.Red.meta(),
             }
         }
         await fse.writeJson(file, meta, {spaces: 2})

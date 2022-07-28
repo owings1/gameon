@@ -38,7 +38,7 @@ function getProps(err) {
 
 function addProps(err, src) {
     const props = getProps(src || err)
-    for (var i = 0, ilen = props.length; i < ilen; ++i) {
+    for (let i = 0, ilen = props.length; i < ilen; ++i) {
         err[props[i]] = true
     }
 }
@@ -74,8 +74,8 @@ export class BaseError extends Error {
             this.namePath = this.names.join('.')
         }
         args.forEach(arg => {
-            if (typeof arg == 'object' && arg.attrs) {
-                if (typeof arg.attrs == 'object') {
+            if (typeof arg === 'object' && arg.attrs) {
+                if (typeof arg.attrs === 'object') {
                     Object.entries(arg.attrs).forEach(([key, value]) => {
                         this[key] = value
                     })

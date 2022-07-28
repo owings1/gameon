@@ -56,34 +56,28 @@ export class Helper {
     }
 
     async run() {
-
         const {opts, outDir} = this
-
         await fse.ensureDir(outDir)
         const players = {
             White : this.newBestRobot(White),
             Red   : this.newBestRobot(Red),
         }
-
         const turnDatas = []
-
         const parr = Object.values(players)
-
         parr.forEach(player => player.on('turnData', (turn, data) => {
             turnDatas.push(data)
         }))
-
         try {
             const gamesDir = resolve(outDir, 'games')
             const trainDir = resolve(outDir, 'train')
             await fse.ensureDir(gamesDir)
             await fse.ensureDir(trainDir)
             const coordinator = new Coordinator
-            for (var i = 0; i < opts.numGames; i++) {
-                var g = i + 1
-                var game = new Game
-                var gameFile = resolve(gamesDir, this.gameFilename(game, g))
-                var trainFile = resolve(trainDir, this.gameFilename(game, g))
+            for (let i = 0; i < opts.numGames; i++) {
+                const g = i + 1
+                const game = new Game
+                const gameFile = resolve(gamesDir, this.gameFilename(game, g))
+                const trainFile = resolve(trainDir, this.gameFilename(game, g))
                 this.logger.info('Running game', i + 1)
                 await coordinator.runGame(players, game)
                 this.logger.info('Writing turn data')
@@ -94,7 +88,7 @@ export class Helper {
             }
             this.logger.info('Done')
         } finally {
-            await destroyAll(parr)
+            destroyAll(parr)
         }
     }
 
@@ -120,8 +114,6 @@ export class Helper {
     }
 
     gameFilename(game, g) {
-        //return 'game.json'
-        //return ['game', g.toString().padStart(this.opts.numGames.toString().length, '0'), game.uuid].join('_') + '.json'
         return ['game', g.toString().padStart(this.opts.numGames.toString().length, '0')].join('_') + '.json'
     }
 

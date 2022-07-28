@@ -91,16 +91,14 @@ class ThemeFeature {
     * See https://github.com/SBoudrias/Inquirer.js/blob/master/packages/inquirer/lib/prompts/base.js
     */
     getQuestion() {
-
         const {chlk, opt} = this
-
         const heads = []
-
         if (opt.prefix) {
+            let prefix
             if (this.isPrefixDefault) {
-                var prefix = chlk.message.prefix.default(stripAnsi(opt.prefix))
+                prefix = chlk.message.prefix.default(stripAnsi(opt.prefix))
             } else {
-                var prefix = chlk.message.prefix(opt.prefix)
+                prefix = chlk.message.prefix(opt.prefix)
             }
             heads.push(prefix)
         }
@@ -110,9 +108,7 @@ class ThemeFeature {
         if (opt.suffix) {
             heads.push(chlk.message.suffix(opt.suffix))
         }
-
         let message = heads.join(chlk.message.question(' '))
-
         // Append the default if available, and if question isn't touched/answered
         if (opt.default && !ModifiedStatuses[this.status]) {
             message += chlk.message.prompt(' ')
@@ -123,7 +119,6 @@ class ThemeFeature {
                 message += chlk.message.help('(' + opt.default + ')')
             }
         }
-
         return message
     }
 }
@@ -133,11 +128,9 @@ class CancelFeature {
     _constructor() {
         // intial state
         this.isCancel = false
-
         const {opt} = this
-
         // accept string, or array of chars
-        if (typeof opt.cancel == 'string' || Array.isArray(opt.cancel)) {
+        if (typeof opt.cancel === 'string' || Array.isArray(opt.cancel)) {
             opt.cancel = {char: opt.cancel}
         }
         // defaults
@@ -176,7 +169,7 @@ class SelectFeature {
         let index = 0
         const keyIndex = {}
         this.opt.choices.forEach(choice => {
-            if (choice.type == 'separator') {
+            if (choice.type === 'separator') {
                 return
             }
             castToArray(choice.select).forEach(chr => {
@@ -200,7 +193,7 @@ class ChoiceActionFeature {
         const revIndex = {}
         const alls = []
         castToArray(this.opt.action).forEach(action => {
-            if (typeof action == 'string') {
+            if (typeof action === 'string') {
                 action = {char: action}
             }
             action = {
@@ -227,7 +220,7 @@ class ChoiceActionFeature {
         })
         let index = 0
         this.opt.choices.forEach(choice => {
-            if (choice.type == 'separator') {
+            if (choice.type === 'separator') {
                 return
             }
             alls.forEach(action => action.idx[index] = true)

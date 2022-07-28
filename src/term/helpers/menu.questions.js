@@ -915,7 +915,9 @@ export default class Questions {
 
             // subtract pointer, paren, 2 spaces, and number string.
             const thisMaxWidth = menuBoxMaxWidth - 4 - n.toString().length
-            const display = question.display ? question.display() : question.default()
+            const display = question.display
+                ? question.display()
+                : question.default()
             const bareText = sp(choice.name, ':', display)
             if (stringWidth(bareText) >= thisMaxWidth) {
                 choice.name = bareText

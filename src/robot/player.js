@@ -152,7 +152,7 @@ export class ConfidenceRobot extends Robot {
             throw new UndecidedMoveError('No moves returned from getScores')
         }
         const maxScore = Math.max(...Object.values(scores))
-        const stateString = Object.keys(scores).find(str => scores[str] == maxScore)
+        const stateString = Object.keys(scores).find(str => scores[str] === maxScore)
         return turn.endStatesToSeries[stateString]
     }
 
@@ -203,7 +203,7 @@ ConfidenceRobot.ZERO_SCORES = ZERO_SCORES
 
 const Sorters = {
     delegateRankings : (a, b) => {
-        let cmp = a.myRank - b.myRank
+        const cmp = a.myRank - b.myRank
         if (cmp) {
             return cmp
         }
@@ -214,7 +214,7 @@ const Sorters = {
         if (cmp) {
             return cmp
         }
-        cmp = (b === result.selectedEndState) - (a == result.selectedEndState)
+        cmp = (b === result.selectedEndState) - (a === result.selectedEndState)
         if (cmp) {
             return cmp
         }
@@ -258,8 +258,7 @@ export class RobotDelegator extends Robot {
     }
 
     static forDefaults(...args) {
-        const configs = this.getDefaultConfigs()
-        return this.forConfigs(configs, ...args)
+        return this.forConfigs(this.getDefaultConfigs(), ...args)
     }
 
     static getDefaultConfigs() {
@@ -299,15 +298,12 @@ export class RobotDelegator extends Robot {
             if (!turn.isRolled) {
                 throw new HasNotRolledError('Turn is not rolled')
             }
-
             Profiler.start('RobotDelegator.getMoves.1')            
             const results = await this._getDelegatesResults(turn, game, match)
             Profiler.stop('RobotDelegator.getMoves.1')
-
             Profiler.start('RobotDelegator.getMoves.2')
             const {totals, maxWeight, selectedEndState} = this._computeTotals(results)
             Profiler.stop('RobotDelegator.getMoves.2')
-
             Profiler.start('RobotDelegator.getMoves.3')
             const moves = turn.endStatesToSeries[selectedEndState]
             if (!moves) {
@@ -316,7 +312,6 @@ export class RobotDelegator extends Robot {
             }
             this.emit('turnData', turn, {startState: turn.startState, endState: selectedEndState, totals, moves})
             Profiler.stop('RobotDelegator.getMoves.3')
-
             if (this.isStoreLastResult) {
                 this.lastResult = {
                     totals,
@@ -326,9 +321,7 @@ export class RobotDelegator extends Robot {
                     turn,
                 }
             }
-
             return moves
-
         } finally {
             Profiler.stop('RobotDelegator.getMoves')
         }
@@ -345,20 +338,20 @@ export class RobotDelegator extends Robot {
     }
 
     async getDoubleConfidence(turn, game, match) {
-        if (this.delegates.length == 0) {
+        if (this.delegates.length === 0) {
             throw new NoDelegatesError('No delegates to consult')
         }
         Profiler.start('RobotDelegator.getDoubleConfidence')
         // sum(response_n * weight_n for each n) / sum(weight_n for each n)
-        var weightedSum = 0
-        var weightsSum = 0
-        for (var delegate of this.delegates) {
-            var response = await delegate.robot.getDoubleConfidence(turn, game, match)
+        let weightedSum = 0
+        let weightsSum = 0
+        for (const delegate of this.delegates) {
+            const response = await delegate.robot.getDoubleConfidence(turn, game, match)
             weightedSum += response * delegate.doubleWeight
             weightsSum += delegate.doubleWeight
         }
         Profiler.stop('RobotDelegator.getDoubleConfidence')
-        if (weightsSum == 0) {
+        if (weightsSum === 0) {
             // don't divide by zero
             return 0
         }
@@ -366,18 +359,18 @@ export class RobotDelegator extends Robot {
     }
 
     async getAcceptDoubleConfidence(turn, game, match) {
-        if (this.delegates.length == 0) {
+        if (this.delegates.length === 0) {
             throw new NoDelegatesError('No delegates to consult')
         }
         // sum(response_n * weight_n for each n) / sum(weight_n for each n)
-        var weightedSum = 0
-        var weightsSum = 0
-        for (var delegate of this.delegates) {
-            var response = await delegate.robot.getAcceptDoubleConfidence(turn, game, match)
+        let weightedSum = 0
+        let weightsSum = 0
+        for (const delegate of this.delegates) {
+            const response = await delegate.robot.getAcceptDoubleConfidence(turn, game, match)
             weightedSum += response * delegate.doubleWeight
             weightsSum += delegate.doubleWeight
         }
-        if (weightsSum == 0) {
+        if (weightsSum === 0) {
             // don't divide by zero
             return 1
         }
@@ -385,11 +378,9 @@ export class RobotDelegator extends Robot {
     }
 
     destroy() {
-        this.delegates.forEach(delegate =>
-            delegate.robot.destroy()
-        )
+        this.delegates.forEach(delegate => delegate.robot.destroy())
         this.delegates.splice(0)
-        return super.destroy()
+        super.destroy()
     }
 
     meta() {
@@ -406,13 +397,12 @@ export class RobotDelegator extends Robot {
     }
 
     static validateWeight(value) {
-        if (typeof(value) != 'number' || isNaN(value) || Math.abs(value) == Infinity) {
+        if (typeof(value) != 'number' || isNaN(value) || Math.abs(value) === Infinity) {
             throw new InvalidWeightError('Invalid weight for delegate')
         }
     }
 
     explainResult(result) {
-
         // overall rankings
         const overallRankings = Object.keys(result.totals)
         overallRankings.sort(Sorters.overallRankings(result))
@@ -442,25 +432,21 @@ export class RobotDelegator extends Robot {
             }
             overallRankCounts[rank] += 1
         })
-
         // delegate rankings, delegate ordered
         const delegateRankedStatesMaps = []
-
         // what did this delegate prefer wrt what was chosen
         const delegateList = result.results.map((res, i) => {
-
             const myRankedStates = Object.keys(res)
             myRankedStates.sort((a, b) => res[b] - res[a])
-
             // ties are much more likely
             const myRankedStatesMap = {}
             let myRankTrack = 1
             myRankedStates.forEach((endState, i) => {
                 // score of zero ties for dead last
-                if (res[endState] == 0) {
+                if (res[endState] === 0) {
                     // but if it's also first, i gave no rankings, so null
                     // is more appropriate
-                    if (i == 0 || myRankTrack == null) {
+                    if (i === 0 || myRankTrack == null) {
                         myRankTrack = null
                     } else {
                         myRankTrack = myRankedStates.length
@@ -468,7 +454,7 @@ export class RobotDelegator extends Robot {
                     myRankedStatesMap[endState] = myRankTrack
                     return
                 }
-                if (i == 0) {
+                if (i === 0) {
                     myRankedStatesMap[endState] = myRankTrack
                     return
                 }
@@ -477,9 +463,7 @@ export class RobotDelegator extends Robot {
                 }
                 myRankedStatesMap[endState] = myRankTrack
             })
-
             delegateRankedStatesMaps.push(myRankedStatesMap)
-
             const delegate = this.delegates[i]
             const info = {
                 name       : delegate.robot.name,
@@ -499,10 +483,8 @@ export class RobotDelegator extends Robot {
                 }),
             }
             info.rankings.sort(Sorters.delegateRankings)
-
             return info
         })
-
         const rankList = overallRankings.map(endState => {
             const rank = overallRankingsMap[endState]
             const info = {
@@ -526,7 +508,6 @@ export class RobotDelegator extends Robot {
             info.delegates.sort(Sorters.rankListDelegates)
             return info
         })
-
         return {rankList, delegateList}
     }
 
@@ -609,11 +590,9 @@ Robot.ConfidenceRobot = ConfidenceRobot
 class BearoffRobot extends ConfidenceRobot {
 
     async getScores(turn, game, match) {
-
         const baseline = turn.board.analyzer.piecesHome(turn.color)
-
         const scores = {}
-        var hasBearoff = false
+        let hasBearoff = false
         turn.allowedEndStates.forEach(endState => {
             const {analyzer} = turn.fetchBoard(endState)
             if (!analyzer.mayBearoff(turn.color)) {
@@ -679,7 +658,7 @@ class FirstTurnRobot extends ConfidenceRobot {
             scores[firstMoveEndState] = 1
         } else {
             // check the allowedMoveIndex for the available moves
-            var store = turn.allowedMoveIndex[moveHashes[0]]
+            let store = turn.allowedMoveIndex[moveHashes[0]]
             if (store) {
                 store = store.index[moveHashes[1]]
                 if (store) {
@@ -691,13 +670,12 @@ class FirstTurnRobot extends ConfidenceRobot {
     }
 
     static generateMoveIndex(pointMoves, board) {
-
         const moveIndex = {}
-        for (let color in Colors) {
+        for (const color in Colors) {
             moveIndex[color] = {}
-            for (let diceHash in pointMoves) {
+            for (const diceHash in pointMoves) {
                 board.setup()
-                let moveHashes = pointMoves[diceHash].map(({point, face}) =>
+                const moveHashes = pointMoves[diceHash].map(({point, face}) =>
                     board.move(color, PointOrigins[color][point], face).hash
                 )
                 moveIndex[color][diceHash] = {
@@ -714,12 +692,9 @@ class FirstTurnRobot extends ConfidenceRobot {
 class HittingRobot extends ConfidenceRobot {
 
     async getScores(turn, game, match) {
-
         const baseline = turn.board.bars[turn.opponent].length
-
         const counts = {}
         //const zeros = []
-
         // TODO: quadrant/pip offset
         turn.allowedEndStates.forEach(endState => {
             const board = turn.fetchBoard(endState)
@@ -729,10 +704,8 @@ class HittingRobot extends ConfidenceRobot {
             //    zeros.push(endState)
             //}
         })
-
         const scores = this.spreadScore(counts)
         //zeros.forEach(endState => scores[endState] = 0)
-
         return scores
     }
 }
@@ -756,14 +729,11 @@ class OccupyRobot extends ConfidenceRobot {
 class PrimeRobot extends ConfidenceRobot {
 
     async getScores(turn, game, match) {
-
         if (turn.board.analyzer.isDisengaged()) {
             return ZERO_SCORES
         }
-
         const scores = {}
         const zeros = []
-
         turn.allowedEndStates.forEach(endState => {
             const {analyzer} = turn.fetchBoard(endState)
             const primes = analyzer.primes(turn.color)
@@ -775,10 +745,8 @@ class PrimeRobot extends ConfidenceRobot {
                 zeros.push(endState)
             }
         })
-
         const finalScores = this.spreadScore(scores)
         zeros.forEach(endState => finalScores[endState] = 0)
-
         return finalScores
     }
 
@@ -822,14 +790,13 @@ class RandomRobot_v3 extends ConfidenceRobot {
 }
 
 
-
 class RunningRobot extends ConfidenceRobot {
 
     async getScores(turn, game, match) {
         const scores = {}
         const len = turn.allowedEndStates.length
-        for (var i = 0; i < len; i++) {
-            var endState = turn.allowedEndStates[i]
+        for (let i = 0; i < len; i++) {
+            const endState = turn.allowedEndStates[i]
             scores[endState] = this._scoreEndState(turn, endState)
         }
         // Inverse scoring
@@ -840,9 +807,9 @@ class RunningRobot extends ConfidenceRobot {
         const {analyzer} = turn.fetchBoard(endState)
         const points = analyzer.pointsOccupied(turn.color)
         const len = points.length
-        var score = 0
-        for (var i = 0; i < len; i++) {
-            var point = points[i]
+        let score = 0
+        for (let i = 0; i < len; i++) {
+            const point = points[i]
             score += point * analyzer.piecesOnPoint(turn.color, point) * RunningRobot.QM[point]
         }
         return score
@@ -861,9 +828,6 @@ intRange(1, 24).forEach(point => {
     }
     RunningRobot.QM[point] = qm
 })
-
-
-
 
 
 class SafetyRobot extends ConfidenceRobot {
@@ -890,12 +854,12 @@ class SafetyRobot extends ConfidenceRobot {
         const scores = {}
         const zeros = []
 
-        for (var i = 0, ilen = turn.allowedEndStates.length; i < ilen; ++i) {
-            var endState = turn.allowedEndStates[i]
-            var {analyzer} = turn.fetchBoard(endState)
+        for (let i = 0, ilen = turn.allowedEndStates.length; i < ilen; ++i) {
+            const endState = turn.allowedEndStates[i]
+            const {analyzer} = turn.fetchBoard(endState)
             
-            var blots = this._fetchBlots(analyzer, turn.color)
-            var {score, directCount} = this._scoreBlots(blots)
+            const blots = this._fetchBlots(analyzer, turn.color)
+            const {score, directCount} = this._scoreBlots(blots)
 
             scores[endState] = score
             if (directCount == 0) {
@@ -903,7 +867,7 @@ class SafetyRobot extends ConfidenceRobot {
             }
         }
         const finalScores = this.spreadScore(scores, true)
-        for (var i = 0, ilen = zeros.length; i < ilen; ++i) {
+        for (let i = 0, ilen = zeros.length; i < ilen; ++i) {
             finalScores[zeros[i]] = 1
         }
         return finalScores
@@ -914,10 +878,10 @@ class SafetyRobot extends ConfidenceRobot {
     }
 
     _scoreBlots(blots) {
-        var score = 0
-        var directCount = 0
-        for (var i = 0, ilen = blots.length; i < ilen; ++i) {
-            var blot = blots[i]
+        let score = 0
+        let directCount = 0
+        for (let i = 0, ilen = blots.length; i < ilen; ++i) {
+            const blot = blots[i]
             directCount += blot.directCount
             score += (blot.directCount * 4 + blot.indirectCount) * SafetyRobot.QM[blot.point]
         }

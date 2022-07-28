@@ -24,9 +24,6 @@
  */
 import * as lingui from '@lingui/core'
 import * as plurals from 'make-plural/plurals'
-// const lingui  = require('@lingui/core')
-// const plurals = require('make-plural/plurals')
-
 import fs from 'fs'
 import path from 'path'
 import {revalue, valueHash} from '@quale/core/objects.js'

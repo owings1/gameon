@@ -65,8 +65,8 @@ export class Move {
         Profiler.start('Move.check')
         try {
             Dice.checkOne(face)
-            var check
-            var build
+            let check
+            let build
             if (origin == -1) {
                 check = ComeInMove.check(board, color, face)
                 build = {class: ComeInMove, args: [board, color, face, check === true]}
@@ -150,7 +150,7 @@ export class Move {
      * @abstract
      */
     do() {
-        throw new NotImplementedError('Not Implemented')
+        throw new NotImplementedError()
     }
 
     /** 
@@ -160,13 +160,19 @@ export class Move {
      * @abstract
      */
     undo() {
-        throw new NotImplementedError('Not Implemented')
+        throw new NotImplementedError()
     }
 }
 
 export class ComeInMove extends Move {
 
-    // Returns true or error object
+    /**
+     * Returns true or error object
+     * @param {Board} board
+     * @param {String} color
+     * @param {Number} face
+     * @return {Boolean|object}
+     */ 
     static check(board, color, face) {
         if (!board.analyzer.hasBar(color)) {
             return {class: NoPieceOnBarError, message: [color, 'does not have a piece on the bar']}
@@ -178,17 +184,21 @@ export class ComeInMove extends Move {
         return true
     }
 
+    /**
+     * @see Move.check
+     * 
+     * @param {Board} board
+     * @param {Number} origin
+     * @param {Number} face
+     * @param {Boolean} isChecked
+     */
     constructor(board, color, face, isChecked) {
-
         super(board, color, -1, face)
         this._constructArgs = Object.values(arguments)
-
         if (!isChecked) {
             this.check(board, color, face)
         }
-
         const {dest, isHit} = this.getDestInfo(board, color, face)
-
         this.isComeIn = true
         this.dest = dest
         this.isHit = isHit
@@ -212,6 +222,13 @@ export class ComeInMove extends Move {
         return this.constructor.getDestInfo(...args)
     }
 
+
+    /**
+     * @param {Board} board
+     * @param {String} color
+     * @param {Number} face
+     * @return {object}
+     */ 
     static getDestInfo(board, color, face) {
         const dest = Direction[color] == 1 ? face - 1 : 24 - face
         const isHit = board.analyzer.piecesOnOrigin(Opponent[color], dest) == 1
@@ -221,7 +238,14 @@ export class ComeInMove extends Move {
 
 export class RegularMove extends Move {
 
-    // Returns true or error object
+    /**
+     * Returns true or error object
+     * @param {Board} board
+     * @param {String} color
+     * @param {Number} origin
+     * @param {Number} face
+     * @return {Boolean|object}
+     */ 
     static check(board, color, origin, face) {
         const dest = origin + face * Direction[color]
         if (dest < 0 || dest > 23) {
@@ -236,17 +260,20 @@ export class RegularMove extends Move {
         return true
     }
 
+    /**
+     * @param {Board} board
+     * @param {String} color
+     * @param {Number} origin
+     * @param {Number} face
+     * @param {Boolean} isChecked
+     */ 
     constructor(board, color, origin, face, isChecked) {
-
         super(board, color, origin, face)
         this._constructArgs = Object.values(arguments)
-
         if (!isChecked) {
             this.check(board, color, origin, face)
         }
-
         const {dest, isHit} = this.getDestInfo(board, color, origin, face)
-
         this.dest = dest
         this.isRegular = true
         this.isHit = isHit
@@ -273,6 +300,13 @@ export class RegularMove extends Move {
         return this.constructor.getDestInfo(...args)
     }
 
+    /**
+     * @param {Board} board
+     * @param {String} color
+     * @param {Number} origin
+     * @param {Number} face
+     * @return {object}
+     */ 
     static getDestInfo(board, color, origin, face) {
         const dest = origin + face * Direction[color]
         const isHit = board.analyzer.piecesOnOrigin(Opponent[color], dest) == 1
@@ -282,7 +316,14 @@ export class RegularMove extends Move {
 
 export class BearoffMove extends Move {
 
-    // Returns true or error object
+    /**
+     * Returns true or error object
+     * @param {Board} board
+     * @param {String} color
+     * @param {Number} origin
+     * @param {Number} face
+     * @return {Boolean|object}
+     */ 
     static check(board, color, origin, face) {
         if (!board.analyzer.mayBearoff(color)) {
             return {class: MayNotBearoffError, message: [color, 'may not bare off']}
@@ -296,15 +337,19 @@ export class BearoffMove extends Move {
         return true
     }
 
+    /**
+     * @param {Board} board
+     * @param {String} color
+     * @param {Number} origin
+     * @param {Number} face
+     * @param {Boolean} isChecked
+     */ 
     constructor(board, color, origin, face, isChecked) {
-
         super(board, color, origin, face)
         this._constructArgs = Object.values(arguments)
-
         if (!isChecked) {
             this.check(board, color, origin, face)
         }
-
         this.isBearoff = true
     }
 

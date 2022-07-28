@@ -29,18 +29,30 @@ import {createLogger, uuid} from './util.js'
 
 const Listeners = {
 
+    /**
+     * @param {Match} match
+     * @param {object} players
+     */
     matchStart: function(match, players) {
         this.logger.debug('event.matchStart')
         this.thisMatch = match
         this.opponent = players[Opponent[this.color]]
     },
 
+    /**
+     * @param {Game} game
+     * @param {Match} match
+     * @param {object} players
+     */
     gameStart: function(game, match, players) {
         this.logger.debug('event.gameStart')
         this.thisGame = game
         this.opponent = players[Opponent[this.color]]
     },
 
+    /**
+     * @param {Error} err
+     */
     matchCanceled: function(err) {
         this.logger.debug('event.matchCanceled')
         // NB: If matchCanceled is emitted before matchStart, then this will not help.
@@ -52,6 +64,9 @@ const Listeners = {
         }
     },
 
+    /**
+     * @param {Error} err
+     */
     matchEnd: function(err) {
         this.logger.debug('event.matchEnd')
         if (this.thisMatch) {
@@ -64,6 +79,9 @@ const Listeners = {
 
 export default class Player extends EventEmitter {
 
+    /**
+     * @param {String} color
+     */
     constructor(color) {
         super()
         this.id = uuid()

@@ -146,7 +146,7 @@ export class Match {
             let isFound = false
             for (const color in Colors) {
                 const score = this.scores[color]
-                if (score + 1 == this.total) {
+                if (score + 1 === this.total) {
                     isFound = true
                     break
                 }
@@ -354,7 +354,7 @@ export class Game {
         if (this.cubeValue >= 64) {
             return false
         }
-        return this.cubeOwner == null || this.cubeOwner == color
+        return this.cubeOwner == null || this.cubeOwner === color
     }
 
     /**
@@ -400,9 +400,10 @@ export class Game {
         if (this.thisTurn) {
             throw new GameAlreadyStartedError('The game has already started')
         }
+        let dice
         do {
-            var dice = this.opts.roller()
-        } while (dice[0] == dice[1] && !this.opts.forceFirst)
+            dice = this.opts.roller()
+        } while (dice[0] === dice[1] && !this.opts.forceFirst)
         const firstColor = this.opts.forceFirst || Dice.getWinner(dice)
         this.thisTurn = new Turn(this.board, firstColor, this.opts)
         this.thisTurn.setRoll(dice)
@@ -797,10 +798,12 @@ export class Turn {
             origin = origin.origin
         }
         const nextMoves = this.getNextAvailableMoves()
-        if (nextMoves.length == 0) {
+        if (nextMoves.length === 0) {
             throw new NoMovesRemainingError([this.color, 'has no more moves to do'])
         }
-        const matchingMove = nextMoves.find(move => move.origin == origin && move.face == face)
+        const matchingMove = nextMoves.find(move =>
+            move.origin === origin && move.face === face
+        )
         if (!matchingMove) {
             // this will throw a more specific error
             this.board.buildMove(this.color, origin, face)
@@ -823,7 +826,7 @@ export class Turn {
      */
     unmove() {
         this.assertNotFinished()
-        if (this.moves.length == 0) {
+        if (this.moves.length === 0) {
             throw new NoMovesMadeError([this.color, 'has no moves to undo'])
         }
         const move = this.moves.pop()
@@ -855,10 +858,8 @@ export class Turn {
         }
         this.endState = this.board.state28()
         this.isFinished = true
-
         this.boardCache = {}
         this.builder = null
-
         return this
     }
 
@@ -1069,22 +1070,16 @@ export class Board {
             Profiler.stop('Board.getPossibleMovesForFace.1')
         } else {
             Profiler.start('Board.getPossibleMovesForFace.2')
-
             const {analyzer} = this
             const origins = analyzer.originsOccupied(color)
             const mayBearoff = analyzer.mayBearoff(color)
             const maxPoint = analyzer.maxPointOccupied(color)
-
             Profiler.stop('Board.getPossibleMovesForFace.2')
-
             Profiler.start('Board.getPossibleMovesForFace.3')
             for (let i = 0, ilen = origins.length; i < ilen; ++i) {
-
-                let origin = origins[i]
-                let point = OriginPoints[color][origin]
-
+                const origin = origins[i]
+                const point = OriginPoints[color][origin]
                 // Apply quick filters for performance
-
                 // Filter bearoff moves
                 if (point <= face) {
                     if (!mayBearoff) {
@@ -1107,9 +1102,7 @@ export class Board {
             }
             Profiler.stop('Board.getPossibleMovesForFace.3')
         }
-
         Profiler.stop('Board.getPossibleMovesForFace')
-
         return moves
     }
 
@@ -1148,25 +1141,20 @@ export class Board {
      * @return {Boolean}
      */
     isBackgammon() {
-
         if (!this.isGammon()) {
             return false
         }
-
         const winner = this.getWinner()
         const loser  = Opponent[winner]
-
         if (this.analyzer.piecesOnBar(loser)) {
             return true
         }
-
         const insides = InsideOrigins[winner]
         for (let i = 0, ilen = insides.length; i < ilen; ++i) {
             if (this.analyzer.occupiesOrigin(loser, insides[i])) {
                 return true
             }
         }
-        
         return false
     }
 

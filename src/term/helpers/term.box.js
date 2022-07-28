@@ -76,70 +76,52 @@ export class TermBox {
     }
 
     get params() {
-
         const {screen, opts} = this
         const {isBorder, pad} = opts
-        const pad2 = pad * 2
-        const b2 = +isBorder * 2
-
         let {top, left} = opts
-
         if (opts.vcenter) {
             const heightSurplus = screen.height - opts.maxHeight
             top = Math.max(0, Math.floor(heightSurplus / 2)) + 1
         }
-
         if (opts.hcenter) {
             const widthSurplus = screen.width - opts.maxWidth
             left = Math.max(0, Math.floor(widthSurplus / 2)) + 1
         }
-
         top  += isBorder + pad
         left += isBorder + pad
-
         const screenHeightAdj = screen.height - isBorder - pad - (top - 1)
         const screenWidthAdj = screen.width - isBorder - pad - (left - 1)
-
         const minHeight = Math.min(screenHeightAdj, opts.minHeight)
         const maxHeight = Math.min(screenHeightAdj, opts.maxHeight)
-
         const minWidth  = Math.min(screenWidthAdj, opts.minWidth)
         const maxWidth  = Math.min(screenWidthAdj, opts.maxWidth)
-
         return {top, left, minWidth, maxWidth, minHeight, maxHeight}
     }
 
     erase() {
-
         const {pad, isBorder} = this.opts
         const pad2 = pad * 2
         const b2 = +isBorder * 2
-
         const {left, top, minWidth, minHeight} = this.params
         const width = Math.max(this.status.width, minWidth)
         const height = Math.max(this.status.height, minHeight)
-
         const outerLeft = left - isBorder - pad
         const outerTop = top - isBorder - pad
         const outerWidth = width + b2 + pad2
         const outerHeight = height + b2 + pad2
-
         const {format} = this.opts
         const line = format.erase(`\x1B[${outerWidth}X`)
         //const line = format.erase(nchars(outerWidth, ' '))
-
         this.screen
             .saveCursor()
             .hideCursor()
             .writeRows(outerLeft, outerTop, outerHeight, line)
             .showCursor()
             .restoreCursor()
-
         this.status.reset()
     }
 
     drawBorder() {
-
         const {screen} = this
         if (!screen.isAnsi) {
             return
@@ -147,21 +129,15 @@ export class TermBox {
         const {pad, isBorder} = this.opts
         const pad2 = pad * 2
         //??const b2 = +isBorder * 2
-
         const {left, top, minWidth, minHeight, maxWidth, maxHeight} = this.params
-
         const width = Math.min(Math.max(this.status.width, minWidth), maxWidth)
         const height = Math.min(Math.max(this.status.height, minHeight), maxHeight)
-
         const outerLeft = left - isBorder - pad
         const outerTop = top - isBorder - pad
         const outerHeight = height + isBorder + pad2
-
         const borders = this.getBorders(width)
         const pads = this.getPadStrings(width)
-
         screen.saveCursor()
-
         if (isBorder) {
             screen.moveTo(outerLeft, outerTop).write(borders.top)
         }
@@ -170,7 +146,7 @@ export class TermBox {
             if (isBorder) {
                 screen.write(borders.side)
             }
-            let isFullPad = pad && (i < pad || outerHeight - i - 1 <= pad)
+            const isFullPad = pad && (i < pad || outerHeight - i - 1 <= pad)
             if (pad) {
                 if (isFullPad) {
                     screen.write(pads.full)
@@ -223,19 +199,15 @@ export class TermBox {
             dash : Chars.table.dash,
         }
         const dot = Chars.table.dot
-
         switch (style) {
-
             case 'dashed':
                 update(chars, {dash : ' -', pipe : Chars.table.vdash})
                 break
-
             case 'dotted':
                 update(chars.top, {left: dot, right: dot})
                 update(chars.foot, {left: dot, right: dot})
                 update(chars, {pipe: dot, dash:' ' + dot})
                 break
-
             case 'solid':
             default:
                 break
@@ -256,13 +228,9 @@ export default TermBox
 export class BoxStatus extends EventEmitter {
 
     constructor(defaults) {
-
         super()
-
         this._defaults = defaults
-
         this.reset()
-
         this.on('render', ({indent, width, height}) => {
             indent = indent || 0
             width = width || 0
@@ -277,7 +245,6 @@ export class BoxStatus extends EventEmitter {
             }
             this.right = Math.max(this.right, indent + width + 1)
         })
-
         this.on('line', ({indent, width}) => {
             indent = indent || 0
             width = width || 0
@@ -291,7 +258,6 @@ export class BoxStatus extends EventEmitter {
             }
             this.right = Math.max(this.right, indent + width + 1)
         })
-
         this.on('answered', ({height}) => {
             height = height || 0
             if (!height) {

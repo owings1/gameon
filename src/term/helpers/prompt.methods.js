@@ -108,7 +108,7 @@ export class BaseMethods {
         if (type == null) {
             type = info.type
         }
-        if (info.type != type) {
+        if (info.type !== type) {
             return
         }
         cb = cb || this._keyHandlers[type]
@@ -192,7 +192,7 @@ export class TextMethods {
      */
     onKeypress(e) {
         const type = this.handleKeypress(e)
-        if (type == 'cancel') {
+        if (type === 'cancel') {
             return
         }
         if (!type) {
@@ -220,7 +220,7 @@ export class TextMethods {
         // Fix bug introduced in commit 73b6e658
         // See https://github.com/SBoudrias/Inquirer.js/commit/73b6e658
         // See https://github.com/owings1/Inquirer.js/commit/21ea73a3
-        if (this.status == 'touched' || this.status == 'pending') {
+        if (this.status === 'touched' || this.status === 'pending') {
             return input || this.opt.default || ''
         }
         return this.opt.default == null ? '' : this.opt.default
@@ -259,14 +259,11 @@ export class ListMethods {
     * See https://github.com/SBoudrias/Inquirer.js/blob/master/packages/inquirer/lib/prompts/rawlist.js
     */
     render(error) {
-
         const {chlk} = this
         const {choices} = this.opt
-
         // Render question
         let message = this.getQuestion()
         let bottomContent = ''
-
         message += chlk.message.prompt(' ')
         if (this.isCancel) {
             message += chlk.message.help(this.opt.cancel.message)
@@ -284,14 +281,11 @@ export class ListMethods {
                 message += chlk.input(this.rl.line)
             }
         }
-
         if (error) {
             bottomContent += '\n'
             bottomContent += this.getErrorString(error)
         }
-
         this.firstRender = false
-
         this.screen.render(message, bottomContent)
     }
 
@@ -306,28 +300,25 @@ export class ListMethods {
             this.lastRenderedSelected = this.selected
         }
         const choicesStr = this._renderChoices(choices, this.selected)
-        const safeIndex = this.selected == null ? this.lastRenderedSelected : this.selected
+        const safeIndex = this.selected == null
+            ? this.lastRenderedSelected
+            : this.selected
         const indexPosition = choices.indexOf(choices.getChoice(safeIndex))
         const realIndexPosition = choices.reduce((acc, value, i) => {
-
             // Dont count lines past the choice we are looking at
             if (i > indexPosition) {
                 return acc
             }
-
             // Add line if it's a separator
             if (value.type === 'separator') {
                 return acc + 1
             }
-
             // Non-strings take up one line
             if (typeof value.name !== 'string') {
                 return acc + 1
             }
-
             // Calculate lines taken up by string
             return acc + value.name.split('\n').length
-
         }, 0) - 1
 
         return this.paginator.paginate(choicesStr, realIndexPosition, this.opt.pageSize)
@@ -339,29 +330,19 @@ export class ListMethods {
      * See https://github.com/SBoudrias/Inquirer.js/blob/master/packages/inquirer/lib/prompts/rawlist.js
      */
     _renderChoices(choices, selected) {
-
-        const {chlk} = this
-
         let separatorOffset = 0
-
         let lineLength = this.choicesLineLength(choices)
-
         lineLength = Math.min(lineLength, this.getMaxWidth())
-
         return choices.choices.map((choice, i) => {
-
-            const isSeparator = choice.type == 'separator'
+            const isSeparator = choice.type === 'separator'
             const isDisabled = !!choice.disabled
             const isAvailable = !isSeparator && !isDisabled
-
             if (!isAvailable) {
                 separatorOffset += 1
             }
-
             const index = i - separatorOffset
             const isSelected = isAvailable && index === selected
             const number = index + 1
-
             return this._renderChoice(
                 choice,
                 isSelected,
@@ -375,11 +356,8 @@ export class ListMethods {
     }
 
     _renderChoice(choice, isSelected, isAvailable, isSeparator, isDisabled, lineLength, number) {
-
         const {chlk} = this
-
         let output = ''
-
         if (this.opt.pointer) {
             if (isSelected) {
                 output += chlk.choice.selected(this.opt.pointer + ' ')
@@ -387,7 +365,6 @@ export class ListMethods {
                 output += chlk.choice('  ')
             }
         }
-
         if (this.opt.numbers && number != null) {
             const numstr = number.toString()
             const parenstr =  ') '
@@ -402,12 +379,9 @@ export class ListMethods {
                 output += chlk.choice.paren(parenstr)
             }
         }
-
         let maxWidth = this.getMaxWidth() - stringWidth(output) - 1
         lineLength = Math.min(lineLength, maxWidth)
-
         const text = this._renderChoiceText(choice, isSeparator, isDisabled, lineLength)
-
         if (isSeparator) {
             output += chlk.separator(text)
         } else if (isDisabled) {
@@ -417,7 +391,6 @@ export class ListMethods {
         } else {
             output += chlk.choice(text)
         }
-
         return output
     }
 
@@ -436,13 +409,17 @@ export class ListMethods {
     }
 
     disabledSuffix(disabled) {
-        const text = typeof disabled == 'string' ? disabled : 'Disabled'
+        const text = typeof disabled === 'string'
+            ? disabled
+            : 'Disabled'
         return ' (' + text + ')'
     }
 
     choicesLineLength(choices) {
-        choices = choices.filter(it => it.type != 'separator')
-        const extra = this.opt.numbers ? choices.length.toString().length + 2 : 0
+        choices = choices.filter(it => it.type !== 'separator')
+        const extra = this.opt.numbers
+            ? choices.length.toString().length + 2
+            : 0
         return extra + Math.max(...choices.map(it => stringWidth(it.name)))
     }
 }

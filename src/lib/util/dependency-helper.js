@@ -42,14 +42,11 @@ export default class DependencyHelper {
     }
 
     add(name, dependencies) {
-
         if (this.added[name]) {
             throw new DependencyError(`Duplicate name: ${name}`)
         }
         this.added[name] = true
-
         this.unresolved[name] = {}
-
         if (dependencies) {
             dependencies.forEach(dependency => {
                 if (!this.resolved[dependency]) {
@@ -60,7 +57,6 @@ export default class DependencyHelper {
                 }
             })
         }
-
         if (!Object.keys(this.unresolved[name]).length) {
             if (!this.resolved[name]) {
                 this.resolved[name] = true
@@ -71,9 +67,7 @@ export default class DependencyHelper {
     }
 
     resolve() {
-
         const missing = {}
-
         for (const name in this.unresolved) {
             for (const dependency in this.unresolved[name]) {
                 if (!this.added[dependency]) {
@@ -84,40 +78,32 @@ export default class DependencyHelper {
         if (Object.keys(missing).length) {
             throw new MissingDependencyError(`Missing dependencies: ${Object.keys(missing).join(', ')}`)
         }
-
         let count = 0
         do {
             count = this._resolveLoop()
         } while (count > 0)
-
         const unresolvedNames = Object.keys(this.unresolved)
         if (unresolvedNames.length) {
             throw new UnresolvedDependencyError(`Unmet dependecies for: ${unresolvedNames.join(', ')}`)
         }
-
         return this.order
     }
 
     _resolveLoop() {
-
         let count = 0
-
         Object.keys(this.unresolved).forEach(name => {
-
             Object.keys(this.unresolved[name]).forEach(dependency => {
                 if (this.resolved[dependency]) {
                     count += 1
                     delete this.unresolved[name][dependency]
                 }
             })
-
             if (!Object.keys(this.unresolved[name]).length) {
                 this.resolved[name] = true
                 this.order.push(name)
                 delete this.unresolved[name]
             }
         })
-
         return count
     }
 }

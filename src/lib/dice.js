@@ -47,9 +47,8 @@ export default class Dice {
      */
     static faces(roll) {
         const faces = [roll[0], roll[1]]
-        if (roll[0] === roll[1]) {
-            faces.push(roll[0])
-            faces.push(roll[1])
+        if (faces[0] === faces[1]) {
+            faces.push(...faces)
         }
         return faces
     }
@@ -160,13 +159,13 @@ export default class Dice {
         // check for at least one valid first roll
         let isUniqueFound = false
         for (let i = 0; i < data.rolls.length; ++i) {
-            let dice = data.rolls[i]
+            const dice = data.rolls[i]
             try {
                 Dice.checkTwo(dice)
             } catch (err) {
                 throw new InvalidRollDataError('Invalid roll found at index ' + i + ': ' + err.message, err)
             }
-            if (dice[0] != dice[1]) {
+            if (dice[0] !== dice[1]) {
                 isUniqueFound = true
             }
         }

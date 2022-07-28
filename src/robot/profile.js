@@ -127,26 +127,26 @@ export default class ProfileHelper {
 
     static defaults() {
         return {
-            outDir       : null
-          , matchTotal   : 1
-          , numMatches   : 500
-          , sortBy       : ['elapsed', 'count', 'name'].join(',')
-          , innerBorders : false
-          , interactive  : false
-          , title        : 'Profile Results'
-          , breadthTrees : false
-          , filterRegex  : null
-          , theme        : DefaultThemeName
-          , indent       : 4
-          , rollsFile    : null
-          , columns      : [
-                'name'
-              , 'elapsed'
-              , 'average'
-              , 'count'
-              , 'game'
-              //, 'match'
-              , 'turn'
+            outDir       : null,
+            matchTotal   : 1,
+            numMatches   : 500,
+            sortBy       : ['elapsed', 'count', 'name'].join(','),
+            innerBorders : false,
+            interactive  : false,
+            title        : 'Profile Results',
+            breadthTrees : false,
+            filterRegex  : null,
+            theme        : DefaultThemeName,
+            indent       : 4,
+            rollsFile    : null,
+            columns      : [
+                'name',
+                'elapsed',
+                'average',
+                'count',
+                'game',
+              //'match',
+                'turn',
             ].join(',')
         }
     }
@@ -157,12 +157,9 @@ export default class ProfileHelper {
     }
 
     async run() {
-
         const table = new Table(Columns, null, this.opts)
-
         // fail fast
         table.buildColumns().buildOpts()
-
         const {
             breadthTrees,
             filterRegex,
@@ -170,83 +167,60 @@ export default class ProfileHelper {
             numMatches,
             rollsFile,
         } = this.opts
-
         const matchOpts = {breadthTrees}
-
         if (breadthTrees) {
             this.logger.info('Using breadth trees')
         }
-
         if (rollsFile) {
             this.logger.info('Loading rolls file', path.basename(rollsFile))
             matchOpts.roller = await this.loadRollsFile(rollsFile)
         }
-
         if (filterRegex) {
             this.logger.info('Using filter', filterRegex.toString())
         }
-
         Profiler.enabled = true
         Profiler.resetAll()
-
         const summaryTimer = new Timer
         const coordinator = new Coordinator
-
         let matchCount = 0
         let gameCount  = 0
         let turnCount  = 0
-
         const players = [
             RobotDelegator.forDefaults(Colors.White),
             RobotDelegator.forDefaults(Colors.Red),
         ]
-
         try {
-
             this.logger.info('Running', numMatches, 'matches of', matchTotal, 'points each')
-
             summaryTimer.start()
-
             for (let i = 0; i < numMatches; ++i) {
-
-                let match = new Match(matchTotal, matchOpts)
-
+                const match = new Match(matchTotal, matchOpts)
                 await coordinator.runMatch(match, ...players)
-
                 matchCount += 1
                 gameCount += match.games.length
                 for (let j = 0, jlen = match.games.length; j < jlen; ++j) {
                     turnCount += match.games[j].getTurnCount()
                 }
             }
-
             summaryTimer.stop()
-
             this.logger.info('Done')
-
             const summary = {
                 elapsed : summaryTimer.elapsed,
                 matchCount,
                 gameCount,
                 turnCount,
             }
-
             table.data = this.buildData(Profiler)
             table.opts.footerLines = this.buildFooters(summary)
             table.summary = summary
-
             table.build()
-
             const helper = this.newTableHelper(this.opts)
-
             if (this.opts.interactive) {
                 await helper.interactive(table)
             } else {
                 helper.printTable(table)
             }
-
         } finally {
-            await destroyAll(players)
+            destroyAll(players)
             Profiler.resetAll()
         }
     }
@@ -266,7 +240,6 @@ export default class ProfileHelper {
         ]
         const footerTitleWidth = Math.max(...footerInfo.map(it => it[0].length))
         const footerValueWidth = Math.max(...footerInfo.map(it => it[1].length))
-
         const footerLines = footerInfo.map(([title, value]) => {
             title = title.padEnd(footerTitleWidth, ' ')
             if (value.indexOf(' ms') < 0) {

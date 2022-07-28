@@ -43,11 +43,9 @@ export default class StyleHelper {
     //          '#ffffff bright' -->  ['bgHex', '#ffffff']
     //
     static buildDefFromStyle(value, isBackground) {
-
         if (value === 'default') {
             return []
         }
-
         const [color, mod] = value.split(' ')
         const isHex        = StyleHelper.isValidHexColor(color)
 
@@ -64,23 +62,18 @@ export default class StyleHelper {
             }
             return ['bgKeyword', color]
         }
-
         const def = [isHex ? 'hex' : 'keyword', color]
         if (mod) {
             def.push(mod)
         }
-
         return def
     }
 
     // construct chalk callables, returns array [combined, fg, bg]
     static buildChalkListFromDefs(fgDef, bgDef) {
-
         let theChalk = chalk
-
         let fgChalk
         let bgChalk
-
         if (bgDef) {
             if (bgDef.length) {
                 if (bgDef.length === 1) {
@@ -104,7 +97,6 @@ export default class StyleHelper {
             }
             fgChalk = theChalk
         }
-
         return [theChalk, fgChalk, bgChalk]
     }
 

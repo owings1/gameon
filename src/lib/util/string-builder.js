@@ -35,7 +35,7 @@ export default class StringBuilder {
 
     add(...args) {
         for (let i = 0, ilen = args.length; i < ilen; ++i) {
-            let arg = args[i]
+            const arg = args[i]
             if (arg instanceof StringBuilder) {
                 this.arr.push(arg.toString())
             } else {
