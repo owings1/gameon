@@ -59,7 +59,7 @@ const Listeners = {
     },
 
     turnEnd: function(turn, game, match) {
-        if (!turn.isDoubleDeclined && turn.color == this.opponent.color) {
+        if (!turn.isDoubleDeclined && turn.color === this.opponent.color) {
             const moves = turn.moves.map(move => move.coords)
             this.holds.push(this.client.matchRequest('playRoll', {moves}))
         }
@@ -77,7 +77,7 @@ const Listeners = {
     },
 
     doubleOffered: function(turn, game, match) {
-        if (turn.color == this.opponent.color) {
+        if (turn.color === this.opponent.color) {
             this.holds.push(
                 this.client.matchRequest('turnOption', {isDouble: true})
             )
@@ -85,7 +85,7 @@ const Listeners = {
     },
 
     doubleAccepted: function(turn, game, match) {
-        if (turn.color == this.color) {
+        if (turn.color === this.color) {
             this.holds.push(
                 this.client.matchRequest('doubleResponse', {isAccept: true})
             )
@@ -93,7 +93,7 @@ const Listeners = {
     },
 
     doubleDeclined: function(turn, game, match) {
-        if (turn.color == this.color) {
+        if (turn.color === this.color) {
             this.holds.push(
                 this.client.matchRequest('doubleResponse', {isAccept: false})
             )
